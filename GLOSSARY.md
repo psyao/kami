@@ -228,3 +228,13 @@ _Avoid_: Share link, draft link
 **Trash**:
 Where a deleted Entry waits, in all its Locales, until someone restores it or deletes it for good. Visitors and reads see it as absent. The Trash is never emptied automatically.
 _Avoid_: Bin, recycle bin, archive
+
+### Performance
+
+**Page cache**:
+Stored copies of public pages, served to visitors without building the page again. A copy is never served once something it might show has changed or become visible.
+_Avoid_: Static cache, response cache, full-page cache
+
+**Content version**:
+The marker of the state of everything visitors might see, across all Sites of an installation. It changes on every edit, deploy and scheduled visibility change, and every cached page or fragment belongs to one version.
+_Avoid_: Cache generation, cache key version, revision (a revision is a saved state of one Entry)
