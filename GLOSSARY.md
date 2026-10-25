@@ -228,3 +228,13 @@ _Avoid_: Share link, draft link
 **Trash**:
 Where a deleted Entry waits, in all its Locales, until someone restores it or deletes it for good. Visitors and reads see it as absent. The Trash is never emptied automatically.
 _Avoid_: Bin, recycle bin, archive
+
+### Forms
+
+**Form**:
+A set of inputs that visitors fill in and send to the site, such as a contact form, declared by the developer in code. Its markup belongs to the site's design.
+_Avoid_: Form builder, web form
+
+**Submission**:
+What a visitor sent through a Form, kept by the site.
+_Avoid_: Message, entry (an Entry is content), response
