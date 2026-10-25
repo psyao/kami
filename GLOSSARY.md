@@ -87,6 +87,14 @@ A folder that groups Media in the library.
 A person who signs in to the admin. Users belong to the host application; Kami does not own them.
 _Avoid_: Account, member
 
+**Role**:
+A named bundle of Permissions, declared in code by the developer and given to Users in the admin. A User may hold several Roles.
+_Avoid_: Group, user type
+
+**Permission**:
+The right to perform one action, such as publishing Entries of one Content Type. Access is always checked against a Permission, never against a Role.
+_Avoid_: Capability, ability (as the domain term)
+
 **Creator** / **Last modifier**:
 The User who created an Entry, and the User who last changed it. They record who did what; they are not shown to visitors.
 _Avoid_: Owner, author (for this meaning)
