@@ -45,6 +45,22 @@ _Avoid_: Post, page, node, content item, record
 The part of an Entry that belongs to one Locale. A Translation is never an Entry of its own.
 _Avoid_: Localised entry, origin
 
+**Field**:
+One named value a Content Type declares for its Entries, such as a subtitle, a date or a gallery. Values every Entry has, such as the title, slug or status, are not Fields.
+_Avoid_: Attribute, property, custom field
+
+**Shared field**:
+A Field with one value for the whole Entry, whatever the Locale.
+_Avoid_: Untranslatable field, global field
+
+**Translatable field**:
+A Field with one value per Locale, held in each Translation.
+_Avoid_: Localised field
+
+**Content model drift**:
+A mismatch between the Content Types and Fields declared in code and what the database stores. A deploy with drift fails until a migration resolves it.
+_Avoid_: Schema drift (when meaning only this)
+
 **Parent**:
 The Entry another Entry sits under, within the same Content Type and Site.
 
