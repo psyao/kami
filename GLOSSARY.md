@@ -134,6 +134,20 @@ _Avoid_: RSS (as the domain term), syndication
 An address that sends visitors to an Entry or to another address, or tells them the content is gone for good. A Redirect to an Entry always leads to that Entry's current Path.
 _Avoid_: Redirection, alias, forward
 
+### Navigation
+
+**Menu**:
+A place in a Site's layout, such as the main navigation or the footer, declared in code by the developer with how deep it may nest, and filled by editors. One Menu holds one tree for all the Site's Locales.
+_Avoid_: Navigation (as the domain term), menu location (as a second term)
+
+**Menu item**:
+One link in a Menu, to an Entry, an Archive or an address, possibly with Menu items under it. It is shown in a Locale only while what it leads to is visible there.
+_Avoid_: Link, nav item, menu entry
+
+**Trail**:
+The Menu items leading to the current page: the item for the page itself, the items above it, and an item whose address the current page sits under.
+_Avoid_: Active (as the general word), breadcrumb (which is a separate component)
+
 ### Media
 
 **Media**:
