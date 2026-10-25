@@ -147,6 +147,31 @@ _Avoid_: Link, nav item, menu entry
 **Trail**:
 The Menu items leading to the current page: the item for the page itself, the items above it, and an item whose address the current page sits under.
 _Avoid_: Active (as the general word), breadcrumb (which is a separate component)
+### Search engines
+
+**Meta title**:
+The title search engines and shared links show for a Translation, when it should differ from the Translation's title.
+_Avoid_: SEO title, page title
+
+**Meta description**:
+The short text search engines and shared links show for a Translation. Left blank, it is the Entry's Summary.
+_Avoid_: SEO description, snippet
+
+**Social image**:
+The picture a shared link to an Entry shows, the same in every Locale.
+_Avoid_: OG image, share image, featured image
+
+**Hidden from search engines**:
+Said of a Translation that search engines are asked not to list, though visitors still see it everywhere on the Site.
+_Avoid_: Noindex (as the domain term), private
+
+**Indexable**:
+Said of an installation whose pages search engines may list. A staging copy or a site not yet launched is not indexable.
+_Avoid_: Production (as a synonym), public
+
+**Sitemap**:
+The list of every address of a Site that search engines may list, with each one's addresses in the other Locales.
+_Avoid_: Site map (as a page for visitors)
 
 ### Media
 
