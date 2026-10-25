@@ -18,6 +18,10 @@ _Avoid_: Skeleton, boilerplate, theme
 The Laravel application Kami is installed into, which owns its users, routes and admin panel.
 _Avoid_: Parent app, base app
 
+**Public API**:
+The part of the Kami package a site may rely on, kept stable across minor versions; everything else is internal and may change at any time.
+_Avoid_: Public surface (as a second term), SDK
+
 ### Sites and languages
 
 **Site**:
