@@ -134,6 +134,32 @@ _Avoid_: RSS (as the domain term), syndication
 An address that sends visitors to an Entry or to another address, or tells them the content is gone for good. A Redirect to an Entry always leads to that Entry's current Path.
 _Avoid_: Redirection, alias, forward
 
+### Search engines
+
+**Meta title**:
+The title search engines and shared links show for a Translation, when it should differ from the Translation's title.
+_Avoid_: SEO title, page title
+
+**Meta description**:
+The short text search engines and shared links show for a Translation. Left blank, it is the Entry's Summary.
+_Avoid_: SEO description, snippet
+
+**Social image**:
+The picture a shared link to an Entry shows, the same in every Locale.
+_Avoid_: OG image, share image, featured image
+
+**Hidden from search engines**:
+Said of a Translation that search engines are asked not to list, though visitors still see it everywhere on the Site.
+_Avoid_: Noindex (as the domain term), private
+
+**Indexable**:
+Said of an installation whose pages search engines may list. A staging copy or a site not yet launched is not indexable.
+_Avoid_: Production (as a synonym), public
+
+**Sitemap**:
+The list of every address of a Site that search engines may list, with each one's addresses in the other Locales.
+_Avoid_: Site map (as a page for visitors)
+
 ### Media
 
 **Media**:
