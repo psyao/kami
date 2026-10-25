@@ -267,7 +267,7 @@ Measured by Steve on the aguet.dev site, PHP 8.5.12: CLI over SSH (`/opt/php8.5/
 | `max_execution_time` | **60 s** | 0 (unlimited) | The web scheduler's time budget is under 60 s by default (raisable to 300 s in the Manager, `mut` §9.1). Imports and media batches belong to the CLI |
 | `memory_limit` | 640M | 1024M | |
 | `upload_max_filesize` / `post_max_size` | 300M / 300M; `max_file_uploads` 100; `max_input_time` 0 | same | Chunked uploads are not needed below 300 MB |
-| OPcache | loaded, **disabled** (`opcache.enable` Off) | disabled | Every web request recompiles Laravel and Filament. Large effect on TTFB; whether the Manager can turn it on is to check. `opcache.enable` cannot be switched on from `.user.ini` |
+| OPcache | loaded, **disabled** (`opcache.enable` Off) | disabled | Every web request recompiles Laravel and Filament. Large effect on TTFB. `opcache.enable` cannot be switched on from `.user.ini`, and Infomaniak documents ZendOPCache as requiring a Cloud Server ([FAQ 130](https://www.infomaniak.com/fr/support/faq/130/utiliser-zend-guard-loader-ex-zend-optimizer); `PHP_OPcache` is in the Cloud-only Fast Installer, [FAQ 877](https://www.infomaniak.com/en/support/faq/877/install-a-php-appextension-on-a-cloud-server)): on shared hosting, Kami's budgets assume OPcache off |
 | Extensions | `intl` (ICU 67.1), `gd`, `imagick` 3.8.1, `exif`, `fileinfo`, `pcntl`, `posix`, `sodium`, `zip`, `bcmath`, `mbstring`, `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `sqlite3`, `mongodb`, `excimer` | same list | Filament's `intl` is there |
 | GD formats | WebP yes, **AVIF no** (bundled GD 2.1.0) | same | AVIF needs the Imagick driver: detection per driver is required |
 | Imagick | ImageMagick **6.9.11-60 (2021)**, Q16, single-threaded; AVIF, HEIC, WebP listed | same | AVIF encoding through a 2021 ImageMagick 6 is untested: try it before relying on it |
@@ -283,6 +283,5 @@ Measured by Steve on the aguet.dev site, PHP 8.5.12: CLI over SSH (`/opt/php8.5/
 
 | Fact | Why it matters | How to measure |
 | --- | --- | --- |
-| Can OPcache be enabled for the site? | TTFB budget | No control in the Manager: "PHP / Apache" has none, and "Extensions PHP" is a read-only list of the 66 loaded extensions (Zend OPcache among them, while phpinfo shows `opcache.enable` Off). Ask Infomaniak support |
 | Does `max_execution_time` keep counting after `fastcgi_finish_request`? | Budget of visit-triggered scheduling | A test route on staging |
 | Task planner: HTTP method, timeout, clock alignment | Web scheduler budget and "overdue" logic | A logging endpoint called by the planner for a few runs |
