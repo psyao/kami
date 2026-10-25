@@ -194,3 +194,33 @@ _Avoid_: Cron run, heartbeat, scheduler run
 **Tick trigger**:
 What starts a Tick: the server's cron, the hosting provider's call to a secret URL, or a visit to the site or the admin.
 _Avoid_: Scheduler mode
+
+### Publication
+
+**Draft**:
+A Translation that visitors cannot see, whatever its publication date. Unpublishing turns a Translation back into a Draft and keeps its date.
+_Avoid_: Unpublished (as a state), hidden, private
+
+**Published**:
+Said of a Translation that visitors can see: an editor published it and its publication date has passed.
+_Avoid_: Live, online, active
+
+**Scheduled**:
+Said of a Translation an editor published with a publication date still to come. It becomes Published at that moment by itself, with nothing run.
+_Avoid_: Pending, queued
+
+**Publication date**:
+The moment a Translation becomes visible, also shown to visitors as its date.
+_Avoid_: Post date, go-live date (as a second date)
+
+**Preview**:
+A Translation shown as visitors would see it, including changes not yet saved, to a User of the admin. Only the User who opened it can see it.
+_Avoid_: Live preview (Kami's preview refreshes on demand)
+
+**Preview link**:
+A secret address, valid for a limited time and revocable, that shows the saved state of one Translation, Drafts and Scheduled ones included, to someone without an account.
+_Avoid_: Share link, draft link
+
+**Trash**:
+Where a deleted Entry waits, in all its Locales, until someone restores it or deletes it for good. Visitors and reads see it as absent. The Trash is never emptied automatically.
+_Avoid_: Bin, recycle bin, archive
