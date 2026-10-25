@@ -1,0 +1,24 @@
+# Menus are declared in code, with one tree of items per Site across Locales
+
+A Menu is a place in the layout, so it is declared in code: `config/kami.php` lists handles with a `depth` of 1 to 3 (1 by default), and `lang/*/kami-menus.php` gives each one the label used in the admin and as the `<nav>`'s `aria-label`. There is no `kami_menus` table. Items live in `kami_menu_items(id, site, menu, parent_id, position, entry_id, archive, url, label, new_tab)` and carry `site` and `menu` themselves, so this amends ADR 0004's sentence that Menu items inherit the site of a parent row. Declarations hold for every Site; items belong to one. A handle removed from the config keeps its items, unseen until it is declared again.
+
+One Menu holds one tree for all the Site's Locales, as in Velox. An item leads to an Entry (`entry_id`), an Archive (`archive`, a Content Type handle) or an address (`url`, allow-listed: `https://`, `http://`, `/…` but not `//…`, `#…`, `mailto:`, `tel:`). `label` and `url` are opaque `json` columns keyed by Locale code (ADR 0006: SQL never reads into them), so adding a Locale needs no migration. A missing label falls back to the target's title in that Locale, never to another Locale's label. A missing `url` falls back to the default Locale's. An item is hidden, with everything under it, in a Locale where its target is not visible, or where an address item has no label.
+
+The Trail is computed from paths, not from parentage. `isCurrent` is true when the item's address is the current page (same host and path, query string ignored). `inTrail` is true when an item under it is current, or when the current path sits under the item's path segment by segment. Home and Locale homes (`/`, `/en`), other hosts, `#…`, `mailto:` and `tel:` never match by prefix, and nothing is current in a Preview. That one rule covers an Entry's ancestors, an Archive's Entries and steve-et-aline.ch's case: a Gallery at `/photos/mariage` marks the « Photos » Page at `/photos`, which is not its Parent. Velox had no such marking, and the site compared URL prefixes in its layout.
+
+## Considered options
+
+- **A `kami_menus(id, site, handle)` table synced by `kami:install`.** It would follow ADR 0004 to the letter and give items a foreign key, but it adds a sync step and a table for a handle that already lives in code. Rejected for simplicity (principle 6).
+- **One tree per Locale.** Each language could differ freely, but every Menu would be rebuilt per Locale, and an Entry item would be picked once per Locale. No reference site needs it.
+- **A `kami_menu_item_translations` table for labels and URLs.** Two short strings that are never queried do not need a table and a join.
+- **Trail by parentage** (the target's `parent_id` chain, plus the current Entry's type for Archive items). It misses the only real case, steve-et-aline.ch's Galleries, which sit under the Photos Page's path but not under the Page itself.
+
+## Consequences
+
+- `entry_id` is a foreign key with `RESTRICT`. A trashed target hides its items until it is restored (ADR 0019). `DeleteEntry` removes the target's items before the hard delete, moving their children up one level, and its confirmation names the Menus that lose a link. Nothing else can leave a dangling target or drop a subtree silently through `CASCADE`.
+- Writes go through public core actions (ADR 0011), used by the admin, seeders and imports alike: `SaveMenuItem` (target, address, depth, and no parent from another Menu or from the item's own subtree), `MoveMenuItem` and `DeleteMenuItem` (children move up one level, in one transaction). One Permission, `kami.menus.manage`, covers every Menu (ADR 0014).
+- `Kami::menu('primary')` returns the visible tree as `final readonly` `MenuLink` values (`label`, `url`, `newTab`, `children`, `isCurrent`, `inTrail`), built once per request and Locale in about three queries, with no cache of its own. Items deeper than the declared `depth` are left out, so lowering it never breaks a view. `url` is nullable from the MVP on, so label-only items, which come with V1's extensible item types, break no site view.
+- `<x-kami::menu handle="primary" />` (ADR 0009) renders `<nav aria-label>` and nested `<ul>`s with `kami-menu*` classes, `aria-current="page"` on the current item, `aria-current="true"` on the rest of the Trail, and `rel="noopener"` on new tabs. It ships no dropdown and no JS: that behaviour is the site's.
+- Every Menu item write makes the whole page cache stale, since every page shows the Menus ("Cache, invalidation and performance budget").
+- The admin shows one Menu at a time as a native Filament table: the whole tree in tree order, indented by level, with Parent and position changed in the form or by up and down actions. There is no drag-and-drop and no tree plugin (ADR 0023).
+- Shared hosting and server behave the same: reads are a few indexed queries in the request, and writes touch nothing but the database.

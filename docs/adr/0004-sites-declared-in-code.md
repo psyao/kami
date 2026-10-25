@@ -7,9 +7,9 @@ A Site and a Locale are orthogonal: a Site has one or more Locales and a default
 The rows that carry `site`:
 - `kami_entries`, so Terms, Singletons and Global Sets too;
 - `kami_media` and `kami_media_folders`;
-- Menus, Redirects, any URL table, and form submissions.
+- Menu items, Redirects, any URL table, and form submissions.
 
-Every uniqueness constraint includes `site`. Translations, References, revisions and Menu items inherit the site of their parent row and carry no column. Users, roles and the audit log are per installation. In the MVP, an Entry references, parents and lists only content from its own Site.
+Every uniqueness constraint includes `site`. Translations, References and revisions inherit the site of their parent row and carry no column. Menus are declared in code with no table, so Menu items carry `site` themselves (ADR 0025). Users, roles and the audit log are per installation. In the MVP, an Entry references, parents and lists only content from its own Site.
 
 ## Considered options
 
