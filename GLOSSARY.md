@@ -150,3 +150,21 @@ _Avoid_: Owner, author (for this meaning)
 **Byline**:
 The people credited publicly for an Entry. A Byline points at Entries of a Content Type the site declares (for example a Person), not at Users, so a credited person needs no account.
 _Avoid_: Author (as a core concept)
+
+### Scheduling
+
+**Scheduled task**:
+A piece of housekeeping that runs on a schedule, such as pruning stale Conversions. Nothing visitors see ever waits on one.
+_Avoid_: Cron job, job (a job is a unit of queued work)
+
+**Overdue**:
+Said of a Scheduled task when one of its due times has passed since it last ran. Several missed due times make it overdue once, not several times.
+_Avoid_: Due (which suggests the current minute must match)
+
+**Tick**:
+One pass of the scheduler: it runs every overdue Scheduled task, then works through queued jobs, within a time budget.
+_Avoid_: Cron run, heartbeat, scheduler run
+
+**Tick trigger**:
+What starts a Tick: the server's cron, the hosting provider's call to a secret URL, or a visit to the site or the admin.
+_Avoid_: Scheduler mode
