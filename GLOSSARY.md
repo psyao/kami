@@ -99,7 +99,23 @@ A file in a Site's library, with its descriptive metadata. A picture that needs 
 _Avoid_: Asset, attachment, upload, file (as the domain term)
 
 **Media Folder**:
-A folder that groups Media in the library.
+A folder that groups Media in the library. A Media item sits in at most one folder, and moving it never changes its URL.
+
+**Image Preset**:
+A named way to show images, declared in code by the developer: an optional aspect ratio, the widths offered, and the default display sizes.
+_Avoid_: Variant, size, style, transformation
+
+**Conversion**:
+One file derived from an image Media item for one Image Preset, at one width and in one format. Visitors only ever receive Conversions, never the original image.
+_Avoid_: Variant, thumbnail (as the general word), derivative
+
+**Focal point**:
+The point of an image that must stay visible when an Image Preset crops it. It belongs to the Media item, whatever the Locale.
+_Avoid_: Crop, hotspot
+
+**Alt text**:
+The text that replaces an image for people who cannot see it, written per Locale on the Media item. A decorative image intentionally has none.
+_Avoid_: Alt tag, description, caption
 
 ### People
 
