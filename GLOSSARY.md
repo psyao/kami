@@ -65,6 +65,10 @@ _Avoid_: Field kind, widget
 A reusable piece of non-text content, such as an image, a gallery or a video, that editors insert inside a rich text Field. Declared in code with its own Fields and view. Anything in rich text that is not formatted text or a link is a Block.
 _Avoid_: Component, shortcode, widget
 
+**Summary**:
+A short plain text that stands for an Entry in listings and feeds. Each Content Type decides where it comes from; by default it is the start of the Entry's rich text, with Blocks left out.
+_Avoid_: Excerpt (the field name some sites use), teaser, abstract
+
 **Shared field**:
 A Field with one value for the whole Entry, whatever the Locale.
 _Avoid_: Untranslatable field, global field
@@ -117,6 +121,10 @@ _Avoid_: Base path, slug prefix
 **Archive**:
 The page listing the published Entries of a Content Type at its Prefix, or the Entries that reference a Term at that Term's Path.
 _Avoid_: Index, listing, collection page
+
+**Feed**:
+An RSS address listing the latest published Entries of the Content Types that offer one, for the whole Site or for one Content Type, in one Locale.
+_Avoid_: RSS (as the domain term), syndication
 
 **Redirect**:
 An address that sends visitors to an Entry or to another address, or tells them the content is gone for good. A Redirect to an Entry always leads to that Entry's current Path.
