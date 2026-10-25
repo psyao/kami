@@ -46,8 +46,12 @@ One piece of content of a Content Type, in all its Locales at once. It is the si
 _Avoid_: Post, page, node, content item, record
 
 **Translation**:
-The part of an Entry that belongs to one Locale. A Translation is never an Entry of its own.
+The part of an Entry that belongs to one Locale, with its own title, slug and publication. An Entry is visible in a Locale only through a published Translation there. A Translation is never an Entry of its own.
 _Avoid_: Localised entry, origin
+
+**Fallback**:
+The value a blank Translatable field shows, taken from the Site's default Locale when that Translation is published.
+_Avoid_: Default value (a Field's declared default is another thing)
 
 **Field**:
 One named value a Content Type declares for its Entries, such as a subtitle, a date or a gallery. Values every Entry has, such as the title, slug or status, are not Fields.
