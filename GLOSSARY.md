@@ -104,6 +104,24 @@ _Avoid_: Globals, settings page, options
 A link from an Entry to another Entry or to a Media item, made through a field or inside rich text. References answer "what uses this?".
 _Avoid_: Relation (for the stored link), pick, attachment
 
+### URLs
+
+**Path**:
+The address of an Entry within a Site and one Locale, built from its Content Type's Prefix, its ancestors' slugs and its own slug. A Path that has been public keeps answering after it changes, as a Redirect.
+_Avoid_: Permalink, route, slug (when meaning the whole address)
+
+**Prefix**:
+The fixed start, declared in code, of every Path of a Content Type, such as `articles`. A Singleton's Path is its Prefix.
+_Avoid_: Base path, slug prefix
+
+**Archive**:
+The page listing the published Entries of a Content Type at its Prefix, or the Entries that reference a Term at that Term's Path.
+_Avoid_: Index, listing, collection page
+
+**Redirect**:
+An address that sends visitors to an Entry or to another address, or tells them the content is gone for good. A Redirect to an Entry always leads to that Entry's current Path.
+_Avoid_: Redirection, alias, forward
+
 ### Media
 
 **Media**:

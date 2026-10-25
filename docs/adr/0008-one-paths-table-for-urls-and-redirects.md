@@ -1,0 +1,20 @@
+# Current URLs and Redirects share one paths table, unique per Site and Locale
+
+Every address Kami answers lives in one table, `kami_paths(id, site, locale, path, entry_id, target, status)`, with a unique key on `(site, locale, path)`. A row is either the current Path of a Translation (`status` 200, `entry_id` set) or a Redirect: 301 or 302 to an Entry (`entry_id`) or to a free `target` (an internal path or an absolute URL), or 410 with no target. The stored `path` is complete (Prefix, ancestors' slugs, slug) and leaves out the Locale segment. Resolving a request is one indexed read, and the database alone guarantees that an address is never both live and redirected, Site included. A Redirect to an Entry sends visitors to that Entry's current URL at request time, so Redirects never chain.
+
+This departs from Velox ADR 0006, which stored the path on the Entry and redirects in a second table. There, uniqueness was a PHP check with row locks (Velox I-243), no row carried a site key, and a new path had to clear a matching redirect across tables. Kami's Translations carry no `site` column (ADR 0004), so a path on `kami_translations` could not be made unique per Site in the database either.
+
+## Considered options
+
+- **Path on the Translation, plus a `kami_redirects` table.** One table fewer to explain, but uniqueness per Site and the live-versus-redirected rule become PHP checks under locks: the Velox race again. Rejected for stability (principle 5).
+- **Resolution at request time** (Prefix → Content Type → slug, then walk up the parents). No derived data, but several queries per page, ambiguity between types that share the root (Pages and the Home Singleton), and no way to promise that a changed URL keeps answering without pattern redirects. Rejected for stability and performance.
+
+## Consequences
+
+- **Derived rows and primary rows.** The 200 rows are derived from Translations and declarations, so they can be rebuilt. Redirects are primary data. An untranslatable type's `'*'` Translation gets one 200 row per declared Locale, which keeps uniqueness in the database. The `kami:install` step `SyncPaths` compares expected and stored 200 rows in batches. It rewrites them after a Prefix change or a new Locale, and prints a summary. `kami:doctor` reports drift until the next deploy.
+- **Paths are reserved at save, drafts included.** Visibility is decided at read time (ADR 0012), so scheduled publishing needs no task. A change of slug, parent or Prefix turns the old row into a 301 to the Entry only when the Translation was published at least once. A never-public path is rewritten in place. A hierarchical Entry's descendants are rewritten in the same transaction. A new path that lands on a Redirect replaces it.
+- **Canonical form.** Stored paths and Redirect sources have no trailing slash, are lowercase, and are percent-decoded and NFC-normalised. `path` is a `varchar(500)`, which fits the unique index limits of MySQL utf8mb4 and PostgreSQL. A request gets at most one 301, always to its final destination. An unknown path answers 404 directly, with no canonical 301 first (departure from Velox P13).
+- **Query strings.** A Redirect source may carry a normalised query string (`?p=123`), or a key alone (`?p`) that matches any value. A request with a query string resolves in one `WHERE path IN (…)` query, and the most specific row wins. Unknown parameters are ignored. WordPress's `?p=`, `?feed=` and NextGEN's `?album=` move out of site code into Redirect rows.
+- **Deleting an Entry.** `entry_id` is `RESTRICT`. `DeleteEntry` first turns the Entry's rows into Redirects to a replacement the editor picks, or into 410 by default, so a Redirect to an Entry never falls silently to a 404. A trashed Entry keeps its rows and answers 404 until it is restored or deleted.
+- **Pattern redirects** (`/page/{N}`) stay plain Laravel routes in site code. `kami_paths` holds exact addresses only.
+- **Shared hosting and server** behave the same: one indexed read per request, and `SyncPaths` runs in the deploy over the CLI, never in a web request.
