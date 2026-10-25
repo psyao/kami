@@ -53,6 +53,14 @@ _Avoid_: Localised entry, origin
 One named value a Content Type declares for its Entries, such as a subtitle, a date or a gallery. Values every Entry has, such as the title, slug or status, are not Fields.
 _Avoid_: Attribute, property, custom field
 
+**Field type**:
+The class a Field is made from, such as Text, Boolean or Terms. It fixes the Field's column, validation and default scope. Kami ships a set; a site may add its own.
+_Avoid_: Field kind, widget
+
+**Block**:
+A reusable piece of non-text content, such as a gallery or a video, that editors insert inside a rich text Field. Declared in code with its own Fields and view.
+_Avoid_: Component, shortcode, widget
+
 **Shared field**:
 A Field with one value for the whole Entry, whatever the Locale.
 _Avoid_: Untranslatable field, global field
