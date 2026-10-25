@@ -35,6 +35,10 @@ _Avoid_: Language site, translation site
 **Display time zone**:
 The time zone a Site shows dates in. Dates are always kept in UTC.
 
+**Admin language**:
+The language the admin's interface is shown in to Users. It is not a Locale: a Site may publish in languages the admin is never shown in.
+_Avoid_: Admin locale, interface locale
+
 ### Content
 
 **Content Type**:
