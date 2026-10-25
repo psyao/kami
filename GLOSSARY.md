@@ -147,6 +147,7 @@ _Avoid_: Link, nav item, menu entry
 **Trail**:
 The Menu items leading to the current page: the item for the page itself, the items above it, and an item whose address the current page sits under.
 _Avoid_: Active (as the general word), breadcrumb (which is a separate component)
+
 ### Search engines
 
 **Meta title**:
@@ -277,6 +278,7 @@ _Avoid_: Form builder, web form
 **Submission**:
 What a visitor sent through a Form, kept by the site.
 _Avoid_: Message, entry (an Entry is content), response
+
 ### Performance
 
 **Page cache**:
