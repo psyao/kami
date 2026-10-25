@@ -17,3 +17,80 @@ _Avoid_: Skeleton, boilerplate, theme
 **Host application**:
 The Laravel application Kami is installed into, which owns its users, routes and admin panel.
 _Avoid_: Parent app, base app
+
+### Sites and languages
+
+**Site**:
+One public website served by an installation, declared in code with its URL, its Locales and its display time zone. An installation serves one Site in the MVP; several later.
+_Avoid_: Tenant, domain, channel
+
+**Locale**:
+A language a Site publishes in. A Site has one or more Locales and one default Locale; a Locale is never a Site of its own.
+_Avoid_: Language site, translation site
+
+**Display time zone**:
+The time zone a Site shows dates in. Dates are always kept in UTC.
+
+### Content
+
+**Content Type**:
+A kind of content declared in code by the developer: its fields, behaviour and whether it is routable, hierarchical or ordered by hand.
+_Avoid_: Blueprint, collection, post type
+
+**Entry**:
+One piece of content of a Content Type, in all its Locales at once. It is the single thing that URLs, menus, references and revisions point at.
+_Avoid_: Post, page, node, content item, record
+
+**Translation**:
+The part of an Entry that belongs to one Locale. A Translation is never an Entry of its own.
+_Avoid_: Localised entry, origin
+
+**Parent**:
+The Entry another Entry sits under, within the same Content Type and Site.
+
+**Position**:
+An Entry's hand-set place among its siblings, for Content Types ordered by hand.
+_Avoid_: Sort, weight, order
+
+**Taxonomy**:
+A Content Type whose Entries classify other Entries, such as categories or tags.
+_Avoid_: Vocabulary
+
+**Term**:
+An Entry of a Taxonomy.
+_Avoid_: Tag (as the general word), category (as the general word)
+
+**Singleton**:
+A Content Type that has exactly one Entry per Site, such as a home page.
+_Avoid_: Single, page type
+
+**Global Set**:
+A Singleton with no URL, holding values shown across the Site, such as footer details. The Site's own editable settings are a Global Set.
+_Avoid_: Globals, settings page, options
+
+**Reference**:
+A link from an Entry to another Entry or to a Media item, made through a field or inside rich text. References answer "what uses this?".
+_Avoid_: Relation (for the stored link), pick, attachment
+
+### Media
+
+**Media**:
+A file in a Site's library, with its descriptive metadata. A picture that needs its own page is an Entry that references a Media item, not a Media item alone.
+_Avoid_: Asset, attachment, upload, file (as the domain term)
+
+**Media Folder**:
+A folder that groups Media in the library.
+
+### People
+
+**User**:
+A person who signs in to the admin. Users belong to the host application; Kami does not own them.
+_Avoid_: Account, member
+
+**Creator** / **Last modifier**:
+The User who created an Entry, and the User who last changed it. They record who did what; they are not shown to visitors.
+_Avoid_: Owner, author (for this meaning)
+
+**Byline**:
+The people credited publicly for an Entry. A Byline points at Entries of a Content Type the site declares (for example a Person), not at Users, so a credited person needs no account.
+_Avoid_: Author (as a core concept)
