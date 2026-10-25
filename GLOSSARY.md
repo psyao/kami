@@ -62,7 +62,7 @@ The class a Field is made from, such as Text, Boolean or Terms. It fixes the Fie
 _Avoid_: Field kind, widget
 
 **Block**:
-A reusable piece of non-text content, such as a gallery or a video, that editors insert inside a rich text Field. Declared in code with its own Fields and view.
+A reusable piece of non-text content, such as an image, a gallery or a video, that editors insert inside a rich text Field. Declared in code with its own Fields and view. Anything in rich text that is not formatted text or a link is a Block.
 _Avoid_: Component, shortcode, widget
 
 **Shared field**:
