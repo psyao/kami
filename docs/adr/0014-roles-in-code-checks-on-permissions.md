@@ -47,8 +47,8 @@ The starter kit declares two Roles: `administrator` (`kami.*`) and `editor`. The
   - `forceDelete`/`forceDeleteAny` → `force-delete`.
 
   So Kami works whether the host enables `strictAuthorization()` or not. Kami's tests run with strict authorization on. The starter kit's `AdminPanelProvider` enables it, so a site Resource without a policy fails loudly instead of opening, and `kami:doctor` warns when the panel carrying `KamiPlugin` lacks it.
-- A User with no Role sees nothing of Kami. The starter kit's `User::canAccessPanel()` returns true only for a User holding a Kami Role, and `kami:doctor` warns when a User with no Role would pass it (Velox friction A4).
-- The host's User model implements `KamiUser` with the `HasKamiRoles` trait. `kami:install` fails until the model of the panel's guard does.
+- A User with no Role sees nothing of Kami. The starter kit's `User::canAccessPanel()` returns true only for a User holding a Kami Role, and `kami:doctor` reports, as information rather than a warning, how many Users with no Role would pass it (Velox friction A4). In a host application, those are often the host's own staff (kawaiidream.net's moderators), and they legitimately see nothing of Kami.
+- The host's User model implements `KamiUser` with the `HasKamiRoles` trait. `kami:install` fails until the model of the panel's guard does. In the MVP, `HasKamiRoles` is the only supported implementation. A host cannot map its own roles (an enum column, SSO groups) onto Kami Roles. Because the interface and the trait change together, a host Role source can still arrive in V1 without breaking anyone.
 - `kami:doctor` reports assignments whose Role handle is not declared.
 - Ownership (rights limited to Entries a User created) is V1. `created_by` already exists and every Policy receives the Entry, so adding an "own" rule changes neither the schema nor the API.
 - Roles edited in the admin are V1. A second Role source merged into the same registry changes neither `kami_role_user` nor any check.

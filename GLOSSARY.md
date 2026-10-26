@@ -210,7 +210,7 @@ _Avoid_: Alt tag, description, caption
 ### People
 
 **User**:
-A person who signs in to the admin. Users belong to the host application; Kami does not own them.
+A person who signs in to the admin. Users belong to the host application; Kami does not own them. People who only sign in to the host's own pages, such as a community's members, are not Users to Kami unless they hold a Role.
 _Avoid_: Account, member
 
 **Role**:
