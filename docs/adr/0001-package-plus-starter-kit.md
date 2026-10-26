@@ -30,7 +30,7 @@ Inside a host application, Kami registers nothing global unless the host opts in
 - One command, `kami:install`, serves both first install and every later deploy, and there is no `kami:upgrade`. The command is idempotent and safe in CI. In order, it:
   1. runs the blocking `kami:doctor` checks;
   2. runs `migrate --force`;
-  3. runs Kami's idempotent seeds;
+  3. creates, for every declared Site, the Entry of each Singleton and Global Set that is missing (no demo content, ever);
   4. publishes Filament assets;
   5. fails the deploy, with a non-zero exit code, on content model drift;
   6. clears Kami's caches;
