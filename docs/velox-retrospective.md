@@ -256,7 +256,7 @@ Proposed for the roadmap: **aguet.dev first** as the thinnest vertical slice (si
 
 Facts the design depends on that no documentation gives (`mut` marks them "not documented").
 
-### 5.1 Measured on aguet.dev's host (2026-10-25)
+### 5.1 Measured on aguet.dev's host (2026-10-25, 2026-10-26)
 
 Measured by Steve on the aguet.dev site, PHP 8.5.12: CLI over SSH (`/opt/php8.5/bin/php -m`, `-i`, `-r`, `php artisan db:show`, `which node`) and web through a temporary `phpinfo()` page. Values are those of this site's configuration; another site of the same account may differ.
 
@@ -279,9 +279,34 @@ Measured by Steve on the aguet.dev site, PHP 8.5.12: CLI over SSH (`/opt/php8.5/
 | Manager, "PHP / Apache" tab | memory 640 MB, time 60 s (a 60-minute unlock exists), upload 300 MB, `max_input_vars` 10000, Set time limit **on**, `exec`/`proc_open` group **off**, `mail` **off**, `allow_url_fopen` **off**, file compression off, auto-prepend file field | | Matches phpinfo except `allow_url_fopen`, which phpinfo reports On: the toggle and the effective value disagree. Kami must not rely on `allow_url_fopen` (Laravel's HTTP client uses curl). No OPcache control on this tab |
 | Response compression (`curl`, read-only) | HTML gzip (33.4 KB → 8.5 KB), `/build/*` gzip with `immutable` caching; no Brotli | | Apache compresses despite the Manager's "file compression" toggle being off |
 
+#### Probes of 2026-10-26
+
+Run by Steve on aguet.dev ([#34](https://github.com/psyao/kami/issues/34)) through a temporary token-protected script, adapted from the execution modes matrix research (§4-§5, branch `research/execution-modes-matrix`), and five task planner tasks. Times are UTC; the script, its log and the tasks were deleted afterwards.
+
+| Fact | Measured | Consequence |
+| --- | --- | --- |
+| Execution timer after `fastcgi_finish_request()` | The FPM build is NTS (`PHP_ZTS` 0), so the timer counts CPU time. A CPU loop after `fastcgi_finish_request()` died at 60 s of CPU with "Maximum execution time of 60 seconds exceeded". A `sleep()` loop ran 130 s, then 600 s, with no CPU and a clean shutdown. The client had its response in 0.08-0.13 s | The limit keeps counting after the response, as php-src says, but only CPU: waiting on the database, SMTP or HTTP costs nothing. Nothing in the host stops work after the response for at least 600 s, so the visit Tick's 10 s budget (ADR 0020) is enforced by Kami and by its own network timeouts, never by the host. A stuck deferred callback holds one of the 20 FPM workers |
+| Wall-clock kill of an unanswered request | A request that waits without answering is killed between 120 and 125 s of wall time, with no PHP shutdown; Apache answers with its own `503 Service unavailable!` page. Not engaged after `fastcgi_finish_request()` (row above) | Matches FPM's `request_terminate_timeout` without `request_terminate_timeout_track_finished`. 120 s is the ceiling of any web request still open, whatever `max_execution_time` or `set_time_limit()` say. The web Tick's 40 s budget stays well below |
+| Planner request | `GET`, user agent `Cronjob`, from an internal address (`10.4.23.29`) with `X-Forwarded-Proto: https`, no body. Manual runs add `Cache-Control: no-cache, no-store` | The tick route's `GET` is the method used |
+| Planner timeout | A request silent for 50 s was recorded `200`. One silent for 600 s was recorded with Apache's `503` page, sent at about 120 s, so the planner was still waiting then | Above 120 s; this host cuts the request before the planner gives up. The web Tick's default budget, `min(max_execution_time − 15 s, 40 s)` (ADR 0020), stands |
+| Planner results and alerts | Any status outside 2xx is flagged in the run log (404, 409, 500 and 503 seen). A `500` sent the alert e-mail of the "errors only" mode, quoting the full URL, token included, and the whole response, headers and body. Notifications go to any addresses, for every run or for errors only | `500 FAILED` reaches the site owner, as ADR 0020 expects. The response body lands in a mailbox: it names the failing tasks, never a trace or a path. The tick token is in that mailbox too |
+| Overlap | A manual run started while the same task was still running was recorded `409`, and the request never reached PHP | The planner never overlaps a task with itself; `Cache::lock('kami:tick')` still guards the Tick across triggers |
+| Password option | "Cette URL est protégée par un mot de passe" takes a user and a password, Basic by default, Digest as an option. Basic credentials are sent on the first request, before any challenge | A site may add Basic auth in front of the tick route; Kami's token does not need it |
+| Run log | Columns scheduled, executed and HTTP response; the time shown is the end of the run (a 50 s run started at 22:27:47 is listed at 22:28:37, shown in local time) | Reading start times from the Manager needs that correction |
+| Clock alignment | Runs are aligned on the wall clock, not on the creation time: the 15-minute tasks started at :15, :30, :45 and :00 and the hourly task at :00, each between 3.8 and 12.9 s after the slot, with no slot missed (one hour of runs, 22:15-23:00). Tasks due in the same slot start one after another over a few seconds; the run log of the account's other sites at midnight spreads over a minute, run time included. Steve has seen runs end three minutes or more after their slot, run time included | A slot can start late by seconds or, on a loaded host, minutes, so a minute-matching `schedule:run` may miss `hourly()`. ADR 0020's overdue rule runs it anyway |
+
+#### Other checks (2026-10-26)
+
+| Check | Result | Consequence |
+| --- | --- | --- |
+| Read-only MariaDB user | The Manager creates one | The WordPress Switch-over reads the live database through it and drops it at step 6 ([#35](https://github.com/psyao/kami/issues/35)) |
+| Another site's files from the Kami site's SSH | Readable: the shared SSH account lists `~/sites/<steve-et-aline.ch>/wp-content/gallery` | `Import::media()` reads the NextGEN originals in place, with no 720 MB transfer |
+| Document root and PHP version of an existing site | Both change in the Manager without recreating the site | The folder-repoint Switch-over of #35 and #28 works as designed |
+| steve-et-aline.ch DNS | Cloudflare, like psyao.ch | |
+| kawaiidream.net PHP | 8.2.35 | Must move to PHP 8.5, Kami's floor, before Kami joins it ([#33](https://github.com/psyao/kami/issues/33)) |
+
 ### 5.2 Still open
 
 | Fact | Why it matters | How to measure |
 | --- | --- | --- |
-| Does `max_execution_time` keep counting after `fastcgi_finish_request`? | Budget of visit-triggered scheduling | A test route on staging |
-| Task planner: HTTP method, timeout, clock alignment | Web scheduler budget and "overdue" logic | A logging endpoint called by the planner for a few runs |
+| "KAMI" trademark covering software (classes 9 and 42) | A conflicting mark would force a rename once the package is installed elsewhere; MIT settles the licence, not the name (ADR 0034) | Swissreg, EUIPO and WIPO Madrid Monitor, before Kami is registered on Packagist at 0.1.0 (end of M1) |
