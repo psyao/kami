@@ -22,6 +22,14 @@ _Avoid_: Parent app, base app
 The part of the Kami package a site may rely on, kept stable across minor versions; everything else is internal and may change at any time.
 _Avoid_: Public surface (as a second term), SDK
 
+**Extension point**:
+A part of the Public API that a site may build on rather than only call: a class it extends, a list it registers into, or a Content event it listens to. Their number is kept small on purpose.
+_Avoid_: Plugin API, hook (as the general word)
+
+**Content event**:
+A notice sent once a change to content, Media, Redirects, Menus or Submissions is saved, which site code may react to. It never alters or stops the change.
+_Avoid_: Hook, filter, signal, observer
+
 ### Sites and languages
 
 **Site**:
