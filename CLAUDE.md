@@ -27,7 +27,7 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 - Project state lives in the repo and the tracker (research notes, map, ADRs, glossary, roadmap), so any session can resume after a long pause.
 - Ask blocking questions one at a time, each with a default recommendation. Stop after every deliverable that needs validation.
 - Be concrete: class, table and Artisan command names.
-- Departing from Velox on a structural point: say so in one sentence with the reason.
+- Velox is evidence, not a default: cite it as evidence (question, evidence, alternatives); a decision that departs from it on a structural point says so in one sentence with the reason.
 - No application code until the architecture and the first spec are validated.
 
 ## Code conventions
