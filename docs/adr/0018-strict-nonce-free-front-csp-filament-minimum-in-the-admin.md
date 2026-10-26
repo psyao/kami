@@ -12,7 +12,7 @@ object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none';
 upgrade-insecure-requests
 ```
 
-No nonce means a cached page stays a static file (ADR 0009). A site extends the policy through an additive array in `config/kami.php`. The array is merged with the defaults and never replaces them, and it applies to the whole installation, not per route. A route that needs Livewire or Alpine forces the site to add `'unsafe-eval'` everywhere, and `kami:doctor` reports it. That trades flexibility for one policy that a reader can check in one place (principle 1 over principle 6).
+No nonce means a cached page stays a static file (ADR 0009). A site extends the policy through an additive array in `config/kami.php`. The array is merged with the defaults and never replaces them, and it applies to the whole installation, not per route. A route that needs Livewire or Alpine forces the site to add `'unsafe-eval'` everywhere, unless its templates fit Livewire's `csp_safe` build (ADR 0038), and `kami:doctor` reports it. That trades flexibility for one policy that a reader can check in one place (principle 1 over principle 6).
 
 The admin cannot be held to that policy. Filament 5.10 with Livewire 4 needs `'unsafe-eval'` (Alpine and Livewire build functions from attributes; Livewire's `csp_safe` build does not parse Filament's templates yet). It also needs `style-src 'unsafe-inline'` (inline `<style>` blocks and `style` attributes, with no plan to change). The `admin` profile of the same middleware keeps what still protects: inline scripts need a per-request nonce (`Vite::useCspNonce()`, which Filament emits on its inline scripts), and `connect-src`, `img-src` and `frame-ancestors` are locked so injected markup cannot exfiltrate or frame the admin:
 

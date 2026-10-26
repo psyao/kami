@@ -4,7 +4,7 @@ Kami's public routes run outside `web`, with no session and no cookie, so the pa
 
 So the host chooses per mount. `Kami::routes()` stays sessionless by default. `Kami::routes(session: true)` adds the `web` group to the Entry, Archive and Form routes, but never to the Tick or the Feeds. Those responses set the session cookie, so the page cache never stores them, by the rule already in ADR 0021, with no special case. `x-kami::form` emits `@csrf` whenever a session is started.
 
-The decision trades performance (principle 7) for a consistent visitor experience. Session pages lose the page cache and fall back to the uncached budget (≤ 200 ms). They also need the host's scripts in the additive CSP array of `config/kami.php`, for example `'unsafe-eval'` for Alpine, which `kami:doctor` reports as a weakening (ADR 0018). That CSP is no weaker than what the host already accepts on its own pages.
+The decision trades performance (principle 7) for a consistent visitor experience. Session pages lose the page cache and fall back to the uncached budget (≤ 200 ms). The host's scripts also have to fit Kami's nonce-free front CSP. Livewire 4's `csp_safe` build, with Alpine's CSP build, needs no `'unsafe-eval'`, as long as the host's expressions stay within its subset: no arrow functions, template literals, spread or globals, and complex logic moved to `Alpine.data()`. Inline `<script>` and `<style>` blocks, such as `@livewireStyles` or a theme script, go into the additive CSP array of `config/kami.php` as `sha256` hashes. Otherwise the host adds `'unsafe-eval'` or `'unsafe-inline'`, which `kami:doctor` reports as a weakening (ADR 0018). That CSP is no weaker than what the host already accepts on its own pages.
 
 ## Considered options
 
