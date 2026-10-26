@@ -288,3 +288,13 @@ _Avoid_: Static cache, response cache, full-page cache
 **Content version**:
 The marker of the state of everything visitors might see, across all Sites of an installation. It changes on every edit, deploy and scheduled visibility change, and every cached page or fragment belongs to one version.
 _Avoid_: Cache generation, cache key version, revision (a revision is a saved state of one Entry)
+
+### Imports
+
+**Import**:
+A repeatable copy of another system's content into a Site. Running it again brings the Site in line with the source; until a site switches over, the source is the truth.
+_Avoid_: Migration (a migration changes the database schema), sync
+
+**Legacy id**:
+The identifier an Entry or Media item had in the system it was imported from, always named together with its source.
+_Avoid_: External id, import id, old id
