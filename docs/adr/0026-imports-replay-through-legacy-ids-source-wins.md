@@ -17,9 +17,12 @@ Importers stay site commands (`psyao:import`). Kami ships no `kami:import` runne
 - **The source wins unless the item was edited in Kami since the last import.** It detects conflicts that the "fixes go in the importer" rule prevents, at the cost of a second timestamp and a conflict report.
 - **Deterministic ULIDs derived from `(source, legacy_id)`**, with no table. Nothing to store, but a recreated Entry would get a new key, and the ULID would stop sorting by creation time (ADR 0003).
 - **One transaction per batch.** One bad item would roll back 500 good ones, together with their file writes.
+- **A key table owned by each site**, with Kami shipping `Import` but no storage. The same migration and code would exist twice, in psyao and in sea, until the V1 importer brought them back into Kami.
+- **A migration published on demand** (`kami:install --imports`). It would be an exception to auto-registered migrations (ADR 0001), and calling `Import` without having run it would fail on a missing table.
 
 ## Consequences
 
+- `Psyao\Kami\Import` is a module of its own. Nothing in content, rendering or the admin reads `kami_import_keys`, and an architecture test forbids every other module from depending on `Import`. Its migration is registered like the others, so a site that never imports carries one empty table.
 - File writes are cleaned up in `SaveMedia`, not in importers. The action writes an original to a fresh path and deletes it if its transaction rolls back. Replacing a file never overwrites the original in place: the old file is removed after commit. The admin benefits too. Kami runs no automatic sweep of orphan originals: run against the wrong database, it would empty the library. That keeps stability (principle 5) at the cost of some disk left behind by crashes.
 - Forward links resolve in a second pass. An importer imports its items, then runs over them again. `find()` now resolves the internal links that were left as raw URLs, so those items change and are rewritten, and all the others are skipped. Reserving ULIDs in advance would break the `kami_references` foreign key.
 - An Import is always an Artisan command, never a database migration. Kami's own migrations and `kami:make-migration` stubs use only the query builder, and a test fails if `database/migrations` mentions `Models\` (Velox A9, A10).
