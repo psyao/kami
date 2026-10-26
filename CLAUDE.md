@@ -2,6 +2,21 @@
 
 Laravel + Filament CMS, successor to Velox (`~/Code/velox`). `docs/brief.md` is the source of truth for context, constraints, principles and scope; read it before any design decision. `docs/comparatif-cms.md` is the feature reference (MVP / V1 / V2). Both are Steve's French sources: read them, never translate or rewrite them.
 
+## Design
+
+- `docs/architecture.md`: key decisions, domain model, execution modes, dependencies, risks. Read it before working on a subsystem; the ADR it links holds the reasons.
+- `docs/roadmap.md`: the milestones to the MVP. A ticket belongs to one milestone and stays within its scope.
+- A changed decision lands as a new or amended ADR, with `docs/architecture.md` updated in the same pull request.
+
+## Commands
+
+From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they do not say:
+
+- Pre-push runs `phpstan analyse`, `pest --parallel` and the `Install` suite; the other engines, the `Browser` suite and the shared-hosting smoke run in CI only.
+- An intended public API change: refresh `tests/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed snapshot line makes the commit breaking (`!`).
+- Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
+- `composer serve` runs the Workbench Site with its synthetic seeder.
+
 ## Languages
 
 - Conversation with Steve: French.
