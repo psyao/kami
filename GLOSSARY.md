@@ -30,6 +30,10 @@ _Avoid_: Plugin API, hook (as the general word)
 A notice sent once a change to content, Media, Redirects, Menus or Submissions is saved, which site code may react to. It never alters or stops the change.
 _Avoid_: Hook, filter, signal, observer
 
+**Upgrade floor**:
+The oldest Kami version a site must already run before it can update past a release that squashed Kami's migrations.
+_Avoid_: Minimum version, baseline
+
 ### Sites and languages
 
 **Site**:
