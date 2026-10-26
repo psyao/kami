@@ -78,7 +78,7 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **Also.** Testbench + Workbench; suites `Kami`, `Install`, `Browser`, `Volume`; six CI jobs; lefthook; public surface snapshot; `docs/guide/` and generated `docs/reference/` with a freshness check; `development.md`; `.gitattributes` export-ignore and an archive test; Laravel Boost guideline and skill; `LICENSE.md` (MIT, ADR 0034); release-please, `CHANGELOG.md`, `UPGRADING.md`, supported-versions table; `composer licenses` job; `psyao/kami-starter`; `psyao/kami-playground` on Infomaniak staging; `CLAUDE.md` completed.
 
-**Acceptance.** A fresh `laravel new --using=psyao/kami-starter` installs Kami on SQLite and on the staging host with `kami:install`; every CI job runs on a pull request; `git archive` holds no design material; 0.1.0 is on Packagist.
+**Acceptance.** A fresh `laravel new --using=psyao/kami-starter` installs Kami on SQLite and on the staging host with `kami:install`; every CI job runs on a pull request; `git archive` holds no design material; Swissreg, EUIPO and WIPO Madrid Monitor show no "KAMI" mark covering software (classes 9 and 42), or the name is changed first (retrospective §5.2); 0.1.0 is on Packagist.
 
 ### M2 Walking skeleton
 
