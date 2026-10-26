@@ -310,7 +310,3 @@ _Avoid_: Migration (a migration changes the database schema), sync
 **Legacy id**:
 The identifier an Entry or Media item had in the system it was imported from, always named together with its source.
 _Avoid_: External id, import id, old id
-
-**Switch-over**:
-The moment a site's production starts running on Kami. Before it, the former system is the truth and Imports may run again; after it, Kami is the truth and nothing is imported again.
-_Avoid_: Go-live, cutover, migration

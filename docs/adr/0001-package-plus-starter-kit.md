@@ -34,7 +34,7 @@ Inside a host application, Kami registers nothing global unless the host opts in
   4. publishes Filament assets;
   5. fails the deploy, with a non-zero exit code, on content model drift;
   6. clears Kami's caches;
-  7. creates the first admin only when the `users` table is empty. When Users already exist, it never prompts or fails: it warns and points at `kami:user:grant`.
+  7. creates the first admin only when none exists.
 - `kami:install` never writes to host files (Velox friction A7). In an existing application, it prints the lines the host must add and fails until `KamiPlugin` is registered on a panel.
 - First admin credentials (Velox friction I-120):
   - Email and name come from `--email` and `--name`, prompted through `PromptsForMissingInput` in a terminal.
