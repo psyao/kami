@@ -217,6 +217,10 @@ _Avoid_: Capability, ability (as the domain term)
 The User who created an Entry, and the User who last changed it. They record who did what; they are not shown to visitors.
 _Avoid_: Owner, author (for this meaning)
 
+**Audit log**:
+The record of security-sensitive actions on an installation, such as sign-ins, Role changes, publications and deletions: who did what, and when. It is kept for a limited time and is not a history of content changes.
+_Avoid_: Activity log, history, revisions
+
 **Byline**:
 The people credited publicly for an Entry. A Byline points at Entries of a Content Type the site declares (for example a Person), not at Users, so a credited person needs no account.
 _Avoid_: Author (as a core concept)
