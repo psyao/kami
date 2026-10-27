@@ -445,7 +445,7 @@ Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-
 | Boot cost without OPcache: Filament's providers on front requests, the autoloader mode | Measured in the first milestones; the page cache skips the boot for hits | [#20](https://github.com/psyao/kami/issues/20) |
 | A stuck deferred callback holds one of the host's 20 FPM workers, and the host never stops it (measured up to 600 s) | Kami enforces its own Tick budgets and network timeouts | Retrospective §5.1 |
 | The Tick token reaches the planner's failure e-mails, with the response body | The tick response names failing tasks, never a trace or a path; the token can be rotated with `kami:tick:url` | Retrospective §5.1 |
-| The "KAMI" trademark (education app, US marks) may cover software | Swissreg, EUIPO and WIPO check gates 0.1.0 on Packagist (M1) | Retrospective §5.2, roadmap M1 |
+| An identical "KAMI" mark covers software (classes 9 and 42) in the EU, the USA and elsewhere, though not in Switzerland | Risk accepted by Steve after the check of 2026-10-27: the product is presented as "Psyao Kami"; a challenge would mean a rename, cheap before M9 and a production migration after | Retrospective §5.1, [#38](https://github.com/psyao/kami/issues/38) |
 | PHP 8.5 floor for host applications (kawaiidream.net runs 8.2.35) | The floor can be lowered in a minor; kawaiidream moves to 8.5 before Kami joins it | [#30](https://github.com/psyao/kami/issues/30), [#33](https://github.com/psyao/kami/issues/33) |
 | Ceiling of 64 Blocks per install | Upgrade path named in `BlockSlot`: classes generated into `bootstrap/cache` | ADR 0024 |
 | Coarse invalidation: any write empties the page cache | Deliberate for small sites; dependency tracking is a V1 option | ADR 0021 |

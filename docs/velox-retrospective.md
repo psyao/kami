@@ -305,8 +305,15 @@ Run by Steve on aguet.dev ([#34](https://github.com/psyao/kami/issues/34)) throu
 | steve-et-aline.ch DNS | Cloudflare, like psyao.ch | |
 | kawaiidream.net PHP | 8.2.35 | Must move to PHP 8.5, Kami's floor, before Kami joins it ([#33](https://github.com/psyao/kami/issues/33)) |
 
+#### Trademark check (2026-10-27)
+
+Word mark "KAMI", exact expression, in Swissreg and the WIPO Global Brand Database ([#38](https://github.com/psyao/kami/issues/38)). Not legal advice.
+
+| Check | Result | Consequence |
+| --- | --- | --- |
+| Switzerland, classes 9 and 42 | No live "KAMI" mark; NETOPTIC's KAMI (class 9) is deleted. The live "KAMI …" marks cover unrelated goods, except "KAMI Climate Institute" (climate research, class 42) | Clear where the reference sites and Steve's clients are |
+| Elsewhere, classes 9 and 42 | Kami Buyer, LLC (the Kami education app) holds international registration 1524711 "KAMI", classes 9 and 42, in force since 2020 for the EU, the USA, the UK, Canada, Australia and more, not Switzerland. YI Technologies holds "kami" in the UK (9, 37, 42) and Australia (9) | An identical word in the same classes where Packagist distributes the package. Steve accepts the risk: the product is presented as "Psyao Kami", the technical `kami` prefixes stay, and a challenge would mean a rename then |
+
 ### 5.2 Still open
 
-| Fact | Why it matters | How to measure |
-| --- | --- | --- |
-| "KAMI" trademark covering software (classes 9 and 42) | A conflicting mark would force a rename once the package is installed elsewhere; MIT settles the licence, not the name (ADR 0034) | Swissreg, EUIPO and WIPO Madrid Monitor, before Kami is registered on Packagist at 0.1.0 (end of M1) |
+Nothing.
