@@ -200,6 +200,17 @@ it('writes its last result under Kami\'s storage directory', function () {
     File::deleteDirectory($storage);
 });
 
+it('keeps Kami\'s storage directory out of git, as Laravel does its own', function () {
+    $this->app->useStoragePath($storage = temporaryPath());
+    File::ensureDirectoryExists($storage);
+
+    $this->artisan('kami:doctor');
+
+    expect(File::get("{$storage}/framework/kami/.gitignore"))->toBe("*\n!.gitignore\n");
+
+    File::deleteDirectory($storage);
+});
+
 it('offers its environment errors alone, for kami:install to block on', function () {
     $this->app->useStoragePath(temporaryPath() . '/missing');
     withUnreachableDatabase();
