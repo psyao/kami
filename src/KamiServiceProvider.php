@@ -2,10 +2,11 @@
 
 namespace Psyao\Kami;
 
+use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-/** Registers Kami's core: config, migrations, views and translations, and nothing global beyond UTC. */
+/** Registers Kami's core: config, migrations, views, translations and commands, and nothing global beyond UTC. */
 final class KamiServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
@@ -13,7 +14,8 @@ final class KamiServiceProvider extends PackageServiceProvider
         $package->name('kami')
             ->hasConfigFile()
             ->hasViews()
-            ->hasTranslations();
+            ->hasTranslations()
+            ->hasCommands([DoctorCommand::class]);
     }
 
     public function packageRegistered(): void
