@@ -70,6 +70,10 @@ jobs:
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: vendor/bin/pint --test
 
+      - name: Larastan
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
       - name: Rector
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: vendor/bin/rector --dry-run --no-progress-bar
@@ -96,12 +100,6 @@ jobs:
       - name: Coverage, Kami and Install suites
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: composer test:coverage
-
-      # Last: on its first run Larastan rebuilds Testbench's package manifest outside the testbench CLI,
-      # which drops Kami's own provider, so the suites after it would run without Kami.
-      - name: Larastan
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: vendor/bin/phpstan analyse --no-progress --error-format=github
 
   postgresql:
     name: PostgreSQL 15
