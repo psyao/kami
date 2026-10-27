@@ -76,7 +76,7 @@ use Psyao\Kami\Admin\InitialsAvatarProvider;
 ->defaultAvatarProvider(InitialsAvatarProvider::class)
 ```
 
-`KamiPlugin` does not set it for you: it changes nothing panel-wide, so another plugin or your own provider stays your choice.
+`KamiPlugin` does not set it for you: it changes nothing panel-wide, so another plugin or your own provider stays your choice. `kami:doctor` warns about a panel carrying `KamiPlugin` that keeps Filament's default.
 
 Then run, on the first install and on every deploy:
 

@@ -7,6 +7,7 @@ namespace Psyao\Kami\Support\Internal\Doctor;
 use Closure;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Support\Facades\DB;
+use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Throwable;
 
 /**
@@ -43,7 +44,7 @@ final readonly class Doctor
     /** @return list<Problem> */
     public function problems(): array
     {
-        return $this->environment();
+        return [...$this->environment(), ...$this->remoteAvatars()];
     }
 
     /**
@@ -171,5 +172,18 @@ final readonly class Doctor
             "create {$directory} if it is missing and give the user PHP runs as write access to it.",
             'installation.md#database',
         );
+    }
+
+    /** @return list<Problem> */
+    private function remoteAvatars(): array
+    {
+        $panels = array_filter(array_map(fn (Closure $panel): ?string => $panel(), resolve(PluginRegistration::class)->remoteAvatarPanels));
+
+        return array_values(array_map(fn (string $panel): Problem => new Problem(
+            Severity::Warning,
+            "The panel {$panel} draws avatars from ui-avatars.com, which receives the initials of your Users.",
+            "add ->defaultAvatarProvider(InitialsAvatarProvider::class) to the panel {$panel}.",
+            'installation.md#installing-and-deploying',
+        ), $panels));
     }
 }
