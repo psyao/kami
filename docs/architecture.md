@@ -401,9 +401,9 @@ Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-
 | `orchestra/testbench` + Workbench | Package dev | Test harness and demo Site | MIT | Not deployed |
 | `pestphp/pest`, browser plugin (Playwright Chromium, axe) | Package dev | Suites `Kami`, `Install`, `Browser`, `Volume`; arch tests; accessibility | MIT (Playwright Apache-2.0, axe-core MPL-2.0, CI only) | Not deployed |
 | `larastan/larastan` (level `max`, no baseline), `phpstan/phpstan-deprecation-rules` | Package dev | Static analysis | MIT | Not deployed |
-| `rector/rector`, `laravel/pint` | Package dev; config shared with the starter kit | Refactoring, style | MIT | Not deployed |
+| `rector/rector` with `driftingly/rector-laravel`, `laravel/pint` | Package dev; `rector-set.php` and `pint.json` shared with the starter kit | Refactoring (Laravel rules from rector-laravel), style | MIT | Not deployed |
 | `evilmartians/lefthook` | Package and starter dev | Git hooks from Composer, no Node | MIT | Not deployed |
-| gitleaks, zizmor, `composer audit`, pcov | CI | Secrets, workflow audit, advisories, coverage | MIT / PHP License | Not deployed |
+| gitleaks, zizmor, `composer audit`, pcov | CI; gitleaks also in the pre-commit hook (Homebrew) | Secrets, workflow audit, advisories, coverage | MIT / PHP License | Not deployed |
 | `googleapis/release-please-action` | CI | Releases from Conventional Commits | Apache-2.0 | Not deployed |
 | `laravel/boost` | Starter dev | Agent guidelines; Kami ships its guideline and skill under `resources/boost/` | MIT | Not deployed |
 | `laravel-lang/common` | Starter dev | Generates the French validation lines the site commits | MIT | Not deployed |
