@@ -111,16 +111,16 @@ Over SSH, in the site's directory:
 
 ```bash
 php artisan down
-git pull
-composer install --no-dev --optimize-autoloader
-php artisan kami:install --no-interaction
-php artisan optimize
-php artisan up
+git pull &&
+  composer install --no-dev --optimize-autoloader &&
+  php artisan kami:install --no-interaction &&
+  php artisan optimize &&
+  php artisan up
 ```
 
 Copy `public/build/` as in [Front assets](#front-assets) when the front changed. Updating Kami is the same deploy, after `composer update psyao/kami` in the site's repository: there is no separate upgrade command.
 
-When `kami:install` fails, the site stays in maintenance mode until you fix the problem it prints and run it again.
+When a step fails, `kami:install` included, the deploy stops before `php artisan up` and the site stays in maintenance mode: fix the problem it prints, then run the chained command again, from `git pull`.
 
 ## A staging copy
 
