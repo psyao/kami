@@ -12,10 +12,10 @@ A security fix may tighten a default (the Content Security Policy, a validation 
 
 ## Supported versions
 
-| Version | Supported |
-| --- | --- |
-| Latest 0.x release | Bug and security fixes |
-| Older 0.x releases | None: update to the latest |
+| Version | Supported | Until |
+| --- | --- | --- |
+| Latest 0.x release | Bug and security fixes | The next release |
+| Older 0.x releases | None: update to the latest | |
 
 Before 1.0, only the latest 0.x release receives fixes. From 1.0:
 
