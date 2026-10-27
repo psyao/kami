@@ -95,7 +95,7 @@ Each reference site keeps its own private repository; its content and URL invent
 The package follows the Filament plugin skeleton (`src/`, `config/kami.php`, `database/`, `resources/dist/`, `stubs/`, `tests/`). `src/` is organised by domain module under `Psyao\Kami\`: `Content`, `Sites`, `Media`, `Routing`, `Menus`, `Seo`, `Forms`, `Users`, `Import`, with `Support` for cross-cutting code and `Admin` for everything Filament. Three boundaries are enforced by architecture tests:
 
 - **Core and admin.** Only `Psyao\Kami\Admin` may use `Filament\`. `KamiServiceProvider` registers the core; `KamiPlugin` registers the admin. A Filament major touches `Admin` only (ADR 0011).
-- **Public and internal.** Each module keeps its internals in an `Internal` sub-namespace marked `@internal`. Every other class is public, `final` unless it is on the closed allow-list of open classes, and recorded in `tests/PublicSurfaceTest.php` (ADRs 0010, 0029).
+- **Public and internal.** Each module keeps its internals in an `Internal` sub-namespace marked `@internal`. Every other class is public, `final` unless it is on the closed allow-list of open classes, and recorded in `tests/Kami/PublicSurfaceTest.php` (ADRs 0010, 0029).
 - **Imports.** No module depends on `Psyao\Kami\Import` (ADR 0026).
 
 A site uses four kinds of public API: declarations (Content Types, Fields, Blocks, Forms, Image Presets, all listed in `config/kami.php`), the public models and their scopes (`Entry`, `Term`, `Media`, `Redirect`) for reads, the core actions (`SaveEntry`, `SaveMedia`, `SaveRedirect`, `SaveMenuItem`…) for writes, and Content events for reactions. Commands follow `kami:<verb>`, `kami:<area>:<verb>` and `kami:make:<thing>`, 20 in the MVP.

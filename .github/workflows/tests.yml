@@ -45,3 +45,6 @@ jobs:
 
       - name: Kami suite
         run: vendor/bin/pest --testsuite=Kami --parallel --ci
+
+      - name: Install suite
+        run: vendor/bin/pest --testsuite=Install --ci

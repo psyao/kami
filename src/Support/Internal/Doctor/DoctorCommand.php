@@ -13,19 +13,13 @@ use Throwable;
 #[Signature('kami:doctor {--strict : Fail on warnings too}')]
 final class DoctorCommand extends Command
 {
+    use PrintsProblems;
+
     public function handle(Doctor $doctor): int
     {
         $problems = $doctor->problems();
 
-        foreach ($problems as $problem) {
-            match ($problem->severity) {
-                Severity::Error => $this->components->error($problem->message),
-                Severity::Warning => $this->components->warn($problem->message),
-            };
-            $this->line("  Fix: {$problem->fix}");
-            $this->line("  Guide: {$problem->guidePath()}");
-            $this->newLine();
-        }
+        $this->printProblems($problems);
 
         if ($problems === []) {
             $this->components->info('No problem found.');

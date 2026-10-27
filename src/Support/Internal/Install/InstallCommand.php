@@ -1,0 +1,54 @@
+<?php
+
+namespace Psyao\Kami\Support\Internal\Install;
+
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
+use Illuminate\Console\Command;
+use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Psyao\Kami\Support\Internal\Doctor\PrintsProblems;
+
+/** @internal */
+#[Description('Install Kami, or bring it up to date after a deploy')]
+#[Signature('kami:install')]
+final class InstallCommand extends Command
+{
+    use PrintsProblems;
+
+    public function handle(Doctor $doctor, PluginRegistration $registration): int
+    {
+        // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
+        if (($problems = $doctor->blocking()) !== []) {
+            $this->printProblems($problems);
+
+            return self::FAILURE;
+        }
+
+        // Kami never edits the host's files (ADR 0001): it says what to add and stops before changing anything.
+        if (! $registration->onAPanel) {
+            $this->components->error('No Filament panel carries Kami yet. Add these lines to your panel provider, then run kami:install again.');
+            $this->line('    use Psyao\Kami\Admin\KamiPlugin;');
+            $this->newLine();
+            $this->line('    ->plugin(KamiPlugin::make())');
+            $this->newLine();
+            $this->line('  An application without a panel creates one first with php artisan make:filament-panel admin.');
+
+            return self::FAILURE;
+        }
+
+        if ($this->call('migrate', ['--force' => true]) !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        // Filament's own command, present wherever Kami runs (ADR 0001): it copies the admin's assets to public/, so the server needs no Node.
+        if ($this->call('filament:assets') !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        // ponytail: Kami keeps no cache in M1; clearing them (the Content version bump, ADR 0021) lands here in M7.
+
+        $this->components->info('Kami is installed.');
+
+        return self::SUCCESS;
+    }
+}

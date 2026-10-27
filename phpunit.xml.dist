@@ -10,10 +10,14 @@
     failOnEmptyTestSuite="true"
     beStrictAboutOutputDuringTests="true"
     cacheDirectory=".phpunit.cache"
+    defaultTestSuite="Kami"
 >
     <testsuites>
         <testsuite name="Kami">
-            <directory>tests</directory>
+            <directory>tests/Kami</directory>
+        </testsuite>
+        <testsuite name="Install">
+            <directory>tests/Install</directory>
         </testsuite>
     </testsuites>
     <php>
