@@ -17,6 +17,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Psyao\Kami\Admin\InitialsAvatarProvider;
 use Psyao\Kami\Admin\KamiPlugin;
 
 /** The host's own panel, as a site or an existing application declares it, with Kami added as a plugin. */
@@ -29,6 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->pages([Dashboard::class])
             ->plugin(KamiPlugin::make())
             ->middleware([

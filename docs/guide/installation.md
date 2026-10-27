@@ -44,6 +44,16 @@ use Psyao\Kami\Admin\KamiPlugin;
 ->plugin(KamiPlugin::make())
 ```
 
+Filament's default avatars send the initials of your Users to `ui-avatars.com`. `InitialsAvatarProvider` draws them on your server instead. Set it on the same panel:
+
+```php
+use Psyao\Kami\Admin\InitialsAvatarProvider;
+
+->defaultAvatarProvider(InitialsAvatarProvider::class)
+```
+
+`KamiPlugin` does not set it for you: it changes nothing panel-wide, so another plugin or your own provider stays your choice.
+
 Then run, on the first install and on every deploy:
 
 ```bash
@@ -53,7 +63,7 @@ php artisan kami:install --no-interaction
 There is no separate upgrade command: `kami:install` is safe to run again and changes nothing when the site is up to date. It needs no terminal, so it runs as is in a deploy script or CI. On shared hosting, run it over SSH or from your deploy script: it needs no cron, worker or Node, only the command-line PHP that `kami:doctor` checks. In order, it:
 
 1. stops on any error `kami:doctor` reports about the environment, before touching the database (warnings do not stop it: run `kami:doctor` to see them);
-2. stops while no panel carries `KamiPlugin`, printing the lines above;
+2. stops while no panel carries `KamiPlugin`, printing the `KamiPlugin` lines above;
 3. runs the migrations (`migrate --force`);
 4. publishes Filament's assets to `public/`, so the server needs no Node.
 

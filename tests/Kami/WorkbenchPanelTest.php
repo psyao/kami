@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -13,6 +14,22 @@ it('adds Kami to the host panel', function () {
     $this->get('/admin/login')
         ->assertOk()
         ->assertSee('/css/psyao/kami/kami.css', escape: false);
+});
+
+it('draws avatars on the panel with no request to a remote host', function () {
+    // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
+    config(['app.env' => 'local']);
+    $this->artisan('migrate')->assertSuccessful();
+    $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => 'secret']);
+
+    $html = (string) $this->actingAs($user)->get('/admin')->assertOk()->getContent();
+
+    preg_match_all('/\\b(?:src|href|srcset)="([^"]*)"/', $html, $urls);
+    $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+    $remote = array_filter($urls[1], fn (string $url) => preg_match('#^(?:[a-z]+:)?//#i', $url) === 1 && parse_url($url, PHP_URL_HOST) !== $appHost);
+
+    expect($remote)->toBeEmpty()
+        ->and($html)->toContain('src="data:image/svg+xml;base64,');
 });
 
 it('registers no route or middleware of its own', function () {
