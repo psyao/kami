@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Finder\SplFileInfo;
 
 // The closed list of open classes (ADR 0029): a class outside `Internal` is final or abstract unless it is named here.
@@ -26,6 +26,11 @@ function kamiClasses(): Collection
 function isInternal(ReflectionClass $class): bool
 {
     return str_contains($class->getNamespaceName() . '\\', '\\Internal\\');
+}
+
+function isMarkedInternal(ReflectionClass | ReflectionMethod | ReflectionProperty $element): bool
+{
+    return (bool) preg_match('/@internal\b/', (string) $element->getDocComment());
 }
 
 /**
@@ -52,6 +57,31 @@ function typeNames(?ReflectionType $type): array
     };
 }
 
+/**
+ * The internal types a docblock's type tags name, written in full or through an alias the file imports.
+ *
+ * @param  array<string, string>  $imports  Internal classes the file imports, by alias.
+ * @return list<string>
+ */
+function docTypeNames(string | false $docComment, array $imports): array
+{
+    preg_match_all('/(?<!\S)@(?:param|return|var|throws|extends|implements|mixin|method|property\S*|phpstan-\S+|psalm-\S+)\b[^\n]*/', (string) $docComment, $tags);
+    $names = [];
+
+    foreach ($tags[0] as $tag) {
+        preg_match_all('/[\w\\\\]*\\\\Internal\\\\[\w\\\\]+/', $tag, $written);
+        $names = [...$names, ...$written[0]];
+
+        foreach ($imports as $alias => $name) {
+            if (preg_match('/(?<![\w\\\\])' . $alias . '\b/', $tag)) {
+                $names[] = $name;
+            }
+        }
+    }
+
+    return $names;
+}
+
 arch('Filament stays in Admin (ADR 0011)')
     ->expect('Psyao\Kami')
     ->not->toUse('Filament')
@@ -66,7 +96,7 @@ arch('only Admin uses Admin (ADR 0011)')
 it('marks every class under an Internal namespace @internal (ADR 0010)', function () {
     $unmarked = kamiClasses()
         ->filter(isInternal(...))
-        ->reject(fn (ReflectionClass $class): bool => str_contains((string) $class->getDocComment(), '@internal'))
+        ->reject(isMarkedInternal(...))
         ->map->getName();
 
     expect($unmarked->all())->toBe([]);
@@ -76,22 +106,30 @@ it('names no internal type in a public signature (ADR 0010)', function () {
     $leaks = [];
 
     foreach (publicClasses() as $class) {
-        $named = [$class->getName() => [...array_filter([$class->getParentClass() ? $class->getParentClass()->getName() : null]), ...$class->getInterfaceNames()]];
+        // Larastan reads PHPDoc types as the signature, so a site's code inherits them too.
+        preg_match_all('/^use ([\w\\\\]+\\\\Internal\\\\([\w\\\\]+?))(?: as (\w+))?;/m', (string) file_get_contents((string) $class->getFileName()), $uses, PREG_SET_ORDER);
+        $imports = collect($uses)->mapWithKeys(fn (array $use): array => [($use[3] ?? '') !== '' ? $use[3] : class_basename($use[1]) => $use[1]])->all();
+
+        $named = [$class->getName() => [
+            ...array_filter([$class->getParentClass() ? $class->getParentClass()->getName() : null]),
+            ...$class->getInterfaceNames(),
+            ...docTypeNames($class->getDocComment(), $imports),
+        ]];
 
         // A protected member is reachable by a subclass, so it counts on an open class.
         $visible = $class->isFinal() ? ReflectionMethod::IS_PUBLIC : ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED;
 
-        foreach ($class->getMethods($visible) as $method) {
-            // A public method kept from sites is marked on itself (ADR 0010).
-            if (! str_contains((string) $method->getDocComment(), '@internal')) {
-                $named["{$class->getName()}::{$method->getName()}()"] = array_merge(typeNames($method->getReturnType()), ...array_map(fn (ReflectionParameter $parameter): array => typeNames($parameter->getType()), $method->getParameters()));
-            }
+        // A public method kept from sites is marked on itself (ADR 0010).
+        foreach (array_filter($class->getMethods($visible), fn (ReflectionMethod $method): bool => ! isMarkedInternal($method)) as $method) {
+            $named["{$class->getName()}::{$method->getName()}()"] = array_merge(
+                typeNames($method->getReturnType()),
+                docTypeNames($method->getDocComment(), $imports),
+                ...array_map(fn (ReflectionParameter $parameter): array => typeNames($parameter->getType()), $method->getParameters()),
+            );
         }
 
-        foreach ($class->getProperties($visible) as $property) {
-            if (! str_contains((string) $property->getDocComment(), '@internal')) {
-                $named["{$class->getName()}::\${$property->getName()}"] = typeNames($property->getType());
-            }
+        foreach (array_filter($class->getProperties($visible), fn (ReflectionProperty $property): bool => ! isMarkedInternal($property)) as $property) {
+            $named["{$class->getName()}::\${$property->getName()}"] = [...typeNames($property->getType()), ...docTypeNames($property->getDocComment(), $imports)];
         }
 
         foreach ($named as $element => $types) {
