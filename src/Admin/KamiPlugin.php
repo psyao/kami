@@ -28,7 +28,7 @@ final class KamiPlugin implements Plugin
         $registration = resolve(PluginRegistration::class);
         $registration->onAPanel = true;
         // Filament's default sends Users' initials to ui-avatars.com; the doctor warns, since the setting is the host's (ADR 0023).
-        $registration->remoteAvatarPanels[] = fn (): ?string => is_a($panel->getDefaultAvatarProvider(), UiAvatarsProvider::class, true) ? $panel->getId() : null;
+        $registration->remoteAvatarChecks[spl_object_id($panel)] = fn (): ?string => is_a($panel->getDefaultAvatarProvider(), UiAvatarsProvider::class, true) ? $panel->getId() : null;
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css')], 'psyao/kami');

@@ -177,7 +177,7 @@ final readonly class Doctor
     /** @return list<Problem> */
     private function remoteAvatars(): array
     {
-        $panels = array_filter(array_map(fn (Closure $panel): ?string => $panel(), resolve(PluginRegistration::class)->remoteAvatarPanels));
+        $panels = array_filter(array_map(fn (Closure $panel): ?string => $panel(), resolve(PluginRegistration::class)->remoteAvatarChecks));
 
         return array_values(array_map(fn (string $panel): Problem => new Problem(
             Severity::Warning,

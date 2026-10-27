@@ -157,6 +157,12 @@ it('warns without failing when a Kami panel keeps Filament\'s remote avatars', f
     'a subclass of it' => (new class extends UiAvatarsProvider {})::class,
 ]);
 
+it('reports a panel once, even with the plugin added twice', function () {
+    Panel::make()->id('remote')->plugin(KamiPlugin::make())->plugin(KamiPlugin::make());
+
+    expect((new Doctor)->problems())->toHaveCount(1);
+});
+
 it('accepts a Kami panel with a local avatar provider, even set after the plugin', function (string $provider) {
     Panel::make()->id('local')->plugin(KamiPlugin::make())->defaultAvatarProvider($provider);
 
