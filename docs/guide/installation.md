@@ -7,7 +7,7 @@ Kami runs on PHP 8.5 or later, on the command line and on the web. On shared hos
 PHP extensions:
 
 - **Required:** ctype, dom, fileinfo, filter, hash, iconv, intl, json, libxml, mbstring, openssl, pcre, session, tokenizer, xmlreader, zip, and the PDO driver of your database (`pdo_sqlite`, `pdo_mysql` or `pdo_pgsql`).
-- **Recommended:** gd or imagick. Without either, Kami still runs, but cannot resize images.
+- **Recommended:** gd or imagick. Kami runs without either, but will need one to resize images.
 
 ### Writable directories
 
@@ -27,5 +27,7 @@ php artisan kami:doctor
 
 - an **error** means the site cannot run: the command exits with 1;
 - a **warning** means a doubtful setting: the command exits with 0, unless you pass `--strict`, which fails on warnings too.
+
+It checks the PHP it runs under: on shared hosting, that is the command line's, which may differ from the web's.
 
 Run it after any change to the environment, and with `--strict` in your CI if warnings should fail it. Each run writes its result to `storage/framework/kami/doctor.json`.

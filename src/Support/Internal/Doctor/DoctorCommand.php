@@ -6,7 +6,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
+use Throwable;
 
 /** @internal */
 #[Description('Check that this environment can run Kami')]
@@ -23,7 +23,7 @@ final class DoctorCommand extends Command
                 Severity::Warning => $this->components->warn($problem->message),
             };
             $this->line("  Fix: {$problem->fix}");
-            $this->line('  Guide: ' . $this->guide($problem->guide));
+            $this->line("  Guide: {$problem->guidePath()}");
             $this->newLine();
         }
 
@@ -31,23 +31,21 @@ final class DoctorCommand extends Command
             $this->components->info('No problem found.');
         }
 
-        // Read by the admin's "Needs attention" widget. Skipped when storage is unwritable: that is already an error above.
+        // Read by the admin's "Needs attention" widget. An unwritable storage is already an error above: never create it, never throw.
         if (is_writable(storage_path())) {
-            File::ensureDirectoryExists(storage_path('framework/kami'));
-            File::put(storage_path('framework/kami/doctor.json'), json_encode([
-                'checked_at' => now()->toIso8601String(),
-                'problems' => $problems,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+            try {
+                File::ensureDirectoryExists(storage_path('framework/kami'));
+                File::put(storage_path('framework/kami/doctor.json'), json_encode([
+                    'checked_at' => now()->toIso8601String(),
+                    'problems' => $problems,
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+            } catch (Throwable) {
+                $this->components->warn('The result could not be written to ' . storage_path('framework/kami/doctor.json') . '.');
+            }
         }
 
         $failing = array_filter($problems, fn (Problem $problem) => $problem->severity === Severity::Error || $this->option('strict'));
 
         return $failing === [] ? self::SUCCESS : self::FAILURE;
-    }
-
-    /** The guide shipped with the installed version, relative to the site when Kami sits in its `vendor/`. */
-    private function guide(string $page): string
-    {
-        return Str::after(dirname(__DIR__, 4) . "/docs/guide/{$page}", base_path() . DIRECTORY_SEPARATOR);
     }
 }

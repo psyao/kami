@@ -17,7 +17,7 @@ final class Doctor
     public const string PHP_FLOOR = '8.5.0';
 
     /** What Kami and its dependencies require at run time, as `composer check-platform-reqs --no-dev` lists it. */
-    private const array EXTENSIONS = [
+    public const array EXTENSIONS = [
         'ctype', 'dom', 'fileinfo', 'filter', 'hash', 'iconv', 'intl', 'json', 'libxml',
         'mbstring', 'openssl', 'pcre', 'session', 'tokenizer', 'xmlreader', 'zip',
     ];
@@ -95,13 +95,15 @@ final class Doctor
     /** Kami still runs without one, but cannot resize images (brief: GD or Imagick, with a clean fallback). */
     private function imageExtension(): ?Problem
     {
-        if (($this->extensionLoaded)('gd') || ($this->extensionLoaded)('imagick')) {
+        $loaded = $this->extensionLoaded;
+
+        if ($loaded('gd') || $loaded('imagick')) {
             return null;
         }
 
         return new Problem(
             Severity::Warning,
-            'Neither gd nor imagick is loaded: images cannot be resized.',
+            'Neither gd nor imagick is loaded: Kami will need one to resize images.',
             'enable gd or imagick for the PHP version the site runs.',
             'installation.md#requirements',
         );
@@ -123,18 +125,24 @@ final class Doctor
 
     private function database(): ?Problem
     {
-        $connection = DB::connection();
-        $extension = $connection->getDriverName() === 'mariadb' ? 'pdo_mysql' : "pdo_{$connection->getDriverName()}";
-
         try {
-            $connection->getPdo();
+            DB::connection()->getPdo();
 
             return null;
         } catch (Throwable $exception) {
+            $name = DB::getDefaultConnection();
+            $driver = config("database.connections.{$name}.driver");
+            $extension = match ($driver) {
+                'mysql', 'mariadb' => 'the PHP extension pdo_mysql',
+                'pgsql' => 'the PHP extension pdo_pgsql',
+                'sqlite' => 'the PHP extension pdo_sqlite',
+                default => 'its PDO driver',
+            };
+
             return new Problem(
                 Severity::Error,
-                "Kami cannot connect to the database {$connection->getName()} ({$connection->getDriverName()}): {$exception->getMessage()}",
-                "check the DB_* settings in .env and that the PHP extension {$extension} is loaded.",
+                "Kami cannot connect to the database {$name}: {$exception->getMessage()}",
+                "check the DB_* settings in .env and that {$extension} is loaded.",
                 'installation.md#database',
             );
         }
