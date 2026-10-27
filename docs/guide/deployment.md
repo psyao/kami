@@ -120,7 +120,7 @@ git pull &&
 
 Copy `public/build/` as in [Front assets](#front-assets) when the front changed. Updating Kami is the same deploy, after `composer update psyao/kami` in the site's repository: there is no separate upgrade command.
 
-When `kami:install` fails, the site stays in maintenance mode until you fix the problem it prints and run it again. The `&&` stops the deploy at the first step that fails, before `php artisan up`: run the chained command again, from `git pull`, once the problem is fixed.
+When a step fails, `kami:install` included, the deploy stops before `php artisan up` and the site stays in maintenance mode: fix the problem it prints, then run the chained command again, from `git pull`.
 
 ## A staging copy
 
