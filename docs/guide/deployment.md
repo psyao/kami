@@ -92,9 +92,10 @@ In the Manager, set the site's root folder to the clone's `public` directory (`s
 
 ```bash
 php artisan kami:install --no-interaction
+php artisan optimize
 ```
 
-It stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). Then create the first User, who can sign in to the admin:
+`kami:install` stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). `optimize` caches the configuration, routes, events and views: run it again after any change to `.env`, which a cached configuration no longer reads. Then create the first User, who can sign in to the admin:
 
 ```bash
 php artisan make:filament-user
@@ -113,6 +114,7 @@ php artisan down
 git pull
 composer install --no-dev --optimize-autoloader
 php artisan kami:install --no-interaction
+php artisan optimize
 php artisan up
 ```
 

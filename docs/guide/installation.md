@@ -91,4 +91,4 @@ There is no separate upgrade command: `kami:install` is safe to run again and ch
 3. runs the migrations (`migrate --force`);
 4. publishes Filament's assets to `public/`, so the server needs no Node.
 
-It exits with 1 when any step fails, so the deploy fails with it. `kami:install` never writes to your application's files: it only adds Filament's assets under `public/`.
+It exits with 1 when any step fails, so the deploy fails with it. `kami:install` never writes to your application's files: it only adds Filament's assets under `public/`. On a server, `php artisan optimize` follows it ([Deployment](deployment.md#later-deploys)).

@@ -25,3 +25,4 @@ sed -i \
 composer install --no-dev --no-interaction --no-progress
 php artisan key:generate --no-interaction
 php artisan kami:install --no-interaction
+php artisan optimize
