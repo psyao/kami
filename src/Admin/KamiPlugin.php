@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Psyao\Kami\Admin;
 
 use Filament\Contracts\Plugin;

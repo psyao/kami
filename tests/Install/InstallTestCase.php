@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Psyao\Kami\Tests\Install;
 
 use Illuminate\Support\Facades\File;
