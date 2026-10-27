@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
@@ -68,7 +67,10 @@ function publicSurface(): array
         }
     }
 
-    foreach (Arr::where(Artisan::all(), fn (Command $command, string $name): bool => str_starts_with($name, 'kami:')) as $name => $command) {
+    // Read from Kami's own classes, not from Artisan, whose loaded commands depend on how and when the application booted.
+    $commands = kamiClasses()->filter(fn (ReflectionClass $class): bool => $class->isSubclassOf(Command::class) && $class->isInstantiable())->map(fn (ReflectionClass $class): Command => resolve($class->getName()));
+
+    foreach ($commands->keyBy(fn (Command $command): string => (string) $command->getName()) as $name => $command) {
         $element('command', $name, summary: $command->getDescription());
 
         foreach ([...$command->getNativeDefinition()->getArguments(), ...$command->getNativeDefinition()->getOptions()] as $input) {

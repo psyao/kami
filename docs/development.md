@@ -58,7 +58,7 @@ git archive HEAD | tar -t
 `tests/Kami/PublicSurfaceTest.php` writes one sorted line for everything a site can call or name (ADR 0010) and compares it with its snapshot, `tests/.pest/snapshots/Kami/PublicSurfaceTest/it_snapshots_the_public_surface.snap`:
 
 - classes outside `Internal`: kind, modifiers, parent and interfaces, then the members they declare themselves, with full signatures: public methods, properties and constants (protected ones too on a class that is not `final`), enum cases. A member marked `@internal` is left out;
-- `kami:*` commands with their arguments and options;
+- `kami:*` commands, read from Kami's command classes rather than from Artisan, with their arguments and options;
 - the default keys of `config/kami.php`;
 - `kami_` table names, read from the migrated schema.
 
