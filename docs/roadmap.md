@@ -61,7 +61,7 @@ flowchart LR
 - Public surface snapshot reviewed; any removed or changed line comes with a `!` commit.
 - `docs/guide/` updated in the same pull request as the behaviour; `docs/reference/` fresh.
 - New `x-kami::` components pass axe at level 3, new Kami admin pages at level 1.
-- End-of-milestone ritual: playground updated (`composer update` + `kami:install`), the milestone's features tried from the documentation only, `kami:doctor --strict` clean; every problem met becomes a `friction` issue.
+- End-of-milestone ritual: the playground updated locally (`composer update` + `kami:install`), the milestone's features tried from the documentation only, `kami:doctor --strict` clean; every problem met becomes a `friction` issue. The playground is also deployed to Infomaniak staging, with `kami:doctor --strict` clean there, at M1 and at every milestone that touches rendering or switches a site over (M2, M5, M7, M9, M10, M11, M12, M13).
 - Milestones that touch rendering (M2, M5, M7, M10, M12) end with `kami:bench` on Infomaniak staging, within the budgets of ADR 0021.
 - The milestone closes with a merged release-please release.
 
@@ -76,7 +76,7 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **MVP features (9).** 60 front asset pipeline (Vite in the starter kit) · 70 supported engines (CI matrix) · 73 configuration through `.env` · 80 dual mode (`KamiPlugin` in a host panel) · 89 security policy (`SECURITY.md`) · 95 dedicated CLI (`kami:install` and `kami:doctor` skeletons) · 99 developer documentation (skeleton) · 100 install through Composer and CLI · 102 shared-hosting compatibility (Apache + FPM smoke, then one step per subsystem in later milestones).
 
-**Also.** Testbench + Workbench; suites `Kami`, `Install`, `Browser`, `Volume`; six CI jobs; lefthook; public surface snapshot; `docs/guide/` and generated `docs/reference/` with a freshness check; `development.md`; `.gitattributes` export-ignore and an archive test; Laravel Boost guideline and skill; `LICENSE.md` (MIT, ADR 0034); release-please, `CHANGELOG.md`, `UPGRADING.md`, supported-versions table; `composer licenses` job; `psyao/kami-starter`; `psyao/kami-playground` on Infomaniak staging; `CLAUDE.md` completed.
+**Also.** Testbench + Workbench; suites `Kami`, `Install`, `Browser`, `Volume`; six CI jobs; lefthook; public surface snapshot; `docs/guide/` and generated `docs/reference/` with a freshness check; `development.md`; `.gitattributes` export-ignore and an archive test; Laravel Boost guideline and skill; `LICENSE.md` (MIT, ADR 0034); release-please, `CHANGELOG.md`, `UPGRADING.md`, supported-versions table; `composer licenses` job; `psyao/kami-starter`; `psyao/kami-playground`, local and deployed once to Infomaniak staging; `CLAUDE.md` completed.
 
 **Acceptance.** A fresh `laravel new --using=psyao/kami-starter` installs Kami on SQLite and on the staging host with `kami:install`; every CI job runs on a pull request; `git archive` holds no design material; Swissreg, EUIPO and WIPO Madrid Monitor show no "KAMI" mark covering software (classes 9 and 42), or the name is changed first (retrospective §5.2); 0.1.0 is on Packagist.
 

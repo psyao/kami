@@ -86,7 +86,7 @@ Anti-goals: WordPress-style plugin hell, a mid-life licence change, endless conf
 | --- | --- | --- |
 | `psyao/kami` | The package: core, admin layer, migrations, translations, precompiled admin assets, `docs/guide/`, `docs/reference/`, `docs/adr/` | MIT |
 | `psyao/kami-starter` | Wiring only: `AdminPanelProvider`, `User`, the `Kami::routes()` call, starter theme (Vite + Tailwind 4, no Alpine, no web font), `.htaccess`, error pages, example type, CI asset build | MIT |
-| `psyao/kami-playground` | A long-lived private site created from the starter kit, on a non-indexable Infomaniak staging subdomain, updated at the end of every milestone | Private |
+| `psyao/kami-playground` | A long-lived private site created from the starter kit, updated locally at the end of every milestone and deployed to a non-indexable Infomaniak staging subdomain for M1, rendering milestones and switch-overs | Private |
 
 Each reference site keeps its own private repository; its content and URL inventories never enter Kami's.
 
@@ -450,7 +450,7 @@ Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-
 | Ceiling of 64 Blocks per install | Upgrade path named in `BlockSlot`: classes generated into `bootstrap/cache` | ADR 0024 |
 | Coarse invalidation: any write empties the page cache | Deliberate for small sites; dependency tracking is a V1 option | ADR 0021 |
 | The sitemap is rebuilt in one task run, which fits 30k Entries but not 1 M | Resume across Ticks, an internal change | ADR 0027 |
-| A solo maintainer working in phases: the playground, backports, CI drift | One playground update per milestone; a bounded 6-month security window; the CI smoke pinned to the starter kit's latest tag | [#29](https://github.com/psyao/kami/issues/29), [#30](https://github.com/psyao/kami/issues/30), [#31](https://github.com/psyao/kami/issues/31) |
+| A solo maintainer working in phases: the playground, backports, CI drift | One local playground update per milestone, a staging deploy only where the real host matters; a bounded 6-month security window; the CI smoke pinned to the starter kit's latest tag | [#29](https://github.com/psyao/kami/issues/29), [#30](https://github.com/psyao/kami/issues/30), [#31](https://github.com/psyao/kami/issues/31) |
 
 ### Open decisions
 
