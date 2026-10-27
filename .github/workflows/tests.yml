@@ -16,6 +16,7 @@ jobs:
   lowest:
     name: Lowest (MariaDB 10.11, Infomaniak ini)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       mariadb:
         image: mariadb:10.11
@@ -54,6 +55,7 @@ jobs:
   static:
     name: Static (SQLite, checks and coverage)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -104,6 +106,7 @@ jobs:
   postgresql:
     name: PostgreSQL 15
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:15
@@ -133,6 +136,7 @@ jobs:
   mysql:
     name: MySQL 8.4
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       mysql:
         image: mysql:8.4
@@ -162,6 +166,7 @@ jobs:
   browser:
     name: Browser (Chromium)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -184,6 +189,7 @@ jobs:
   smoke:
     name: Smoke (Apache + FPM, MariaDB 10.11)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

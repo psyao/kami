@@ -12,6 +12,8 @@ jobs:
   mariadb:
     name: Volume (MariaDB 10.11)
     runs-on: ubuntu-latest
+    # ponytail: generous ceiling while the suite is empty; tighten once the 30k and 1M datasets have a measured duration.
+    timeout-minutes: 60
     services:
       mariadb:
         image: mariadb:10.11
