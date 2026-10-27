@@ -1,0 +1,9 @@
+laravel: '@testbench'
+
+providers:
+  - Workbench\App\Providers\AdminPanelProvider
+
+workbench:
+  start: '/admin'
+  discovers:
+    config: true
