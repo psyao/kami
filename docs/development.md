@@ -33,7 +33,7 @@ Kami is tested inside [Testbench](https://packages.tools/testbench): a Laravel s
 | Job | Database | Checks |
 | --- | --- | --- |
 | Lowest | MariaDB 10.11 | `Kami` suite at the PHP floor with the lowest dependencies, under `tests/infomaniak.ini` (Infomaniak's web `disable_functions` and limits), serial |
-| Static | SQLite | Pint, Larastan, Rector, gitleaks on the whole history, `composer audit`, zizmor on the workflows, the [licences](#licences) of runtime dependencies, the [archive's contents](#distribution-archive), coverage of the `Kami` and `Install` suites |
+| Static | SQLite | Pint, Larastan, Rector, gitleaks on the whole history, `composer audit`, zizmor on the workflows, the [licences](#licences) of runtime dependencies, the [archive's contents](#distribution-archive), the [reference and breaking-change gate](#public-surface), coverage of the `Kami` and `Install` suites |
 | PostgreSQL 15 | PostgreSQL | `Kami` suite |
 | MySQL 8.4 | MySQL | `Kami` suite |
 | Browser | SQLite | `Browser` suite in Chromium |
@@ -52,6 +52,35 @@ Composer installs Kami from `git archive`, which leaves out what `.gitattributes
 ```bash
 git archive HEAD | tar -t
 ```
+
+## Public surface
+
+`tests/Kami/PublicSurfaceTest.php` writes one sorted line for everything a site can call or name (ADR 0010) and compares it with its snapshot, `tests/.pest/snapshots/Kami/PublicSurfaceTest/it_snapshots_the_public_surface.snap`:
+
+- classes outside `Internal`: kind, modifiers, parent and interfaces, then the members they declare themselves, with full signatures: public methods, properties and constants (protected ones too on a class that is not `final`), enum cases. A member marked `@internal` is left out;
+- `kami:*` commands, read from Kami's command classes rather than from Artisan, with their arguments and options;
+- the default keys of `config/kami.php`.
+
+`x-kami::` components, `kami.*` Permissions and `kami_` table names have no collector until the first one exists: a guard test fails the day Kami registers a `kami` view or component namespace, defines a `kami.*` ability on the Gate, or adds a migration. The components and Permissions pages say "Nothing yet".
+
+The same reflection generates `docs/reference/` (`api.md`, `commands.md`, `components.md`, `config.md`, `events.md`, `permissions.md`): signatures plus the first line of each PHPDoc or description. Event classes, in a `Psyao\Kami\<Module>\Events` namespace, go to `events.md` rather than `api.md`.
+
+After a change to the public surface:
+
+```bash
+vendor/bin/pest tests/Kami/PublicSurfaceTest.php --update-snapshots
+```
+
+```bash
+composer reference
+```
+
+then review both diffs and commit them with the change. `composer reference` runs the same test with `KAMI_REFERENCE=write`; without it, the test fails when a committed page is stale.
+
+The Static job checks both:
+
+- **Reference** runs `composer reference` and fails if `docs/reference/` then differs from the commit.
+- **Breaking changes** fails when the pull request removes or changes a snapshot line, unless its title is marked `!` or one of its commits carries a `BREAKING CHANGE:` footer. Added lines pass. Those are the two places release-please reads after the squash merge: a `!` on a commit's subject alone is lost. Editing the title does not rerun the job: push again.
 
 ## Shared-hosting smoke
 

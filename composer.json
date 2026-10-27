@@ -66,6 +66,10 @@
             "Composer\\Config::disableProcessTimeout",
             "@php vendor/bin/testbench package:discover --ansi",
             "pest --testsuite=Kami,Install --coverage --min=90"
+        ],
+        "reference": [
+            "@putenv KAMI_REFERENCE=write",
+            "pest tests/Kami/PublicSurfaceTest.php"
         ]
     },
     "extra": {
