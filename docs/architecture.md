@@ -399,7 +399,7 @@ Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-
 | Package or tool | Where | Role | Licence | Shared hosting |
 | --- | --- | --- | --- | --- |
 | `orchestra/testbench` + Workbench | Package dev | Test harness and demo Site | MIT | Not deployed |
-| `pestphp/pest`, browser plugin (Playwright Chromium, axe) | Package dev | Suites `Kami`, `Install`, `Browser`, `Volume`; arch tests; accessibility | MIT (Playwright Apache-2.0, axe-core MPL-2.0, CI only) | Not deployed |
+| `pestphp/pest`, browser plugin (Playwright Chromium, axe) | Package dev; Pest itself also starter dev | Suites `Kami`, `Install`, `Browser`, `Volume`; arch tests; accessibility | MIT (Playwright Apache-2.0, axe-core MPL-2.0, CI only) | Not deployed |
 | `larastan/larastan` (level `max`, no baseline), `phpstan/phpstan-deprecation-rules` | Package dev | Static analysis | MIT | Not deployed |
 | `rector/rector` with `driftingly/rector-laravel`, `laravel/pint` | Package dev; `rector-set.php` and `pint.json` shared with the starter kit | Refactoring (Laravel rules from rector-laravel), style | MIT | Not deployed |
 | `evilmartians/lefthook` | Package and starter dev | Git hooks from Composer, no Node | MIT | Not deployed |
