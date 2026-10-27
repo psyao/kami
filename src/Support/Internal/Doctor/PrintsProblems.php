@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Illuminate\Console\Command;

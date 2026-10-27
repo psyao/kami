@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 

@@ -1,0 +1,16 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
+
+# No baseline. An `ignoreErrors` entry names its identifier and path, with a comment saying why.
+# `database` and `routes` join the paths with their first file: PHPStan fails on a missing path.
+parameters:
+    level: max
+    paths:
+        - config
+        - src
+        - workbench/app
+    checkModelProperties: true
+    # The package's own config, not Testbench's skeleton: `env()` belongs there.
+    configDirectories:
+        - %currentWorkingDirectory%/config

@@ -1,0 +1,25 @@
+# Installed by `composer install`. Staged files on commit, the whole project on push; CI runs the rest.
+# gitleaks comes from outside Composer: `brew install gitleaks`.
+glob_matcher: doublestar # `**/` also matches no directory: `src/**/*.php` takes `src/Kami.php`
+
+pre-commit:
+  piped: true # in order: a secret stops the commit before Rector and Pint touch anything
+  jobs:
+    - name: gitleaks
+      run: gitleaks git --pre-commit --staged --redact --no-banner
+    - name: rector
+      glob: "{config,src,workbench/app}/**/*.php" # rector.php's paths: tests are left as written
+      run: vendor/bin/rector process {staged_files}
+      stage_fixed: true
+    - name: pint # after Rector, to format what it wrote
+      glob: "**/*.php"
+      run: vendor/bin/pint {staged_files}
+      stage_fixed: true
+
+pre-push:
+  piped: true
+  jobs:
+    - name: analyse
+      run: composer analyse
+    - name: test
+      run: composer test

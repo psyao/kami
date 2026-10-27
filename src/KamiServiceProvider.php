@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Psyao\Kami;
 
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
