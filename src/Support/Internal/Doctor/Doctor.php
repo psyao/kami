@@ -115,12 +115,13 @@ final readonly class Doctor
         $directories = ['storage' => storage_path(), 'bootstrap/cache' => app()->bootstrapPath('cache')];
         $unwritable = array_filter($directories, fn (string $path): bool => ! is_writable($path));
 
-        return array_values(array_map(fn (string $name, string $path): Problem => new Problem(
+        // Mapping two arrays at once already returns a list.
+        return array_map(fn (string $name, string $path): Problem => new Problem(
             Severity::Error,
             "{$name} ({$path}) is not writable.",
             "create {$path} if it is missing and give the user PHP runs as write access to it.",
             'installation.md#writable-directories',
-        ), array_keys($unwritable), $unwritable));
+        ), array_keys($unwritable), $unwritable);
     }
 
     private function database(): ?Problem
