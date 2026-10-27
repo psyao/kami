@@ -51,8 +51,10 @@
     "scripts": {
         "post-autoload-dump": [
             "@php vendor/bin/testbench package:discover --ansi",
-            "lefthook install"
+            "lefthook install",
+            "@link-skills"
         ],
+        "link-skills": "mkdir -p .claude/skills && for d in vendor/*/*/resources/boost/skills/*/ resources/boost/skills/*/; do [ -d \"$d\" ] && ln -sfn \"../../$d\" .claude/skills/$(basename \"$d\"); done; true",
         "analyse": "phpstan analyse",
         "test": [
             "Composer\\Config::disableProcessTimeout",

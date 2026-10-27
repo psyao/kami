@@ -172,11 +172,7 @@ it('links every problem to a section of the guide', function () {
 
     foreach ($everything->problems() as $problem) {
         [$page, $anchor] = explode('#', $problem->guide);
-        $headings = Str::of(File::get(dirname(__DIR__, 2) . "/docs/guide/{$page}"))
-            ->matchAll('/^#+ (.+)$/m')
-            ->map(fn (string $heading) => Str::slug($heading));
-
-        expect($headings)->toContain($anchor);
+        expect(headingAnchors("docs/guide/{$page}"))->toContain($anchor);
     }
 });
 
