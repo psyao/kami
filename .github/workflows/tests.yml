@@ -180,3 +180,19 @@ jobs:
         run: |
           mkdir -p tests/Browser/Traces
           vendor/bin/pest --testsuite=Browser --ci
+
+  smoke:
+    name: Smoke (Apache + FPM, MariaDB 10.11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Composer runs inside the stack, so the job needs no PHP of its own (docs/development.md).
+      - name: Shared-hosting smoke
+        run: tests/Smoke/run.sh
+
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f tests/Smoke/compose.yaml logs

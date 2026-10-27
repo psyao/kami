@@ -1,0 +1,54 @@
+# A simulated Infomaniak shared host (docs/velox-retrospective.md § 5.1): Apache 2.4 in front of PHP-FPM 8.5
+# under the host's web ini, MariaDB 10.11. No cron and no queue worker: nothing runs unless a request arrives.
+# run.sh drives it; docs/development.md says how.
+name: kami-smoke
+
+x-php: &php
+  build: .
+  image: kami-smoke-php
+  volumes:
+    - site:/var/www/site
+    - ../..:/kami:ro # the package under test, a path repository of the site
+
+services:
+  # The web SAPI: the host's ini and pool settings apply here only, as on the host.
+  php:
+    <<: *php
+    volumes:
+      - site:/var/www/site
+      - ../..:/kami:ro
+      - ../infomaniak.ini:/usr/local/etc/php/conf.d/zz-infomaniak.ini:ro
+      - ./fpm.conf:/usr/local/etc/php-fpm.d/zz-infomaniak.conf:ro
+
+  # The SSH command line: same PHP and user, no disable_functions or time limit, so Composer works.
+  cli:
+    <<: *php
+    profiles: [cli]
+    user: www-data
+    working_dir: /var/www/site
+    environment:
+      COMPOSER_HOME: /tmp/composer
+
+  apache:
+    image: httpd:2.4
+    depends_on: [php]
+    ports:
+      - ${SMOKE_PORT:-8080}:80
+    volumes:
+      - site:/var/www/site:ro
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+
+  mariadb:
+    image: mariadb:10.11
+    environment:
+      MARIADB_RANDOM_ROOT_PASSWORD: 1
+      MARIADB_DATABASE: kami
+      MARIADB_USER: kami
+      MARIADB_PASSWORD: kami
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 2s
+      retries: 30
+
+volumes:
+  site:

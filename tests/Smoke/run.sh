@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# The shared-hosting smoke (psyao/kami#29, decision 4): installs the starter kit with this checkout of Kami
+# on the simulated host, checks the site over HTTP, then requires empty error logs.
+# It starts from scratch and leaves the stack up: `docker compose -f tests/Smoke/compose.yaml down -v` stops it.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+# ponytail: the starter kit's default branch, so a starter change can break this job; pin its latest tag once it has one.
+starter_version=dev-main
+base_url="http://localhost:${SMOKE_PORT:-8080}"
+
+docker compose down --volumes --remove-orphans
+docker compose up --build --detach --wait php mariadb
+docker compose run --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
+# Apache needs the site's public/ to start.
+docker compose up --detach --wait apache
+
+failed=0
+
+expect() {
+    local status
+    status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url$2" || true)
+    if [ "$status" = "$1" ]; then
+        echo "GET $2: $status"
+    else
+        echo "GET $2: $status, expected $1"
+        failed=1
+    fi
+}
+
+# One step per subsystem as the milestones land it.
+expect 200 /admin/login
+
+logs=$(docker compose exec -T php sh -c 'cat /var/log/php/error.log /var/www/site/storage/logs/*.log 2>/dev/null' || true)
+if [ -n "$logs" ]; then
+    echo "The error logs are not empty:"
+    echo "$logs"
+    failed=1
+fi
+
+exit "$failed"
