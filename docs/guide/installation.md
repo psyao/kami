@@ -1,5 +1,7 @@
 # Installation
 
+Creating a site with Kami, checking its environment and installing Kami on it. Deploying it is in [Deployment](deployment.md), adding Kami to an application you already have in [Existing application](existing-application.md).
+
 ## Requirements
 
 Kami runs on PHP 8.5 or later, on the command line and on the web. On shared hosting the two often run different PHP builds, so check both.
@@ -19,6 +21,28 @@ Kami supports SQLite, MySQL 8.4, MariaDB 10.11 and PostgreSQL 15 or later. The c
 
 On SQLite, the database file need not exist: `kami:install` creates it, as on a first deploy from git where `database.sqlite` is ignored. Its directory must exist and be writable by the user PHP runs as.
 
+## Creating a site
+
+A new site starts from the starter kit, a Laravel application already wired for Kami: its panel carries `KamiPlugin` and the local avatar provider. On your machine, with PHP, Composer, Node and the [Laravel installer](https://laravel.com/docs/13.x/installation):
+
+```bash
+laravel new site --using=https://github.com/psyao/kami-starter
+cd site
+php artisan kami:install
+```
+
+The site owns the starter kit's code from then on: Kami's updates come with `composer update psyao/kami`, never from the starter kit.
+
+### The first User
+
+`kami:install` creates no User yet. Create the first one, who can sign in to the admin at `/admin`:
+
+```bash
+php artisan make:filament-user
+```
+
+Every User can sign in to the starter kit's panel: its `User` model allows them all, until Kami's Roles land.
+
 ## Checking the environment
 
 ```bash
@@ -36,7 +60,7 @@ Run it after any change to the environment, and with `--strict` in your CI if wa
 
 ## Installing and deploying
 
-Add Kami to your own Filament panel, in its panel provider:
+The starter kit's panel already carries both lines below. In another application, add Kami to your own Filament panel, in its panel provider:
 
 ```php
 use Psyao\Kami\Admin\KamiPlugin;
