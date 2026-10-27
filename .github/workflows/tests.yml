@@ -190,6 +190,7 @@ jobs:
           persist-credentials: false
 
       # Composer runs inside the stack, so the job needs no PHP of its own (docs/development.md).
+      # ponytail: the PHP image builds on every run (about 2.5 min in all); add a buildx GHA cache if this job becomes the slowest gate.
       - name: Shared-hosting smoke
         run: tests/Smoke/run.sh
 
