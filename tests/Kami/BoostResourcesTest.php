@@ -2,58 +2,56 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
-// Sites' agents read these from vendor/psyao/kami: a renamed guide, heading or class must break the build, not the agent.
-dataset('boost resources', [
-    'guideline' => 'resources/boost/guidelines/core.blade.php',
-    'skill' => 'resources/boost/skills/kami-development/SKILL.md',
-]);
-
-/** @return list<string> */
-function codeSpans(string $file): array
-{
-    preg_match_all('/`([^`\n]+)`/', (string) file_get_contents(dirname(__DIR__, 2) . "/{$file}"), $matches);
-
-    return $matches[1];
-}
+// Sites' agents read these from vendor/psyao/kami: a renamed guide, heading, class or command must break the build, not the agent.
+const BOOST_RESOURCES = [
+    'resources/boost/guidelines/core.blade.php',
+    'resources/boost/skills/kami-development/SKILL.md',
+];
 
 /**
- * The anchors GitHub gives a Markdown file's headings.
+ * The code spans of every Boost resource that start with a prefix.
  *
  * @return list<string>
  */
-function headingAnchors(string $path): array
+function boostSpans(string $prefix): array
 {
-    preg_match_all('/^#+ (.+)$/m', (string) file_get_contents($path), $matches);
+    $spans = [];
 
-    return array_map(fn (string $heading): string => Str::of($heading)->lower()->replaceMatches('/[^\p{L}\p{N} _-]/u', '')->replace(' ', '-')->value(), $matches[1]);
+    foreach (BOOST_RESOURCES as $file) {
+        preg_match_all('/`([^`\n]+)`/', (string) file_get_contents(dirname(__DIR__, 2) . "/{$file}"), $matches);
+        $spans = [...$spans, ...array_filter($matches[1], fn (string $span): bool => str_starts_with($span, $prefix))];
+    }
+
+    expect($spans)->not->toBeEmpty();
+
+    return $spans;
 }
 
-it('names only paths and anchors the package ships', function (string $file) {
-    $paths = array_filter(codeSpans($file), fn (string $span): bool => str_starts_with($span, 'vendor/psyao/kami/'));
+it('names only paths and anchors the package ships', function () {
+    foreach (boostSpans('vendor/psyao/kami/') as $span) {
+        [$file, $anchor] = array_pad(explode('#', Str::after($span, 'vendor/psyao/kami/'), 2), 2, null);
 
-    expect($paths)->not->toBeEmpty();
-
-    foreach ($paths as $span) {
-        [$relative, $anchor] = array_pad(explode('#', Str::after($span, 'vendor/psyao/kami/'), 2), 2, null);
-        $path = dirname(__DIR__, 2) . "/{$relative}";
-
-        expect(file_exists($path))->toBeTrue("{$span} does not exist");
+        expect(file_exists(dirname(__DIR__, 2) . "/{$file}"))->toBeTrue("{$span} does not exist");
 
         if ($anchor !== null) {
-            expect(headingAnchors($path))->toContain($anchor);
+            expect(headingAnchors($file)->contains($anchor))->toBeTrue("{$span} names no heading");
         }
     }
-})->with('boost resources');
+});
 
 it('names only classes that exist', function () {
-    $spans = [...codeSpans('resources/boost/guidelines/core.blade.php'), ...codeSpans('resources/boost/skills/kami-development/SKILL.md')];
-    $classes = array_filter($spans, fn (string $span): bool => str_starts_with($span, 'Psyao\\Kami\\'));
-
-    expect($classes)->not->toBeEmpty();
-
-    foreach ($classes as $class) {
+    foreach (boostSpans('Psyao\\Kami\\') as $class) {
         expect(class_exists($class))->toBeTrue("{$class} does not exist");
+    }
+});
+
+it('names only commands that exist', function () {
+    foreach (boostSpans('php artisan kami:') as $command) {
+        $name = Str::of($command)->after('php artisan ')->before(' ')->value();
+
+        expect(array_key_exists($name, Artisan::all()))->toBeTrue("{$command} does not exist");
     }
 });

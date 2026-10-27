@@ -30,7 +30,13 @@ git clone git@github.com:you/site.git .
 composer install --no-dev --optimize-autoloader
 ```
 
-A private repository needs the server's SSH public key as a read-only deploy key of that repository on GitHub.
+The server reaches GitHub with its own SSH key. Create it once, then add `~/.ssh/id_ed25519.pub` to the site's repository on GitHub as a deploy key, read-only:
+
+```bash
+ssh-keygen -t ed25519
+```
+
+A public repository needs no key: clone it from `https://github.com/you/site.git`.
 
 ### Configure
 

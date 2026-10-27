@@ -37,5 +37,5 @@ Facts measured on Infomaniak Web Hosting, on PHP 8.5, that change what a site se
 - **OPcache is off on the web** and cannot be turned on. Every request compiles Laravel and Filament again, so the admin is slower than on a server. Nothing in Kami depends on it.
 - **`display_errors` is on on the web.** A fatal error before Laravel boots shows its message, paths included, to visitors. Turn it off as [Deployment](deployment.md#configure) shows.
 - **The database is remote.** Every query pays network latency.
-- **Every site of an account runs as the same user,** the SSH user, so `storage/` and `bootstrap/cache/` are writable once cloned, and so are the other sites' files.
+- **PHP runs as the SSH user,** so `storage/` and `bootstrap/cache/` are writable once cloned. Every site of the account runs as that user too, and can read this site's files, `.env` included.
 - **There is no Node** on the SSH `PATH`.

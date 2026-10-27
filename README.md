@@ -9,7 +9,7 @@ Kami is in early development: so far it covers installation, the environment che
 ## Requirements
 
 - PHP 8.5 or later, with the extensions listed in [Installation](docs/guide/installation.md#requirements)
-- Laravel 13 and Filament 5
+- Laravel 13.32 or later and Filament 5.8.3 or later
 - SQLite, MySQL 8.4, MariaDB 10.11 or PostgreSQL 15 or later
 
 ## Install
@@ -34,7 +34,7 @@ The admin answers at `/admin`. To add Kami to an application you already have, s
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server
 - [Decision records](docs/adr/): why Kami is built the way it is
 
-Contributing to Kami itself: [Development](docs/development.md).
+Contributing to Kami itself: [Development](https://github.com/psyao/kami/blob/main/docs/development.md).
 
 ## Licence
 

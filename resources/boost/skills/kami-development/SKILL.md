@@ -5,15 +5,17 @@ description: Installs, configures, deploys and checks Kami, the CMS package in t
 
 # Kami development
 
-Each task has one guide, the source of truth: open it before acting, and follow it over anything remembered. Guides live in `vendor/psyao/kami/docs/guide/`.
+Each task has one guide, the source of truth: open it before acting, and follow it over anything remembered.
 
 | Task | Guide |
 | --- | --- |
-| Create a new site from the starter kit, or its first User | `vendor/psyao/kami/docs/guide/installation.md#creating-a-site` |
+| Create a new site from the starter kit | `vendor/psyao/kami/docs/guide/installation.md#creating-a-site` |
+| Create the first User of the admin | `vendor/psyao/kami/docs/guide/installation.md#the-first-user` |
 | Add Kami to an existing application or to its Filament panel | `vendor/psyao/kami/docs/guide/existing-application.md` |
-| Fix a problem `kami:doctor` or `kami:install` reports | The guide section the problem names, under `vendor/psyao/kami/docs/guide/installation.md` |
-| Deploy a site, the first time or again, or update Kami | `vendor/psyao/kami/docs/guide/deployment.md` |
+| Fix a problem `kami:doctor` or `kami:install` reports | The section of `vendor/psyao/kami/docs/guide/installation.md` the problem names |
+| Deploy a site for the first time | `vendor/psyao/kami/docs/guide/deployment.md#first-deploy` |
+| Deploy again, or update Kami | `vendor/psyao/kami/docs/guide/deployment.md#later-deploys` |
 | Decide whether something can run on the host (cron, queue, Node, PHP limits) | `vendor/psyao/kami/docs/guide/hosting.md` |
 | Understand why Kami works the way it does | `vendor/psyao/kami/docs/adr/` |
 
-A task the table does not cover is outside what Kami offers today: say so rather than reaching into `vendor/psyao/kami/src/`, whose `Internal` namespaces are not Kami's public API.
+A task the table does not cover is outside what Kami offers today: say so, and keep to Kami's public classes rather than its `Internal` namespaces under `vendor/psyao/kami/src/`.

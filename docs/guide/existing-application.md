@@ -43,7 +43,6 @@ Until a panel carries `KamiPlugin`, it stops before changing anything and prints
   php artisan vendor:publish --tag=kami-config
   ```
 
-- **Its tables.** Every Kami table name starts with `kami_`, so it sits next to your own `pages` or `media` tables. Keep that prefix for Kami.
 - **Filament's assets.** `kami:install` copies them to `public/`, as `php artisan filament:assets` does.
 
-Kami adds no route, middleware or scheduled task to your application.
+Kami adds no table, route, middleware or scheduled task to your application yet.
