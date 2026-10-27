@@ -11,40 +11,172 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The test strategy's matrix (psyao/kami#29, ADR 0031). No step retries a failing test.
 jobs:
-  sqlite:
+  lowest:
+    name: Lowest (MariaDB 10.11, Infomaniak ini)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: password
+          MARIADB_DATABASE: kami
+        ports:
+          - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: mariadb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: kami
+      DB_USERNAME: root
+      DB_PASSWORD: password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          dependencies: lowest
+
+      # Loaded last, after Composer, which needs proc_open. Serial: Paratest needs it too.
+      - name: Load the Infomaniak ini
+        run: |
+          sudo cp tests/infomaniak.ini "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/zz-infomaniak.ini"
+          php -i | grep -E '^(disable_functions|opcache.enable_cli|memory_limit|allow_url_fopen|zend.assertions|date.timezone) '
+
+
+      - name: Kami suite
+        run: vendor/bin/pest --testsuite=Kami --ci
+
+  static:
+    name: Static (SQLite, checks and coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # gitleaks reads the whole history
+
+      - uses: $/.github/actions/setup
+        id: setup
+        with:
+          coverage: pcov
+
+      # Each check runs once the environment is ready, so one push reports every failure.
+      - name: Pint
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: vendor/bin/pint --test
+
+      - name: Larastan
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
+      - name: Rector
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: vendor/bin/rector --dry-run --no-progress-bar
+
+      - name: gitleaks
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: |
+          curl -sSfL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum --check
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks git --redact --no-banner
+
+      - name: Composer audit
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: composer audit --abandoned=report # an abandoned dependency is not an advisory
+
+      - name: zizmor
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }} # online audits: impostor commits, known-vulnerable actions
+        run: pipx run zizmor==1.31.1 --format=github .
+
+      # The Install suite runs inside it: its tests count towards the core's coverage.
+      - name: Coverage, Kami and Install suites
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: composer test:coverage
+
+  postgresql:
+    name: PostgreSQL 15
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: kami
+        ports:
+          - 5432:5432
+        options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: kami
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+
+      - name: Kami suite
+        run: vendor/bin/pest --testsuite=Kami --parallel --ci
+
+  mysql:
+    name: MySQL 8.4
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: kami
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: kami
+      DB_USERNAME: root
+      DB_PASSWORD: password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+
+      - name: Kami suite
+        run: vendor/bin/pest --testsuite=Kami --parallel --ci
+
+  browser:
+    name: Browser (Chromium)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
-        with:
-          php-version: '8.5'
-          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, bcmath, intl, fileinfo, gd
-          coverage: none
+      - uses: $/.github/actions/setup
 
-      - name: Find Composer's cache
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Install Playwright Chromium
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
 
-      - name: Cache Composer downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: composer-${{ hashFiles('composer.json') }}
-          restore-keys: composer-
-
-      - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
-
-      - name: Pint
-        run: vendor/bin/pint --test
-
-      - name: Kami suite
-        run: vendor/bin/pest --testsuite=Kami --parallel --ci
-
-      - name: Install suite
-        run: vendor/bin/pest --testsuite=Install --ci
+      # ponytail: pest-plugin-browser 5.1.2 warns when it removes a missing Traces directory, and phpunit.xml fails on warnings.
+      # Fixed on its 5.x branch: drop the mkdir with the next release.
+      - name: Browser suite
+        run: |
+          mkdir -p tests/Browser/Traces
+          vendor/bin/pest --testsuite=Browser --ci
