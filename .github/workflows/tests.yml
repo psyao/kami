@@ -174,10 +174,12 @@ jobs:
 
       - uses: $/.github/actions/setup
 
+      # No --with-deps: the runner image's Google Chrome already brings Chromium's libraries,
+      # and apt on the Ubuntu mirror took up to 7 minutes.
       - name: Install Playwright Chromium
         run: |
           npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
 
       # ponytail: pest-plugin-browser 5.1.2 warns when it removes a missing Traces directory, and phpunit.xml fails on warnings.
       # Fixed on its 5.x branch: drop the mkdir with the next release.
