@@ -19,7 +19,8 @@ function withoutExtensions(string ...$missing): Doctor
 
 function withSqliteDatabase(string $path): void
 {
-    config(['database.connections.testing.database' => $path]);
+    // Whatever engine the suite runs on.
+    config(['database.default' => 'testing', 'database.connections.testing.database' => $path]);
     DB::purge('testing');
 }
 
