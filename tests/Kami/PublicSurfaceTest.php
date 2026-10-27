@@ -40,7 +40,7 @@ function publicSurface(): array
     };
 
     foreach (publicClasses() as $class) {
-        $element('class', $class->getName(), classSignature($class), summary($class->getDocComment()));
+        $element('class', $class->getName(), classSignature($class), docSummary($class->getDocComment()));
 
         // A protected member is reachable by a subclass, so it counts on a class that is not final.
         $visible = $class->isFinal() ? ReflectionMethod::IS_PUBLIC : ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED;
@@ -52,19 +52,19 @@ function publicSurface(): array
         foreach (array_filter($class->getMethods($visible), $own) as $method) {
             $parameters = array_map(fn (ReflectionParameter $parameter): string => preg_replace('/^Parameter #\d+ \[ <\w+> (.*) \]$/', '$1', (string) $parameter), $method->getParameters());
             $signature = implode(' ', Reflection::getModifierNames($method->getModifiers())) . ' function ' . ($method->returnsReference() ? '&' : '') . $method->getName() . '(' . implode(', ', $parameters) . ')' . ($method->hasReturnType() ? ': ' . $method->getReturnType() : '');
-            $element('class', "{$class->getName()}::{$method->getName()}()", $signature, summary($method->getDocComment()));
+            $element('class', "{$class->getName()}::{$method->getName()}()", $signature, docSummary($method->getDocComment()));
         }
 
         // An enum's only properties are PHP's `name` and `value`.
         foreach ($class->isEnum() ? [] : array_filter($class->getProperties($visible), $own) as $property) {
-            $element('class', "{$class->getName()}::\${$property->getName()}", preg_replace('/^Property \[ (.*) \]$/', '$1', trim((string) $property)), summary($property->getDocComment()));
+            $element('class', "{$class->getName()}::\${$property->getName()}", preg_replace('/^Property \[ (.*) \]$/', '$1', trim((string) $property)), docSummary($property->getDocComment()));
         }
 
         foreach (array_filter($class->getReflectionConstants($visible), $own) as $constant) {
             $signature = $constant->isEnumCase()
-                ? 'case ' . $constant->getName() . ($class->isBacked() ? ' = ' . var_export($constant->getValue()->value, true) : '')
-                : implode(' ', Reflection::getModifierNames($constant->getModifiers())) . ' const ' . ($constant->hasType() ? $constant->getType() . ' ' : '') . $constant->getName() . ' = ' . exportValue($constant->getValue());
-            $element('class', "{$class->getName()}::{$constant->getName()}", $signature, summary($constant->getDocComment()));
+                ? 'case ' . $constant->getName() . ($constant->getValue() instanceof BackedEnum ? ' = ' . var_export($constant->getValue()->value, true) : '')
+                : implode(' ', Reflection::getModifierNames($constant->getModifiers())) . ' const ' . ($constant->hasType() ? $constant->getType() . ' ' : '') . $constant->getName() . ' = ' . exportedValue($constant->getValue());
+            $element('class', "{$class->getName()}::{$constant->getName()}", $signature, docSummary($constant->getDocComment()));
         }
     }
 
@@ -72,7 +72,7 @@ function publicSurface(): array
         $element('command', $name, summary: $command->getDescription());
 
         foreach ([...$command->getNativeDefinition()->getArguments(), ...$command->getNativeDefinition()->getOptions()] as $input) {
-            $synopsis = (new InputDefinition([$input]))->getSynopsis() . (in_array($input->getDefault(), [null, false, []], true) ? '' : ' = ' . exportValue($input->getDefault()));
+            $synopsis = (new InputDefinition([$input]))->getSynopsis() . (in_array($input->getDefault(), [null, false, []], true) ? '' : ' = ' . exportedValue($input->getDefault()));
             $element('command', $name . ' ' . ($input instanceof InputOption ? '--' : '') . $input->getName(), $synopsis, $input->getDescription());
         }
     }
@@ -114,7 +114,7 @@ function classSignature(ReflectionClass $class): string
 }
 
 /** The first line of a PHPDoc, unless it starts with a tag. */
-function summary(string | false $docComment): string
+function docSummary(string | false $docComment): string
 {
     $lines = array_map(fn (string $line): string => trim((string) preg_replace(['#^\s*/\*\*#', '#\*/\s*$#', '#^\s*\*#'], '', $line)), explode("\n", (string) $docComment));
     $first = (string) Arr::first($lines, fn (string $line): bool => $line !== '');
@@ -122,7 +122,7 @@ function summary(string | false $docComment): string
     return str_starts_with($first, '@') ? '' : $first;
 }
 
-function exportValue(mixed $value): string
+function exportedValue(mixed $value): string
 {
     return (string) preg_replace('/\s+/', ' ', var_export($value, true));
 }
