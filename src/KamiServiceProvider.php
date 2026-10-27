@@ -16,13 +16,16 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasTranslations();
     }
 
+    public function packageRegistered(): void
+    {
+        // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
+        config(['app.timezone' => 'UTC']);
+        date_default_timezone_set('UTC');
+    }
+
     public function packageBooted(): void
     {
         // Run from the package, never published: a copy in the site would drift from the append-only history (ADR 0035).
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-
-        // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
-        config(['app.timezone' => 'UTC']);
-        date_default_timezone_set('UTC');
     }
 }

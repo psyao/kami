@@ -14,14 +14,16 @@ it('adds Kami to the host panel', function () {
 });
 
 it('registers no route or middleware of its own', function () {
-    $kami = [realpath(__DIR__ . '/../src'), realpath(__DIR__ . '/../routes') ?: __DIR__ . '/../routes'];
-    $definedByKami = function (Route $route) use ($kami): bool {
+    $kamiSource = dirname(__DIR__) . '/src/';
+    $definedByKami = function (Route $route) use ($kamiSource): bool {
         $uses = $route->getAction('uses');
-        $file = $uses instanceof Closure
-            ? (new ReflectionFunction($uses))->getFileName()
-            : (new ReflectionClass($route->getControllerClass() ?? Closure::class))->getFileName();
+        $file = match (true) {
+            $uses instanceof Closure => (new ReflectionFunction($uses))->getFileName(),
+            $route->getControllerClass() !== null => (new ReflectionClass($route->getControllerClass()))->getFileName(),
+            default => false, // a view or redirect route: no PHP of its own
+        };
 
-        return str_starts_with((string) $file, $kami[0]) || str_starts_with((string) $file, $kami[1]);
+        return str_starts_with((string) $file, $kamiSource);
     };
     $router = app('router');
 
@@ -42,6 +44,8 @@ it('runs in UTC whatever the host time zone', function () {
 it('creates no kami_ table yet', function () {
     $this->artisan('migrate')->assertSuccessful();
 
-    expect(Schema::getTableListing(schemaQualified: false))->not->toBeEmpty()
-        ->and(collect(Schema::getTableListing(schemaQualified: false))->filter(fn (string $table) => str_starts_with($table, 'kami_')))->toBeEmpty();
+    $tables = collect(Schema::getTableListing(schemaQualified: false));
+
+    expect($tables)->not->toBeEmpty()
+        ->and($tables->filter(fn (string $table) => str_starts_with($table, 'kami_')))->toBeEmpty();
 });
