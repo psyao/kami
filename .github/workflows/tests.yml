@@ -133,8 +133,8 @@ jobs:
             exit 1
           fi
 
-      # ADR 0010: a removed or changed snapshot line can break a site, so the pull request must say so in a
-      # Conventional Commit (`!` or a `BREAKING CHANGE:` footer) or in its title, which the squash merge keeps. Added lines pass.
+      # ADR 0010: a removed or changed snapshot line can break a site, so the pull request must say so where release-please
+      # reads it after the squash merge: `!` in its title, or a `BREAKING CHANGE:` footer in a commit. Added lines pass.
       - name: Breaking changes
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && github.event_name == 'pull_request' }}
         env:
@@ -142,8 +142,9 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
           removed=$(git diff "$BASE"...HEAD -- tests/.pest/snapshots/Kami/PublicSurfaceTest | grep '^-' | grep -v '^---' || true)
-          if [ -n "$removed" ] && ! { echo "$TITLE"; git log --format=%B "$BASE"..HEAD; } | grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:'; then
-            echo "::error::The public surface lost or changed these lines, and no commit is marked breaking:"
+          if [ -n "$removed" ] && ! echo "$TITLE" | grep -qE '^[a-z]+(\([^)]*\))?!:' \
+            && ! git log --format=%B "$BASE"..HEAD | grep -qE '^BREAKING[ -]CHANGE:'; then
+            echo "::error::The public surface lost or changed these lines: mark the title with ! or add a BREAKING CHANGE: footer, then push again"
             echo "$removed"
             exit 1
           fi

@@ -82,7 +82,7 @@ then review both diffs and commit them with the change. `composer reference` run
 The Static job checks both:
 
 - **Reference** runs `composer reference` and fails if `docs/reference/` then differs from the commit.
-- **Breaking changes** fails when the pull request removes or changes a snapshot line and neither its title nor any of its commits is marked `!` or carries a `BREAKING CHANGE:` footer. Added lines pass. The squash merge keeps the title, which release-please reads, so a breaking pull request marks its title in any case. Editing the title does not rerun the job: push again.
+- **Breaking changes** fails when the pull request removes or changes a snapshot line, unless its title is marked `!` or one of its commits carries a `BREAKING CHANGE:` footer. Added lines pass. Those are the two places release-please reads after the squash merge: a `!` on a commit's subject alone is lost. Editing the title does not rerun the job: push again.
 
 ## Shared-hosting smoke
 
