@@ -2,46 +2,11 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\File;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Finder\SplFileInfo;
 
 // The closed list of open classes (ADR 0029): a class outside `Internal` is final or abstract unless it is named here.
 // Adding to this list opens a class to sites for good, so it is a reviewed change to the public API.
 const OPEN_CLASSES = [];
-
-/**
- * Every class, enum, interface and trait under `src/`.
- *
- * @return Collection<int, ReflectionClass<object>>
- */
-function kamiClasses(): Collection
-{
-    return collect(File::allFiles(dirname(__DIR__, 2) . '/src'))
-        ->map(fn (SplFileInfo $file): ReflectionClass => new ReflectionClass('Psyao\\Kami\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname())));
-}
-
-/** @param ReflectionClass<object> $class */
-function isInternal(ReflectionClass $class): bool
-{
-    return str_contains($class->getNamespaceName() . '\\', '\\Internal\\');
-}
-
-function isMarkedInternal(ReflectionClass | ReflectionMethod | ReflectionProperty $element): bool
-{
-    return (bool) preg_match('/@internal\b/', (string) $element->getDocComment());
-}
-
-/**
- * The classes a site may call or name (ADR 0010).
- *
- * @return Collection<int, ReflectionClass<object>>
- */
-function publicClasses(): Collection
-{
-    return kamiClasses()->reject(isInternal(...))->values();
-}
 
 /**
  * The class names a type declaration mentions, unions and intersections included.

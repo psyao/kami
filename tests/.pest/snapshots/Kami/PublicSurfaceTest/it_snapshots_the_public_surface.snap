@@ -1,0 +1,19 @@
+class Psyao\Kami\Admin\InitialsAvatarProvider final class implements Filament\AvatarProviders\Contracts\AvatarProvider
+class Psyao\Kami\Admin\InitialsAvatarProvider::get() public function get(Illuminate\Database\Eloquent\Model|Illuminate\Contracts\Auth\Authenticatable $record): string
+class Psyao\Kami\Admin\KamiPlugin final class implements Filament\Contracts\Plugin
+class Psyao\Kami\Admin\KamiPlugin::boot() public function boot(Filament\Panel $panel): void
+class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
+class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
+class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
+class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
+class Psyao\Kami\Kami final class
+class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTools\PackageServiceProvider
+class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
+class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
+class Psyao\Kami\KamiServiceProvider::packageRegistered() public function packageRegistered(): void
+command kami:doctor
+command kami:doctor --strict [--strict]
+command kami:install
+config kami.sites.default.locales
+config kami.sites.default.timezone
+config kami.sites.default.url

@@ -110,7 +110,7 @@ jobs:
           test -z "$refused"
 
       # .gitattributes: the archive's top-level entries, and docs/ one level down, match this list exactly.
-      # A new one ships, with a line here, or is export-ignored. docs/reference joins once it is generated.
+      # A new one ships, with a line here, or is export-ignored.
       - name: Archive contents
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: |
@@ -118,7 +118,34 @@ jobs:
           git archive HEAD | tar -t | grep -v '/$' \
             | awk -F/ '$1 == "docs" && NF > 2 { print $1 "/" $2; next } { print $1 }' | sort -u \
             | diff -u <(printf '%s\n' CHANGELOG.md GLOSSARY.md LICENSE.md README.md SECURITY.md UPGRADING.md \
-                composer.json config docs/adr docs/guide pint.json rector-set.php resources src | sort) -
+                composer.json config docs/adr docs/guide docs/reference pint.json rector-set.php resources src | sort) -
+
+      # ADR 0010: the reference is generated from the public surface, so a stale or missing page fails here.
+      - name: Reference
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: |
+          composer reference
+          stale=$(git status --porcelain -- docs/reference)
+          if [ -n "$stale" ]; then
+            echo "::error::docs/reference is stale: run composer reference and commit the result"
+            echo "$stale"
+            git diff -- docs/reference
+            exit 1
+          fi
+
+      # ADR 0010: a removed or changed snapshot line can break a site, so the pull request must say so in a
+      # Conventional Commit (`!` or a `BREAKING CHANGE:` footer). Added lines pass.
+      - name: Breaking changes
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && github.event_name == 'pull_request' }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          removed=$(git diff "$BASE"...HEAD -- tests/.pest/snapshots | grep '^-' | grep -v '^---' || true)
+          if [ -n "$removed" ] && ! git log --format=%B "$BASE"..HEAD | grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:'; then
+            echo "::error::The public surface lost or changed these lines, and no commit is marked breaking:"
+            echo "$removed"
+            exit 1
+          fi
 
       # The Install suite runs inside it: its tests count towards the core's coverage.
       - name: Coverage, Kami and Install suites
