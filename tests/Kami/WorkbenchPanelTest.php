@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Dom\Element;
+use Dom\HTMLDocument;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Auth\User;
@@ -16,20 +18,22 @@ it('adds Kami to the host panel', function () {
         ->assertSee('/css/psyao/kami/kami.css', escape: false);
 });
 
-it('draws avatars on the panel with no request to a remote host', function () {
+it('draws the User avatar inline, with no remote URL in the panel markup', function () {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
     $this->artisan('migrate')->assertSuccessful();
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => 'secret']);
 
-    $html = (string) $this->actingAs($user)->get('/admin')->assertOk()->getContent();
+    $page = HTMLDocument::createFromString((string) $this->actingAs($user)->get('/admin')->assertOk()->getContent(), LIBXML_NOERROR);
 
-    preg_match_all('/\\b(?:src|href|srcset)="([^"]*)"/', $html, $urls);
+    // The markup only, where the avatar `<img>` sits: a URL built later by JavaScript is not seen here.
     $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
-    $remote = array_filter($urls[1], fn (string $url) => preg_match('#^(?:[a-z]+:)?//#i', $url) === 1 && parse_url($url, PHP_URL_HOST) !== $appHost);
+    $remote = collect($page->querySelectorAll('[src], [href]'))
+        ->map(fn (Element $element) => $element->getAttribute('src') ?? $element->getAttribute('href'))
+        ->filter(fn (string $url) => preg_match('#^(?:[a-z]+:)?//#i', $url) === 1 && parse_url($url, PHP_URL_HOST) !== $appHost);
 
     expect($remote)->toBeEmpty()
-        ->and($html)->toContain('src="data:image/svg+xml;base64,');
+        ->and($page->querySelector('img.fi-user-avatar')?->getAttribute('src'))->toStartWith('data:image/svg+xml;base64,');
 });
 
 it('registers no route or middleware of its own', function () {
