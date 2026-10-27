@@ -33,13 +33,25 @@ Kami is tested inside [Testbench](https://packages.tools/testbench): a Laravel s
 | Job | Database | Checks |
 | --- | --- | --- |
 | Lowest | MariaDB 10.11 | `Kami` suite at the PHP floor with the lowest dependencies, under `tests/infomaniak.ini` (Infomaniak's web `disable_functions` and limits), serial |
-| Static | SQLite | Pint, Larastan, Rector, gitleaks on the whole history, `composer audit`, zizmor on the workflows, coverage of the `Kami` and `Install` suites |
+| Static | SQLite | Pint, Larastan, Rector, gitleaks on the whole history, `composer audit`, zizmor on the workflows, the [licences](#licences) of runtime dependencies, the [archive's contents](#distribution-archive), coverage of the `Kami` and `Install` suites |
 | PostgreSQL 15 | PostgreSQL | `Kami` suite |
 | MySQL 8.4 | MySQL | `Kami` suite |
 | Browser | SQLite | `Browser` suite in Chromium |
 | Smoke | MariaDB 10.11 | The [shared-hosting smoke](#shared-hosting-smoke) |
 
-Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite nightly on MariaDB.
+Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite nightly on MariaDB, and `release.yml` runs [release-please](#releases) on every push to `main`.
+
+### Licences
+
+Every runtime dependency, direct or not, must offer one of MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0 or ISC (ADR 0034). Another licence fails the Static job until an ADR admits it and the step's list gains it. Development dependencies do not ship and are not checked.
+
+### Distribution archive
+
+Composer installs Kami from `git archive`, which leaves out what `.gitattributes` marks `export-ignore`: tests, the Workbench, CI, tool configs and the design material. It ships the runtime, `docs/guide/`, `docs/reference/`, `docs/adr/`, and `pint.json` and `rector-set.php`, which the starter kit extends from `vendor/`. The Static job compares the archive's top-level entries with the list in its step, so a new top-level file fails CI until it is either export-ignored or added there. To see the archive of your last commit:
+
+```bash
+git archive HEAD | tar -t
+```
 
 ## Shared-hosting smoke
 
@@ -72,3 +84,11 @@ Known gaps with the real host (`docs/velox-retrospective.md` § 5.1):
 
 - ImageMagick is the host's 6.9.11-60, but built on Debian 12 where the host runs Debian 11: its delegates, AVIF and HEIC among them, may differ. AVIF through Imagick stays a manual probe on the host.
 - The database runs next to PHP; the host's is remote, so every query there pays network latency.
+
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) keeps a release pull request open on `main`, with the next version and its `CHANGELOG.md` entry, from the Conventional Commit titles of squash-merged pull requests. Merging it is the release: it tags `v*` and publishes the GitHub Release, which Packagist picks up. Its settings sit in `release-please-config.json`; `.release-please-manifest.json` holds the last released version.
+
+- In 0.x, a `!` commit bumps the minor and `feat` or `fix` bump the patch. A breaking change adds its section to `UPGRADING.md` in the pull request that makes it.
+- The release pull request is opened with the workflow's token, so `tests.yml` does not run on it: it only changes `CHANGELOG.md` and the manifest.
+- `v*` tags are immutable: a ruleset blocks their update and deletion. A wrong release is fixed by the next one.

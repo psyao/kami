@@ -98,6 +98,28 @@ jobs:
           GH_TOKEN: ${{ github.token }} # online audits: impostor commits, known-vulnerable actions
         run: pipx run zizmor==1.31.1 --format=github .
 
+      # ADR 0034. A package offering several licences passes when one of them is allowed.
+      - name: Licences
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          refused=$(composer licenses --no-dev --format=json | jq -r '.dependencies | to_entries[]
+            | select(.value.license | any(IN("MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC")) | not)
+            | "::error::\(.key) is \(.value.license | join(" or ") | if . == "" then "unlicensed" else "licensed " + . end): an ADR must admit it first"')
+          echo "$refused"
+          test -z "$refused"
+
+      # .gitattributes: a new top-level path either ships, with a line here, or is export-ignored.
+      - name: Archive contents
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          printf '%s\n' CHANGELOG.md GLOSSARY.md LICENSE.md README.md SECURITY.md UPGRADING.md \
+            composer.json config docs/adr docs/guide pint.json rector-set.php resources src | sort > shipped.txt
+          git archive HEAD | tar -t | grep -v '/$' \
+            | awk -F/ '$1 == "docs" && NF > 2 { print $1 "/" $2; next } { print $1 }' | sort -u \
+            | diff -u shipped.txt -
+
       # The Install suite runs inside it: its tests count towards the core's coverage.
       - name: Coverage, Kami and Install suites
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
