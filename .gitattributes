@@ -1,0 +1,24 @@
+# The dist archive holds the runtime and its shipped documentation (docs/guide/, docs/reference/, docs/adr/).
+# pint.json and rector-set.php ship: the starter kit reads them from vendor/. CI checks the archive's contents.
+
+# Development
+/.github export-ignore
+/tests export-ignore
+/workbench export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.release-please-manifest.json export-ignore
+/lefthook.yml export-ignore
+/package.json export-ignore
+/package-lock.json export-ignore
+/phpstan.neon.dist export-ignore
+/phpunit.xml.dist export-ignore
+/rector.php export-ignore
+/release-please-config.json export-ignore
+/testbench.yaml export-ignore
+
+# Design material
+/CLAUDE.md export-ignore
+/docs/*.md export-ignore
+/docs/agents export-ignore
+/docs/research export-ignore
