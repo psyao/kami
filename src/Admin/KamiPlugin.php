@@ -22,7 +22,7 @@ final class KamiPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        app(PluginRegistration::class)->onAPanel = true;
+        resolve(PluginRegistration::class)->onAPanel = true;
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css')], 'psyao/kami');

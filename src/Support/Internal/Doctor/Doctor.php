@@ -11,7 +11,7 @@ use Throwable;
  *
  * @internal
  */
-final class Doctor
+final readonly class Doctor
 {
     /** The lowest PHP version Kami runs on, as `composer.json` requires it. */
     public const string PHP_FLOOR = '8.5.0';
@@ -23,7 +23,7 @@ final class Doctor
     ];
 
     /** @var Closure(string): bool */
-    private readonly Closure $extensionLoaded;
+    private Closure $extensionLoaded;
 
     /**
      * Both default to the running PHP; a test passes others.
@@ -31,7 +31,7 @@ final class Doctor
      * @param  (Closure(string): bool)|null  $extensionLoaded
      */
     public function __construct(
-        private readonly string $phpVersion = PHP_VERSION,
+        private string $phpVersion = PHP_VERSION,
         ?Closure $extensionLoaded = null,
     ) {
         $this->extensionLoaded = $extensionLoaded ?? extension_loaded(...);
@@ -50,7 +50,7 @@ final class Doctor
      */
     public function blocking(): array
     {
-        return array_values(array_filter($this->environment(), fn (Problem $problem) => $problem->severity === Severity::Error));
+        return array_values(array_filter($this->environment(), fn (Problem $problem): bool => $problem->severity === Severity::Error));
     }
 
     /** @return list<Problem> */
@@ -82,9 +82,9 @@ final class Doctor
     /** @return list<Problem> */
     private function extensions(): array
     {
-        $missing = array_filter(self::EXTENSIONS, fn (string $extension) => ! ($this->extensionLoaded)($extension));
+        $missing = array_filter(self::EXTENSIONS, fn (string $extension): bool => ! ($this->extensionLoaded)($extension));
 
-        return array_values(array_map(fn (string $extension) => new Problem(
+        return array_values(array_map(fn (string $extension): Problem => new Problem(
             Severity::Error,
             "The PHP extension {$extension} is not loaded.",
             "enable {$extension} for the PHP version the site runs, on the command line and on the web.",
@@ -113,9 +113,9 @@ final class Doctor
     private function writableDirectories(): array
     {
         $directories = ['storage' => storage_path(), 'bootstrap/cache' => app()->bootstrapPath('cache')];
-        $unwritable = array_filter($directories, fn (string $path) => ! is_writable($path));
+        $unwritable = array_filter($directories, fn (string $path): bool => ! is_writable($path));
 
-        return array_values(array_map(fn (string $name, string $path) => new Problem(
+        return array_values(array_map(fn (string $name, string $path): Problem => new Problem(
             Severity::Error,
             "{$name} ({$path}) is not writable.",
             "create {$path} if it is missing and give the user PHP runs as write access to it.",
