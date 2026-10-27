@@ -17,6 +17,8 @@ The user PHP runs as must be able to write to `storage/` and `bootstrap/cache/`.
 
 Kami supports SQLite, MySQL 8.4, MariaDB 10.11 and PostgreSQL 15 or later. The connection comes from the `DB_*` settings in `.env`.
 
+On SQLite, the database file need not exist: `kami:install` creates it, as on a first deploy from git where `database.sqlite` is ignored. Its directory must exist and be writable by the user PHP runs as.
+
 ## Checking the environment
 
 ```bash

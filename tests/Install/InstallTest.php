@@ -38,6 +38,20 @@ it('installs Kami on SQLite without a terminal', function () {
         ->and(public_path('js/filament/filament/app.js'))->toBeFile();
 });
 
+it('creates a missing SQLite file, as on a first deploy from git', function () {
+    $this->bootWithKamiOnAPanel();
+    File::ensureDirectoryExists($directory = sys_get_temp_dir() . '/kami-install-' . uniqid());
+    config(['database.connections.testing.database' => "{$directory}/database.sqlite"]);
+    DB::purge('testing');
+
+    install()->assertSuccessful();
+
+    expect("{$directory}/database.sqlite")->toBeFile()
+        ->and(Schema::hasTable('migrations'))->toBeTrue();
+
+    File::deleteDirectory($directory);
+});
+
 it('refuses, with the lines to add, while no panel carries KamiPlugin', function () {
     install()
         ->expectsOutputToContain('use Psyao\Kami\Admin\KamiPlugin;')
@@ -60,10 +74,10 @@ it('fails before migrating on a blocking environment error', function (Closure $
     'PHP below the floor' => [fn () => app()->instance(Doctor::class, new Doctor(phpVersion: '8.4.13')), 'PHP 8.4.13 is below Kami\'s floor'],
     'missing extension' => [fn () => app()->instance(Doctor::class, new Doctor(extensionLoaded: fn (string $extension) => $extension !== 'intl')), 'The PHP extension intl is not loaded'],
     'unwritable storage' => [fn () => app()->useStoragePath(sys_get_temp_dir() . '/kami-install-' . uniqid() . '/missing'), 'is not writable'],
-    'unreachable database' => [function () {
+    'SQLite directory missing' => [function () {
         config(['database.connections.testing.database' => sys_get_temp_dir() . '/kami-install-' . uniqid() . '/missing.sqlite']);
         DB::purge('testing');
-    }, 'Kami cannot connect to the database testing'],
+    }, 'Kami cannot create the SQLite database testing'],
 ]);
 
 it('changes nothing when run again', function () {
