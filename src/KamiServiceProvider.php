@@ -3,6 +3,8 @@
 namespace Psyao\Kami;
 
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
+use Psyao\Kami\Support\Internal\Install\InstallCommand;
+use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -15,11 +17,13 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews()
             ->hasTranslations()
-            ->hasCommands([DoctorCommand::class]);
+            ->hasCommands([DoctorCommand::class, InstallCommand::class]);
     }
 
     public function packageRegistered(): void
     {
+        $this->app->singleton(PluginRegistration::class);
+
         // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
         config(['app.timezone' => 'UTC']);
         date_default_timezone_set('UTC');

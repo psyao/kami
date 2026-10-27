@@ -31,3 +31,28 @@ php artisan kami:doctor
 It checks the PHP it runs under: on shared hosting, that is the command line's, which may differ from the web's.
 
 Run it after any change to the environment, and with `--strict` in your CI if warnings should fail it. Each run writes its result to `storage/framework/kami/doctor.json`.
+
+## Installing and deploying
+
+Add Kami to your own Filament panel, in its panel provider:
+
+```php
+use Psyao\Kami\Admin\KamiPlugin;
+
+->plugin(KamiPlugin::make())
+```
+
+Then run, on the first install and on every deploy:
+
+```bash
+php artisan kami:install --no-interaction
+```
+
+There is no separate upgrade command: `kami:install` is safe to run again and changes nothing when the site is up to date. It needs no terminal, so it runs as is in a deploy script or CI. In order, it:
+
+1. stops on any error `kami:doctor` reports about the environment, before touching the database (warnings do not stop it: run `kami:doctor` to see them);
+2. stops while no panel carries `KamiPlugin`, printing the lines above;
+3. runs the migrations (`migrate --force`);
+4. publishes Filament's assets to `public/`, so the server needs no Node.
+
+It exits with 1 when any step fails, so the deploy fails with it. `kami:install` never writes to your application's files: it only adds Filament's assets under `public/`.
