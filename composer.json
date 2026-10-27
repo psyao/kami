@@ -60,7 +60,7 @@
         ],
         "test:coverage": [
             "Composer\\Config::disableProcessTimeout",
-            "pest --testsuite=Kami --coverage --min=90"
+            "pest --testsuite=Kami,Install --coverage --min=90"
         ]
     },
     "extra": {
