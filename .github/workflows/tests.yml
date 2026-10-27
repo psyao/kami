@@ -38,7 +38,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           dependencies: lowest
 
@@ -62,7 +62,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # gitleaks reads the whole history
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         id: setup
         with:
           coverage: pcov
@@ -150,7 +150,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
 
       - name: Kami suite
         run: vendor/bin/pest --testsuite=Kami --parallel --ci
@@ -180,7 +180,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
 
       - name: Kami suite
         run: vendor/bin/pest --testsuite=Kami --parallel --ci
@@ -194,7 +194,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
 
       - name: Install Playwright Chromium
         run: |

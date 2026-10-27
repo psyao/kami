@@ -1,0 +1,5 @@
+rules:
+  # `$/` fetches the action from the repository's archive, which .gitattributes strips of .github/.
+  # `./` reads it from the checkout.
+  self-repository:
+    disable: true
