@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Testing\PendingCommand;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Workbench\App\Providers\AdminPanelProvider;
 
@@ -14,6 +15,11 @@ use Workbench\App\Providers\AdminPanelProvider;
 function addKamiToAPanel(): void
 {
     app(PanelRegistry::class)->register((new AdminPanelProvider(app()))->panel(Panel::make()));
+}
+
+function install(): PendingCommand
+{
+    return test()->artisan('kami:install', ['--no-interaction' => true]);
 }
 
 /**
@@ -32,7 +38,7 @@ function skeletonFiles(): array
 it('installs Kami on SQLite without a terminal', function () {
     addKamiToAPanel();
 
-    $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
+    install()->assertSuccessful();
 
     expect(Schema::hasTable('migrations'))->toBeTrue()
         ->and(public_path('css/psyao/kami/kami.css'))->toBeFile()
@@ -40,7 +46,7 @@ it('installs Kami on SQLite without a terminal', function () {
 });
 
 it('refuses, with the lines to add, while no panel carries KamiPlugin', function () {
-    $this->artisan('kami:install', ['--no-interaction' => true])
+    install()
         ->expectsOutputToContain('use Psyao\Kami\Admin\KamiPlugin;')
         ->expectsOutputToContain('->plugin(KamiPlugin::make())')
         ->assertFailed();
@@ -49,26 +55,31 @@ it('refuses, with the lines to add, while no panel carries KamiPlugin', function
         ->and(public_path('js'))->not->toBeDirectory();
 });
 
-it('fails before migrating on a blocking environment error', function () {
+it('fails before migrating on a blocking environment error', function (Closure $break, string $message) {
     addKamiToAPanel();
-    $this->app->instance(Doctor::class, new Doctor(phpVersion: '8.4.13'));
+    $break();
 
-    $this->artisan('kami:install', ['--no-interaction' => true])
-        ->expectsOutputToContain('PHP 8.4.13 is below Kami\'s floor, 8.5.0')
-        ->expectsOutputToContain('docs/guide/installation.md#requirements')
-        ->assertFailed();
+    install()->expectsOutputToContain($message)->assertFailed();
 
-    expect(Schema::hasTable('migrations'))->toBeFalse()
+    expect(rescue(fn () => Schema::hasTable('migrations'), false, report: false))->toBeFalse()
         ->and(public_path('js'))->not->toBeDirectory();
-});
+})->with([
+    'PHP below the floor' => [fn () => app()->instance(Doctor::class, new Doctor(phpVersion: '8.4.13')), 'PHP 8.4.13 is below Kami\'s floor'],
+    'missing extension' => [fn () => app()->instance(Doctor::class, new Doctor(extensionLoaded: fn (string $extension) => $extension !== 'intl')), 'The PHP extension intl is not loaded'],
+    'unwritable storage' => [fn () => app()->useStoragePath(sys_get_temp_dir() . '/kami-install-' . uniqid() . '/missing'), 'is not writable'],
+    'unreachable database' => [function () {
+        config(['database.connections.testing.database' => sys_get_temp_dir() . '/kami-install-' . uniqid() . '/missing.sqlite']);
+        DB::purge('testing');
+    }, 'Kami cannot connect to the database testing'],
+]);
 
 it('changes nothing when run again', function () {
     addKamiToAPanel();
-    $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
+    install()->assertSuccessful();
     $files = skeletonFiles();
     $migrations = DB::table('migrations')->get();
 
-    $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
+    install()->assertSuccessful();
 
     expect(skeletonFiles())->toBe($files)
         ->and(DB::table('migrations')->get())->toEqual($migrations);
@@ -78,7 +89,7 @@ it('writes no file of the host\'s, only Filament\'s public assets', function () 
     addKamiToAPanel();
     $before = skeletonFiles();
 
-    $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
+    install()->assertSuccessful();
 
     $after = skeletonFiles();
     $added = array_keys(array_diff_key($after, $before));

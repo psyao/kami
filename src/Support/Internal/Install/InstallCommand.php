@@ -15,7 +15,7 @@ final class InstallCommand extends Command
 {
     use PrintsProblems;
 
-    public function handle(Doctor $doctor, PluginRegistration $plugin): int
+    public function handle(Doctor $doctor, PluginRegistration $registration): int
     {
         // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
         if (($problems = $doctor->blocking()) !== []) {
@@ -25,7 +25,7 @@ final class InstallCommand extends Command
         }
 
         // Kami never edits the host's files (ADR 0001): it says what to add and stops before changing anything.
-        if (! $plugin->onAPanel) {
+        if (! $registration->onAPanel) {
             $this->components->error('No Filament panel carries Kami yet. Add these lines to your panel provider, then run kami:install again.');
             $this->line('    use Psyao\Kami\Admin\KamiPlugin;');
             $this->newLine();
@@ -36,17 +36,16 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        // Each step fails the deploy on its own failure: a later step never runs on a half-done one.
         if ($this->call('migrate', ['--force' => true]) !== self::SUCCESS) {
             return self::FAILURE;
         }
 
-        // The admin's assets are copied to public/, so the server needs no Node (ADR 0001); the command name keeps the core free of Filament (ADR 0011).
+        // Filament's own command, present wherever Kami runs (ADR 0001): it copies the admin's assets to public/, so the server needs no Node.
         if ($this->call('filament:assets') !== self::SUCCESS) {
             return self::FAILURE;
         }
 
-        // ponytail: Kami keeps no cache in M1; clearing them (the Content version bump, ADR 0021) lands here in M2.
+        // ponytail: Kami keeps no cache in M1; clearing them (the Content version bump, ADR 0021) lands here in M7.
 
         $this->components->info('Kami is installed.');
 
