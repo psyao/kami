@@ -2,9 +2,15 @@
 
 declare(strict_types=1);
 
+use Filament\AvatarProviders\Contracts\AvatarProvider;
+use Filament\AvatarProviders\UiAvatarsProvider;
+use Filament\Panel;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Psyao\Kami\Admin\InitialsAvatarProvider;
+use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 
 function temporaryPath(): string
@@ -134,6 +140,50 @@ it('fails when the database connection is not configured', function () {
         ->assertFailed();
 });
 
+it('warns without failing when a Kami panel keeps Filament\'s remote avatars', function (?string $provider) {
+    $panel = Panel::make()->id('remote')->plugin(KamiPlugin::make());
+    if ($provider !== null) {
+        $panel->defaultAvatarProvider($provider);
+    }
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel remote draws avatars from ui-avatars.com')
+        ->expectsOutputToContain('docs/guide/installation.md#installing-and-deploying')
+        ->assertSuccessful();
+
+    expect((new Doctor)->blocking())->toBeEmpty();
+})->with([
+    'Filament\'s default' => null,
+    'a subclass of it' => (new class extends UiAvatarsProvider {})::class,
+]);
+
+it('reports a panel once, even with the plugin added twice', function () {
+    Panel::make()->id('remote')->plugin(KamiPlugin::make())->plugin(KamiPlugin::make());
+
+    expect((new Doctor)->problems())->toHaveCount(1);
+});
+
+it('accepts a Kami panel with a local avatar provider, even set after the plugin', function (string $provider) {
+    Panel::make()->id('local')->plugin(KamiPlugin::make())->defaultAvatarProvider($provider);
+
+    expect((new Doctor)->problems())->toBeEmpty();
+})->with([
+    'Kami\'s' => InitialsAvatarProvider::class,
+    'the host\'s own' => (new class implements AvatarProvider
+    {
+        public function get(Model $record): string
+        {
+            return '';
+        }
+    })::class,
+]);
+
+it('never reports a panel without Kami', function () {
+    Panel::make()->id('other');
+
+    expect((new Doctor)->problems())->toBeEmpty();
+});
+
 it('writes its last result under Kami\'s storage directory', function () {
     $this->app->instance(Doctor::class, withoutExtensions('gd', 'imagick'));
     // A storage of its own: parallel processes share the skeleton's.
@@ -169,6 +219,7 @@ it('links every problem to a section of the guide', function () {
     $this->app->useStoragePath(temporaryPath() . '/missing');
     withUnreachableDatabase();
     $everything = new Doctor(phpVersion: '8.4.13', extensionLoaded: fn () => false);
+    Panel::make()->id('remote')->plugin(KamiPlugin::make());
 
     foreach ($everything->problems() as $problem) {
         [$page, $anchor] = explode('#', $problem->guide);
