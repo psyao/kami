@@ -1,7 +1,5 @@
 <?php
 
-use Filament\Panel;
-use Filament\PanelRegistry;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -9,13 +7,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
-use Workbench\App\Providers\AdminPanelProvider;
-
-/** The host adds Kami to its own panel, as the Workbench's provider does. */
-function addKamiToAPanel(): void
-{
-    app(PanelRegistry::class)->register((new AdminPanelProvider(app()))->panel(Panel::make()));
-}
 
 function install(): PendingCommand
 {
@@ -36,7 +27,7 @@ function skeletonFiles(): array
 }
 
 it('installs Kami on SQLite without a terminal', function () {
-    addKamiToAPanel();
+    $this->bootWithKamiOnAPanel();
 
     install()->assertSuccessful();
 
@@ -56,7 +47,7 @@ it('refuses, with the lines to add, while no panel carries KamiPlugin', function
 });
 
 it('fails before migrating on a blocking environment error', function (Closure $break, string $message) {
-    addKamiToAPanel();
+    $this->bootWithKamiOnAPanel();
     $break();
 
     install()->expectsOutputToContain($message)->assertFailed();
@@ -74,7 +65,7 @@ it('fails before migrating on a blocking environment error', function (Closure $
 ]);
 
 it('changes nothing when run again', function () {
-    addKamiToAPanel();
+    $this->bootWithKamiOnAPanel();
     install()->assertSuccessful();
     $files = skeletonFiles();
     $migrations = DB::table('migrations')->get();
@@ -86,7 +77,7 @@ it('changes nothing when run again', function () {
 });
 
 it('writes no file of the host\'s, only Filament\'s public assets', function () {
-    addKamiToAPanel();
+    $this->bootWithKamiOnAPanel();
     $before = skeletonFiles();
 
     install()->assertSuccessful();

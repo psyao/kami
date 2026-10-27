@@ -133,7 +133,7 @@ it('links every problem to a section of the guide', function () {
 
     foreach ($everything->problems() as $problem) {
         [$page, $anchor] = explode('#', $problem->guide);
-        $headings = Str::of(File::get(dirname(__DIR__) . "/docs/guide/{$page}"))
+        $headings = Str::of(File::get(dirname(__DIR__, 2) . "/docs/guide/{$page}"))
             ->matchAll('/^#+ (.+)$/m')
             ->map(fn (string $heading) => Str::slug($heading));
 
@@ -142,8 +142,8 @@ it('links every problem to a section of the guide', function () {
 });
 
 it('requires the PHP floor and every extension Kami\'s dependencies require', function () {
-    $composer = File::json(dirname(__DIR__) . '/composer.json');
-    $installed = File::json(dirname(__DIR__) . '/vendor/composer/installed.json');
+    $composer = File::json(dirname(__DIR__, 2) . '/composer.json');
+    $installed = File::json(dirname(__DIR__, 2) . '/vendor/composer/installed.json');
     $runtime = collect($installed['packages'])->reject(fn (array $package) => in_array($package['name'], $installed['dev-package-names'], true));
     $required = $runtime->flatMap(fn (array $package) => array_keys($package['require'] ?? []))
         ->filter(fn (string $requirement) => str_starts_with($requirement, 'ext-'))

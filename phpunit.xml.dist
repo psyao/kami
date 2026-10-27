@@ -14,8 +14,7 @@
 >
     <testsuites>
         <testsuite name="Kami">
-            <directory>tests</directory>
-            <exclude>tests/Install</exclude>
+            <directory>tests/Kami</directory>
         </testsuite>
         <testsuite name="Install">
             <directory>tests/Install</directory>

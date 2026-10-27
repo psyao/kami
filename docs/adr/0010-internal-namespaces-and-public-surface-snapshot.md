@@ -2,7 +2,7 @@
 
 From 1.0, Kami promises strict SemVer (brief, principle 5), so what a site may rely on must be narrow and visible in the code itself. Every module keeps its internals in an `Internal` sub-namespace (`Psyao\Kami\Content\Internal\…`). A class there is internal and carries `@internal`. Every class outside an `Internal` namespace is public, with its public methods; a single public method that is not meant for sites is marked `@internal` on the method.
 
-Classes are `final` by default. Only a closed list of extension points is left open; that list is owned by "Extension points: events, registries, overrides". `tests/PublicSurfaceTest.php` snapshots every public class, method and signature, so any change to the surface shows up in the diff and in review.
+Classes are `final` by default. Only a closed list of extension points is left open; that list is owned by "Extension points: events, registries, overrides". `tests/Kami/PublicSurfaceTest.php` snapshots every public class, method and signature, so any change to the surface shows up in the diff and in review.
 
 The database schema is internal. Sites read and write through the public models and actions, never through the tables. Only the `kami_` table names (ADR 0001) and the documented attributes and relations of the public models are covered by SemVer. Migrations stay non-destructive as the brief requires, but their shape is not an API.
 

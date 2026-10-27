@@ -14,7 +14,7 @@ it('adds Kami to the host panel', function () {
 });
 
 it('registers no route or middleware of its own', function () {
-    $kamiSource = dirname(__DIR__) . '/src/';
+    $kamiSource = dirname(__DIR__, 2) . '/src/';
     $definedByKami = function (Route $route) use ($kamiSource): bool {
         $uses = $route->getAction('uses');
         $file = match (true) {
