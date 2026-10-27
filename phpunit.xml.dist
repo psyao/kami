@@ -31,5 +31,9 @@
         <include>
             <directory suffix=".php">./src</directory>
         </include>
+        <!-- The admin is covered by behaviour tests, not by a figure. -->
+        <exclude>
+            <directory>./src/Admin</directory>
+        </exclude>
     </source>
 </phpunit>

@@ -26,10 +26,15 @@
         "spatie/laravel-package-tools": "^1.93"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.7",
+        "evilmartians/lefthook": "^2.2",
+        "larastan/larastan": "^3.13",
         "laravel/pint": "^1.32",
         "orchestra/testbench": "^11.3",
         "pestphp/pest": "^5.3",
-        "pestphp/pest-plugin-laravel": "^5.0"
+        "pestphp/pest-plugin-laravel": "^5.0",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "rector/rector": "^2.8"
     },
     "autoload": {
         "psr-4": {
@@ -44,7 +49,18 @@
     },
     "scripts": {
         "post-autoload-dump": [
-            "@php vendor/bin/testbench package:discover --ansi"
+            "@php vendor/bin/testbench package:discover --ansi",
+            "lefthook install"
+        ],
+        "analyse": "phpstan analyse",
+        "test": [
+            "Composer\\Config::disableProcessTimeout",
+            "pest --testsuite=Kami --parallel",
+            "pest --testsuite=Install"
+        ],
+        "test:coverage": [
+            "Composer\\Config::disableProcessTimeout",
+            "pest --testsuite=Kami --coverage --min=90"
         ]
     },
     "extra": {
