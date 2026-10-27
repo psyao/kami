@@ -59,10 +59,9 @@ git archive HEAD | tar -t
 
 - classes outside `Internal`: kind, modifiers, parent and interfaces, then the members they declare themselves, with full signatures: public methods, properties and constants (protected ones too on a class that is not `final`), enum cases. A member marked `@internal` is left out;
 - `kami:*` commands, read from Kami's command classes rather than from Artisan, with their arguments and options;
-- the default keys of `config/kami.php`;
-- `kami_` table names, read from the migrated schema.
+- the default keys of `config/kami.php`.
 
-`x-kami::` components and `kami.*` Permissions have no collector until the first one exists: a guard test fails the day Kami registers a `kami` view or component namespace, or defines a `kami.*` ability on the Gate. Their reference pages say "Nothing yet".
+`x-kami::` components, `kami.*` Permissions and `kami_` table names have no collector until the first one exists: a guard test fails the day Kami registers a `kami` view or component namespace, defines a `kami.*` ability on the Gate, or adds a migration. The components and Permissions pages say "Nothing yet".
 
 The same reflection generates `docs/reference/` (`api.md`, `commands.md`, `components.md`, `config.md`, `events.md`, `permissions.md`): signatures plus the first line of each PHPDoc or description. Event classes, in a `Psyao\Kami\<Module>\Events` namespace, go to `events.md` rather than `api.md`.
 

@@ -2,20 +2,15 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputOption;
-
-// The `kami_` tables are read from the migrated schema.
-uses(RefreshDatabase::class);
 
 const REFERENCE_PAGES = [
     'api.md' => 'API',
@@ -83,8 +78,6 @@ function publicSurface(): array
     $keys = collect(Arr::dot(require dirname(__DIR__, 2) . '/config/kami.php'))->keys()->map(fn (string $key): string => 'kami.' . preg_replace('/\.\d+(\..*)?$/', '', $key))->unique();
     $keys->each(fn (string $key) => $element('config', $key));
 
-    collect(Schema::getTables())->pluck('name')->filter(fn (string $table): bool => str_starts_with($table, 'kami_'))->each(fn (string $table) => $element('table', $table));
-
     usort($elements, fn (array $a, array $b): int => [$a['group'], $a['name']] <=> [$b['group'], $b['name']]);
 
     return $elements;
@@ -136,11 +129,10 @@ function exportedValue(mixed $value): string
  */
 function referencePages(array $surface): array
 {
-    $page = fn (array $element): ?string => match ($element['group']) {
+    $page = fn (array $element): string => match ($element['group']) {
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
         'config' => 'config.md',
-        default => null, // Table names are covered by SemVer but have nothing to document.
     };
 
     $entry = fn (array $element): string => match (true) {
@@ -196,4 +188,10 @@ it('has no x-kami:: component outside the snapshot yet', function () {
 it('has no kami.* Permission outside the snapshot yet', function () {
     expect(collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'))->all())
         ->toBe([], 'kami.* Permissions need a collector in publicSurface()');
+});
+
+// ponytail: no collector for `kami_` tables until the first migration. Reading them needs a migrated database, which under
+// --parallel on MySQL and PostgreSQL races the other tests that migrate; this fails the day one lands.
+it('has no kami_ table outside the snapshot yet', function () {
+    expect(glob(dirname(__DIR__, 2) . '/database/migrations/*.php'))->toBe([], 'kami_ tables need a collector in publicSurface()');
 });
