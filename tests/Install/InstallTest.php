@@ -108,3 +108,11 @@ it('writes no file of the host\'s, only Filament\'s public assets', function () 
 it('has no kami:upgrade: kami:install serves every deploy', function () {
     expect(Artisan::all())->toHaveKey('kami:install')->not->toHaveKey('kami:upgrade');
 });
+
+// Here rather than in the parallel `Kami` suite: `view:cache` clears the compiled views other workers render from.
+it('lets the site cache its views, as `php artisan optimize` does', function () {
+    $this->bootWithKamiOnAPanel();
+
+    $this->artisan('view:cache')->assertSuccessful();
+    $this->artisan('view:clear')->assertSuccessful();
+});
