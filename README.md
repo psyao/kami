@@ -1,8 +1,8 @@
-# Kami
+# Psyao Kami
 
 A Laravel and Filament CMS for developers, at home on shared hosting.
 
-Kami is a Composer package. Its admin is a plugin on your own Filament panel, and a site's content model is PHP code: Kami adds what a site needs without taking over the application. Everything runs on shared hosting with no cron, queue worker, Redis or Node on the server, and nothing essential depends on a remote service.
+Psyao Kami, Kami for short, is a Composer package. Its admin is a plugin on your own Filament panel, and a site's content model is PHP code: Kami adds what a site needs without taking over the application. Everything runs on shared hosting with no cron, queue worker, Redis or Node on the server, and nothing essential depends on a remote service.
 
 Kami is in early development: so far it covers installation, the environment check and the admin's wiring.
 
