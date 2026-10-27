@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Closure;
+use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -132,6 +133,8 @@ final readonly class Doctor
             DB::connection()->getPdo();
 
             return null;
+        } catch (SQLiteDatabaseDoesNotExistException $exception) {
+            return $this->missingSqliteFile($exception->path);
         } catch (Throwable $exception) {
             $name = DB::getDefaultConnection();
             $driver = config("database.connections.{$name}.driver");
@@ -149,5 +152,24 @@ final readonly class Doctor
                 'installation.md#database',
             );
         }
+    }
+
+    /** `migrate --force` creates the file, as on a first deploy from git: only its directory must be ready. */
+    private function missingSqliteFile(string $path): ?Problem
+    {
+        $directory = dirname($path);
+
+        if (is_dir($directory) && is_writable($directory)) {
+            return null;
+        }
+
+        $name = DB::getDefaultConnection();
+
+        return new Problem(
+            Severity::Error,
+            "Kami cannot create the SQLite database {$name}: {$directory} is missing or not writable.",
+            "create {$directory} if it is missing and give the user PHP runs as write access to it.",
+            'installation.md#database',
+        );
     }
 }

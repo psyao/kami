@@ -17,10 +17,17 @@ function withoutExtensions(string ...$missing): Doctor
     return new Doctor(extensionLoaded: fn (string $extension) => ! in_array($extension, $missing, true));
 }
 
+function withSqliteDatabase(string $path): void
+{
+    config(['database.connections.testing.database' => $path]);
+    DB::purge('testing');
+}
+
+/** A path that exists but that SQLite cannot open: a directory. */
 function withUnreachableDatabase(): void
 {
-    config(['database.connections.testing.database' => temporaryPath() . '/missing.sqlite']);
-    DB::purge('testing');
+    File::ensureDirectoryExists($directory = temporaryPath());
+    withSqliteDatabase($directory);
 }
 
 it('finds no problem in a sound environment, without a terminal', function () {
@@ -88,6 +95,35 @@ it('fails when the database cannot be reached', function () {
         ->expectsOutputToContain('docs/guide/installation.md#database')
         ->assertFailed();
 });
+
+it('accepts a missing SQLite file in a writable directory, which migrate creates', function () {
+    File::ensureDirectoryExists($directory = temporaryPath());
+    withSqliteDatabase("{$directory}/database.sqlite");
+
+    expect((new Doctor)->problems())->toBeEmpty()
+        ->and("{$directory}/database.sqlite")->not->toBeFile();
+
+    File::deleteDirectory($directory);
+});
+
+it('fails on a missing SQLite file whose directory is missing or not writable', function (bool $exists) {
+    $directory = temporaryPath();
+    if ($exists) {
+        File::ensureDirectoryExists($directory, 0555);
+    }
+    withSqliteDatabase("{$directory}/database.sqlite");
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain("Kami cannot create the SQLite database testing: {$directory} is missing or not writable")
+        ->expectsOutputToContain("Fix: create {$directory} if it is missing")
+        ->expectsOutputToContain('docs/guide/installation.md#database')
+        ->assertFailed();
+
+    expect("{$directory}/database.sqlite")->not->toBeFile()
+        ->and(is_dir($directory))->toBe($exists);
+
+    File::deleteDirectory($directory);
+})->with(['missing directory' => false, 'unwritable directory' => true]);
 
 it('fails when the database connection is not configured', function () {
     config(['database.default' => 'missing']);
