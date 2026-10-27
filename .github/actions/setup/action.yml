@@ -1,0 +1,38 @@
+name: Set up PHP and Composer
+description: PHP 8.5 with every extension a job needs, then the package's dependencies.
+
+inputs:
+  dependencies:
+    description: '`highest` or `lowest`'
+    default: highest
+  coverage:
+    description: setup-php's coverage driver
+    default: none
+
+runs:
+  using: composite
+  steps:
+    - name: Setup PHP
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      with:
+        php-version: '8.5'
+        extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, pdo_mysql, pdo_pgsql, bcmath, intl, fileinfo, gd, sockets
+        coverage: ${{ inputs.coverage }}
+
+    - name: Find Composer's cache
+      id: composer-cache
+      shell: bash
+      run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Composer downloads
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: composer-${{ inputs.dependencies }}-${{ hashFiles('composer.json') }}
+        restore-keys: composer-${{ inputs.dependencies }}-
+
+    - name: Install dependencies
+      shell: bash
+      env:
+        PREFER: ${{ inputs.dependencies == 'lowest' && '--prefer-lowest' || '' }}
+      run: composer update $PREFER --prefer-dist --no-interaction --no-progress

@@ -1,0 +1,40 @@
+name: volume
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # nightly, on the default branch
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mariadb:
+    name: Volume (MariaDB 10.11)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: password
+          MARIADB_DATABASE: kami
+        ports:
+          - 3306:3306
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: mariadb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: kami
+      DB_USERNAME: root
+      DB_PASSWORD: password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+
+      # ponytail: the suite is empty until the dataset generator lands; drop the flag with its first test.
+      - name: Volume suite
+        run: vendor/bin/pest --testsuite=Volume --ci --do-not-fail-on-empty-test-suite
