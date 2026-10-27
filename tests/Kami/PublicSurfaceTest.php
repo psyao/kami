@@ -82,7 +82,6 @@ function publicSurface(): array
     $keys->each(fn (string $key) => $element('config', $key));
 
     collect(Schema::getTables())->pluck('name')->filter(fn (string $table): bool => str_starts_with($table, 'kami_'))->each(fn (string $table) => $element('table', $table));
-    collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'))->each(fn (string $ability) => $element('permission', $ability));
 
     usort($elements, fn (array $a, array $b): int => [$a['group'], $a['name']] <=> [$b['group'], $b['name']]);
 
@@ -139,7 +138,6 @@ function referencePages(array $surface): array
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
         'config' => 'config.md',
-        'permission' => 'permissions.md',
         default => null, // Table names are covered by SemVer but have nothing to document.
     };
 
@@ -190,4 +188,10 @@ it('keeps docs/reference in step with the public surface', function () {
 it('has no x-kami:: component outside the snapshot yet', function () {
     expect(View::getFinder()->getHints())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()')
         ->and(Blade::getClassComponentNamespaces())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()');
+});
+
+// ponytail: no collector for `kami.*` Permissions until Roles land (ADR 0014), which decide where the vocabulary is declared; this fails the day one is defined.
+it('has no kami.* Permission outside the snapshot yet', function () {
+    expect(collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'))->all())
+        ->toBe([], 'kami.* Permissions need a collector in publicSurface()');
 });
