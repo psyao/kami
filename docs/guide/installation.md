@@ -13,7 +13,7 @@ PHP extensions:
 
 ### Writable directories
 
-The user PHP runs as must be able to write to `storage/` and `bootstrap/cache/`. Kami keeps its own files under `storage/framework/kami/`.
+The user PHP runs as must be able to write to `storage/` and `bootstrap/cache/`. Kami keeps its own files under `storage/framework/kami/`, which carries its own `.gitignore` so git never sees them.
 
 ### Database
 
