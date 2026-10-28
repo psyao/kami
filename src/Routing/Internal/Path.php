@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Normalizer;
+use Psyao\Kami\Content\ContentType;
 
 /**
  * An address Kami answers in a Site and Locale: the current Path of a Translation (status 200) for now (ADR 0008).
@@ -30,6 +31,12 @@ use Normalizer;
 final class Path extends Model
 {
     use HasUlids;
+
+    /** The Path of a Translation: its type's Prefix, then its slug. */
+    public static function of(ContentType $type, string $slug): string
+    {
+        return self::normalise("{$type->prefix()}/{$slug}");
+    }
 
     /** The stored form: percent-decoded, lowercase, NFC, without leading or trailing slash. */
     public static function normalise(string $path): string

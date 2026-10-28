@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $entry_id
  * @property string $locale
  * @property string $title
- * @property string|null $slug
+ * @property string $slug
  * @property string|null $status
  * @property CarbonImmutable|null $published_at
  */

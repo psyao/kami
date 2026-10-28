@@ -36,6 +36,7 @@ Creates or updates one Translation of an Entry: the one way content is written, 
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
+- `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
 - `public function fields(): array`
 - `public function handle(): string`: The snake_case of the class name; override it to keep the handle after renaming the class.
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
@@ -46,7 +47,10 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 
 One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()` (ADR 0002, ADR 0012).
 
+- `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
+- `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
+- `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too.
 
 ## `Psyao\Kami\Content\Fields\Field`
@@ -56,14 +60,23 @@ One content item in all its Locales, read in the current Locale; only visible En
 A value a Content Type stores, in a typed column of its `kami_type_<handle>` table (ADR 0006).
 
 - `public protected(set) readonly string $handle`
+- `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
 - `final public function __construct(string $handle)`
 - `public static function make(string $handle): static`
+- `public function shared(): static`: One value for the whole Entry, whatever the Locale.
+- `public function translatable(): static`: One value per Locale, falling back to the default Locale's when blank.
 
 ## `Psyao\Kami\Content\Fields\Text`
 
 `final class extends Psyao\Kami\Content\Fields\Field`
 
 A single line of plain text.
+
+## `Psyao\Kami\Content\Fields\Textarea`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+Several lines of plain text.
 
 ## `Psyao\Kami\Facades\Kami`
 

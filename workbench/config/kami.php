@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Label;
+use Workbench\App\Content\Page;
 
 // The Workbench Site's declarations: two Sites sharing two Locales, so tests never assume a single one.
 return [
 
     'types' => [
         Article::class,
+        Page::class,
+        Label::class,
     ],
 
     'sites' => [

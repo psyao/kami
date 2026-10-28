@@ -18,11 +18,14 @@ final class RenderEntry
     public function __invoke(Request $request): mixed
     {
         $site = Site::current();
+        $locale = $site->currentLocale();
+        // `ResolveLocale` found the Locale in the first segment, which no stored Path holds.
+        $path = $locale === $site->defaultLocale() ? $request->path() : substr($request->path(), strlen($locale) + 1);
 
         $entryId = Path::query()
             ->where('site', $site->handle)
-            ->where('locale', $site->currentLocale())
-            ->where('path', Path::normalise($request->path()))
+            ->where('locale', $locale)
+            ->where('path', Path::normalise($path))
             ->where('status', 200)
             ->value('entry_id');
 

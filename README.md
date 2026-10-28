@@ -31,6 +31,7 @@ The admin answers at `/admin`. To add Kami to an application you already have, s
 - [Installation](docs/guide/installation.md): requirements, creating a site, `kami:doctor` and `kami:install`
 - [Existing application](docs/guide/existing-application.md): adding Kami to a Laravel application and its panel
 - [Content types](docs/guide/content-types.md): declaring a type and its Fields, writing and reading Entries
+- [Multilingual](docs/guide/multilingual.md): Locales, Translations, Shared Fields and Fallback with `lang`
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server

@@ -22,6 +22,8 @@ Kami's route runs in its own `kami` middleware group, without the `web` group's 
 
 Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read.
 
+The default Locale's Paths start at the root; another Locale's sit under its code, as `/en/articles/hello-world`. See [Multilingual](multilingual.md).
+
 An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404.
 
 ## Rendering
@@ -60,4 +62,4 @@ It may return any view or response: a redirect, JSON, or a controller's response
 
 ## Query count
 
-An Entry page costs four queries before your view runs: its Path, the Entry, its Translations and its Field values. Kami's tests assert that number, so it does not grow unnoticed.
+An Entry page costs four queries before your view runs: its Path, the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. Kami's tests assert that number, so it does not grow unnoticed.

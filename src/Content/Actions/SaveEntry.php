@@ -10,7 +10,6 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Routing\Internal\Path;
@@ -23,13 +22,13 @@ final class SaveEntry
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
      * @param  array<string, mixed>  $values  `title`, `slug` (from the title when missing), `status` (`draft`, the default, or `published`), `published_at` (now when publishing without one) and the type's Field values.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
-     * @param  string|null  $locale  The Locale written; the default Locale when null.
+     * @param  string|null  $locale  The Locale written; when null, the default Locale, or `'*'` for an untranslatable type. Shared Field values go to the Entry's `'*'` row whatever the Locale.
      */
     public function handle(string $type, array $values, ?Entry $entry = null, ?string $locale = null): Entry
     {
         $contentType = resolve(ContentTypes::class)->find($type) ?? throw new InvalidArgumentException("No Content Type [{$type}] is declared in kami.types.");
         $site = Site::current();
-        $locale ??= $site->defaultLocale();
+        $locale ??= $contentType->isTranslatable() ? $site->defaultLocale() : '*';
 
         // ponytail: the minimal write of #96; validation, blanks, the slug clash and the actor are #98's, events #99's.
         $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry): string {
@@ -50,16 +49,24 @@ final class SaveEntry
 
             $translation->save();
 
-            $fields = array_intersect_key($values, array_flip(array_map(fn (Field $field): string => $field->handle, $contentType->fields())));
-
-            if ($fields !== []) {
-                DB::table("kami_type_{$contentType->handle()}")->updateOrInsert(['entry_id' => $entry->id, 'locale' => $locale], $fields);
+            $rows = [];
+            foreach ($contentType->fields() as $field) {
+                if (array_key_exists($field->handle, $values)) {
+                    $rows[$contentType->isTranslatable($field) ? $locale : '*'][$field->handle] = $values[$field->handle];
+                }
             }
 
-            Path::query()->updateOrCreate(
-                ['site' => $site->handle, 'locale' => $locale, 'entry_id' => $entry->id, 'status' => 200],
-                ['path' => Path::normalise("{$contentType->prefix()}/{$translation->slug}")],
-            );
+            foreach ($rows as $rowLocale => $fields) {
+                DB::table("kami_type_{$contentType->handle()}")->updateOrInsert(['entry_id' => $entry->id, 'locale' => $rowLocale], $fields);
+            }
+
+            // The `'*'` Translation answers in every Locale of the Site, one row each (ADR 0008).
+            foreach ($locale === '*' ? $site->locales : [$locale] as $pathLocale) {
+                Path::query()->updateOrCreate(
+                    ['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200],
+                    ['path' => Path::of($contentType, $translation->slug)],
+                );
+            }
 
             return $entry->id;
         });
