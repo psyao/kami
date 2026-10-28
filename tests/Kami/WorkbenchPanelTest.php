@@ -7,9 +7,13 @@ use Dom\HTMLDocument;
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Auth\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Schema;
 use Psyao\Kami\Facades\Kami;
+
+// A User committed here would outlive the test on MySQL, MariaDB and PostgreSQL and clash with the next one's.
+uses(RefreshDatabase::class);
 
 it('adds Kami to the host panel', function () {
     expect(Filament::getPanel('admin')->hasPlugin('kami'))->toBeTrue();
@@ -22,7 +26,6 @@ it('adds Kami to the host panel', function () {
 it('draws the User avatar inline, with no remote URL in the panel markup', function () {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
-    $this->artisan('migrate')->assertSuccessful();
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => 'secret']);
 
     $page = HTMLDocument::createFromString((string) $this->actingAs($user)->get('/admin')->assertOk()->getContent(), LIBXML_NOERROR);
@@ -74,5 +77,6 @@ it('creates the package tables', function () {
 
     expect(Schema::hasTable('kami_entries'))->toBeTrue()
         ->and(Schema::hasTable('kami_translations'))->toBeTrue()
-        ->and(Schema::hasTable('kami_paths'))->toBeTrue();
+        ->and(Schema::hasTable('kami_paths'))->toBeTrue()
+        ->and(Schema::hasTable('kami_role_user'))->toBeTrue();
 });
