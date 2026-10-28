@@ -22,6 +22,12 @@ sed -i \
     .env
 
 composer install --no-dev --no-interaction --no-progress
+
+# A composer.lock shipped by the starter kit wins over the path repository and installs a released Kami instead.
+if [ "$(readlink -f vendor/psyao/kami)" != /kami ]; then
+    echo "vendor/psyao/kami is not /kami: the smoke would test another Kami than the checkout (a composer.lock in the starter kit?)" >&2
+    exit 1
+fi
 php artisan key:generate --no-interaction
 php artisan kami:install --no-interaction
 php artisan optimize

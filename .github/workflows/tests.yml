@@ -2,6 +2,9 @@ name: tests
 
 on:
   pull_request:
+  # Nightly on main: catches a starter kit or upstream change that breaks Kami before the next pull request does.
+  schedule:
+    - cron: '47 2 * * *'
   workflow_dispatch:
 
 permissions:

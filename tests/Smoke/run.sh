@@ -6,12 +6,14 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # The starter kit is untagged and `laravel new` installs its default branch (psyao/kami#30, decision 9): test that.
-starter_version=dev-main
+# STARTER_VERSION=dev-<branch> tries a starter kit branch before it merges.
+starter_version=${STARTER_VERSION:-dev-main}
 base_url="http://localhost:${SMOKE_PORT:-8080}"
 
 docker compose down --volumes --remove-orphans
 docker compose up --build --detach --wait php mariadb
-docker compose run --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
+# -T: the container never reads this script's stdin.
+docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
 # Apache needs the site's public/ to start.
 docker compose up --detach --wait apache
 
