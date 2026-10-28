@@ -33,6 +33,8 @@ use Psyao\Kami\Sites\Internal\Site;
  * @property-read string|null $slug
  * @property-read string|null $status `draft` or `published`.
  * @property-read CarbonImmutable|null $published_at
+ * @property-read int|string|null $created_by The Creator's User key.
+ * @property-read int|string|null $updated_by The Last modifier's User key.
  */
 #[ScopedBy(Visibility::class)]
 #[UseEloquentBuilder(EntryBuilder::class)]
@@ -133,7 +135,7 @@ class Entry extends Model
         $translation = $this->translation($locale);
         $type = $this->contentType();
 
-        if (! in_array($locale, $site->locales, true) || ! $type instanceof ContentType || ! $translation instanceof Translation || ! Visibility::isVisible($translation)) {
+        if (! in_array($locale, $site->locales, true) || ! $type instanceof ContentType || ! $translation instanceof Translation || ! Visibility::isVisible($translation) || $translation->slug === null) {
             return null;
         }
 

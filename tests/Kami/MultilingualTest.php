@@ -20,7 +20,9 @@ beforeEach(function () {
 /** @param array<string, mixed> $values */
 function translate(string $locale, array $values, ?Entry $entry = null, string $type = Article::class): Entry
 {
-    return resolve(SaveEntry::class)->handle($type, ['status' => 'published', ...$values], $entry, $locale);
+    $required = $type === Article::class && ! $entry instanceof Entry ? ['author' => 'Ada Lovelace'] : [];
+
+    return resolve(SaveEntry::class)->handle($type, ['status' => 'published', ...$required, ...$values], $entry, $locale);
 }
 
 it('answers each Locale at its own Path, the default one unprefixed', function () {

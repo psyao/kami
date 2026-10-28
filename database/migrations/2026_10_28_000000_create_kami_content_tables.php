@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,9 +13,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('kami_entries', function (Blueprint $table) {
+            /** @var class-string<Model> $users */
+            $users = config('auth.providers.users.model');
+            $user = new $users;
+
             $table->ulid('id')->primary();
             $table->string('site', 40);
             $table->string('type', 40);
+            // Typed like the host's User key; a deleted User leaves the Entry with no Creator or Last modifier (ADR 0005).
+            $table->foreignIdFor($user, 'created_by')->nullable()->constrained($user->getTable(), $user->getKeyName())->nullOnDelete();
+            $table->foreignIdFor($user, 'updated_by')->nullable()->constrained($user->getTable(), $user->getKeyName())->nullOnDelete();
             $table->datetimes();
         });
 
@@ -22,8 +30,9 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
             $table->string('locale', 20);
-            $table->string('title');
-            $table->string('slug');
+            // A Draft may have neither yet: both are required to publish.
+            $table->string('title')->nullable();
+            $table->string('slug')->nullable();
             $table->string('status', 20);
             $table->dateTime('published_at')->nullable();
             $table->datetimes();

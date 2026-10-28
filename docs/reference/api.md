@@ -25,9 +25,9 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 
 `final class`
 
-Creates or updates one Translation of an Entry: the one way content is written, from the admin, seeders or imports alike. It does not authorise (ADR 0011).
+Creates or updates one Translation of an Entry: the one way content is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
 
-- `public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL): Psyao\Kami\Content\Entry`
+- `public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry`
 
 ## `Psyao\Kami\Content\ContentType`
 
@@ -63,6 +63,8 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
 - `final public function __construct(string $handle)`
 - `public static function make(string $handle): static`
+- `public function required(): static`: Required to publish; a Draft may leave it blank.
+- `public function rules(array $rules): static`: Laravel validation rules, applied on every save, Drafts included; a blank value passes them unless the rule is implicit.
 - `public function shared(): static`: One value for the whole Entry, whatever the Locale.
 - `public function translatable(): static`: One value per Locale, falling back to the default Locale's when blank.
 

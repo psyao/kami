@@ -37,6 +37,7 @@ function saveArticle(array $values = []): Entry
         'title' => 'Hello world',
         'status' => 'published',
         'summary' => 'A first article.',
+        'author' => 'Ada Lovelace',
         ...$values,
     ]);
 }
