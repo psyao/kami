@@ -28,12 +28,12 @@ final class Visibility implements Scope
 
         $builder->whereHas('translations', fn (Builder $translations) => $translations
             ->whereIn('locale', [$builder->locale(), '*'])
-            ->where('status', 'published')
+            ->where('status', Translation::PUBLISHED)
             ->where('published_at', '<=', now()));
     }
 
     public static function isVisible(?Translation $translation): bool
     {
-        return $translation?->status === 'published' && $translation->published_at?->lte(now()) === true;
+        return $translation?->status === Translation::PUBLISHED && $translation->published_at?->lte(now()) === true;
     }
 }

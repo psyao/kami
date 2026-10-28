@@ -35,6 +35,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
+use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
 
@@ -161,7 +162,7 @@ final class EntryResource extends FilamentResource
     private static function state(Entry $entry): string
     {
         return match (true) {
-            $entry->status !== 'published' => 'draft',
+            $entry->status !== Translation::PUBLISHED => 'draft',
             $entry->isVisible() => 'published',
             default => 'scheduled',
         };
@@ -169,6 +170,7 @@ final class EntryResource extends FilamentResource
 
     private static function component(Field $field): Component
     {
+        // ponytail: one arm per Field type, Kami's two only; M3's `fieldComponents()` registry replaces it.
         $component = match (true) {
             $field instanceof Text => TextInput::make($field->handle),
             $field instanceof Textarea => TextareaInput::make($field->handle),

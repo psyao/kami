@@ -62,6 +62,7 @@ class Psyao\Kami\Users\KamiUser::kamiRoles() abstract public function kamiRoles(
 command kami:doctor
 command kami:doctor --strict [--strict]
 command kami:install
+config kami.resources.entry
 config kami.roles.administrator
 config kami.sites.default.locales
 config kami.sites.default.timezone

@@ -47,8 +47,8 @@ final class EditEntry extends EditRecord
     {
         return [
             $this->getSaveFormAction(),
-            $this->statusAction('publish', 'published')->visible(fn (): bool => $this->entry()->status !== 'published'),
-            $this->statusAction('unpublish', 'draft')->visible(fn (): bool => $this->entry()->status === 'published'),
+            $this->statusAction('publish', Translation::PUBLISHED)->visible(fn (): bool => $this->entry()->status !== Translation::PUBLISHED),
+            $this->statusAction('unpublish', Translation::DRAFT)->visible(fn (): bool => $this->entry()->status === Translation::PUBLISHED),
             $this->getCancelFormAction(),
         ];
     }
