@@ -17,15 +17,15 @@ final readonly class Site
      * @param  list<string>  $locales  The first is the default.
      * @param  string  $timezone  The one its dates are displayed in; they are stored in UTC.
      */
-    public function __construct(public string $handle, public string $url, public array $locales, public string $timezone = 'UTC') {}
+    public function __construct(public string $handle, public string $url, public array $locales, public string $timezone) {}
 
     // ponytail: the `default` Site only; multisite resolves it from the request here.
     public static function current(): self
     {
-        /** @var array{url: string, locales: list<string>, timezone?: string} $site */
+        /** @var array{url: string, locales: list<string>, timezone: string} $site */
         $site = config('kami.sites.default');
 
-        return new self('default', $site['url'], $site['locales'], $site['timezone'] ?? 'UTC');
+        return new self('default', $site['url'], $site['locales'], $site['timezone']);
     }
 
     public function defaultLocale(): string

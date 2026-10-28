@@ -9,8 +9,7 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea as TextareaInput;
 use Filament\Forms\Components\TextInput;
-use Filament\Navigation\NavigationItem;
-use Filament\Resources\Resource;
+use Filament\Resources\Resource as FilamentResource;
 use Filament\Resources\ResourceConfiguration;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
@@ -43,9 +42,9 @@ use UnitEnum;
  *
  * @internal
  *
- * @extends resource<Entry>
+ * @extends FilamentResource<Entry>
  */
-final class EntryResource extends Resource
+final class EntryResource extends FilamentResource
 {
     #[\Override]
     protected static ?string $model = Entry::class;
@@ -84,13 +83,6 @@ final class EntryResource extends Resource
     public static function getNavigationLabel(): string
     {
         return self::getPluralModelLabel();
-    }
-
-    /** @return array<NavigationItem> */
-    public static function getNavigationItems(): array
-    {
-        // Filament keys an item by class, which every type shares.
-        return array_map(fn (NavigationItem $item): NavigationItem => $item->key(self::type()->handle()), parent::getNavigationItems());
     }
 
     /** The policy hears the type's handle when there is no record, so each type has its own Permissions (ADR 0014). */
@@ -168,7 +160,7 @@ final class EntryResource extends Resource
     }
 
     /** Draft, Scheduled or Published, as visitors see the Translation now (ADR 0019). */
-    public static function state(Entry $entry): string
+    private static function state(Entry $entry): string
     {
         return match (true) {
             $entry->status !== 'published' => 'draft',
@@ -185,11 +177,9 @@ final class EntryResource extends Resource
             default => throw new LogicException('No admin component for the Field type ' . $field::class . '.'),
         };
 
-        $help = "fields.{$field->handle}.help";
-
         return $component
             ->label(self::label("fields.{$field->handle}.label", Str::headline($field->handle)))
-            ->helperText(Lang::has('kami-types.' . self::type()->handle() . ".{$help}") ? self::label($help, '') : null)
+            ->helperText(self::label("fields.{$field->handle}.help", '') ?: null)
             ->default($field->defaultValue());
     }
 
