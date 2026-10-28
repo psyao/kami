@@ -106,7 +106,9 @@ final class EntryResource extends FilamentResource
             TextInput::make('title')->label(__('kami::admin.fields.title')),
             TextInput::make('slug')->label(__('kami::admin.fields.slug'))->helperText(__('kami::admin.fields.slug_help')),
             ...array_map(self::component(...), self::type()->fields()),
-            DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone])),
+            // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
+            DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
+                ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record)),
         ]);
     }
 

@@ -250,6 +250,22 @@ it('hides Publish and Unpublish from a User without publish, who saves Drafts on
         ->assertActionDoesNotExist(formAction('publish'));
 });
 
+it('keeps the publication date from a User without publish, who cannot make a Scheduled Translation visible (ADR 0019)', function () {
+    config(['kami.roles.writer' => ['kami.entries.article.view', 'kami.entries.article.update']]);
+    $writer = User::forceCreate(['name' => 'Writer', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
+    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $writer->getKey(), 'role' => 'writer']);
+    $scheduled = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published', 'published_at' => now()->addDay()]);
+    $this->actingAs($writer);
+
+    entryPage(EditEntry::class, parameters: ['record' => $scheduled->id])
+        ->fillForm(['published_at' => now()->subDay()->toDateTimeString()])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->published_at?->isFuture())->toBeTrue();
+    $this->get('/articles/bonjour')->assertNotFound();
+});
+
 it('renders every Kami admin page in English and French with no raw translation key', function (string $locale) {
     config(['app.locale' => $locale]);
     $entries = collect(['article', 'page', 'label'])->mapWithKeys(fn (string $type) => [$type => resolve(SaveEntry::class)->handle($type, ['title' => "Une {$type}"])]);
