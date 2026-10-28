@@ -110,7 +110,7 @@ it('names quoting and the cached configuration when the database refuses the cre
     $problem = collect((new Doctor)->problems())->sole();
 
     expect($problem->message)->toStartWith('Kami cannot connect to the database refused')
-        ->and($problem->fix)->toContain('DB_PASSWORD="..."', 'php artisan optimize')
+        ->and($problem->fix)->toContain("DB_PASSWORD='...'", 'php artisan optimize')
         ->and($problem->guide)->toBe('installation.md#database');
 })->with([
     'MariaDB' => ['mariadb', "SQLSTATE[HY000] [1045] Access denied for user 'site'@'host' (using password: YES)"],

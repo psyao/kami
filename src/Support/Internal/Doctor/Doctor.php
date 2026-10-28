@@ -154,7 +154,7 @@ final readonly class Doctor
                 Severity::Error,
                 "Kami cannot connect to the database {$name}: {$exception->getMessage()}",
                 $refused
-                    ? 'check DB_USERNAME and DB_PASSWORD in .env, with the password in double quotes (DB_PASSWORD="..."): unquoted, a # cuts it short. Once php artisan optimize has run, .env edits count only after it runs again.'
+                    ? "check DB_USERNAME and DB_PASSWORD in .env, with the password in single quotes (DB_PASSWORD='...'): unquoted, a # cuts it short. Once php artisan optimize has run, .env edits count only after it runs again."
                     : "check the DB_* settings in .env and that {$extension} is loaded.",
                 'installation.md#database',
             );

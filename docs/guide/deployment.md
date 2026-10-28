@@ -81,10 +81,10 @@ DB_HOST=xxxx.myd.infomaniak.com
 DB_PORT=3306
 DB_DATABASE=xxxx_site
 DB_USERNAME=xxxx_site
-DB_PASSWORD="..."
+DB_PASSWORD='...'
 ```
 
-Keep the password in double quotes: unquoted, a `#` in it starts a comment and cuts it short, and the database refuses the connection.
+Keep the password in single quotes: unquoted, a `#` in it starts a comment and cuts it short, and the database refuses the connection. Single quotes keep every character as it is, where double quotes expand `${...}` and reject a lone `\`. A password holding `'` cannot be quoted this way: generate another one.
 
 On SQLite, keep `DB_CONNECTION=sqlite`: `kami:install` creates `database/database.sqlite`.
 

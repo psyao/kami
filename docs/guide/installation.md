@@ -17,7 +17,7 @@ The user PHP runs as must be able to write to `storage/` and `bootstrap/cache/`.
 
 ### Database
 
-Kami supports SQLite, MySQL 8.4, MariaDB 10.11 and PostgreSQL 15 or later. The connection comes from the `DB_*` settings in `.env`. Keep `DB_PASSWORD` in double quotes (`DB_PASSWORD="..."`): unquoted, a `#` in the password starts a comment and cuts it short, and the database refuses the connection. Once `php artisan optimize` (or `config:cache`) has run, the configuration is cached and an edit to `.env` changes nothing until it is cached again.
+Kami supports SQLite, MySQL 8.4, MariaDB 10.11 and PostgreSQL 15 or later. The connection comes from the `DB_*` settings in `.env`. Keep `DB_PASSWORD` in single quotes (`DB_PASSWORD='...'`): unquoted, a `#` in the password starts a comment and cuts it short, and the database refuses the connection. Single quotes keep every other character as it is; a password holding `'` needs replacing. Once `php artisan optimize` (or `config:cache`) has run, the configuration is cached and an edit to `.env` changes nothing until it is cached again.
 
 On SQLite, the database file need not exist: `kami:install` creates it, as on a first deploy from git where `database.sqlite` is ignored. Its directory must exist and be writable by the user PHP runs as.
 
