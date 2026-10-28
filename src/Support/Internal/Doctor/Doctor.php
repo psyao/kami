@@ -5,15 +5,23 @@ declare(strict_types=1);
 namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
+use Psyao\Kami\Users\KamiUser;
 use Throwable;
 
 /**
  * The closed list of checks behind `kami:doctor`; later milestones add theirs here.
  *
  * @internal
+ *
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool}
  */
 final readonly class Doctor
 {
@@ -44,17 +52,27 @@ final readonly class Doctor
     /** @return list<Problem> */
     public function problems(): array
     {
-        return [...$this->environment(), ...$this->remoteAvatars()];
+        $panels = $this->panels();
+        // A database Kami cannot reach is already an error, and the table is missing until the first `kami:install`.
+        $assignments = rescue(fn (): bool => Schema::hasTable('kami_role_user'), false, report: false);
+
+        return [
+            ...$this->environment(),
+            ...$this->userModels($panels),
+            ...$this->remoteAvatars($panels),
+            ...$this->strictAuthorization($panels),
+            ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
+        ];
     }
 
     /**
-     * The environment errors, which stop `kami:install` before it migrates.
+     * The errors that stop `kami:install` before it migrates.
      *
      * @return list<Problem>
      */
     public function blocking(): array
     {
-        return array_values(array_filter($this->environment(), fn (Problem $problem): bool => $problem->severity === Severity::Error));
+        return array_values(array_filter([...$this->environment(), ...$this->userModels($this->panels())], fn (Problem $problem): bool => $problem->severity === Severity::Error));
     }
 
     /** @return list<Problem> */
@@ -180,16 +198,109 @@ final readonly class Doctor
         );
     }
 
-    /** @return list<Problem> */
-    private function remoteAvatars(): array
+    /** @return list<PanelReport> */
+    private function panels(): array
     {
-        $panels = array_filter(array_map(fn (Closure $panel): ?string => $panel(), resolve(PluginRegistration::class)->remoteAvatarChecks));
+        return array_values(array_map(fn (Closure $panel): array => $panel(), resolve(PluginRegistration::class)->panels));
+    }
 
-        return array_values(array_map(fn (string $panel): Problem => new Problem(
+    /** The model of the provider behind an auth guard, if it names one. */
+    private function userModel(string $guard): ?string
+    {
+        $provider = config("auth.guards.{$guard}.provider");
+        $model = is_string($provider) ? config("auth.providers.{$provider}.model") : null;
+
+        return is_string($model) ? $model : null;
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function userModels(array $panels): array
+    {
+        $lacking = array_filter($panels, fn (array $panel): bool => ! is_a((string) $this->userModel($panel['guard']), KamiUser::class, true));
+
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
+            Severity::Error,
+            "The panel {$panel['id']} signs Users in with " . ($this->userModel($panel['guard']) ?? 'no Eloquent model') . ', which does not implement ' . KamiUser::class . '.',
+            'add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.',
+            'users-and-roles.md#the-user-model',
+        ), $lacking));
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function remoteAvatars(array $panels): array
+    {
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
             Severity::Warning,
-            "The panel {$panel} draws avatars from ui-avatars.com, which receives the initials of your Users.",
-            "add ->defaultAvatarProvider(InitialsAvatarProvider::class) to the panel {$panel}.",
+            "The panel {$panel['id']} draws avatars from ui-avatars.com, which receives the initials of your Users.",
+            "add ->defaultAvatarProvider(InitialsAvatarProvider::class) to the panel {$panel['id']}.",
             'installation.md#installing-and-deploying',
-        ), $panels));
+        ), array_filter($panels, fn (array $panel): bool => $panel['remoteAvatars'])));
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function strictAuthorization(array $panels): array
+    {
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
+            Severity::Warning,
+            "The panel {$panel['id']} does not authorize strictly: a Resource without a policy opens to every User who signs in.",
+            "add ->strictAuthorization() to the panel {$panel['id']}.",
+            'users-and-roles.md#strict-authorization',
+        ), array_filter($panels, fn (array $panel): bool => ! $panel['strict'])));
+    }
+
+    /** @return list<Problem> */
+    private function undeclaredRoles(): array
+    {
+        $undeclared = DB::table('kami_role_user')->whereNotIn('role', array_keys(Config::array('kami.roles')))->pluck('role');
+        $count = $undeclared->count();
+
+        return $count === 0 ? [] : [new Problem(
+            Severity::Warning,
+            "{$count} " . Str::plural('Role assignment', $count) . ' ' . ($count === 1 ? 'names' : 'name') . " a Role config/kami.php does not declare: {$undeclared->unique()->sort()->implode(', ')}.",
+            'declare it in config/kami.php under roles, or delete its rows from kami_role_user: it grants nothing.',
+            'users-and-roles.md#roles',
+        )];
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function usersWithoutRole(array $panels): array
+    {
+        $problems = [];
+
+        foreach ($panels as $panel) {
+            $model = $this->userModel($panel['guard']);
+
+            if ($model === null || ! is_a($model, KamiUser::class, true) || ! is_a($model, Model::class, true)) {
+                continue;
+            }
+
+            // ponytail: one canAccessPanel() per User with no Role, read in chunks; a host with many customers waits, a SQL rule would need the host's.
+            $count = $model::query()->whereNotIn((new $model)->getKeyName(), DB::table('kami_role_user')->select('user_id'))->lazyById()
+                ->filter(fn (Model $user): bool => $user instanceof Authenticatable && ($panel['admits'])($user))
+                ->count();
+
+            if ($count > 0) {
+                $problems[] = new Problem(
+                    Severity::Info,
+                    "{$count} " . Str::plural('User', $count) . " with no Kami Role can sign in to the panel {$panel['id']} and " . ($count === 1 ? 'sees' : 'see') . ' nothing of Kami.',
+                    "nothing when they are the application's own staff; otherwise give them a Role, or turn them away in canAccessPanel().",
+                    'users-and-roles.md#panel-access',
+                );
+            }
+        }
+
+        return $problems;
     }
 }

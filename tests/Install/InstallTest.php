@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -79,6 +80,18 @@ it('fails before migrating on a blocking environment error', function (Closure $
         DB::purge('testing');
     }, 'Kami cannot create the SQLite database testing'],
 ]);
+
+it('refuses before migrating, naming what to add, while the panel\'s User model lacks KamiUser', function () {
+    $this->bootWithKamiOnAPanel();
+    config(['auth.providers.users.model' => User::class]);
+
+    install()
+        ->expectsOutputToContain('The panel admin signs Users in with Illuminate\\Foundation\\Auth\\User, which does not implement Psyao\\Kami\\Users\\KamiUser')
+        ->expectsOutputToContain('Fix: add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.')
+        ->assertFailed();
+
+    expect(Schema::hasTable('migrations'))->toBeFalse();
+});
 
 it('changes nothing when run again', function () {
     $this->bootWithKamiOnAPanel();

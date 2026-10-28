@@ -22,6 +22,7 @@ trait PrintsProblems
             match ($problem->severity) {
                 Severity::Error => $this->components->error($problem->message),
                 Severity::Warning => $this->components->warn($problem->message),
+                Severity::Info => $this->components->info($problem->message),
             };
             $this->line("  Fix: {$problem->fix}");
             $this->line("  Guide: {$problem->guidePath()}");

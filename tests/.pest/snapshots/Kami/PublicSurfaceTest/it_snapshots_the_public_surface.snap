@@ -54,13 +54,24 @@ class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTo
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
 class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
 class Psyao\Kami\KamiServiceProvider::packageRegistered() public function packageRegistered(): void
+class Psyao\Kami\Users\HasKamiRoles trait
+class Psyao\Kami\Users\HasKamiRoles::kamiRoles() public function kamiRoles(): array
+class Psyao\Kami\Users\KamiUser interface
+class Psyao\Kami\Users\KamiUser::kamiRoles() abstract public function kamiRoles(): array
 command kami:doctor
 command kami:doctor --strict [--strict]
 command kami:install
+config kami.roles.administrator
 config kami.sites.default.locales
 config kami.sites.default.timezone
 config kami.sites.default.url
 config kami.types
+permission kami.entries.{type}.create
+permission kami.entries.{type}.publish
+permission kami.entries.{type}.update
+permission kami.entries.{type}.view
+permission kami.users.manage
 table kami_entries
 table kami_paths
+table kami_role_user
 table kami_translations

@@ -1,5 +1,8 @@
 laravel: '@testbench'
 
+env:
+  - AUTH_MODEL="Workbench\\App\\Models\\User"
+
 providers:
   - Workbench\App\Providers\AdminPanelProvider
 

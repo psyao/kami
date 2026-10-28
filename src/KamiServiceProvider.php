@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Psyao\Kami;
 
+use Illuminate\Contracts\Auth\Access\Gate;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\Install\InstallCommand;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
+use Psyao\Kami\Users\Internal\Permissions;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -34,5 +36,8 @@ final class KamiServiceProvider extends PackageServiceProvider
     {
         // Run from the package, never published: a copy in the site would drift from the append-only history (ADR 0035).
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+
+        // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
+        $this->callAfterResolving(Gate::class, Permissions::register(...));
     }
 }

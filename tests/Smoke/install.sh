@@ -28,6 +28,15 @@ if [ "$(readlink -f vendor/psyao/kami)" != /kami ]; then
     echo "vendor/psyao/kami is not /kami: the smoke would test another Kami than the checkout (a composer.lock in the starter kit?)" >&2
     exit 1
 fi
+# ponytail: the starter kit's User gains KamiUser with psyao/kami#108, once a released Kami ships the interface; until then the smoke adds it.
+if ! grep -q KamiUser app/Models/User.php; then
+    sed -i \
+        -e 's|implements FilamentUser$|implements FilamentUser, \\Psyao\\Kami\\Users\\KamiUser|' \
+        -e 's|^    use Notifiable;$|    use Notifiable;\n    use \\Psyao\\Kami\\Users\\HasKamiRoles;|' \
+        app/Models/User.php
+    grep -q 'HasKamiRoles;' app/Models/User.php && grep -q 'Users\\KamiUser$' app/Models/User.php \
+        || { echo "Could not add KamiUser to the starter kit's app/Models/User.php" >&2; exit 1; }
+fi
 php artisan key:generate --no-interaction
 php artisan kami:install --no-interaction
 php artisan optimize

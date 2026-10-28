@@ -15,9 +15,21 @@ use Psyao\Kami\Content\ContentType;
  */
 final class ContentTypes
 {
-    // ponytail: read on every call, so a test may change `kami.types`; boot validation (#100) builds it once.
     public function find(string $classOrHandle): ?ContentType
     {
+        return collect($this->all())->first(fn (ContentType $type, string $class): bool => $class === $classOrHandle || $type->handle() === $classOrHandle);
+    }
+
+    /**
+     * Keyed by class.
+     *
+     * @return array<string, ContentType>
+     */
+    // ponytail: read on every call, so a test may change `kami.types`; boot validation (#100) builds it once.
+    public function all(): array
+    {
+        $types = [];
+
         foreach (Config::array('kami.types') as $class) {
             $type = is_string($class) ? app()->make($class) : null;
 
@@ -25,11 +37,9 @@ final class ContentTypes
                 throw new InvalidArgumentException('Every entry of kami.types is a class extending ' . ContentType::class . '.');
             }
 
-            if ($class === $classOrHandle || $type->handle() === $classOrHandle) {
-                return $type;
-            }
+            $types[$class] = $type;
         }
 
-        return null;
+        return $types;
     }
 }

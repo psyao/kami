@@ -126,6 +126,16 @@ class Entry extends Model
         return Visibility::isVisible($this->translations->firstWhere('locale', $default)) ? $default : null;
     }
 
+    /**
+     * @internal
+     *
+     * Whether visitors see the Translation it is read in (ADR 0019).
+     */
+    public function isVisible(): bool
+    {
+        return Visibility::isVisible($this->translation($this->readLocale()));
+    }
+
     /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there. */
     public function url(?string $locale = null): ?string
     {
