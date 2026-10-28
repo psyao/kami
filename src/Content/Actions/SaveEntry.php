@@ -96,7 +96,6 @@ final class SaveEntry
 
         Validator::make($data, $rules)->validate();
 
-        $created = ! $entry instanceof Entry;
         $wasPublished = $translation->status === 'published';
         $wasVisible = Visibility::isVisible($translation);
 
@@ -139,7 +138,7 @@ final class SaveEntry
         $saved = Entry::query()->withUnpublished()->findOrFail($id);
 
         // After commit, so a listener never sees a write rolled back; a caller's own transaction defers them to its commit (ADR 0029).
-        event(new EntrySaved($saved, $locale, $created, $actor));
+        event(new EntrySaved($saved, $locale, ! $entry instanceof Entry, $actor));
 
         if (! $wasVisible && Visibility::isVisible($translation)) {
             event(new EntryPublished($saved, $locale, false, $actor));
