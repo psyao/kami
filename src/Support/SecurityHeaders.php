@@ -35,7 +35,11 @@ final class SecurityHeaders
 
         $response = $next($request);
 
-        header_remove('X-Powered-By');
+        // PHP's own `expose_php` header; once output has started, PHP has sent it and removing it would only warn.
+        if (! headers_sent()) {
+            header_remove('X-Powered-By');
+        }
+
         $response->headers->remove('X-Powered-By');
 
         $reportOnly = $profile === 'front' && Config::boolean('kami.security.csp_report_only');

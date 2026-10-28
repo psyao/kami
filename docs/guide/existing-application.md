@@ -4,7 +4,7 @@ Kami added to a Laravel application that already does other things. Kami takes n
 
 ## Requirements
 
-- Laravel 13.32 or later and Filament 5.8.3 or later
+- Laravel 13.32 or later and Filament 5.10 or later
 - Everything [Installation](installation.md#requirements) lists
 
 ## Install the package

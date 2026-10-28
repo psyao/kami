@@ -21,7 +21,7 @@
     ],
     "require": {
         "php": "^8.5",
-        "filament/filament": "^5.8.3",
+        "filament/filament": "^5.10",
         "laravel/framework": "^13.32",
         "spatie/laravel-package-tools": "^1.93"
     },
