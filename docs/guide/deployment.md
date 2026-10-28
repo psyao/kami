@@ -9,7 +9,7 @@ In the Infomaniak Manager, for the site:
 1. Set the PHP version to 8.5.
 2. On MariaDB, create a database and a user for it, and note the host, the database name, the user and the password. On SQLite, skip this step.
 3. Turn on SSH access and add your SSH key.
-4. Install a Let's Encrypt certificate and force HTTPS.
+4. Install a Let's Encrypt certificate. The Manager has no switch to force HTTPS: the starter kit's `public/.htaccess` redirects HTTP to HTTPS.
 
 Over SSH, `php -v` must print 8.5 or later. When it prints another version, put PHP 8.5 first on the `PATH`, in `~/.profile` so later sessions keep it:
 
