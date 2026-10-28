@@ -3,12 +3,11 @@
 # the checkout under test, as its Kami, then installs it as a deploy over SSH would.
 set -euo pipefail
 
-composer create-project psyao/kami-starter . "$STARTER_VERSION" --no-install --no-scripts --no-interaction \
-    --repository='{"type":"vcs","url":"https://github.com/psyao/kami-starter","no-api":true}'
+composer create-project psyao/kami-starter . "$STARTER_VERSION" --no-install --no-scripts --no-interaction
 
-# The checkout replaces the starter kit's VCS repository of Kami.
-composer config --unset repositories.0
+# The checkout replaces the Kami release the starter kit requires.
 composer config repositories.kami '{"type":"path","url":"/kami","options":{"versions":{"psyao/kami":"dev-main"}}}'
+composer require psyao/kami:dev-main --no-update
 
 cp .env.example .env
 sed -i \

@@ -17,7 +17,7 @@ Kami is in early development: so far it covers installation, the environment che
 A new site starts from the starter kit:
 
 ```bash
-laravel new site --using=https://github.com/psyao/kami-starter
+laravel new site --using=psyao/kami-starter
 cd site
 php artisan kami:install
 php artisan make:filament-user

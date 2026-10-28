@@ -450,7 +450,7 @@ Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-
 | Ceiling of 64 Blocks per install | Upgrade path named in `BlockSlot`: classes generated into `bootstrap/cache` | ADR 0024 |
 | Coarse invalidation: any write empties the page cache | Deliberate for small sites; dependency tracking is a V1 option | ADR 0021 |
 | The sitemap is rebuilt in one task run, which fits 30k Entries but not 1 M | Resume across Ticks, an internal change | ADR 0027 |
-| A solo maintainer working in phases: the playground, backports, CI drift | One local playground update per milestone, a staging deploy only where the real host matters; a bounded 6-month security window; the CI smoke pinned to the starter kit's latest tag | [#29](https://github.com/psyao/kami/issues/29), [#30](https://github.com/psyao/kami/issues/30), [#31](https://github.com/psyao/kami/issues/31) |
+| A solo maintainer working in phases: the playground, backports, CI drift | One local playground update per milestone, a staging deploy only where the real host matters; a bounded 6-month security window; the CI smoke on the starter kit's `main`, the branch `laravel new` installs | [#29](https://github.com/psyao/kami/issues/29), [#30](https://github.com/psyao/kami/issues/30), [#31](https://github.com/psyao/kami/issues/31) |
 
 ### Open decisions
 
