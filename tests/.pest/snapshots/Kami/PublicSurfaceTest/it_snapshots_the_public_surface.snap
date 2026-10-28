@@ -40,6 +40,7 @@ class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)
+class Psyao\Kami\Content\Fields\Field::default() public function default(mixed $value): static
 class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static
 class Psyao\Kami\Content\Fields\Field::required() public function required(): static
 class Psyao\Kami\Content\Fields\Field::rules() public function rules(array $rules): static

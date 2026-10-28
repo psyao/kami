@@ -68,6 +68,15 @@ final class SaveEntry
         $translation = $entry instanceof Entry ? Translation::query()->firstOrNew(['entry_id' => $entry->id, 'locale' => $locale]) : new Translation(['locale' => $locale]);
         $stored = $entry instanceof Entry ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
 
+        // A new Translation starts from its Fields' defaults; a Shared Field's only while the Entry has no `'*'` row yet.
+        if ($writesTranslation && ! $translation->exists) {
+            foreach ($fields as $handle => $field) {
+                if (! array_key_exists($handle, $values) && $field->defaultValue() !== null && ($contentType->isTranslatable($field) || ! $stored->has('*'))) {
+                    $values[$handle] = $field->defaultValue();
+                }
+            }
+        }
+
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
         $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? 'draft'] : [];
         foreach ($fields as $handle => $field) {

@@ -55,15 +55,15 @@ it('registers no route or middleware until the host calls Kami::routes()', funct
     $router = app('router');
 
     // The panel's routes are the host's: KamiPlugin only adds pages to them.
-    $routes = collect($router->getRoutes()->getRoutes())->reject(fn (Route $route) => str_starts_with((string) $route->getName(), 'filament.'));
+    $routes = fn () => collect($router->getRoutes()->getRoutes())->reject(fn (Route $route) => str_starts_with((string) $route->getName(), 'filament.'));
     $middleware = collect([...app(Kernel::class)->getGlobalMiddleware(), ...$router->getMiddleware(), ...collect($router->getMiddlewareGroups())->flatten()]);
 
-    expect($routes->filter($definedByKami))->toBeEmpty()
+    expect($routes()->filter($definedByKami))->toBeEmpty()
         ->and($middleware->filter(fn (mixed $class) => is_string($class) && str_starts_with($class, 'Psyao\\Kami\\')))->toBeEmpty();
 
     Kami::routes();
 
-    expect(collect($router->getRoutes()->getRoutes())->filter($definedByKami)->map->uri()->values()->all())->toBe(['{fallbackPlaceholder}']);
+    expect($routes()->filter($definedByKami)->map->uri()->values()->all())->toBe(['{fallbackPlaceholder}']);
 });
 
 it('runs in UTC whatever the host time zone', function () {

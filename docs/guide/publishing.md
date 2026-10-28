@@ -42,6 +42,10 @@ $save->handle(Article::class, ['status' => 'draft'], $entry);                   
 - A date to come schedules: the page appears at that moment, with no task to run.
 - Unpublishing keeps `published_at`, so republishing without a date keeps the original one.
 
+### In the admin
+
+The create form saves a Draft with **Save draft**, or publishes with **Publish**. The edit form's **Save changes** keeps the Translation's state, and **Publish** or **Unpublish** changes it. **Publish** with the publication date blank publishes now; a past date backdates, a date to come schedules. The date is entered and listed in the Site's time zone, `timezone` in `config/kami.php`, and stored in UTC. Publish and Unpublish appear only to a User with the type's `publish` Permission, and only that User may change the publication date: without it, a Scheduled Translation cannot be brought forward.
+
 ## Validation
 
 Invalid values throw Laravel's `Illuminate\Validation\ValidationException`, with each error on the value it concerns, as a form request would. The admin shows them on their Field; your code catches them like any other validation error. Nothing is written when a save fails.

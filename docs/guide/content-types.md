@@ -69,6 +69,12 @@ Both are Translatable: one value per Locale. `->shared()` keeps one value for th
 
 `->required()` makes a Field required to publish, while a Draft may leave it blank; `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
 
+`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only while the Entry has no Shared value yet, so adding a Locale never overwrites one. An update never applies a default, and a value given as `null` stays `null`:
+
+```php
+Text::make('author')->shared()->default('The newsroom'),
+```
+
 ## The type's table
 
 A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale and one `'*'` row for the Shared Fields (ADR 0006). Until `kami:make:migration` writes it for you, add the migration by hand in `database/migrations`:
@@ -98,6 +104,26 @@ return new class extends Migration
 ```
 
 One nullable column per Field, with no default: a Draft may be incomplete. A type with no Field needs no table. `kami:install` runs the migration with Kami's own.
+
+## In the admin
+
+Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input and `Textarea` as a multi-line one. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
+
+Labels come from the site's `lang/<locale>/kami-types.php`, by handle, and fall back to the humanised handle:
+
+```php
+return [
+    'article' => [
+        'label' => 'Article',
+        'plural' => 'Blog posts',
+        'fields' => [
+            'summary' => ['label' => 'Summary', 'help' => 'Two sentences at most.'],
+        ],
+    ],
+];
+```
+
+A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
 
 ## Writing Entries
 
