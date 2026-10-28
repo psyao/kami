@@ -16,6 +16,7 @@ From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they
 - `Browser` suite locally: `npm ci`, `npx playwright install chromium`, then `mkdir -p tests/Browser/Traces` (until pest-plugin-browser's next release) and `pest --testsuite=Browser`.
 - An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed snapshot line makes the commit breaking (`!`).
 - Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
+- Never skip the hooks (`--no-verify`): they are the only check before a push.
 - `composer serve` runs the Workbench Site with its synthetic seeder.
 
 ## Languages
@@ -45,6 +46,7 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 - Ask blocking questions one at a time, each with a default recommendation. Stop after every deliverable that needs validation.
 - Be concrete: class, table and Artisan command names.
 - Velox is evidence, not a default: cite it as evidence (question, evidence, alternatives); a decision that departs from it on a structural point says so in one sentence with the reason.
+- For implementation work, load the `ponytail:ponytail` skill and keep it active. Before opening a ticket's pull request, run `/ponytail:ponytail-review` on the branch diff and apply what holds; the milestone ritual runs `/ponytail:ponytail-debt` on `main`.
 - No application code until the architecture and the first spec are validated.
 
 ## Code conventions
@@ -52,7 +54,9 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 - Typed PHP, Pest tests, Larastan, Rector, Pint.
 - Database-agnostic: SQLite, MySQL/MariaDB, PostgreSQL. Engine-specific SQL sits behind an abstraction.
 - Core (domain, content, front rendering) independent of Filament; Filament serves the admin only.
+- Before writing or changing Filament code (resources, pages, schemas, tables, actions, panel config) or its tests, load the `filament-development` skill.
 - Narrow public API: internals marked `@internal`, kept apart from public classes.
+- A deliberate shortcut carries a `ponytail:` comment naming its ceiling and the ticket, milestone or V1 that lifts it; that ticket removes it.
 - Every third-party package justified: need, alternatives, licence, maintenance, shared-hosting compatibility.
 - Artisan commands: `kami:<verb>` for the lifecycle, `kami:<area>:<verb>` for an area's tasks, `kami:make:<thing>` for generators. Generators create new files only and print the lines a site adds elsewhere.
 
