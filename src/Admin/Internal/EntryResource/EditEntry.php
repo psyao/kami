@@ -36,16 +36,16 @@ final class EditEntry extends EditRecord
 
     public function mount(int | string $record, ?string $locale = null): void
     {
-        $site = Site::current();
-        $locales = EntryResource::type()->isTranslatable() ? $site->locales : [$site->defaultLocale()];
+        $default = Site::current()->defaultLocale();
 
         // The default Locale has no segment of its own, as on the front.
-        abort_unless($locale === null || ($locale !== $site->defaultLocale() && in_array($locale, $locales, true)), 404);
-        $this->locale = $locale ?? $site->defaultLocale();
+        abort_unless($locale === null || ($locale !== $default && in_array($locale, EntryResource::locales(), true)), 404);
+        $this->locale = $locale ?? $default;
 
         parent::mount($record);
     }
 
+    /** Read in the page's Locale on every call: Livewire reloads the record on each request, which would read it in the default one. */
     public function getRecord(): Entry
     {
         $entry = parent::getRecord();
@@ -60,7 +60,7 @@ final class EditEntry extends EditRecord
 
     public function getSubheading(): ?string
     {
-        return EntryResource::type()->isTranslatable() ? (string) __('kami::admin.locale', ['locale' => strtoupper($this->locale)]) : null;
+        return EntryResource::locales() === [] ? null : (string) __('kami::admin.locale', ['locale' => $this->locale]);
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -83,15 +83,14 @@ final class EditEntry extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        $site = Site::current();
-        $others = EntryResource::type()->isTranslatable() ? array_diff($site->locales, [$this->locale]) : [];
+        $default = Site::current()->defaultLocale();
 
         return [
             // ponytail: one link per other Locale; M4's Locale switcher with status badges replaces them.
             ...array_map(fn (string $locale): Action => Action::make("locale_{$locale}")
-                ->label(__($this->getRecord()->translations->contains('locale', $locale) ? 'kami::admin.actions.edit_locale' : 'kami::admin.actions.add_locale', ['locale' => strtoupper($locale)]))
+                ->label(__($this->getRecord()->translations->contains('locale', $locale) ? 'kami::admin.actions.edit_locale' : 'kami::admin.actions.add_locale', ['locale' => $locale]))
                 ->color('gray')
-                ->url(EntryResource::getUrl('edit', ['record' => $this->getRecord(), 'locale' => $locale === $site->defaultLocale() ? null : $locale])), array_values($others)),
+                ->url(EntryResource::getUrl('edit', ['record' => $this->getRecord(), 'locale' => $locale === $default ? null : $locale])), array_values(array_diff(EntryResource::locales(), [$this->locale]))),
             Action::make('view')
                 ->label(__('kami::admin.actions.view'))
                 ->color('gray')

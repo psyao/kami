@@ -106,7 +106,7 @@ final class EntryResource extends FilamentResource
         $timezone = Site::current()->timezone;
         $livewire = $schema->getLivewire();
         // The Locale of the values typed, so assistive technology reads them in their language (WCAG 3.1.2).
-        $lang = self::type()->isTranslatable() ? ['lang' => $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()] : [];
+        $lang = self::locales() === [] ? [] : ['lang' => $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()];
 
         return $schema->columns(1)->components([
             TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang),
@@ -127,7 +127,7 @@ final class EntryResource extends FilamentResource
                     ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
                         ->whereIn('locale', [Site::current()->defaultLocale(), '*'])
                         ->where('title', 'like', "%{$search}%"))),
-                ...array_map(self::stateColumn(...), self::type()->isTranslatable() ? Site::current()->locales : ['*']),
+                ...array_map(self::stateColumn(...), self::locales() ?: ['*']),
                 TextColumn::make('published_at')
                     ->label(__('kami::admin.fields.published_at'))
                     ->dateTime()
@@ -147,6 +147,16 @@ final class EntryResource extends FilamentResource
     }
 
     /**
+     * The Locales a Translation of the type may have, each with its own edit page; none for an untranslatable type, whose `'*'` Translation answers in every Locale.
+     *
+     * @return list<string>
+     */
+    public static function locales(): array
+    {
+        return self::type()->isTranslatable() ? Site::current()->locales : [];
+    }
+
+    /**
      * Saves through `SaveEntry`, the one way content is written (ADR 0011), with its errors on the form's fields.
      *
      * @param  array<string, mixed>  $data
@@ -163,10 +173,8 @@ final class EntryResource extends FilamentResource
     /** One Locale's state, or the `'*'` Translation's as `state` for an untranslatable type. */
     private static function stateColumn(string $locale): TextColumn
     {
-        $label = __('kami::admin.state.label');
-
         return TextColumn::make($locale === '*' ? 'state' : "state_{$locale}")
-            ->label($locale === '*' ? $label : "{$label} (" . strtoupper($locale) . ')')
+            ->label($locale === '*' ? __('kami::admin.state.label') : __('kami::admin.state.label_in', ['locale' => $locale]))
             ->badge()
             ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record->translations->firstWhere('locale', $locale))));
     }

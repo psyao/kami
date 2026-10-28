@@ -35,6 +35,7 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
         ->fill('[id="form.author"]', 'Ada Lovelace')
         ->press('internal:role=button[name="Publish"s]')
         ->assertSee('Add EN')
+        ->assertNoAccessibilityIssues()
         ->click('internal:role=link[name="Add EN"s]')
         ->assertSee('Translation: EN')
         ->assertNoAccessibilityIssues()

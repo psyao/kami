@@ -13,10 +13,11 @@ return [
         'shared' => 'Shared by every language: changing it here changes it everywhere.',
     ],
 
-    'locale' => 'Translation: :locale',
+    'locale' => 'Translation: :LOCALE',
 
     'state' => [
         'label' => 'State',
+        'label_in' => 'State (:LOCALE)',
         'draft' => 'Draft',
         'scheduled' => 'Scheduled',
         'published' => 'Published',
@@ -27,8 +28,8 @@ return [
         'save_draft' => 'Save draft',
         'publish' => 'Publish',
         'unpublish' => 'Unpublish',
-        'edit_locale' => 'Edit :locale',
-        'add_locale' => 'Add :locale',
+        'edit_locale' => 'Edit :LOCALE',
+        'add_locale' => 'Add :LOCALE',
         'view' => 'View on the site',
     ],
 

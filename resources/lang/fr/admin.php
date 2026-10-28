@@ -13,10 +13,11 @@ return [
         'shared' => 'Commun à toutes les langues : le modifier ici le modifie partout.',
     ],
 
-    'locale' => 'Traduction : :locale',
+    'locale' => 'Traduction : :LOCALE',
 
     'state' => [
         'label' => 'État',
+        'label_in' => 'État (:LOCALE)',
         'draft' => 'Brouillon',
         'scheduled' => 'Programmé',
         'published' => 'Publié',
@@ -27,8 +28,8 @@ return [
         'save_draft' => 'Enregistrer le brouillon',
         'publish' => 'Publier',
         'unpublish' => 'Dépublier',
-        'edit_locale' => 'Modifier :locale',
-        'add_locale' => 'Ajouter :locale',
+        'edit_locale' => 'Modifier :LOCALE',
+        'add_locale' => 'Ajouter :LOCALE',
         'view' => 'Voir sur le site',
     ],
 
