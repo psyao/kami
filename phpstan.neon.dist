@@ -3,14 +3,22 @@ includes:
     - vendor/phpstan/phpstan-deprecation-rules/rules.neon
 
 # No baseline. An `ignoreErrors` entry names its identifier and path, with a comment saying why.
-# `database` and `routes` join the paths with their first file: PHPStan fails on a missing path.
+# `routes` joins the paths with its first file: PHPStan fails on a missing path.
 parameters:
     level: max
     paths:
         - config
+        - database
         - src
         - workbench/app
+        - workbench/database
     checkModelProperties: true
+    ignoreErrors:
+        # A type's view is the site's, named by convention at run time (ADR 0009): no view-string can be known statically.
+        -
+            identifier: argument.type
+            path: src/Content/ContentType.php
+            message: '#expects view-string, string given#'
     # The package's own config, not Testbench's skeleton: `env()` belongs there.
     configDirectories:
         - %currentWorkingDirectory%/config

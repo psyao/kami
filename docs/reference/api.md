@@ -21,6 +21,50 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 - `public static function make(): Psyao\Kami\Admin\KamiPlugin`
 - `public function register(Filament\Panel $panel): void`
 
+## `Psyao\Kami\Content\Actions\SaveEntry`
+
+`final class`
+
+Creates or updates one Translation of an Entry: the one way content is written, from the admin, seeders or imports alike. It does not authorise (ADR 0011).
+
+- `public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL): Psyao\Kami\Content\Entry`
+
+## `Psyao\Kami\Content\ContentType`
+
+`abstract class`
+
+A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
+
+- `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
+- `public function fields(): array`
+- `public function handle(): string`: The snake_case of the class name; override it to keep the handle after renaming the class.
+- `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
+
+## `Psyao\Kami\Content\Entry`
+
+`class extends Illuminate\Database\Eloquent\Model`
+
+One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()` (ADR 0002, ADR 0012).
+
+- `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
+- `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too.
+
+## `Psyao\Kami\Content\Fields\Field`
+
+`abstract class`
+
+A value a Content Type stores, in a typed column of its `kami_type_<handle>` table (ADR 0006).
+
+- `public protected(set) readonly string $handle`
+- `final public function __construct(string $handle)`
+- `public static function make(string $handle): static`
+
+## `Psyao\Kami\Content\Fields\Text`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+A single line of plain text.
+
 ## `Psyao\Kami\Facades\Kami`
 
 `final class extends Illuminate\Support\Facades\Facade`
@@ -32,6 +76,8 @@ Kami's entry point for sites.
 `final class`
 
 What a site calls on Kami through the `Kami` facade.
+
+- `public function routes(): void`: Registers Kami's front: one fallback route, so the site's own routes always win.
 
 ## `Psyao\Kami\KamiServiceProvider`
 

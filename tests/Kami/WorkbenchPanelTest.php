@@ -9,6 +9,7 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Schema;
+use Psyao\Kami\Facades\Kami;
 
 it('adds Kami to the host panel', function () {
     expect(Filament::getPanel('admin')->hasPlugin('kami'))->toBeTrue();
@@ -36,7 +37,7 @@ it('draws the User avatar inline, with no remote URL in the panel markup', funct
         ->and($page->querySelector('img.fi-user-avatar')?->getAttribute('src'))->toStartWith('data:image/svg+xml;base64,');
 });
 
-it('registers no route or middleware of its own', function () {
+it('registers no route or middleware until the host calls Kami::routes()', function () {
     $kamiSource = dirname(__DIR__, 2) . '/src/';
     $definedByKami = function (Route $route) use ($kamiSource): bool {
         $uses = $route->getAction('uses');
@@ -56,6 +57,10 @@ it('registers no route or middleware of its own', function () {
 
     expect($routes->filter($definedByKami))->toBeEmpty()
         ->and($middleware->filter(fn (mixed $class) => is_string($class) && str_starts_with($class, 'Psyao\\Kami\\')))->toBeEmpty();
+
+    Kami::routes();
+
+    expect(collect($router->getRoutes()->getRoutes())->filter($definedByKami)->map->uri()->values()->all())->toBe(['{fallbackPlaceholder}']);
 });
 
 it('runs in UTC whatever the host time zone', function () {
@@ -64,11 +69,10 @@ it('runs in UTC whatever the host time zone', function () {
         ->and(now()->timezoneName)->toBe('UTC');
 });
 
-it('creates no kami_ table yet', function () {
+it('creates the package tables', function () {
     $this->artisan('migrate')->assertSuccessful();
 
-    $tables = collect(Schema::getTableListing(schemaQualified: false));
-
-    expect($tables)->not->toBeEmpty()
-        ->and($tables->filter(fn (string $table) => str_starts_with($table, 'kami_')))->toBeEmpty();
+    expect(Schema::hasTable('kami_entries'))->toBeTrue()
+        ->and(Schema::hasTable('kami_translations'))->toBeTrue()
+        ->and(Schema::hasTable('kami_paths'))->toBeTrue();
 });

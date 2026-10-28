@@ -3,7 +3,11 @@ laravel: '@testbench'
 providers:
   - Workbench\App\Providers\AdminPanelProvider
 
+migrations:
+  - workbench/database/migrations
+
 workbench:
   start: '/admin'
   discovers:
     config: true
+    views: true
