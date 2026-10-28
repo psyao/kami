@@ -103,6 +103,20 @@ it('fails when the database cannot be reached', function () {
         ->assertFailed();
 });
 
+it('names quoting and the cached configuration when the database refuses the credentials', function (string $driver, string $refusal) {
+    config(['database.default' => 'refused', 'database.connections.refused' => ['driver' => $driver]]);
+    DB::extend('refused', fn () => throw new PDOException($refusal));
+
+    $problem = collect((new Doctor)->problems())->sole();
+
+    expect($problem->message)->toStartWith('Kami cannot connect to the database refused')
+        ->and($problem->fix)->toContain('DB_PASSWORD="..."', 'php artisan optimize')
+        ->and($problem->guide)->toBe('installation.md#database');
+})->with([
+    'MariaDB' => ['mariadb', "SQLSTATE[HY000] [1045] Access denied for user 'site'@'host' (using password: YES)"],
+    'PostgreSQL' => ['pgsql', 'SQLSTATE[08006] [7] connection to server failed: FATAL:  password authentication failed for user "site"'],
+]);
+
 it('accepts a missing SQLite file in a writable directory, which migrate creates', function () {
     File::ensureDirectoryExists($directory = temporaryPath());
     withSqliteDatabase("{$directory}/database.sqlite");

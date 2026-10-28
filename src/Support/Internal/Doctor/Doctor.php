@@ -146,10 +146,16 @@ final readonly class Doctor
                 default => 'its PDO driver',
             };
 
+            // MySQL and MariaDB, then PostgreSQL: the credentials reached the server and were refused.
+            $refused = str_contains($exception->getMessage(), 'Access denied for user')
+                || str_contains($exception->getMessage(), 'password authentication failed');
+
             return new Problem(
                 Severity::Error,
                 "Kami cannot connect to the database {$name}: {$exception->getMessage()}",
-                "check the DB_* settings in .env and that {$extension} is loaded.",
+                $refused
+                    ? 'check DB_USERNAME and DB_PASSWORD in .env, with the password in double quotes (DB_PASSWORD="..."): unquoted, a # cuts it short. Once php artisan optimize has run, .env edits count only after it runs again.'
+                    : "check the DB_* settings in .env and that {$extension} is loaded.",
                 'installation.md#database',
             );
         }
