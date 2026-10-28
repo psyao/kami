@@ -15,6 +15,8 @@ abstract class Field
     /** @var array<mixed> */
     private array $rules = [];
 
+    private mixed $default = null;
+
     final public function __construct(public readonly string $handle) {}
 
     public static function make(string $handle): static
@@ -56,6 +58,20 @@ abstract class Field
         $this->rules = $rules;
 
         return $this;
+    }
+
+    /** The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet. */
+    public function default(mixed $value): static
+    {
+        $this->default = $value;
+
+        return $this;
+    }
+
+    /** @internal */
+    public function defaultValue(): mixed
+    {
+        return $this->default;
     }
 
     /** @internal */

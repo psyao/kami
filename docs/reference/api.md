@@ -62,6 +62,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `public protected(set) readonly string $handle`
 - `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
 - `final public function __construct(string $handle)`
+- `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
 - `public static function make(string $handle): static`
 - `public function required(): static`: Required to publish; a Draft may leave it blank.
 - `public function rules(array $rules): static`: Laravel validation rules, applied on every save, Drafts included; a blank value passes them unless the rule is implicit.
@@ -98,7 +99,7 @@ What a site calls on Kami through the `Kami` facade.
 
 `final class extends Spatie\LaravelPackageTools\PackageServiceProvider`
 
-Registers Kami's core: config, migrations and commands, and nothing global beyond UTC.
+Registers Kami's core: config, translations, migrations and commands, and nothing global beyond UTC.
 
 - `public function configurePackage(Spatie\LaravelPackageTools\Package $package): void`
 - `public function packageBooted(): void`

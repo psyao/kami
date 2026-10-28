@@ -10,6 +10,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\ArticleWithDefaults;
 use Workbench\App\Content\Label;
 
 uses(RefreshDatabase::class);
@@ -153,4 +154,20 @@ it('records the Creator and the Last modifier, and accepts no actor', function (
 
     expect([$updated->created_by, $updated->updated_by])->toBe([$ada->id, $grace->id])
         ->and([$anonymous->created_by, $anonymous->updated_by])->toBe([null, null]);
+});
+
+it('stores a Field\'s default when it creates a Translation, a Shared one only while the Entry has none, and never on update', function () {
+    config(['kami.types' => [ArticleWithDefaults::class]]);
+    $save = fn (array $values, ?Entry $entry = null, ?string $locale = null): Entry => resolve(SaveEntry::class)->handle('article', $values, $entry, $locale);
+
+    $entry = $save(['title' => 'Bonjour']);
+    $blank = $save(['title' => 'Vide', 'summary' => null]);
+    $english = $save(['title' => 'Hello'], $entry, 'en');
+    $save(['title' => 'Salut', 'author' => null], $entry);
+
+    expect([$entry->summary, $entry->author])->toBe(['To be written.', 'The newsroom'])
+        ->and($blank->summary)->toBeNull()
+        ->and(Entry::query()->withUnpublished()->inLocale('en')->find($english->id)?->summary)->toBe('To be written.')
+        ->and(Entry::query()->withUnpublished()->find($entry->id)?->summary)->toBe('To be written.')
+        ->and(Entry::query()->withUnpublished()->find($entry->id)?->author)->toBeNull();
 });

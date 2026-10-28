@@ -12,14 +12,15 @@ use Psyao\Kami\Users\Internal\Permissions;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
-/** Registers Kami's core: config, migrations and commands, and nothing global beyond UTC. */
+/** Registers Kami's core: config, translations, migrations and commands, and nothing global beyond UTC. */
 final class KamiServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
-        // ponytail: no hasViews() or hasTranslations() until resources/views or resources/lang exists, or `view:cache` fails (#65).
+        // ponytail: no hasViews() until resources/views exists, or `view:cache` fails (#65).
         $package->name('kami')
             ->hasConfigFile()
+            ->hasTranslations()
             ->hasCommands([DoctorCommand::class, InstallCommand::class]);
     }
 
