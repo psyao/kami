@@ -78,7 +78,7 @@ final class SaveEntry
         }
 
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
-        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? 'draft'] : [];
+        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? Translation::DRAFT] : [];
         foreach ($fields as $handle => $field) {
             $data[$handle] = $stored->get($contentType->isTranslatable($field) ? $locale : '*')?->{$handle};
         }
@@ -91,7 +91,7 @@ final class SaveEntry
             $data['slug'] = $data['slug'] === '' ? null : $data['slug'];
         }
 
-        $publishing = ($data['status'] ?? null) === 'published';
+        $publishing = ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
             'title' => [$publishing ? 'required' : 'nullable', 'string', 'max:255'],
             'slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255'],
@@ -105,7 +105,7 @@ final class SaveEntry
 
         Validator::make($data, $rules)->validate();
 
-        $wasPublished = $translation->status === 'published';
+        $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
 
         $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields): string {
@@ -119,7 +119,7 @@ final class SaveEntry
                 }
 
                 // ADR 0019: publishing with no date publishes now; unpublishing keeps the date, which republishing reuses.
-                if ($translation->status === 'published') {
+                if ($translation->status === Translation::PUBLISHED) {
                     $translation->published_at ??= now()->toImmutable();
                 }
 
@@ -151,7 +151,7 @@ final class SaveEntry
 
         if (! $wasVisible && Visibility::isVisible($translation)) {
             event(new EntryPublished($saved, $locale, false, $actor));
-        } elseif ($wasPublished && ($data['status'] ?? null) === 'draft') {
+        } elseif ($wasPublished && ($data['status'] ?? null) === Translation::DRAFT) {
             event(new EntryUnpublished($saved, $locale, $actor));
         }
 

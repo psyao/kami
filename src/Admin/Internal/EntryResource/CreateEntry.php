@@ -8,6 +8,7 @@ use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\Translation;
 
 /**
  * Writes an Entry's first Translation, in the default Locale, as a Draft or published.
@@ -35,7 +36,7 @@ final class CreateEntry extends CreateRecord
                 ->label(__('kami::admin.actions.publish'))
                 ->authorize(fn (): bool => EntryResource::can('publish'))
                 ->action(function (): void {
-                    $this->status = 'published';
+                    $this->status = Translation::PUBLISHED;
                     $this->create();
                 }),
             $this->getCancelFormAction(),

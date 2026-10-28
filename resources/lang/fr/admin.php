@@ -10,19 +10,27 @@ return [
         'slug_help' => 'La dernière partie de l’adresse. Laissé vide, il est tiré du titre.',
         'published_at' => 'Date de publication',
         'published_at_help' => 'Dans le fuseau horaire :timezone. Laissée vide, la publication la fixe à maintenant ; une date à venir programme la publication.',
+        'shared' => 'Commun à toutes les langues : le modifier ici le modifie partout.',
     ],
+
+    'locale' => 'Traduction : :LOCALE',
 
     'state' => [
         'label' => 'État',
+        'label_in' => 'État (:LOCALE)',
         'draft' => 'Brouillon',
         'scheduled' => 'Programmé',
         'published' => 'Publié',
+        'missing' => 'Absente',
     ],
 
     'actions' => [
         'save_draft' => 'Enregistrer le brouillon',
         'publish' => 'Publier',
         'unpublish' => 'Dépublier',
+        'edit_locale' => 'Modifier :LOCALE',
+        'add_locale' => 'Ajouter :LOCALE',
+        'view' => 'Voir sur le site',
     ],
 
 ];
