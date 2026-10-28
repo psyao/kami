@@ -33,6 +33,8 @@ php artisan kami:install
 
 The site owns the starter kit's code from then on: Kami's updates come with `composer update psyao/kami`, never from the starter kit.
 
+Accept Laravel Boost when the installer offers it: the starter kit's `boost.json` selects Kami's guideline and `kami-development` skill, and Filament's skill, so the site's coding agent knows Kami. Declined, `php artisan boost:install` sets it up later.
+
 ### The first User
 
 `kami:install` creates no User yet. Create the first one, who can sign in to the admin at `/admin`:
