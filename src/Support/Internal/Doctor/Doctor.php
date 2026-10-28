@@ -397,9 +397,13 @@ final readonly class Doctor
         foreach ($headers as $name => $value) {
             $name = $kamis[strtolower($name)] ?? null;
 
-            if ($name !== null && $value === null) {
+            if ($name === null) {
+                continue;
+            }
+
+            if ($value === null) {
                 $problems[] = $weakening("kami.security.headers omits {$name}.");
-            } elseif ($name !== null && $value !== SecurityPolicy::FRONT_HEADERS[$name]) {
+            } elseif ($value !== SecurityPolicy::FRONT_HEADERS[$name]) {
                 $problems[] = $weakening("kami.security.headers replaces Kami's {$name} ({$value}).");
             }
         }

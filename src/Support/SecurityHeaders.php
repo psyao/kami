@@ -110,10 +110,6 @@ final class SecurityHeaders
     /** @param  array<string, list<string>>  $policy */
     private function render(array $policy): string
     {
-        return implode('; ', array_map(
-            fn (string $directive, array $sources): string => implode(' ', [$directive, ...$sources]),
-            array_keys($policy),
-            $policy,
-        ));
+        return collect($policy)->map(fn (array $sources, string $directive): string => implode(' ', [$directive, ...$sources]))->implode('; ');
     }
 }
