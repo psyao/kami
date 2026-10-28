@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Psyao\Kami;
 
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Routing\Router;
+use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\Install\InstallCommand;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
+use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\Internal\Permissions;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -37,6 +40,12 @@ final class KamiServiceProvider extends PackageServiceProvider
     {
         // Run from the package, never published: a copy in the site would drift from the append-only history (ADR 0035).
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+
+        // Names only, inert until the host calls `Kami::routes()` or adds the alias to its panel; declared here, not with the route, because `route:cache` stores neither.
+        $router = $this->app->make(Router::class);
+        // With its profile named: Kami's route drops the `web` group's middleware, and a site appends `SecurityHeaders::class` to that group.
+        $router->middlewareGroup('kami', [SecurityHeaders::class . ':front', ResolveLocale::class]);
+        $router->aliasMiddleware('kami.security-headers', SecurityHeaders::class);
 
         // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
         $this->callAfterResolving(Gate::class, Permissions::register(...));

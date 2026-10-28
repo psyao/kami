@@ -35,6 +35,7 @@ The admin answers at `/admin`. To add Kami to an application you already have, s
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
+- [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server
 - [Decision records](docs/adr/): why Kami is built the way it is

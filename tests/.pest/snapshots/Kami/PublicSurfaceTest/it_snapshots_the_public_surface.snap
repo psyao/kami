@@ -55,6 +55,8 @@ class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTo
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
 class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
 class Psyao\Kami\KamiServiceProvider::packageRegistered() public function packageRegistered(): void
+class Psyao\Kami\Support\SecurityHeaders final class
+class Psyao\Kami\Support\SecurityHeaders::handle() public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Users\HasKamiRoles trait
 class Psyao\Kami\Users\HasKamiRoles::kamiRoles() public function kamiRoles(): array
 class Psyao\Kami\Users\KamiUser interface
@@ -64,10 +66,16 @@ command kami:doctor --strict [--strict]
 command kami:install
 config kami.resources.entry
 config kami.roles.administrator
+config kami.security.csp
+config kami.security.csp_report_only
+config kami.security.csp_report_uri
+config kami.security.headers
 config kami.sites.default.locales
 config kami.sites.default.timezone
 config kami.sites.default.url
 config kami.types
+middleware kami group
+middleware kami.security-headers Psyao\Kami\Support\SecurityHeaders
 permission kami.entries.{type}.create
 permission kami.entries.{type}.publish
 permission kami.entries.{type}.update

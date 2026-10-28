@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Schema;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Support\SecurityHeaders;
 
 // A User committed here would outlive the test on MySQL, MariaDB and PostgreSQL and clash with the next one's.
 uses(RefreshDatabase::class);
@@ -40,7 +41,7 @@ it('draws the User avatar inline, with no remote URL in the panel markup', funct
         ->and($page->querySelector('img.fi-user-avatar')?->getAttribute('src'))->toStartWith('data:image/svg+xml;base64,');
 });
 
-it('registers no route or middleware until the host calls Kami::routes()', function () {
+it('registers no route and runs no middleware until the host calls Kami::routes()', function () {
     $kamiSource = dirname(__DIR__, 2) . '/src/';
     $definedByKami = function (Route $route) use ($kamiSource): bool {
         $uses = $route->getAction('uses');
@@ -56,7 +57,9 @@ it('registers no route or middleware until the host calls Kami::routes()', funct
 
     // The panel's routes are the host's: KamiPlugin only adds pages to them.
     $routes = fn () => collect($router->getRoutes()->getRoutes())->reject(fn (Route $route) => str_starts_with((string) $route->getName(), 'filament.'));
-    $middleware = collect([...app(Kernel::class)->getGlobalMiddleware(), ...$router->getMiddleware(), ...collect($router->getMiddlewareGroups())->flatten()]);
+    // The `kami` group and the `kami.security-headers` alias are names only, applied by nothing until the host uses them.
+    // The Workbench appends SecurityHeaders to `web` itself, as a site's bootstrap/app.php does.
+    $middleware = collect([...app(Kernel::class)->getGlobalMiddleware(), ...collect($router->getMiddlewareGroups())->except('kami')->flatten()])->reject(SecurityHeaders::class);
 
     expect($routes()->filter($definedByKami))->toBeEmpty()
         ->and($middleware->filter(fn (mixed $class) => is_string($class) && str_starts_with($class, 'Psyao\\Kami\\')))->toBeEmpty();

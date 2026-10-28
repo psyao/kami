@@ -26,6 +26,10 @@ php artisan make:filament-panel admin
 
 Who may sign in stays your `User` model's `canAccessPanel()`: Kami does not touch it.
 
+## Add Kami's security headers
+
+Kami's own pages carry its Content Security Policy whatever you do. Your panel and your own pages get it only once you add the middleware, to the panel's `->middleware([...])` and to the `web` group, as [Security](security.md#your-own-pages) shows. Check first that your own pages load no inline script or style: the policy blocks them.
+
 ## Give your User model Kami's Roles
 
 The model your panel signs Users in with implements `KamiUser`, with the `HasKamiRoles` trait, as [Users and roles](users-and-roles.md#the-user-model) shows. Its Roles live in Kami's own `kami_role_user` table: your `users` table is left alone. Users with no Kami Role, such as your own staff, see nothing of Kami.
@@ -49,4 +53,4 @@ Until a panel carries `KamiPlugin` and its User model implements `KamiUser`, it 
 
 - **Filament's assets.** `kami:install` copies them to `public/`, as `php artisan filament:assets` does.
 
-Kami adds no table, route, middleware or scheduled task to your application yet.
+Kami adds no route or scheduled task to your application until you ask for them, and applies no middleware to your routes or your panel: it only names the `kami` middleware group and the `kami.security-headers` alias.

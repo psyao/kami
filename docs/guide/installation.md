@@ -63,7 +63,7 @@ Run it after any change to the environment, and with `--strict` in your CI if wa
 
 ## Installing and deploying
 
-The starter kit's panel already carries both lines below. In another application, add Kami to your own Filament panel, in its panel provider:
+The starter kit's panel already carries the lines below. In another application, add Kami to your own Filament panel, in its panel provider:
 
 ```php
 use Psyao\Kami\Admin\KamiPlugin;
@@ -80,6 +80,12 @@ use Psyao\Kami\Admin\InitialsAvatarProvider;
 ```
 
 `KamiPlugin` does not set it for you: it changes nothing panel-wide, so another plugin or your own provider stays your choice. `kami:doctor` warns about a panel carrying `KamiPlugin` that keeps Filament's default.
+
+Add Kami's admin security headers at the end of the panel's `->middleware([...])`, and Kami's front headers to your own pages, as [Security](security.md) shows:
+
+```php
+'kami.security-headers:admin',
+```
 
 Then run, on the first install and on every deploy:
 

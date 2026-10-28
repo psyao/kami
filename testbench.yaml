@@ -4,6 +4,7 @@ env:
   - AUTH_MODEL="Workbench\\App\\Models\\User"
 
 providers:
+  - Workbench\App\Providers\WorkbenchServiceProvider
   - Workbench\App\Providers\AdminPanelProvider
 
 migrations:

@@ -18,6 +18,7 @@ const REFERENCE_PAGES = [
     'components.md' => 'Components',
     'config.md' => 'Configuration',
     'events.md' => 'Events',
+    'middleware.md' => 'Middleware',
     'permissions.md' => 'Permissions',
     'tables.md' => 'Tables',
 ];
@@ -78,6 +79,11 @@ function publicSurface(): array
     // A list's items are values, not keys.
     $keys = collect(Arr::dot(require dirname(__DIR__, 2) . '/config/kami.php'))->keys()->map(fn (string $key): string => 'kami.' . preg_replace('/\.\d+(\..*)?$/', '', $key))->unique();
     $keys->each(fn (string $key) => $element('config', $key));
+
+    // A site names Kami's middleware group and aliases in its routes and its panel.
+    $router = app('router');
+    collect($router->getMiddleware())->filter(fn (string $class): bool => str_starts_with($class, 'Psyao\\Kami\\'))->each(fn (string $class, string $alias) => $element('middleware', $alias, $class));
+    collect($router->getMiddlewareGroups())->only('kami')->each(fn (array $middleware, string $group) => $element('middleware', $group, 'group'));
 
     // Only the names of `kami_` tables are public, never their columns (ADR 0010). Read from the migrations, as no database is needed.
     foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.php') ?: [] as $migration) {
@@ -144,6 +150,7 @@ function referencePages(array $surface): array
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
         'config' => 'config.md',
+        'middleware' => 'middleware.md',
         'permission' => 'permissions.md',
         'table' => 'tables.md',
     };
@@ -153,6 +160,7 @@ function referencePages(array $surface): array
         str_contains($element['name'], '::') || str_contains($element['name'], ' ') => "- `{$element['signature']}`" . ($element['summary'] !== '' ? ": {$element['summary']}" : '') . "\n",
         $element['group'] === 'class' => "\n## `{$element['name']}`\n\n`{$element['signature']}`\n\n" . ($element['summary'] !== '' ? "{$element['summary']}\n\n" : ''),
         $element['group'] === 'command' => "\n## `{$element['name']}`\n\n{$element['summary']}\n\n",
+        $element['group'] === 'middleware' => "- `{$element['name']}`: `{$element['signature']}`\n",
         default => "- `{$element['name']}`\n",
     };
 
