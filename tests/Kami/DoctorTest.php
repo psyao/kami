@@ -6,14 +6,18 @@ use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Facades\Filament;
 use Filament\Panel;
+use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as PlainUser;
+use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Admin\InitialsAvatarProvider;
 use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Psyao\Kami\Support\SecurityHeaders;
 
 function temporaryPath(): string
 {
@@ -174,13 +178,13 @@ it('warns without failing when a Kami panel keeps Filament\'s remote avatars', f
 ]);
 
 it('reports a panel once, even with the plugin added twice', function () {
-    Panel::make()->id('remote')->strictAuthorization()->plugin(KamiPlugin::make())->plugin(KamiPlugin::make());
+    Panel::make()->id('remote')->strictAuthorization()->middleware(['kami.security-headers:admin'])->plugin(KamiPlugin::make())->plugin(KamiPlugin::make());
 
     expect((new Doctor)->problems())->toHaveCount(1);
 });
 
 it('accepts a Kami panel with a local avatar provider, even set after the plugin', function (string $provider) {
-    Panel::make()->id('local')->strictAuthorization()->plugin(KamiPlugin::make())->defaultAvatarProvider($provider);
+    Panel::make()->id('local')->strictAuthorization()->middleware(['kami.security-headers:admin'])->plugin(KamiPlugin::make())->defaultAvatarProvider($provider);
 
     expect((new Doctor)->problems())->toBeEmpty();
 })->with([
@@ -247,7 +251,15 @@ it('links every problem to a section of the guide', function () {
     withUnreachableDatabase();
     $everything = new Doctor(phpVersion: '8.4.13', extensionLoaded: fn () => false);
     Panel::make()->id('remote')->plugin(KamiPlugin::make());
-    config(['auth.providers.users.model' => PlainUser::class]);
+    config(['auth.providers.users.model' => PlainUser::class, 'app.env' => 'production', 'kami.security' => [
+        'csp' => ['script-src' => ["'unsafe-eval'"], 'base-uri' => ["'self'"]],
+        'headers' => ['X-Frame-Options' => null, 'Referrer-Policy' => 'unsafe-url'],
+        'csp_report_uri' => 'https://reports.example.com/csp',
+        'csp_report_only' => true,
+    ]]);
+    app('router')->middlewareGroup('web', []);
+    File::put($hot = temporaryPath(), 'http://[::1]:5173');
+    Vite::useHotFile($hot);
 
     foreach ($everything->problems() as $problem) {
         [$page, $anchor] = explode('#', $problem->guide);
@@ -289,3 +301,77 @@ it('warns when a Kami panel does not authorize strictly, even when turned off af
         ->expectsOutputToContain('docs/guide/users-and-roles.md#strict-authorization')
         ->assertSuccessful();
 });
+
+it('warns when the web group lacks SecurityHeaders', function () {
+    app('router')->middlewareGroup('web', []);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The web middleware group does not send Kami\'s security headers')
+        ->expectsOutputToContain('Fix: append \\Psyao\\Kami\\Support\\SecurityHeaders::class to the web group in bootstrap/app.php')
+        ->expectsOutputToContain('docs/guide/security.md#your-own-pages')
+        ->assertSuccessful();
+});
+
+it('reads the web group as bootstrap/app.php sets it, which reaches the router with the HTTP kernel only', function () {
+    // On the command line nothing builds the HTTP kernel, so the router's `web` group lacks what bootstrap/app.php appends.
+    app('router')->middlewareGroup('web', []);
+    $this->app->forgetInstance(HttpKernelContract::class);
+    $this->app->afterResolving(HttpKernelContract::class, fn (HttpKernel $kernel) => $kernel->appendMiddlewareToGroup('web', SecurityHeaders::class));
+
+    $this->artisan('kami:doctor')->doesntExpectOutputToContain('security headers')->assertSuccessful();
+});
+
+it('accepts SecurityHeaders in the web group by class or by alias', function (string $middleware) {
+    app('router')->middlewareGroup('web', [$middleware]);
+
+    $this->artisan('kami:doctor')->doesntExpectOutputToContain('security headers')->assertSuccessful();
+})->with([SecurityHeaders::class, 'kami.security-headers']);
+
+it('warns when a Kami panel lacks the admin profile of SecurityHeaders', function (array $middleware) {
+    Panel::make()->id('bare')->strictAuthorization()->defaultAvatarProvider(InitialsAvatarProvider::class)->middleware($middleware)->plugin(KamiPlugin::make());
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel bare does not send Kami\'s admin security headers')
+        ->expectsOutputToContain("Fix: add 'kami.security-headers:admin' to the ->middleware() of the panel bare.")
+        ->expectsOutputToContain('docs/guide/security.md#the-admin')
+        ->assertSuccessful();
+})->with([
+    'none' => [[]],
+    // The front profile blocks Filament's scripts.
+    'the front profile' => [[SecurityHeaders::class]],
+    'the front profile by alias' => [['kami.security-headers:front']],
+]);
+
+it('warns for each weakening security option that is on', function () {
+    config(['kami.security' => [
+        'csp' => ['script-src' => ["'unsafe-inline'", 'https://cdn.example.com'], 'frame-ancestors' => 'https://partner.example.com', 'img-src' => ['https://cdn.example.com']],
+        'headers' => ['x-frame-options' => null, 'Referrer-Policy' => 'unsafe-url', 'Strict-Transport-Security' => 'max-age=31536000'],
+        'csp_report_uri' => 'https://reports.example.com/csp',
+        'csp_report_only' => true,
+    ]]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain("kami.security.csp adds 'unsafe-inline' to script-src")
+        ->expectsOutputToContain("kami.security.csp opens frame-ancestors, which Kami sets to 'none'")
+        ->expectsOutputToContain('kami.security.headers omits X-Frame-Options')
+        ->expectsOutputToContain('kami.security.headers replaces Kami\'s Referrer-Policy')
+        ->expectsOutputToContain('kami.security.csp_report_uri sends')
+        ->expectsOutputToContain('kami.security.csp_report_only is on')
+        ->doesntExpectOutputToContain('img-src')
+        ->doesntExpectOutputToContain('Strict-Transport-Security')
+        ->assertSuccessful();
+});
+
+it('fails on a Vite hot file in production, not elsewhere', function (string $environment, bool $fails) {
+    File::put($hot = temporaryPath(), 'http://[::1]:5173');
+    Vite::useHotFile($hot);
+    config(['app.env' => $environment]);
+
+    $doctor = $this->artisan('kami:doctor');
+    $fails
+        ? $doctor->expectsOutputToContain("{$hot} exists in production")->expectsOutputToContain('docs/guide/security.md#vite-in-development')->assertFailed()
+        : $doctor->doesntExpectOutputToContain('exists in production')->assertSuccessful();
+})->with([
+    'production' => ['production', true],
+    'local' => ['local', false],
+]);

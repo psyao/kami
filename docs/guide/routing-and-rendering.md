@@ -16,7 +16,7 @@ Kami::routes();
 
 It registers a single fallback route, so your routes always win: `/contact` stays yours even if an Entry claims it, and an address nobody claims answers your application's 404. Until you call it, Kami adds no route at all.
 
-Kami's route runs in its own `kami` middleware group, without the `web` group's session, cookies and CSRF protection, even when it is called inside that group. A page then sets no cookie.
+Kami's route runs in its own `kami` middleware group, without the `web` group's session, cookies and CSRF protection, even when it is called inside that group. A page then sets no cookie. The group also sends Kami's Content Security Policy and security headers ([Security](security.md)).
 
 ## Paths
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -12,7 +13,15 @@ use Symfony\Component\Finder\SplFileInfo;
 // One directory per suite: `Install/` boots without the Workbench.
 pest()->extend(TestCase::class)->in('Kami', 'Volume');
 // The browser loads Filament's scripts and Kami's stylesheet from the skeleton's public directory, as on a Site after `kami:install`.
-pest()->extend(TestCase::class)->beforeEach(fn () => $this->artisan('filament:assets'))->in('Browser');
+// For every test of the suite, whichever runs first: the browser's server may keep the first test's application.
+pest()->extend(TestCase::class)->beforeEach(function () {
+    // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
+    config(['app.env' => 'local']);
+    // The suite's array sessions end with each request: signing in needs one that lasts.
+    config(['session.driver' => 'file']);
+    Kami::routes();
+    $this->artisan('filament:assets');
+})->in('Browser');
 pest()->extend(InstallTestCase::class)->in('Install');
 
 /**

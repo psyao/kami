@@ -9,7 +9,7 @@ Kami is in early development: so far it covers installation, the environment che
 ## Requirements
 
 - PHP 8.5 or later, with the extensions listed in [Installation](docs/guide/installation.md#requirements)
-- Laravel 13.32 or later and Filament 5.8.3 or later
+- Laravel 13.32 or later and Filament 5.10 or later
 - SQLite, MySQL 8.4, MariaDB 10.11 or PostgreSQL 15 or later
 
 ## Install
@@ -35,6 +35,7 @@ The admin answers at `/admin`. To add Kami to an application you already have, s
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
+- [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server
 - [Decision records](docs/adr/): why Kami is built the way it is

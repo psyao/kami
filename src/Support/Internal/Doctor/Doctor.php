@@ -6,13 +6,18 @@ namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
+use Psyao\Kami\Support\Internal\SecurityPolicy;
+use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\KamiUser;
 use Throwable;
 
@@ -21,7 +26,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>}
  */
 final readonly class Doctor
 {
@@ -58,9 +63,12 @@ final readonly class Doctor
 
         return [
             ...$this->environment(),
+            ...array_filter([$this->hotFile()]),
             ...$this->userModels($panels),
             ...$this->remoteAvatars($panels),
             ...$this->strictAuthorization($panels),
+            ...$this->securityHeaders($panels),
+            ...$this->weakeningOptions(),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
         ];
     }
@@ -299,6 +307,113 @@ final readonly class Doctor
                     'users-and-roles.md#panel-access',
                 );
             }
+        }
+
+        return $problems;
+    }
+
+    /** Vite's dev server origin joins the policy while `public/hot` exists (ADR 0018): in production, a leftover from a deploy. */
+    private function hotFile(): ?Problem
+    {
+        return config('app.env') === 'production' && is_file($hot = Vite::hotFile()) ? new Problem(
+            Severity::Error,
+            "{$hot} exists in production: pages load their scripts from a Vite dev server, and the CSP allows its origin.",
+            "delete {$hot}, and keep it out of what you deploy.",
+            'security.md#vite-in-development',
+        ) : null;
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function securityHeaders(array $panels): array
+    {
+        // bootstrap/app.php's middleware reaches the router when the HTTP kernel is built, which the command line never does.
+        resolve(HttpKernel::class);
+        $web = Route::getMiddlewareGroups()['web'] ?? [];
+        $problems = is_array($web) && $this->sendsSecurityHeaders(array_values(array_filter($web, is_string(...)))) ? [] : [new Problem(
+            Severity::Warning,
+            "The web middleware group does not send Kami's security headers: your own pages go out without a CSP.",
+            'append \\Psyao\\Kami\\Support\\SecurityHeaders::class to the web group in bootstrap/app.php ($middleware->web(append: [...])).',
+            'security.md#your-own-pages',
+        )];
+
+        foreach ($panels as $panel) {
+            if (! $this->sendsSecurityHeaders($panel['middleware'], 'admin')) {
+                $problems[] = new Problem(
+                    Severity::Warning,
+                    "The panel {$panel['id']} does not send Kami's admin security headers: the admin goes out without its CSP, or with the front's, which blocks Filament's scripts.",
+                    "add 'kami.security-headers:admin' to the ->middleware() of the panel {$panel['id']}.",
+                    'security.md#the-admin',
+                );
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * @param  list<string>  $middleware  by class or alias, with or without parameters
+     * @param  ?string  $profile  the one required, or any
+     */
+    private function sendsSecurityHeaders(array $middleware, ?string $profile = null): bool
+    {
+        return array_any($middleware, fn (string $name): bool => in_array(Str::before($name, ':'), [SecurityHeaders::class, 'kami.security-headers'], true)
+            && ($profile === null || Str::after($name, ':') === $profile));
+    }
+
+    /**
+     * Each `kami.security.*` option that loosens ADR 0018's front policy (docs/guide/security.md).
+     *
+     * @return list<Problem>
+     */
+    private function weakeningOptions(): array
+    {
+        $problems = [];
+        $weakening = fn (string $message, string $fix = 'remove it from config/kami.php unless you need it.'): Problem => new Problem(Severity::Warning, $message, $fix, 'security.md#weakening-options');
+
+        /** @var array<string, list<string>|string> $csp */
+        $csp = Config::array('kami.security.csp', []);
+
+        foreach ($csp as $directive => $sources) {
+            $sources = (array) $sources;
+
+            foreach (array_filter($sources, fn (string $source): bool => str_starts_with($source, "'unsafe-")) as $source) {
+                $problems[] = $weakening("kami.security.csp adds {$source} to {$directive}: injected markup can run code there.");
+            }
+
+            if ($sources !== [] && in_array("'none'", SecurityPolicy::FRONT[$directive] ?? [], true)) {
+                $problems[] = $weakening("kami.security.csp opens {$directive}, which Kami sets to 'none'.");
+            }
+        }
+
+        /** @var array<string, string|null> $headers */
+        $headers = Config::array('kami.security.headers', []);
+
+        // Header names are case-insensitive: `x-frame-options` is Kami's `X-Frame-Options`.
+        $kamis = array_combine(array_map(strtolower(...), array_keys(SecurityPolicy::FRONT_HEADERS)), array_keys(SecurityPolicy::FRONT_HEADERS));
+
+        foreach ($headers as $name => $value) {
+            $name = $kamis[strtolower($name)] ?? null;
+
+            if ($name === null) {
+                continue;
+            }
+
+            if ($value === null) {
+                $problems[] = $weakening("kami.security.headers omits {$name}.");
+            } elseif ($value !== SecurityPolicy::FRONT_HEADERS[$name]) {
+                $problems[] = $weakening("kami.security.headers replaces Kami's {$name} ({$value}).");
+            }
+        }
+
+        if (is_string($uri = Config::get('kami.security.csp_report_uri')) && $uri !== '') {
+            $problems[] = $weakening("kami.security.csp_report_uri sends violation reports, with page URLs and visitors' IP addresses, to {$uri}.", 'remove it once the violations are understood, or point it to a service you control.');
+        }
+
+        if (Config::boolean('kami.security.csp_report_only', false)) {
+            $problems[] = $weakening('kami.security.csp_report_only is on: the CSP reports violations without blocking them.', 'turn it off once the policy is tested.');
         }
 
         return $problems;

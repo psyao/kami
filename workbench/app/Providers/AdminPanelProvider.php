@@ -44,6 +44,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                'kami.security-headers:admin',
             ])
             ->authMiddleware([
                 Authenticate::class,

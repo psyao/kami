@@ -42,6 +42,8 @@ final class KamiPlugin implements Plugin
             'remoteAvatars' => is_a($panel->getDefaultAvatarProvider(), UiAvatarsProvider::class, true),
             // Filament's own rule (its `Authenticate` middleware): a User that is not a FilamentUser gets in locally only.
             'admits' => fn (Authenticatable $user): bool => $user instanceof FilamentUser ? $user->canAccessPanel($panel) : config('app.env') === 'local',
+            // A panel does not run the `web` group, so it needs `SecurityHeaders` of its own (ADR 0018).
+            'middleware' => array_values(array_filter($panel->getMiddleware(), is_string(...))),
         ];
 
         // One registration per declared type, each with its own URL, navigation item and Permissions; the class comes from config, the door for overridable Resources in V1 (ADR 0029).

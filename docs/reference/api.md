@@ -105,6 +105,14 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 - `public function packageBooted(): void`
 - `public function packageRegistered(): void`
 
+## `Psyao\Kami\Support\SecurityHeaders`
+
+`final class`
+
+Kami's Content Security Policy and companion headers (ADR 0018), on every response of its group, 4xx and 5xx included.
+
+- `public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response`
+
 ## `Psyao\Kami\Users\HasKamiRoles`
 
 `trait`

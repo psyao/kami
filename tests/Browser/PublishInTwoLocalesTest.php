@@ -7,18 +7,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Facades\Kami;
 use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
-
-beforeEach(function () {
-    // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
-    config(['app.env' => 'local']);
-    // The suite's array sessions end with each request: signing in needs one that lasts.
-    config(['session.driver' => 'file']);
-    Kami::routes();
-});
 
 it('signs in, creates and publishes an Entry in two Locales, and reads both on the front', function () {
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')]);

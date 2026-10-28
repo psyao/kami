@@ -18,9 +18,10 @@ final class PluginRegistration
 
     /**
      * Keyed by panel object, one per panel carrying `KamiPlugin`, asked when the doctor runs, since the host may configure the panel after `->plugin()`.
-     * `remoteAvatars` when it still draws avatars with Filament's `UiAvatarsProvider`; `admits` answers as Filament does when a User signs in.
+     * `remoteAvatars` when it still draws avatars with Filament's `UiAvatarsProvider`; `admits` answers as Filament does when a User signs in;
+     * `middleware` lists the panel's own, by class or alias.
      *
-     * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool}>
+     * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>}>
      */
     public array $panels = [];
 }
