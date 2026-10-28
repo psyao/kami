@@ -19,6 +19,7 @@ const REFERENCE_PAGES = [
     'config.md' => 'Configuration',
     'events.md' => 'Events',
     'permissions.md' => 'Permissions',
+    'tables.md' => 'Tables',
 ];
 
 /**
@@ -38,10 +39,10 @@ function publicSurface(): array
 
         // A protected member is reachable by a subclass, so it counts on a class that is not final.
         $visible = $class->isFinal() ? ReflectionMethod::IS_PUBLIC : ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED;
-        // Inherited members are listed on their own class; a vendor parent's are its own API. PHP's enum methods come with the kind.
+        // Inherited members are listed on their own class; a vendor parent's or trait's are its own API. PHP's enum methods come with the kind.
         $own = fn (ReflectionClassConstant | ReflectionMethod | ReflectionProperty $member): bool => $member->getDeclaringClass()->getName() === $class->getName()
             && ! isMarkedInternal($member)
-            && ! ($member instanceof ReflectionMethod && $member->isInternal());
+            && ! ($member instanceof ReflectionMethod && ($member->isInternal() || $member->getFileName() !== $class->getFileName()));
 
         foreach (array_filter($class->getMethods($visible), $own) as $method) {
             $parameters = array_map(fn (ReflectionParameter $parameter): string => preg_replace('/^Parameter #\d+ \[ <\w+> (.*) \]$/', '$1', (string) $parameter), $method->getParameters());
@@ -51,7 +52,7 @@ function publicSurface(): array
 
         // An enum's only properties are PHP's `name` and `value`.
         foreach ($class->isEnum() ? [] : array_filter($class->getProperties($visible), $own) as $property) {
-            $element('class', "{$class->getName()}::\${$property->getName()}", preg_replace('/^Property \[ (.*) \]$/', '$1', trim((string) $property)), docSummary($property->getDocComment()));
+            $element('class', "{$class->getName()}::\${$property->getName()}", preg_replace('/^Property \[ (.*) \]$/', '$1', trim((string) preg_replace('#^\s*/\*\*.*?\*/#s', '', (string) $property))), docSummary($property->getDocComment()));
         }
 
         foreach (array_filter($class->getReflectionConstants($visible), $own) as $constant) {
@@ -77,6 +78,12 @@ function publicSurface(): array
     // A list's items are values, not keys.
     $keys = collect(Arr::dot(require dirname(__DIR__, 2) . '/config/kami.php'))->keys()->map(fn (string $key): string => 'kami.' . preg_replace('/\.\d+(\..*)?$/', '', $key))->unique();
     $keys->each(fn (string $key) => $element('config', $key));
+
+    // Only the names of `kami_` tables are public, never their columns (ADR 0010). Read from the migrations, as no database is needed.
+    foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.php') ?: [] as $migration) {
+        preg_match_all("/Schema::create\\('(kami_\\w+)'/", (string) file_get_contents($migration), $tables);
+        array_map(fn (string $table) => $element('table', $table), $tables[1]);
+    }
 
     usort($elements, fn (array $a, array $b): int => [$a['group'], $a['name']] <=> [$b['group'], $b['name']]);
 
@@ -133,6 +140,7 @@ function referencePages(array $surface): array
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
         'config' => 'config.md',
+        'table' => 'tables.md',
     };
 
     $entry = fn (array $element): string => match (true) {
@@ -188,10 +196,4 @@ it('has no x-kami:: component outside the snapshot yet', function () {
 it('has no kami.* Permission outside the snapshot yet', function () {
     expect(collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'))->all())
         ->toBe([], 'kami.* Permissions need a collector in publicSurface()');
-});
-
-// ponytail: no collector for `kami_` tables until the first migration. Reading them needs a migrated database, which under
-// --parallel on MySQL and PostgreSQL races the other tests that migrate; this fails the day one lands.
-it('has no kami_ table outside the snapshot yet', function () {
-    expect(glob(dirname(__DIR__, 2) . '/database/migrations/*.php'))->toBe([], 'kami_ tables need a collector in publicSurface()');
 });

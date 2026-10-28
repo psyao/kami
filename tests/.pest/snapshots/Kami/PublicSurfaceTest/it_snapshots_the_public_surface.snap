@@ -5,8 +5,24 @@ class Psyao\Kami\Admin\KamiPlugin::boot() public function boot(Filament\Panel $p
 class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
+class Psyao\Kami\Content\Actions\SaveEntry final class
+class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL): Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\ContentType abstract class
+class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
+class Psyao\Kami\Content\ContentType::fields() public function fields(): array
+class Psyao\Kami\Content\ContentType::handle() public function handle(): string
+class Psyao\Kami\Content\ContentType::render() public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
+class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
+class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
+class Psyao\Kami\Content\Fields\Field abstract class
+class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
+class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)
+class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static
+class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class
+class Psyao\Kami\Kami::routes() public function routes(): void
 class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTools\PackageServiceProvider
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
 class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
@@ -17,3 +33,7 @@ command kami:install
 config kami.sites.default.locales
 config kami.sites.default.timezone
 config kami.sites.default.url
+config kami.types
+table kami_entries
+table kami_paths
+table kami_translations

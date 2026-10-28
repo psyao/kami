@@ -1,0 +1,63 @@
+# Routing and rendering
+
+How a visitor reaches an Entry: Kami answers each Entry's Path with one route, and its Content Type turns the Entry into a page. Declaring types and writing Entries is in [Content types](content-types.md).
+
+## Kami's route
+
+Call `Kami::routes()` in `routes/web.php`:
+
+```php
+use Psyao\Kami\Facades\Kami;
+
+Route::get('/contact', ContactController::class);
+
+Kami::routes();
+```
+
+It registers a single fallback route, so your routes always win: `/contact` stays yours even if an Entry claims it, and an address nobody claims answers your application's 404. Until you call it, Kami adds no route at all.
+
+Kami's route runs in its own `kami` middleware group, without the `web` group's session, cookies and CSRF protection, even when it is called inside that group. A page then sets no cookie.
+
+## Paths
+
+Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read.
+
+An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404.
+
+## Rendering
+
+The Entry is rendered by its Content Type's `render()`. By default, it returns the view named after the type's handle, `kami.{handle}`, with the Entry as `$entry`. For an `Article`, that is `resources/views/kami/article.blade.php`:
+
+```blade
+<article>
+    <h1>{{ $entry->title }}</h1>
+    <p>{{ $entry->summary }}</p>
+</article>
+```
+
+The views are the site's: Kami ships none. Print values with `{{ }}`, which escapes them: a title or a Field holding markup shows as text.
+
+### Overriding `render()`
+
+A page that needs more data, or another kind of response, overrides `render()` on its type. Kami calls it through the container, so it may ask for more dependencies; PHP requires each extra parameter of an override to have a default:
+
+```php
+use App\Services\EventCalendar;
+use Illuminate\Contracts\View\View;
+use Psyao\Kami\Content\Entry;
+use Symfony\Component\HttpFoundation\Response;
+
+public function render(Entry $entry, ?EventCalendar $calendar = null): View | Response
+{
+    return view('kami.article', [
+        'entry' => $entry,
+        'events' => $calendar?->upcoming(),
+    ]);
+}
+```
+
+It may return any view or response: a redirect, JSON, or a controller's response called from there.
+
+## Query count
+
+An Entry page costs four queries before your view runs: its Path, the Entry, its Translations and its Field values. Kami's tests assert that number, so it does not grow unnoticed.

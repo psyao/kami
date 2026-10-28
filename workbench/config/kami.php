@@ -2,8 +2,14 @@
 
 declare(strict_types=1);
 
+use Workbench\App\Content\Article;
+
 // The Workbench Site's declarations: two Sites sharing two Locales, so tests never assume a single one.
 return [
+
+    'types' => [
+        Article::class,
+    ],
 
     'sites' => [
         'default' => [
