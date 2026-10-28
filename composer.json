@@ -68,6 +68,7 @@
             "pest --testsuite=Kami,Install --coverage --min=90"
         ],
         "reference": [
+            "@php vendor/bin/testbench package:discover --ansi",
             "@putenv KAMI_REFERENCE=write",
             "pest tests/Kami/PublicSurfaceTest.php"
         ]
