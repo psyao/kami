@@ -6,6 +6,7 @@ namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Support\Facades\Config;
@@ -328,6 +329,8 @@ final readonly class Doctor
      */
     private function securityHeaders(array $panels): array
     {
+        // bootstrap/app.php's middleware reaches the router when the HTTP kernel is built, which the command line never does.
+        resolve(HttpKernel::class);
         $web = Route::getMiddlewareGroups()['web'] ?? [];
         $problems = is_array($web) && $this->sendsSecurityHeaders(array_values(array_filter($web, is_string(...)))) ? [] : [new Problem(
             Severity::Warning,
@@ -337,10 +340,10 @@ final readonly class Doctor
         )];
 
         foreach ($panels as $panel) {
-            if (! $this->sendsSecurityHeaders($panel['middleware'])) {
+            if (! $this->sendsSecurityHeaders($panel['middleware'], 'admin')) {
                 $problems[] = new Problem(
                     Severity::Warning,
-                    "The panel {$panel['id']} does not send Kami's security headers: the admin goes out without a CSP.",
+                    "The panel {$panel['id']} does not send Kami's admin security headers: the admin goes out without its CSP, or with the front's, which blocks Filament's scripts.",
                     "add 'kami.security-headers:admin' to the ->middleware() of the panel {$panel['id']}.",
                     'security.md#the-admin',
                 );
@@ -350,10 +353,14 @@ final readonly class Doctor
         return $problems;
     }
 
-    /** @param  list<string>  $middleware  by class or alias, with or without parameters */
-    private function sendsSecurityHeaders(array $middleware): bool
+    /**
+     * @param  list<string>  $middleware  by class or alias, with or without parameters
+     * @param  ?string  $profile  the one required, or any
+     */
+    private function sendsSecurityHeaders(array $middleware, ?string $profile = null): bool
     {
-        return array_any($middleware, fn (string $name): bool => in_array(Str::before($name, ':'), [SecurityHeaders::class, 'kami.security-headers'], true));
+        return array_any($middleware, fn (string $name): bool => in_array(Str::before($name, ':'), [SecurityHeaders::class, 'kami.security-headers'], true)
+            && ($profile === null || Str::after($name, ':') === $profile));
     }
 
     /**
@@ -366,10 +373,12 @@ final readonly class Doctor
         $problems = [];
         $weakening = fn (string $message, string $fix = 'remove it from config/kami.php unless you need it.'): Problem => new Problem(Severity::Warning, $message, $fix, 'security.md#weakening-options');
 
-        /** @var array<string, list<string>> $csp */
+        /** @var array<string, list<string>|string> $csp */
         $csp = Config::array('kami.security.csp', []);
 
         foreach ($csp as $directive => $sources) {
+            $sources = (array) $sources;
+
             foreach (array_filter($sources, fn (string $source): bool => str_starts_with($source, "'unsafe-")) as $source) {
                 $problems[] = $weakening("kami.security.csp adds {$source} to {$directive}: injected markup can run code there.");
             }
@@ -382,10 +391,15 @@ final readonly class Doctor
         /** @var array<string, string|null> $headers */
         $headers = Config::array('kami.security.headers', []);
 
-        foreach (array_intersect_key($headers, SecurityPolicy::FRONT_HEADERS) as $name => $value) {
-            if ($value === null) {
+        // Header names are case-insensitive: `x-frame-options` is Kami's `X-Frame-Options`.
+        $kamis = array_combine(array_map(strtolower(...), array_keys(SecurityPolicy::FRONT_HEADERS)), array_keys(SecurityPolicy::FRONT_HEADERS));
+
+        foreach ($headers as $name => $value) {
+            $name = $kamis[strtolower($name)] ?? null;
+
+            if ($name !== null && $value === null) {
                 $problems[] = $weakening("kami.security.headers omits {$name}.");
-            } elseif ($value !== SecurityPolicy::FRONT_HEADERS[$name]) {
+            } elseif ($name !== null && $value !== SecurityPolicy::FRONT_HEADERS[$name]) {
                 $problems[] = $weakening("kami.security.headers replaces Kami's {$name} ({$value}).");
             }
         }

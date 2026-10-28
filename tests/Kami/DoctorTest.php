@@ -6,8 +6,10 @@ use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Facades\Filament;
 use Filament\Panel;
+use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as PlainUser;
+use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Vite;
@@ -310,26 +312,40 @@ it('warns when the web group lacks SecurityHeaders', function () {
         ->assertSuccessful();
 });
 
+it('reads the web group as bootstrap/app.php sets it, which reaches the router with the HTTP kernel only', function () {
+    // On the command line nothing builds the HTTP kernel, so the router's `web` group lacks what bootstrap/app.php appends.
+    app('router')->middlewareGroup('web', []);
+    $this->app->forgetInstance(HttpKernelContract::class);
+    $this->app->afterResolving(HttpKernelContract::class, fn (HttpKernel $kernel) => $kernel->appendMiddlewareToGroup('web', SecurityHeaders::class));
+
+    $this->artisan('kami:doctor')->doesntExpectOutputToContain('security headers')->assertSuccessful();
+});
+
 it('accepts SecurityHeaders in the web group by class or by alias', function (string $middleware) {
     app('router')->middlewareGroup('web', [$middleware]);
 
     $this->artisan('kami:doctor')->doesntExpectOutputToContain('security headers')->assertSuccessful();
 })->with([SecurityHeaders::class, 'kami.security-headers']);
 
-it('warns when a Kami panel lacks the admin profile of SecurityHeaders', function () {
-    Panel::make()->id('bare')->strictAuthorization()->defaultAvatarProvider(InitialsAvatarProvider::class)->plugin(KamiPlugin::make());
+it('warns when a Kami panel lacks the admin profile of SecurityHeaders', function (array $middleware) {
+    Panel::make()->id('bare')->strictAuthorization()->defaultAvatarProvider(InitialsAvatarProvider::class)->middleware($middleware)->plugin(KamiPlugin::make());
 
     $this->artisan('kami:doctor')
-        ->expectsOutputToContain('The panel bare does not send Kami\'s security headers')
+        ->expectsOutputToContain('The panel bare does not send Kami\'s admin security headers')
         ->expectsOutputToContain("Fix: add 'kami.security-headers:admin' to the ->middleware() of the panel bare.")
         ->expectsOutputToContain('docs/guide/security.md#the-admin')
         ->assertSuccessful();
-});
+})->with([
+    'none' => [[]],
+    // The front profile blocks Filament's scripts.
+    'the front profile' => [[SecurityHeaders::class]],
+    'the front profile by alias' => [['kami.security-headers:front']],
+]);
 
 it('warns for each weakening security option that is on', function () {
     config(['kami.security' => [
-        'csp' => ['script-src' => ["'unsafe-inline'", 'https://cdn.example.com'], 'frame-ancestors' => ['https://partner.example.com'], 'img-src' => ['https://cdn.example.com']],
-        'headers' => ['X-Frame-Options' => null, 'Referrer-Policy' => 'unsafe-url', 'Strict-Transport-Security' => 'max-age=31536000'],
+        'csp' => ['script-src' => ["'unsafe-inline'", 'https://cdn.example.com'], 'frame-ancestors' => 'https://partner.example.com', 'img-src' => ['https://cdn.example.com']],
+        'headers' => ['x-frame-options' => null, 'Referrer-Policy' => 'unsafe-url', 'Strict-Transport-Security' => 'max-age=31536000'],
         'csp_report_uri' => 'https://reports.example.com/csp',
         'csp_report_only' => true,
     ]]);

@@ -75,7 +75,7 @@ A front that loads from another origin, such as images from a CDN, adds it under
 ],
 ```
 
-The sources are added to Kami's and never replace them: `img-src` becomes `'self' data: https://cdn.example.com`. A directive Kami does not set, such as `manifest-src`, is added. The policy is the same for every page of the installation.
+The sources are added to Kami's and never replace them: `img-src` becomes `'self' data: https://cdn.example.com`. A directive Kami does not set, such as `manifest-src`, is added. A single source may be given as a string. The policy is the same for every page of the installation.
 
 An inline `<script>` or `<style>` you cannot move to a file is allowed by its hash, as `'sha256-…'` in `script-src` or `style-src`, rather than by `'unsafe-inline'`.
 
@@ -87,12 +87,14 @@ Each option below is off by default, and `kami:doctor` warns for each one that i
 | --- | --- |
 | `security.csp` with an `'unsafe-*'` source (`'unsafe-inline'`, `'unsafe-eval'`, `'unsafe-hashes'`) | Injected markup can run code in that directive. Livewire and Alpine need `'unsafe-eval'` unless your templates fit Livewire's `csp_safe` build. |
 | `security.csp` with a source in a directive Kami sets to `'none'` (`object-src`, `base-uri`, `frame-ancestors`) | The source replaces `'none'`: plugins, a changed base URL or framing by that origin are allowed. |
-| `security.headers` with a header set to `null` | The header is omitted. |
+| `security.headers` with a header set to `null` | The header is omitted. Names are case-insensitive, as in HTTP. |
 | `security.headers` with another value for one of Kami's headers | Kami's value is replaced. A header Kami does not send, such as `Strict-Transport-Security`, is added and raises no warning. |
 | `security.csp_report_uri` | Browsers send each violation, with the page's URL and the visitor's IP address, to that address. |
 | `security.csp_report_only` | The policy is sent as `Content-Security-Policy-Report-Only`: violations are reported, not blocked. |
 
 There is no switch that turns the headers off.
+
+Shared hosting and a server behave the same: the headers are sent by PHP on every page Kami or your application renders.
 
 ## Vite in development
 

@@ -41,8 +41,9 @@ final class SecurityHeaders
         $reportOnly = $profile === 'front' && Config::boolean('kami.security.csp_report_only');
         $response->headers->set($reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy', $this->render($policy));
 
+        // In order, so the site's `null` removes Kami's header whatever the case of its name.
         foreach ($headers as $name => $value) {
-            $response->headers->set($name, $value);
+            $value === null ? $response->headers->remove($name) : $response->headers->set($name, $value);
         }
 
         return $response;
@@ -51,16 +52,17 @@ final class SecurityHeaders
     /**
      * The fixed front policy, with the site's sources merged in: an added source never removes a default, except `'none'`.
      *
-     * @return array{array<string, list<string>>, array<string, string>}
+     * @return array{array<string, list<string>>, array<string, string|null>}
      */
     private function front(): array
     {
         $policy = SecurityPolicy::FRONT;
 
-        /** @var array<string, list<string>> $additions */
+        /** @var array<string, list<string>|string> $additions */
         $additions = Config::array('kami.security.csp', []);
 
         foreach ($additions as $directive => $sources) {
+            $sources = (array) $sources;
             $kept = array_diff($policy[$directive] ?? [], $sources === [] ? [] : ["'none'"]);
             $policy[$directive] = array_values(array_unique([...$kept, ...$sources]));
         }
@@ -74,10 +76,10 @@ final class SecurityHeaders
         /** @var array<string, string|null> $overrides */
         $overrides = Config::array('kami.security.headers', []);
 
-        return [$policy, array_filter([...SecurityPolicy::FRONT_HEADERS, ...$overrides], is_string(...))];
+        return [$policy, [...SecurityPolicy::FRONT_HEADERS, ...$overrides]];
     }
 
-    /** @return array{array<string, list<string>>, array<string, string>} */
+    /** @return array{array<string, list<string>>, array<string, string|null>} */
     private function admin(): array
     {
         $policy = SecurityPolicy::ADMIN;

@@ -6,6 +6,7 @@ use Dom\Element;
 use Dom\HTMLDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Facades\Kami;
@@ -27,6 +28,8 @@ const FRONT_HEADERS = [
 ];
 
 beforeEach(function () {
+    // Declared before the fallback, which would answer first otherwise.
+    Route::middleware('kami')->get('/failing', fn () => throw new RuntimeException('Broken view.'));
     Kami::routes();
 
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello world', 'status' => 'published', 'author' => 'Ada Lovelace']);
@@ -45,6 +48,7 @@ it('sends the front policy and its companion headers on a page and on a 404', fu
 })->with([
     'page' => ['/articles/hello-world', 200],
     'missing' => ['/articles/nowhere', 404],
+    'failing' => ['/failing', 500],
 ]);
 
 it('merges the sources a site adds, keeping every default', function () {
@@ -58,8 +62,14 @@ it('merges the sources a site adds, keeping every default', function () {
         ->toEndWith("upgrade-insecure-requests; manifest-src 'self'");
 });
 
-it('replaces a companion header, or omits it when set to null', function () {
-    config(['kami.security.headers' => ['X-Frame-Options' => null, 'Referrer-Policy' => 'no-referrer']]);
+it('takes a single source as a string', function () {
+    config(['kami.security.csp' => ['img-src' => 'https://cdn.example.com']]);
+
+    expect($this->get('/articles/hello-world')->assertOk()->headers->get('Content-Security-Policy'))->toContain("img-src 'self' data: https://cdn.example.com;");
+});
+
+it('replaces a companion header, or omits it when set to null, whatever the case of its name', function () {
+    config(['kami.security.headers' => ['x-frame-options' => null, 'Referrer-Policy' => 'no-referrer']]);
 
     $this->get('/articles/hello-world')
         ->assertHeaderMissing('X-Frame-Options')
@@ -81,13 +91,16 @@ it('adds the Vite dev server while it runs hot', function () {
     Vite::useHotFile($hot);
 
     try {
-        $policy = $this->get('/articles/hello-world')->headers->get('Content-Security-Policy');
+        $front = $this->get('/articles/hello-world')->headers->get('Content-Security-Policy');
+        $admin = $this->get('/admin/login')->headers->get('Content-Security-Policy');
     } finally {
         File::delete($hot);
     }
 
-    expect($policy)->toContain("script-src 'self' http://[::1]:5173;")
+    expect($front)->toContain("script-src 'self' http://[::1]:5173;")
         ->toContain("style-src 'self' http://[::1]:5173;")
+        ->toContain("connect-src 'self' http://[::1]:5173 ws://[::1]:5173;")
+        ->and($admin)->toContain("'unsafe-eval' http://[::1]:5173;")
         ->toContain("connect-src 'self' http://[::1]:5173 ws://[::1]:5173;");
 });
 
