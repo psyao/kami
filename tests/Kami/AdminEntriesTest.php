@@ -27,10 +27,10 @@ use Workbench\App\Models\User;
 // A User committed here would outlive the test on MySQL, MariaDB and PostgreSQL and clash with the next one's.
 uses(RefreshDatabase::class);
 
-function administrator(): User
+function userWithRole(string $role): User
 {
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
-    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
+    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
 
     return $user;
 }
@@ -64,8 +64,10 @@ function onlyEntry(string $type = 'article'): Entry
 beforeEach(function () {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
+    // Everything on Articles but publish: Drafts only (ADR 0019).
+    config(['kami.roles.writer' => ['kami.entries.article.view', 'kami.entries.article.create', 'kami.entries.article.update']]);
     Kami::routes();
-    $this->actingAs(administrator());
+    $this->actingAs(userWithRole('administrator'));
 });
 
 it('creates a Draft in the default Locale, hidden from the front', function () {
@@ -234,10 +236,7 @@ it('shows a User with no Role no Kami navigation item, and refuses every Kami pa
 });
 
 it('hides Publish and Unpublish from a User without publish, who saves Drafts only', function () {
-    config(['kami.roles.writer' => ['kami.entries.article.view', 'kami.entries.article.create', 'kami.entries.article.update']]);
-    $writer = User::forceCreate(['name' => 'Writer', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
-    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $writer->getKey(), 'role' => 'writer']);
-    $this->actingAs($writer);
+    $this->actingAs(userWithRole('writer'));
 
     entryPage(CreateEntry::class)
         ->assertActionVisible(formAction('create'))
@@ -251,11 +250,8 @@ it('hides Publish and Unpublish from a User without publish, who saves Drafts on
 });
 
 it('keeps the publication date from a User without publish, who cannot make a Scheduled Translation visible (ADR 0019)', function () {
-    config(['kami.roles.writer' => ['kami.entries.article.view', 'kami.entries.article.update']]);
-    $writer = User::forceCreate(['name' => 'Writer', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
-    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $writer->getKey(), 'role' => 'writer']);
     $scheduled = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published', 'published_at' => now()->addDay()]);
-    $this->actingAs($writer);
+    $this->actingAs(userWithRole('writer'));
 
     entryPage(EditEntry::class, parameters: ['record' => $scheduled->id])
         ->fillForm(['published_at' => now()->subDay()->toDateTimeString()])

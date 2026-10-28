@@ -18,6 +18,7 @@ use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
@@ -152,12 +153,7 @@ final class EntryResource extends FilamentResource
         try {
             return resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, actor: Filament::auth()->user());
         } catch (ValidationException $exception) {
-            $errors = [];
-            foreach ($exception->errors() as $key => $messages) {
-                $errors["data.{$key}"] = $messages;
-            }
-
-            throw ValidationException::withMessages($errors);
+            throw ValidationException::withMessages(Arr::prependKeysWith($exception->errors(), 'data.'));
         }
     }
 
