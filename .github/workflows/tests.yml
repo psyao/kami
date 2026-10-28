@@ -121,7 +121,7 @@ jobs:
           git archive HEAD | tar -t | grep -v '/$' \
             | awk -F/ '$1 == "docs" && NF > 2 { print $1 "/" $2; next } { print $1 }' | sort -u \
             | diff -u <(printf '%s\n' CHANGELOG.md GLOSSARY.md LICENSE.md README.md SECURITY.md UPGRADING.md \
-                composer.json config docs/adr docs/guide docs/reference pint.json rector-set.php resources src | sort) -
+                composer.json config database docs/adr docs/guide docs/reference pint.json rector-set.php resources src | sort) -
 
       # ADR 0010: the reference is generated from the public surface, so a stale or missing page fails here.
       - name: Reference
