@@ -26,7 +26,7 @@ On SQLite, the database file need not exist: `kami:install` creates it, as on a 
 A new site starts from the starter kit, a Laravel application already wired for Kami: its panel carries `KamiPlugin` and the local avatar provider. On your machine, with PHP, Composer, Node and the [Laravel installer](https://laravel.com/docs/13.x/installation):
 
 ```bash
-laravel new site --using=https://github.com/psyao/kami-starter
+laravel new site --using=psyao/kami-starter
 cd site
 php artisan kami:install
 ```

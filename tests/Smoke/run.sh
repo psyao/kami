@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# ponytail: the starter kit's default branch, so a starter change can break this job; pin its latest tag once it has one.
+# The starter kit is untagged and `laravel new` installs its default branch (psyao/kami#30, decision 9): test that.
 starter_version=dev-main
 base_url="http://localhost:${SMOKE_PORT:-8080}"
 
