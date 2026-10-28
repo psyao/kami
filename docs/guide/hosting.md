@@ -35,7 +35,7 @@ Facts measured on Infomaniak Web Hosting, on PHP 8.5, that change what a site se
 
 - **The command line is not the web.** Over SSH, PHP reads its own settings: `exec` and `proc_open` are allowed there and disabled on the web. `kami:doctor` checks the PHP it runs under, which is the command line's.
 - **OPcache is off on the web** and cannot be turned on. Every request compiles Laravel and Filament again, so the admin is slower than on a server. Nothing in Kami depends on it.
-- **`display_errors` is on on the web.** A fatal error before Laravel boots shows its message, paths included, to visitors. Turn it off as [Deployment](deployment.md#configure) shows.
+- **`display_errors` is on on the web.** A fatal error before Laravel boots shows its message, paths included, to visitors. The starter kit turns it off: see [Deployment](deployment.md#point-the-site-at-public).
 - **The database is remote.** Every query pays network latency.
 - **PHP runs as the SSH user,** so `storage/` and `bootstrap/cache/` are writable once cloned. Every site of the account runs as that user too, and can read this site's files, `.env` included.
 - **There is no Node** on the SSH `PATH`.
