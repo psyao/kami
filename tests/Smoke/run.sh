@@ -17,9 +17,10 @@ docker compose up --detach --wait apache
 
 failed=0
 
+# The starter kit's .htaccess redirects HTTP to HTTPS unless the request says it reached the host over HTTPS.
 expect() {
     local status
-    status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "$base_url$2" || true)
+    status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --header 'X-Forwarded-Proto: https' "$base_url$2" || true)
     if [ "$status" = "$1" ]; then
         echo "GET $2: $status"
     else
