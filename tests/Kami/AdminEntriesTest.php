@@ -195,13 +195,31 @@ it('lists the type\'s Entries with their state and publication date in the Site\
     entryPage(ListEntries::class)
         ->assertCanSeeTableRecords([$draft, $scheduled, $published])
         ->assertCanNotSeeTableRecords([$page])
-        ->assertTableColumnStateSet('state', 'Draft', $draft)
-        ->assertTableColumnStateSet('state', 'Scheduled', $scheduled)
-        ->assertTableColumnStateSet('state', 'Published', $published)
+        ->assertTableColumnStateSet('state_fr', 'Draft', $draft)
+        ->assertTableColumnStateSet('state_fr', 'Scheduled', $scheduled)
+        ->assertTableColumnStateSet('state_fr', 'Published', $published)
         ->assertTableColumnFormattedStateSet('published_at', 'Oct 29, 2026 09:00:00', $scheduled)
         ->searchTable('Progr')
         ->assertCanSeeTableRecords([$scheduled])
         ->assertCanNotSeeTableRecords([$draft, $published]);
+});
+
+it('shows each Locale\'s state in its own column, or one column for an untranslatable type', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published']);
+    $other = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Salut']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
+    $label = resolve(SaveEntry::class)->handle('label', ['title' => 'Rouge', 'status' => 'published']);
+
+    entryPage(ListEntries::class)
+        ->assertTableColumnStateSet('state_fr', 'Published', $entry)
+        ->assertTableColumnStateSet('state_en', 'Draft', $entry)
+        ->assertTableColumnStateSet('state_fr', 'Draft', $other)
+        ->assertTableColumnStateSet('state_en', 'Missing', $other);
+
+    entryPage(ListEntries::class, 'label')
+        ->assertTableColumnExists('state')
+        ->assertTableColumnDoesNotExist('state_fr')
+        ->assertTableColumnStateSet('state', 'Published', $label);
 });
 
 it('lists Entries in a fixed number of queries, whatever their number', function (int $entries) {
@@ -262,6 +280,113 @@ it('keeps the publication date from a User without publish, who cannot make a Sc
     $this->get('/articles/bonjour')->assertNotFound();
 });
 
+it('adds English from the French screen, each Locale publishing on its own', function () {
+    entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour', 'author' => 'Ada Lovelace'])->callAction(formAction('publish'));
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])
+        ->assertActionHasLabel('locale_en', 'Add EN')
+        ->assertActionHasUrl('locale_en', url('/admin/articles/' . onlyEntry()->id . '/edit/en'));
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])
+        ->assertSchemaStateSet(['title' => null, 'author' => 'Ada Lovelace'])
+        ->assertActionHasLabel('locale_fr', 'Edit FR')
+        ->assertActionHasUrl('locale_fr', url('/admin/articles/' . onlyEntry()->id . '/edit'))
+        ->fillForm(['title' => 'Hello'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $this->get('/en/articles/hello')->assertNotFound();
+    $this->get('/articles/bonjour')->assertOk();
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])
+        ->assertSchemaStateSet(['title' => 'Hello'])
+        ->callAction(formAction('publish'))
+        ->assertHasNoFormErrors();
+
+    $this->get('/en/articles/hello')->assertOk()->assertSee('Hello');
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])->callAction(formAction('unpublish'));
+
+    $this->get('/articles/bonjour')->assertNotFound();
+    $this->get('/en/articles/hello')->assertOk();
+});
+
+it('saves a Shared Field once, whichever Locale\'s screen changes it', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertSchemaStateSet(['title' => 'Hello', 'author' => 'Ada Lovelace'])
+        ->fillForm(['author' => 'Grace Hopper'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        ->assertSchemaStateSet(['title' => 'Bonjour', 'author' => 'Grace Hopper']);
+    expect(DB::table('kami_type_article')->where('entry_id', $entry->id)->whereNotNull('author')->pluck('locale')->all())->toBe(['*']);
+});
+
+it('leaves a blank Translatable Field blank on its screen, not filled with the default Locale\'s value', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'summary' => 'Un résumé.', 'author' => 'Ada Lovelace', 'status' => 'published']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertSchemaStateSet(['title' => 'Hello', 'summary' => null]);
+});
+
+it('keeps Shared Fields from a User without publish while another Translation is visible (ADR 0019)', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published']);
+    $this->actingAs(userWithRole('writer'));
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertFormFieldDisabled('author')
+        ->fillForm(['title' => 'Hello', 'author' => 'Grace Hopper'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(Entry::query()->inLocale('en')->withUnpublished()->sole()->title)->toBe('Hello')
+        ->and(onlyEntry()->author)->toBe('Ada Lovelace');
+});
+
+it('refuses a Locale the Site does not declare', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour']);
+
+    $this->get("/admin/articles/{$entry->id}/edit/en")->assertOk();
+    $this->get("/admin/articles/{$entry->id}/edit/de")->assertNotFound();
+    $this->get("/admin/articles/{$entry->id}/edit/fr")->assertNotFound();
+});
+
+it('edits an untranslatable type\'s one Translation, with no other Locale to reach', function () {
+    $label = resolve(SaveEntry::class)->handle('label', ['title' => 'Rouge', 'colour' => 'red']);
+
+    entryPage(EditEntry::class, 'label', ['record' => $label->id])
+        ->assertSchemaStateSet(['title' => 'Rouge', 'colour' => 'red'])
+        ->assertActionDoesNotExist('locale_en')
+        ->fillForm(['colour' => 'crimson'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(DB::table('kami_translations')->where('entry_id', $label->id)->pluck('locale')->all())->toBe(['*'])
+        ->and(onlyEntry('label')->colour)->toBe('crimson');
+    $this->get("/admin/labels/{$label->id}/edit/en")->assertNotFound();
+});
+
+it('links to the public URL of the Locale edited, only while it is visible', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        ->assertActionVisible('view')
+        ->assertActionHasUrl('view', 'http://localhost/articles/bonjour');
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertActionHidden('view');
+
+    resolve(SaveEntry::class)->handle(Article::class, ['status' => 'published'], $entry, 'en');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertActionHasUrl('view', 'http://localhost/en/articles/hello');
+});
+
 it('renders every Kami admin page in English and French with no raw translation key', function (string $locale) {
     config(['app.locale' => $locale]);
     $entries = collect(['article', 'page', 'label'])->mapWithKeys(fn (string $type) => [$type => resolve(SaveEntry::class)->handle($type, ['title' => "Une {$type}"])]);
@@ -269,7 +394,7 @@ it('renders every Kami admin page in English and French with no raw translation 
     foreach ($entries as $type => $entry) {
         $slug = "{$type}s";
 
-        foreach (["/admin/{$slug}", "/admin/{$slug}/create", "/admin/{$slug}/{$entry->id}/edit"] as $url) {
+        foreach (["/admin/{$slug}", "/admin/{$slug}/create", "/admin/{$slug}/{$entry->id}/edit", ...($type === 'label' ? [] : ["/admin/{$slug}/{$entry->id}/edit/en"])] as $url) {
             $html = (string) $this->get($url)->assertOk()->getContent();
 
             expect($html)->not->toContain('kami::', $url)->not->toContain('kami-types.', $url);

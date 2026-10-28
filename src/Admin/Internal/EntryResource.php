@@ -36,11 +36,12 @@ use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
 
 /**
- * One Content Type's Entries in the default Locale, registered once per declared type under its handle (ADR 0011).
+ * One Content Type's Entries, edited one Locale at a time, registered once per declared type under its handle (ADR 0011).
  *
  * @internal
  *
@@ -103,11 +104,14 @@ final class EntryResource extends FilamentResource
     public static function form(Schema $schema): Schema
     {
         $timezone = Site::current()->timezone;
+        $livewire = $schema->getLivewire();
+        // The Locale of the values typed, so assistive technology reads them in their language (WCAG 3.1.2).
+        $lang = self::type()->isTranslatable() ? ['lang' => $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()] : [];
 
         return $schema->columns(1)->components([
-            TextInput::make('title')->label(__('kami::admin.fields.title')),
-            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->helperText(__('kami::admin.fields.slug_help')),
-            ...array_map(self::component(...), self::type()->fields()),
+            TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang),
+            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->helperText(__('kami::admin.fields.slug_help'))->extraInputAttributes($lang),
+            ...array_map(fn (Field $field): Component => self::component($field, $lang), self::type()->fields()),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
             DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record)),
@@ -123,10 +127,7 @@ final class EntryResource extends FilamentResource
                     ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
                         ->whereIn('locale', [Site::current()->defaultLocale(), '*'])
                         ->where('title', 'like', "%{$search}%"))),
-                TextColumn::make('state')
-                    ->label(__('kami::admin.state.label'))
-                    ->badge()
-                    ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record))),
+                ...array_map(self::stateColumn(...), self::type()->isTranslatable() ? Site::current()->locales : ['*']),
                 TextColumn::make('published_at')
                     ->label(__('kami::admin.fields.published_at'))
                     ->dateTime()
@@ -140,7 +141,8 @@ final class EntryResource extends FilamentResource
         return [
             'index' => ListEntries::route('/'),
             'create' => CreateEntry::route('/create'),
-            'edit' => EditEntry::route('/{record}/edit'),
+            // The default Locale's at `/edit`, another's at `/edit/en`, as on the front.
+            'edit' => EditEntry::route('/{record}/edit/{locale?}'),
         ];
     }
 
@@ -149,26 +151,39 @@ final class EntryResource extends FilamentResource
      *
      * @param  array<string, mixed>  $data
      */
-    public static function save(array $data, ?Entry $entry = null, ?string $status = null): Entry
+    public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null): Entry
     {
         try {
-            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, actor: Filament::auth()->user());
+            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user());
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages(Arr::prependKeysWith($exception->errors(), 'data.'));
         }
     }
 
-    /** Draft, Scheduled or Published, as visitors see the Translation now (ADR 0019). */
-    private static function state(Entry $entry): string
+    /** One Locale's state, or the `'*'` Translation's as `state` for an untranslatable type. */
+    private static function stateColumn(string $locale): TextColumn
+    {
+        $label = __('kami::admin.state.label');
+
+        return TextColumn::make($locale === '*' ? 'state' : "state_{$locale}")
+            ->label($locale === '*' ? $label : "{$label} (" . strtoupper($locale) . ')')
+            ->badge()
+            ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record->translations->firstWhere('locale', $locale))));
+    }
+
+    /** Draft, Scheduled or Published, as visitors see the Translation now (ADR 0019), or missing. */
+    private static function state(?Translation $translation): string
     {
         return match (true) {
-            $entry->status !== Translation::PUBLISHED => 'draft',
-            $entry->isVisible() => 'published',
+            ! $translation instanceof Translation => 'missing',
+            $translation->status !== Translation::PUBLISHED => 'draft',
+            Visibility::isVisible($translation) => 'published',
             default => 'scheduled',
         };
     }
 
-    private static function component(Field $field): Component
+    /** @param  array<string, string>  $lang */
+    private static function component(Field $field, array $lang): Component
     {
         // ponytail: one arm per Field type, Kami's two only; M3's `fieldComponents()` registry replaces it.
         $component = match (true) {
@@ -177,10 +192,20 @@ final class EntryResource extends FilamentResource
             default => throw new LogicException('No admin component for the Field type ' . $field::class . '.'),
         };
 
-        return $component
+        $component
             ->label(self::label("fields.{$field->handle}.label", Str::headline($field->handle)))
             ->helperText(self::label("fields.{$field->handle}.help", '') ?: null)
             ->default($field->defaultValue());
+
+        if (! self::type()->isTranslatable() || self::type()->isTranslatable($field)) {
+            return $component->extraInputAttributes($lang);
+        }
+
+        // One value for every Locale: changing it changes visible Translations too, which takes `publish` (ADR 0019).
+        return $component
+            ->hint(__('kami::admin.fields.shared'))
+            ->disabled(fn (?Entry $record): bool => $record instanceof Entry && ! self::can('publish', $record)
+                && $record->translations->contains(fn (Translation $translation): bool => Visibility::isVisible($translation)));
     }
 
     // ponytail: reads kami-types directly; #100's public label read replaces it.
