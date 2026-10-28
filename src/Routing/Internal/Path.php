@@ -22,7 +22,6 @@ use Psyao\Kami\Content\ContentType;
  * @property string $locale
  * @property string $path
  * @property string|null $entry_id
- * @property string|null $target
  * @property int $status
  */
 #[Unguarded]

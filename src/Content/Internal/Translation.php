@@ -29,6 +29,9 @@ final class Translation extends Model
 {
     use HasUlids;
 
+    /** The attributes an Entry reads from its Translation. */
+    public const array ATTRIBUTES = ['title', 'slug', 'status', 'published_at'];
+
     protected function casts(): array
     {
         return ['published_at' => 'immutable_datetime'];

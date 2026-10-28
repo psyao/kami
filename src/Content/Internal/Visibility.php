@@ -7,8 +7,8 @@ namespace Psyao\Kami\Content\Internal;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
+use LogicException;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * What "visible" means, in one place: a published Translation in the Locale read, or the `'*'` one, whose `published_at` has come, at read time (ADR 0012, ADR 0019).
@@ -21,10 +21,13 @@ final class Visibility implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
-        $locale = $builder instanceof EntryBuilder ? $builder->locale() : Site::current()->currentLocale();
+        // Always an EntryBuilder (`UseEloquentBuilder` on Entry), which the Scope contract does not name.
+        if (! $builder instanceof EntryBuilder) {
+            throw new LogicException('Visibility applies to Entry queries only.');
+        }
 
         $builder->whereHas('translations', fn (Builder $translations) => $translations
-            ->whereIn('locale', [$locale, '*'])
+            ->whereIn('locale', [$builder->locale(), '*'])
             ->where('status', 'published')
             ->where('published_at', '<=', now()));
     }

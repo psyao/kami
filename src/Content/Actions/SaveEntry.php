@@ -26,8 +26,6 @@ use Psyao\Kami\Sites\Internal\Site;
  */
 final class SaveEntry
 {
-    private const array TRANSLATION_ATTRIBUTES = ['title', 'slug', 'status', 'published_at'];
-
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
      * @param  array<string, mixed>  $values  `title`, `slug` (from the title when blank), `status` (`draft`, the default, or `published`), `published_at` (now when publishing without one) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
@@ -58,7 +56,7 @@ final class SaveEntry
             }
         }
 
-        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? self::TRANSLATION_ATTRIBUTES : [])]));
+        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? Translation::ATTRIBUTES : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
@@ -67,7 +65,7 @@ final class SaveEntry
         $stored = $entry instanceof Entry ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
 
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
-        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), self::TRANSLATION_ATTRIBUTES), 'status' => $translation->status ?? 'draft'] : [];
+        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? 'draft'] : [];
         foreach ($fields as $handle => $field) {
             $data[$handle] = $stored->get($contentType->isTranslatable($field) ? $locale : '*')?->{$handle};
         }
@@ -99,13 +97,10 @@ final class SaveEntry
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
 
             if ($writesTranslation) {
-                $translation->forceFill([
-                    'entry_id' => $entry->id,
-                    'title' => $data['title'] ?? null,
-                    'slug' => $data['slug'],
-                    'status' => $data['status'],
-                    'published_at' => $data['published_at'] ?? null,
-                ]);
+                $translation->entry_id = $entry->id;
+                foreach (Translation::ATTRIBUTES as $attribute) {
+                    $translation->setAttribute($attribute, $data[$attribute] ?? null);
+                }
 
                 // ADR 0019: publishing with no date publishes now; unpublishing keeps the date, which republishing reuses.
                 if ($translation->status === 'published') {
