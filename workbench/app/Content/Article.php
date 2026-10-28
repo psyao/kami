@@ -16,8 +16,8 @@ final class Article extends ContentType
     public function fields(): array
     {
         return [
-            Text::make('summary'),
-            Text::make('author')->shared(),
+            Text::make('summary')->rules(['max:200']),
+            Text::make('author')->shared()->required(),
         ];
     }
 }

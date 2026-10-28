@@ -13,7 +13,7 @@ uses(RefreshDatabase::class);
 /** @param array<string, mixed> $values */
 function article(array $values): Entry
 {
-    return resolve(SaveEntry::class)->handle(Article::class, $values);
+    return resolve(SaveEntry::class)->handle(Article::class, ['author' => 'Ada Lovelace', ...$values]);
 }
 
 it('hides Drafts and Scheduled Entries unless asked for them', function () {

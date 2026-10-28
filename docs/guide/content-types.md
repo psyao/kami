@@ -67,6 +67,8 @@ A Field is built with `::make()` and its handle, which names its column:
 
 Both are Translatable: one value per Locale. `->shared()` keeps one value for the whole Entry; see [Multilingual](multilingual.md).
 
+`->required()` makes a Field required to publish, while a Draft may leave it blank; `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
+
 ## The type's table
 
 A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale and one `'*'` row for the Shared Fields (ADR 0006). Until `kami:make:migration` writes it for you, add the migration by hand in `database/migrations`:
@@ -116,13 +118,15 @@ $entry = app(SaveEntry::class)->handle(Article::class, [
 - `status` is `draft` (the default) or `published`.
 - `published_at` defaults to now when publishing. A date to come makes the Entry Scheduled: it stays hidden until then, with no task to run.
 
+Invalid values throw Laravel's `ValidationException`; states, validation and slugs are in [Publishing](publishing.md).
+
 To update an Entry, pass it as the third argument; values left out are kept:
 
 ```php
 app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello again'], $entry);
 ```
 
-The write is saved in the site's default Locale; other Locales are in [Multilingual](multilingual.md). `SaveEntry` does not check who is calling: authorise before calling it from a request.
+The write is saved in the site's default Locale; other Locales are in [Multilingual](multilingual.md). `SaveEntry` does not check who is calling: authorise before calling it from a request ([Publishing](publishing.md#saveentry-does-not-authorise)).
 
 ## Reading Entries
 

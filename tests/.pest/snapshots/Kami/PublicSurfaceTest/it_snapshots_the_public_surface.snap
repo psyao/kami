@@ -6,7 +6,7 @@ class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
 class Psyao\Kami\Content\Actions\SaveEntry final class
-class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL): Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
 class Psyao\Kami\Content\ContentType::$translatable protected bool $translatable = true
@@ -24,6 +24,8 @@ class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly st
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)
 class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static
+class Psyao\Kami\Content\Fields\Field::required() public function required(): static
+class Psyao\Kami\Content\Fields\Field::rules() public function rules(array $rules): static
 class Psyao\Kami\Content\Fields\Field::shared() public function shared(): static
 class Psyao\Kami\Content\Fields\Field::translatable() public function translatable(): static
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field

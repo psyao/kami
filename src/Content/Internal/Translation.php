@@ -18,8 +18,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $id
  * @property string $entry_id
  * @property string $locale
- * @property string $title
- * @property string $slug
+ * @property string|null $title
+ * @property string|null $slug
  * @property string|null $status
  * @property CarbonImmutable|null $published_at
  */
