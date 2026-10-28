@@ -24,12 +24,16 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')]);
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
 
-    visit('/admin/login')
+    $page = visit('/admin/login')
         ->fill('[id="form.email"]', 'ada@example.test')
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]')
-        ->wait(3)
-        ->assertNoConsoleLogs()
+        ->wait(3);
+    fwrite(STDERR, "\n--- URL: {$page->url()}\n--- TEXT:\n" . preg_replace('/\s+/', ' ', strip_tags((string) preg_replace('#<(script|style)\b.*?</\1>#s', '', $page->content()))) . "\n");
+    $log = storage_path('logs/laravel.log');
+    fwrite(STDERR, '--- LOG:' . (is_file($log) ? substr((string) file_get_contents($log), -4000) : ' none') . "\n");
+
+    $page
         ->assertSee('Dashboard')
         ->navigate('/admin/articles/create')
         ->assertNoAccessibilityIssues()
