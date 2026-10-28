@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Psyao\Kami\Content\Entry;
 use Symfony\Component\Console\Command\Command;
 
@@ -136,4 +137,28 @@ it('describes every command', function () {
         ->map->getName();
 
     expect($undescribed->values()->all())->toBe([]);
+});
+
+it('gives every public action exactly one past-tense event in its module\'s Events namespace (ADR 0029)', function () {
+    $missing = publicClasses()
+        ->filter(fn (ReflectionClass $class): bool => str_ends_with($class->getNamespaceName(), '\\Actions'))
+        ->map(function (ReflectionClass $action): string {
+            // `SaveEntry` → `EntrySaved`, `StoreSubmission` → `SubmissionStored`.
+            [, $verb, $noun] = preg_split('/(?=[A-Z])/', $action->getShortName(), 3) + [2 => ''];
+            $past = str_ends_with($verb, 'e') ? "{$verb}d" : "{$verb}ed";
+
+            return Str::beforeLast($action->getNamespaceName(), '\\Actions') . "\\Events\\{$noun}{$past}";
+        })
+        ->reject(class_exists(...));
+
+    expect($missing->values()->all())->toBe([]);
+});
+
+it('makes every event final readonly (ADR 0029)', function () {
+    $mutable = publicClasses()
+        ->filter(fn (ReflectionClass $class): bool => str_ends_with($class->getNamespaceName(), '\\Events'))
+        ->reject(fn (ReflectionClass $class): bool => $class->isFinal() && $class->isReadOnly())
+        ->map->getName();
+
+    expect($mutable->values()->all())->toBe([]);
 });

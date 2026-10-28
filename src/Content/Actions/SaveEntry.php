@@ -14,8 +14,12 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Events\EntryPublished;
+use Psyao\Kami\Content\Events\EntrySaved;
+use Psyao\Kami\Content\Events\EntryUnpublished;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -92,6 +96,10 @@ final class SaveEntry
 
         Validator::make($data, $rules)->validate();
 
+        $created = ! $entry instanceof Entry;
+        $wasPublished = $translation->status === 'published';
+        $wasVisible = Visibility::isVisible($translation);
+
         $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
@@ -128,8 +136,18 @@ final class SaveEntry
             return $entry->id;
         });
 
-        // ponytail: EntrySaved, EntryPublished and EntryUnpublished after commit are #99's.
-        return Entry::query()->withUnpublished()->findOrFail($id);
+        $saved = Entry::query()->withUnpublished()->findOrFail($id);
+
+        // After commit, so a listener never sees a write rolled back; a caller's own transaction defers them to its commit (ADR 0029).
+        event(new EntrySaved($saved, $locale, $created, $actor));
+
+        if (! $wasVisible && Visibility::isVisible($translation)) {
+            event(new EntryPublished($saved, $locale, false, $actor));
+        } elseif ($wasPublished && ($data['status'] ?? null) === 'draft') {
+            event(new EntryUnpublished($saved, $locale, $actor));
+        }
+
+        return $saved;
     }
 
     /** The Translation's 200 row, rewritten in place when its slug changes; the `'*'` Translation answers in every Locale of the Site, one row each (ADR 0008). */
