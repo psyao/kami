@@ -42,7 +42,7 @@ final class DoctorCommand extends Command
             }
         }
 
-        $failing = array_filter($problems, fn (Problem $problem): bool => $problem->severity === Severity::Error || $this->option('strict'));
+        $failing = array_filter($problems, fn (Problem $problem): bool => $problem->severity === Severity::Error || ($problem->severity === Severity::Warning && $this->option('strict')));
 
         return $failing === [] ? self::SUCCESS : self::FAILURE;
     }

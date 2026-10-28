@@ -85,6 +85,10 @@ function publicSurface(): array
         array_map(fn (string $table) => $element('table', $table), $tables[1]);
     }
 
+    // A Content Type's Permissions are named after the site's handles: the vocabulary is their pattern (ADR 0014).
+    $permissions = collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'));
+    $permissions->map(fn (string $permission): string => (string) preg_replace('/^kami\.entries\.[^.]+\./', 'kami.entries.{type}.', $permission))->unique()->each(fn (string $permission) => $element('permission', $permission));
+
     usort($elements, fn (array $a, array $b): int => [$a['group'], $a['name']] <=> [$b['group'], $b['name']]);
 
     return $elements;
@@ -140,6 +144,7 @@ function referencePages(array $surface): array
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
         'config' => 'config.md',
+        'permission' => 'permissions.md',
         'table' => 'tables.md',
     };
 
@@ -190,10 +195,4 @@ it('keeps docs/reference in step with the public surface', function () {
 it('has no x-kami:: component outside the snapshot yet', function () {
     expect(View::getFinder()->getHints())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()')
         ->and(Blade::getClassComponentNamespaces())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()');
-});
-
-// ponytail: no collector for `kami.*` Permissions until Roles land (ADR 0014), which decide where the vocabulary is declared; this fails the day one is defined.
-it('has no kami.* Permission outside the snapshot yet', function () {
-    expect(collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'))->all())
-        ->toBe([], 'kami.* Permissions need a collector in publicSurface()');
 });

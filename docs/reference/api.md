@@ -103,3 +103,19 @@ Registers Kami's core: config, migrations and commands, and nothing global beyon
 - `public function configurePackage(Spatie\LaravelPackageTools\Package $package): void`
 - `public function packageBooted(): void`
 - `public function packageRegistered(): void`
+
+## `Psyao\Kami\Users\HasKamiRoles`
+
+`trait`
+
+`KamiUser` for an Eloquent User model: its Roles are its rows in `kami_role_user`.
+
+- `public function kamiRoles(): array`
+
+## `Psyao\Kami\Users\KamiUser`
+
+`interface`
+
+The host's User model, as Kami checks its Permissions: implemented with `HasKamiRoles` (ADR 0014).
+
+- `abstract public function kamiRoles(): array`: The handles of the Roles the User holds; a Role not declared in `config/kami.php` grants nothing.

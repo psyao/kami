@@ -26,18 +26,22 @@ php artisan make:filament-panel admin
 
 Who may sign in stays your `User` model's `canAccessPanel()`: Kami does not touch it.
 
+## Give your User model Kami's Roles
+
+The model your panel signs Users in with implements `KamiUser`, with the `HasKamiRoles` trait, as [Users and roles](users-and-roles.md#the-user-model) shows. Its Roles live in Kami's own `kami_role_user` table: your `users` table is left alone. Users with no Kami Role, such as your own staff, see nothing of Kami.
+
 ## Run `kami:install`
 
 ```bash
 php artisan kami:install --no-interaction
 ```
 
-Until a panel carries `KamiPlugin`, it stops before changing anything and prints the lines to add. It never edits your files. Run it on every deploy, as [Deployment](deployment.md#later-deploys) shows.
+Until a panel carries `KamiPlugin` and its User model implements `KamiUser`, it stops before changing anything and prints the lines to add. It never edits your files. Run it on every deploy, as [Deployment](deployment.md#later-deploys) shows.
 
 ## What Kami changes in your application
 
 - **The time zone.** Kami sets `app.timezone` to UTC, whatever `config/app.php` says, so dates are stored and computed in UTC.
-- **Its configuration.** `config/kami.php` holds the Sites. Publish it to change them:
+- **Its configuration.** `config/kami.php` holds the Sites and the Roles. Publish it to change them:
 
   ```bash
   php artisan vendor:publish --tag=kami-config

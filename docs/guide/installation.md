@@ -43,7 +43,7 @@ Accept Laravel Boost when the installer offers it: the starter kit's `boost.json
 php artisan make:filament-user
 ```
 
-Every User can sign in to the starter kit's panel: its `User` model allows them all, until Kami's Roles land.
+To see anything of Kami there, a User needs a Kami Role ([Users and roles](users-and-roles.md)).
 
 ## Checking the environment
 
@@ -54,7 +54,8 @@ php artisan kami:doctor
 `kami:doctor` lists every problem it finds with its severity, the fix and the section of this guide that explains it:
 
 - an **error** means the site cannot run: the command exits with 1;
-- a **warning** means a doubtful setting: the command exits with 0, unless you pass `--strict`, which fails on warnings too.
+- a **warning** means a doubtful setting: the command exits with 0, unless you pass `--strict`, which fails on warnings too;
+- an **information** is worth knowing and never fails the command.
 
 It checks the PHP it runs under: on shared hosting, that is the command line's, which may differ from the web's.
 

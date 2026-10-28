@@ -30,6 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->strictAuthorization()
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->pages([Dashboard::class])
             ->plugin(KamiPlugin::make())

@@ -1,6 +1,6 @@
 # Roles are declared in code, and every check targets a Permission
 
-A site's Roles are declared in code, in `config/kami.php`. Each Role has a handle, a label and a list of Permissions, and a list may use wildcards (`kami.entries.*.*`, `kami.*`) that are expanded at boot. The admin assigns Roles to Users and never edits a Role. Assignments live in `kami_role_user`:
+A site's Roles are declared in code, in `config/kami.php`, as a handle mapped to its list of Permissions (`'administrator' => ['kami.*']`). A list may use wildcards (`kami.entries.*.*`, `kami.*`) that are expanded at boot. A Role's label is a UI string, so it comes from the `kami-roles` translation file under its handle, as Content Type labels come from `kami-types`, not from the configuration (amended in #103). The admin assigns Roles to Users and never edits a Role. Assignments live in `kami_role_user`:
 
 - `user_id`, typed like the host's User key, cascading when the User is deleted;
 - `role`, the Role's handle, with no foreign key, like the `site` handle (ADR 0004).

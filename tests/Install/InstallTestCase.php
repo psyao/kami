@@ -6,6 +6,7 @@ namespace Psyao\Kami\Tests\Install;
 
 use Illuminate\Support\Facades\File;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Workbench\App\Models\User;
 use Workbench\App\Providers\AdminPanelProvider;
 
 /**
@@ -20,11 +21,12 @@ abstract class InstallTestCase extends Orchestra
     /** @var list<class-string> */
     private array $panelProviders = [];
 
-    /** Boots again with the Workbench's panel provider, so Kami reaches a panel the way it does in a site. */
+    /** Boots again with the Workbench's panel provider and User model, so Kami reaches a panel the way it does in a site. */
     public function bootWithKamiOnAPanel(): void
     {
         $this->panelProviders = [AdminPanelProvider::class];
         $this->refreshApplication();
+        config(['auth.providers.users.model' => User::class]);
     }
 
     protected function getPackageProviders($app): array

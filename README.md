@@ -33,6 +33,7 @@ The admin answers at `/admin`. To add Kami to an application you already have, s
 - [Content types](docs/guide/content-types.md): declaring a type and its Fields, writing and reading Entries
 - [Multilingual](docs/guide/multilingual.md): Locales, Translations, Shared Fields and Fallback with `lang`
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
+- [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server

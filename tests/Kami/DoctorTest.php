@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
+use Filament\Facades\Filament;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as PlainUser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -172,13 +174,13 @@ it('warns without failing when a Kami panel keeps Filament\'s remote avatars', f
 ]);
 
 it('reports a panel once, even with the plugin added twice', function () {
-    Panel::make()->id('remote')->plugin(KamiPlugin::make())->plugin(KamiPlugin::make());
+    Panel::make()->id('remote')->strictAuthorization()->plugin(KamiPlugin::make())->plugin(KamiPlugin::make());
 
     expect((new Doctor)->problems())->toHaveCount(1);
 });
 
 it('accepts a Kami panel with a local avatar provider, even set after the plugin', function (string $provider) {
-    Panel::make()->id('local')->plugin(KamiPlugin::make())->defaultAvatarProvider($provider);
+    Panel::make()->id('local')->strictAuthorization()->plugin(KamiPlugin::make())->defaultAvatarProvider($provider);
 
     expect((new Doctor)->problems())->toBeEmpty();
 })->with([
@@ -245,6 +247,7 @@ it('links every problem to a section of the guide', function () {
     withUnreachableDatabase();
     $everything = new Doctor(phpVersion: '8.4.13', extensionLoaded: fn () => false);
     Panel::make()->id('remote')->plugin(KamiPlugin::make());
+    config(['auth.providers.users.model' => PlainUser::class]);
 
     foreach ($everything->problems() as $problem) {
         [$page, $anchor] = explode('#', $problem->guide);
@@ -263,4 +266,26 @@ it('requires the PHP floor and every extension Kami\'s dependencies require', fu
 
     expect($composer['require']['php'])->toBe('^' . Str::beforeLast(Doctor::PHP_FLOOR, '.0'))
         ->and(Doctor::EXTENSIONS)->toContain(...$required);
+});
+
+it('blocks on a panel whose User model does not implement KamiUser, naming what to add', function () {
+    config(['auth.providers.users.model' => PlainUser::class]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin signs Users in with Illuminate\\Foundation\\Auth\\User, which does not implement Psyao\\Kami\\Users\\KamiUser')
+        ->expectsOutputToContain('Fix: add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.')
+        ->expectsOutputToContain('docs/guide/users-and-roles.md#the-user-model')
+        ->assertFailed();
+
+    expect((new Doctor)->blocking())->toHaveCount(1);
+});
+
+it('warns when a Kami panel does not authorize strictly, even when turned off after the plugin', function () {
+    Filament::getPanel('admin')->strictAuthorization(false);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin does not authorize strictly')
+        ->expectsOutputToContain('Fix: add ->strictAuthorization() to the panel admin')
+        ->expectsOutputToContain('docs/guide/users-and-roles.md#strict-authorization')
+        ->assertSuccessful();
 });
