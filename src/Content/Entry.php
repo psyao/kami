@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
@@ -42,8 +43,6 @@ use Psyao\Kami\Sites\Internal\Site;
 class Entry extends Model
 {
     use HasUlids;
-
-    private const array TRANSLATION_ATTRIBUTES = ['title', 'slug', 'status', 'published_at'];
 
     /** @internal */
     #[\Override]
@@ -90,7 +89,7 @@ class Entry extends Model
     /** @internal */
     public function getAttribute($key): mixed
     {
-        if (in_array($key, self::TRANSLATION_ATTRIBUTES, true)) {
+        if (in_array($key, Translation::ATTRIBUTES, true)) {
             return $this->translation($this->readLocale())?->getAttribute($key);
         }
 
@@ -144,13 +143,7 @@ class Entry extends Model
 
     private function field(string $handle): ?Field
     {
-        foreach ($this->contentType()?->fields() ?? [] as $field) {
-            if ($field->handle === $handle) {
-                return $field;
-            }
-        }
-
-        return null;
+        return collect($this->contentType()?->fields() ?? [])->firstWhere('handle', $handle);
     }
 
     private function readLocale(): string
@@ -184,11 +177,10 @@ class Entry extends Model
     protected function inLocale(Builder $query, string $locale): void
     {
         // Always an EntryBuilder (`UseEloquentBuilder`), which the public signature does not name.
-        if ($query instanceof EntryBuilder) {
-            $query->readIn($locale);
+        if (! $query instanceof EntryBuilder) {
+            throw new LogicException('Entry queries use an EntryBuilder.');
         }
-
-        $query->whereHas('translations', fn (Builder $translations) => $translations->whereIn('locale', [$locale, '*']));
+        $query->readIn($locale)->whereHas('translations', fn (Builder $translations) => $translations->whereIn('locale', [$locale, '*']));
     }
 
     /**

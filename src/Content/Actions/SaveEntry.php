@@ -14,8 +14,12 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Events\EntryPublished;
+use Psyao\Kami\Content\Events\EntrySaved;
+use Psyao\Kami\Content\Events\EntryUnpublished;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -26,8 +30,6 @@ use Psyao\Kami\Sites\Internal\Site;
  */
 final class SaveEntry
 {
-    private const array TRANSLATION_ATTRIBUTES = ['title', 'slug', 'status', 'published_at'];
-
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
      * @param  array<string, mixed>  $values  `title`, `slug` (from the title when blank), `status` (`draft`, the default, or `published`), `published_at` (now when publishing without one) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
@@ -58,7 +60,7 @@ final class SaveEntry
             }
         }
 
-        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? self::TRANSLATION_ATTRIBUTES : [])]));
+        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? Translation::ATTRIBUTES : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
@@ -67,7 +69,7 @@ final class SaveEntry
         $stored = $entry instanceof Entry ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
 
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
-        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), self::TRANSLATION_ATTRIBUTES), 'status' => $translation->status ?? 'draft'] : [];
+        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? 'draft'] : [];
         foreach ($fields as $handle => $field) {
             $data[$handle] = $stored->get($contentType->isTranslatable($field) ? $locale : '*')?->{$handle};
         }
@@ -94,18 +96,18 @@ final class SaveEntry
 
         Validator::make($data, $rules)->validate();
 
+        $wasPublished = $translation->status === 'published';
+        $wasVisible = Visibility::isVisible($translation);
+
         $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
 
             if ($writesTranslation) {
-                $translation->forceFill([
-                    'entry_id' => $entry->id,
-                    'title' => $data['title'] ?? null,
-                    'slug' => $data['slug'],
-                    'status' => $data['status'],
-                    'published_at' => $data['published_at'] ?? null,
-                ]);
+                $translation->entry_id = $entry->id;
+                foreach (Translation::ATTRIBUTES as $attribute) {
+                    $translation->setAttribute($attribute, $data[$attribute] ?? null);
+                }
 
                 // ADR 0019: publishing with no date publishes now; unpublishing keeps the date, which republishing reuses.
                 if ($translation->status === 'published') {
@@ -133,8 +135,18 @@ final class SaveEntry
             return $entry->id;
         });
 
-        // ponytail: EntrySaved, EntryPublished and EntryUnpublished after commit are #99's.
-        return Entry::query()->withUnpublished()->findOrFail($id);
+        $saved = Entry::query()->withUnpublished()->findOrFail($id);
+
+        // After commit, so a listener never sees a write rolled back; a caller's own transaction defers them to its commit (ADR 0029).
+        event(new EntrySaved($saved, $locale, ! $entry instanceof Entry, $actor));
+
+        if (! $wasVisible && Visibility::isVisible($translation)) {
+            event(new EntryPublished($saved, $locale, false, $actor));
+        } elseif ($wasPublished && ($data['status'] ?? null) === 'draft') {
+            event(new EntryUnpublished($saved, $locale, $actor));
+        }
+
+        return $saved;
     }
 
     /** The Translation's 200 row, rewritten in place when its slug changes; the `'*'` Translation answers in every Locale of the Site, one row each (ADR 0008). */

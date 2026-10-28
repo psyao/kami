@@ -46,7 +46,6 @@ return new class extends Migration
             $table->string('locale', 20);
             $table->string('path', 500);
             $table->foreignUlid('entry_id')->nullable()->constrained('kami_entries')->restrictOnDelete();
-            $table->string('target', 2000)->nullable();
             $table->unsignedSmallInteger('status');
             $table->unique(['site', 'locale', 'path']);
         });

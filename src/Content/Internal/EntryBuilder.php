@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Internal;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -50,8 +51,10 @@ final class EntryBuilder extends Builder
 
             $rows = [];
 
-            foreach (FieldRow::of((string) $handle)->newQuery()->whereIn('entry_id', $entries->map(fn (Entry $entry) => $entry->id))->get() as $row) {
-                $rows[$row->entry_id][$row->locale] = $row->getAttributes();
+            foreach (DB::table("kami_type_{$handle}")->whereIn('entry_id', $entries->map(fn (Entry $entry) => $entry->id))->get() as $row) {
+                /** @var array{entry_id: string, locale: string} $row */
+                $row = (array) $row;
+                $rows[$row['entry_id']][$row['locale']] = $row;
             }
 
             $entries->each(fn (Entry $entry) => $entry->setFieldRows($rows[$entry->id] ?? []));

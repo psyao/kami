@@ -19,6 +19,23 @@ class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminat
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
+class Psyao\Kami\Content\Events\EntryPublished final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Content\Events\EntryPublished::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Content\Events\EntryPublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
+class Psyao\Kami\Content\Events\EntryPublished::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Content\Events\EntryPublished::$scheduled public protected(set) readonly bool $scheduled
+class Psyao\Kami\Content\Events\EntryPublished::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, bool $scheduled, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Events\EntrySaved final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Content\Events\EntrySaved::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Content\Events\EntrySaved::$created public protected(set) readonly bool $created
+class Psyao\Kami\Content\Events\EntrySaved::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
+class Psyao\Kami\Content\Events\EntrySaved::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Content\Events\EntrySaved::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Events\EntryUnpublished final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Content\Events\EntryUnpublished::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Content\Events\EntryUnpublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
+class Psyao\Kami\Content\Events\EntryUnpublished::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Content\Events\EntryUnpublished::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
