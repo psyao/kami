@@ -28,6 +28,8 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
         ->fill('[id="form.email"]', 'ada@example.test')
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]')
+        ->wait(3)
+        ->assertNoConsoleLogs()
         ->assertSee('Dashboard')
         ->navigate('/admin/articles/create')
         ->assertNoAccessibilityIssues()
