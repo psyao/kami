@@ -58,11 +58,18 @@ public function handle(): string
 
 ## Fields
 
-A Field is built with `::make()` and its handle, which names its column. Kami's first Field type is `Text`, a single line of plain text, stored as a `string` column.
+A Field is built with `::make()` and its handle, which names its column:
+
+| Field | Holds | Column |
+| --- | --- | --- |
+| `Text` | a single line of plain text | `string` |
+| `Textarea` | several lines of plain text | `text` |
+
+Both are Translatable: one value per Locale. `->shared()` keeps one value for the whole Entry; see [Multilingual](multilingual.md).
 
 ## The type's table
 
-A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale (ADR 0006). Until `kami:make:migration` writes it for you, add the migration by hand in `database/migrations`:
+A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale and one `'*'` row for the Shared Fields (ADR 0006). Until `kami:make:migration` writes it for you, add the migration by hand in `database/migrations`:
 
 ```php
 use Illuminate\Database\Migrations\Migration;
@@ -115,7 +122,7 @@ To update an Entry, pass it as the third argument; values left out are kept:
 app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello again'], $entry);
 ```
 
-The write is saved in the site's default Locale. `SaveEntry` does not check who is calling: authorise before calling it from a request.
+The write is saved in the site's default Locale; other Locales are in [Multilingual](multilingual.md). `SaveEntry` does not check who is calling: authorise before calling it from a request.
 
 ## Reading Entries
 

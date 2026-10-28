@@ -9,17 +9,25 @@ class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
+class Psyao\Kami\Content\ContentType::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\ContentType::fields() public function fields(): array
 class Psyao\Kami\Content\ContentType::handle() public function handle(): string
 class Psyao\Kami\Content\ContentType::render() public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Content\Entry::fallbackLocale() public function fallbackLocale(string $field): ?string
+class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
+class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
+class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)
 class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static
+class Psyao\Kami\Content\Fields\Field::shared() public function shared(): static
+class Psyao\Kami\Content\Fields\Field::translatable() public function translatable(): static
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::routes() public function routes(): void

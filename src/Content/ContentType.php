@@ -15,6 +15,9 @@ abstract class ContentType
     /** The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root. */
     protected ?string $prefix = null;
 
+    /** `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013). */
+    protected bool $translatable = true;
+
     /** The snake_case of the class name; override it to keep the handle after renaming the class. */
     public function handle(): string
     {
@@ -35,6 +38,16 @@ abstract class ContentType
     public function render(Entry $entry): View | Response
     {
         return view()->make("kami.{$this->handle()}", ['entry' => $entry]);
+    }
+
+    /**
+     * @internal
+     *
+     * Whether the type, or one of its Fields, holds one value per Locale.
+     */
+    public function isTranslatable(?Field $field = null): bool
+    {
+        return $this->translatable && ($field?->isTranslatable() ?? true);
     }
 
     /** @internal */

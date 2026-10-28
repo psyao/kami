@@ -18,6 +18,7 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -49,6 +50,9 @@ class Entry extends Model
     /** @var array<string, array<string, mixed>> The rows of the type's table, by Locale. */
     private array $fieldRows = [];
 
+    /** The Locale it was queried in through `inLocale()`; the current Locale when null. */
+    private ?string $locale = null;
+
     /**
      * @internal
      *
@@ -76,18 +80,86 @@ class Entry extends Model
     }
 
     /** @internal */
+    public function readIn(string $locale): void
+    {
+        $this->locale = $locale;
+    }
+
+    /** @internal */
     public function getAttribute($key): mixed
     {
         if (in_array($key, self::TRANSLATION_ATTRIBUTES, true)) {
-            return $this->translations->firstWhere('locale', Site::current()->currentLocale())?->getAttribute($key);
+            return $this->translation($this->readLocale())?->getAttribute($key);
         }
 
-        if (! array_key_exists($key, $this->attributes) && ! method_exists($this, $key)
-            && in_array($key, array_map(fn (Field $field): string => $field->handle, $this->contentType()?->fields() ?? []), true)) {
-            return $this->fieldRows[Site::current()->currentLocale()][$key] ?? null;
+        $field = array_key_exists($key, $this->attributes) || method_exists($this, $key) ? null : $this->field($key);
+
+        if (! $field instanceof Field) {
+            return parent::getAttribute($key);
         }
 
-        return parent::getAttribute($key);
+        if (! $this->contentType()?->isTranslatable($field)) {
+            return $this->fieldRows['*'][$key] ?? null;
+        }
+
+        $locale = $this->fallbackLocale($key) ?? $this->readLocale();
+
+        return $this->fieldRows[$locale][$key] ?? null;
+    }
+
+    /**
+     * The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
+     *
+     * It falls back only when the value is blank and the default Locale's Translation is visible (ADR 0013).
+     */
+    public function fallbackLocale(string $field): ?string
+    {
+        $default = Site::current()->defaultLocale();
+        $declared = $this->field($field);
+
+        if (! $declared instanceof Field || ! $this->contentType()?->isTranslatable($declared) || $this->readLocale() === $default
+            || ($this->fieldRows[$this->readLocale()][$field] ?? null) !== null || ($this->fieldRows[$default][$field] ?? null) === null) {
+            return null;
+        }
+
+        return Visibility::isVisible($this->translations->firstWhere('locale', $default)) ? $default : null;
+    }
+
+    /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there. */
+    public function url(?string $locale = null): ?string
+    {
+        $site = Site::current();
+        $locale ??= $this->readLocale();
+        $translation = $this->translation($locale);
+        $type = $this->contentType();
+
+        if (! in_array($locale, $site->locales, true) || ! $type instanceof ContentType || ! $translation instanceof Translation || ! Visibility::isVisible($translation)) {
+            return null;
+        }
+
+        return $site->url($locale, Path::of($type, $translation->slug));
+    }
+
+    private function field(string $handle): ?Field
+    {
+        foreach ($this->contentType()?->fields() ?? [] as $field) {
+            if ($field->handle === $handle) {
+                return $field;
+            }
+        }
+
+        return null;
+    }
+
+    private function readLocale(): string
+    {
+        return $this->locale ?? Site::current()->currentLocale();
+    }
+
+    /** The Translation read in a Locale: that Locale's, or the `'*'` one of an untranslatable type. */
+    private function translation(string $locale): ?Translation
+    {
+        return $this->translations->firstWhere('locale', $locale) ?? $this->translations->firstWhere('locale', '*');
     }
 
     /**
@@ -99,6 +171,22 @@ class Entry extends Model
     protected function ofType(Builder $query, string $type): void
     {
         $query->where('type', resolve(ContentTypes::class)->find($type)?->handle() ?? $type);
+    }
+
+    /**
+     * Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function inLocale(Builder $query, string $locale): void
+    {
+        // Always an EntryBuilder (`UseEloquentBuilder`), which the public signature does not name.
+        if ($query instanceof EntryBuilder) {
+            $query->readIn($locale);
+        }
+
+        $query->whereHas('translations', fn (Builder $translations) => $translations->whereIn('locale', [$locale, '*']));
     }
 
     /**

@@ -7,7 +7,7 @@
 <body>
     <main>
         <h1>{{ $entry->title }}</h1>
-        <p>{{ $entry->summary }}</p>
+        <p @if ($lang = $entry->fallbackLocale('summary'))lang="{{ $lang }}"@endif>{{ $entry->summary }}</p>
     </main>
 </body>
 </html>

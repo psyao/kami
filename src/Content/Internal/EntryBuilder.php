@@ -6,6 +6,7 @@ namespace Psyao\Kami\Content\Internal;
 
 use Illuminate\Database\Eloquent\Builder;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Loads the Field values of the Entries it returns: one query per type present, never lazily (ADR 0006).
@@ -16,9 +17,29 @@ use Psyao\Kami\Content\Entry;
  */
 final class EntryBuilder extends Builder
 {
+    /** The Locale its Entries are checked and read in; the current Locale when null. */
+    private ?string $locale = null;
+
+    public function readIn(string $locale): static
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
+    public function locale(): string
+    {
+        return $this->locale ?? Site::current()->currentLocale();
+    }
+
     public function eagerLoadRelations(array $models)
     {
         $models = parent::eagerLoadRelations($models);
+
+        if ($this->locale !== null) {
+            array_walk($models, fn (Entry $entry) => $entry->readIn($this->locale));
+        }
+
         $types = resolve(ContentTypes::class);
 
         foreach (collect($models)->groupBy(fn (Entry $entry) => $entry->type) as $handle => $entries) {

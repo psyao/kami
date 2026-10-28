@@ -47,7 +47,7 @@ it('renders a published Entry at its Path through the type view', function () {
     $this->get('/articles/hello-world')
         ->assertOk()
         ->assertSee('<h1>Hello world</h1>', escape: false)
-        ->assertSee('<p>A first article.</p>', escape: false);
+        ->assertSee('>A first article.</p>', escape: false);
 });
 
 it('answers 404 for a Draft, a future publication date and an unknown Path', function () {

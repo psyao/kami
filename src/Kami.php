@@ -6,6 +6,7 @@ namespace Psyao\Kami;
 
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Routing\Internal\RenderEntry;
+use Psyao\Kami\Sites\Internal\ResolveLocale;
 
 /** What a site calls on Kami through the `Kami` facade. */
 final class Kami
@@ -17,8 +18,8 @@ final class Kami
      */
     public function routes(): void
     {
-        // ponytail: an empty group until ResolveLocale (#97) and SecurityHeaders (#102) join it.
-        Route::middlewareGroup('kami', []);
+        // ponytail: SecurityHeaders (#102) joins the group.
+        Route::middlewareGroup('kami', [ResolveLocale::class]);
 
         Route::fallback(RenderEntry::class)->middleware('kami')->withoutMiddleware('web');
     }
