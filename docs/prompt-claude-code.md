@@ -79,7 +79,7 @@ Quand le map est dégagé, rédige ces deux documents, complète `CLAUDE.md` (co
 
 Pour chaque jalon de la roadmap, dans l'ordre : `/to-spec`, puis `/to-tickets`. Les tickets doivent faire de quelques heures à une journée au plus, et chacun laisse le projet dans un état stable, testé et documenté (voir la capacité dans le brief). Un seul jalon spécifié d'avance : le suivant se spécifie quand le précédent est livré.
 
-Ensuite : `/implement` par ticket (ou `/implement-spec` pour un jalon entier), puis `/retro` à la fin de chaque jalon.
+Ensuite : `/mattpocock-skills:implement` par ticket (ou `/mattpocock-skills:implement-spec` pour un jalon entier), puis `/mattpocock-skills:retro` à la fin de chaque jalon.
 
 ## Méthode
 
