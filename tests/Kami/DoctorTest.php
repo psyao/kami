@@ -16,8 +16,30 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Admin\InitialsAvatarProvider;
 use Psyao\Kami\Admin\KamiPlugin;
+use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\SecurityHeaders;
+use Symfony\Component\HttpFoundation\Response;
+
+/** A type with no view and no label. */
+final class Undescribed extends ContentType
+{
+    public function fields(): array
+    {
+        return [Text::make('note')];
+    }
+}
+
+/** A type that renders without a view. */
+final class Rendered extends ContentType
+{
+    public function render(Entry $entry): Response
+    {
+        return response('');
+    }
+}
 
 function temporaryPath(): string
 {
@@ -375,3 +397,26 @@ it('fails on a Vite hot file in production, not elsewhere', function (string $en
     'production' => ['production', true],
     'local' => ['local', false],
 ]);
+
+it('warns about a type whose view is missing, unless it renders without one', function () {
+    config(['kami.types' => [Undescribed::class, Rendered::class]]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The Content Type undescribed has no view kami.undescribed')
+        ->expectsOutputToContain('Fix: create resources/views/kami/undescribed.blade.php')
+        ->expectsOutputToContain('docs/guide/routing-and-rendering.md#rendering')
+        ->doesntExpectOutputToContain('kami.rendered')
+        ->assertSuccessful();
+});
+
+it('warns about each missing label key, per language, leaving help texts optional', function () {
+    config(['kami.types' => [Undescribed::class]]);
+    app('translator')->addLines(['kami-types.undescribed.label' => 'Undescribed'], 'fr');
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('lang/en/kami-types.php lacks 3 label keys: undescribed.label, undescribed.plural, undescribed.fields.note.label')
+        ->expectsOutputToContain('lang/fr/kami-types.php lacks 2 label keys: undescribed.plural, undescribed.fields.note.label')
+        ->expectsOutputToContain('docs/guide/content-types.md#labels')
+        ->doesntExpectOutputToContain('.help')
+        ->assertSuccessful();
+});
