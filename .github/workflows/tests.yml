@@ -251,7 +251,6 @@ jobs:
           path: |
             tests/Browser/Screenshots
             tests/Browser/Traces
-          if-no-files-found: ignore
 
   smoke:
     name: Smoke (Apache + FPM, MariaDB 10.11)

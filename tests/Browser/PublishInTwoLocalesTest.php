@@ -20,6 +20,9 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
 
     // Filament loads the password field's Alpine component after the page (`x-load`, `x-ignore` until it arrives):
     // its `wire:model` then resets the field to the empty Livewire state, wiping a password typed before.
+    // The plugin times the script out after 5 seconds, failing here if a component never loads.
+    // ponytail: tied to Filament's `x-load`/`x-ignore` markup; lifted when pest-plugin-browser exposes `waitForFunction`
+    // or Filament keeps typed input, and moved to tests/Pest.php when a second Browser test signs in.
     $page->script("new Promise(function wait(resolve) { document.querySelector('[x-load][x-ignore]') ? requestAnimationFrame(() => wait(resolve)) : resolve(); })");
 
     $page
