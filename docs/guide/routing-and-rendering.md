@@ -26,6 +26,20 @@ The default Locale's Paths start at the root; another Locale's sit under its cod
 
 An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404.
 
+## After a deploy
+
+Saving an Entry reserves its Path, a Draft's included. A change in code moves Paths only when `kami:install` runs, as every deploy does ([Deployment](deployment.md#later-deploys)):
+
+- a new Prefix moves the type's Entries to their new addresses; Kami does not redirect the former ones yet, so they answer 404;
+- a new Locale gives each Entry of an untranslatable type its Path there;
+- a Path whose Translation is gone is deleted.
+
+`kami:install` prints what it did, as `Paths: 0 created, 12 rewritten, 0 deleted.`, and changes nothing when nothing changed. It reads the Entries in batches, so its memory stays flat whatever their number. It runs from the command line only, never in a request.
+
+When a new address is already another Entry's, `kami:install` names both and fails, leaving that Path where it was: change one of the two slugs in the admin, then run it again. Until the next `kami:install`, `kami:doctor` warns that Paths do not follow the declarations.
+
+Kami leaves the Paths of a Locale or a type you removed from `config/kami.php` as they are, with their Entries; `kami:doctor` lists them ([Multilingual](multilingual.md#locales)).
+
 ## Rendering
 
 The Entry is rendered by its Content Type's `render()`. By default, it returns the view named after the type's handle, `kami.{handle}`, with the Entry as `$entry`. For an `Article`, that is `resources/views/kami/article.blade.php`:

@@ -148,3 +148,31 @@ it('falls back without a query of its own', function () {
     // The Path, the Entry with its visibility, its Translations, its type rows: as on a page with no Fallback.
     expect(DB::getQueryLog())->toHaveCount(4);
 });
+
+it('warns that Paths lag behind the declarations until the next kami:install', function () {
+    translate('*', ['title' => 'Urgent'], type: Label::class);
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('Paths do not follow the declarations yet: kami:install would create 1, rewrite 0 and delete 0.')
+        ->expectsOutputToContain('Fix: run php artisan kami:install')
+        ->expectsOutputToContain('docs/guide/routing-and-rendering.md#after-a-deploy')
+        ->assertSuccessful();
+
+    expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('after-a-deploy');
+});
+
+it('warns about content in an undeclared Locale or of an undeclared type, and keeps it', function () {
+    $entry = translate('fr', ['title' => 'Bonjour', 'summary' => 'Un article.']);
+    translate('en', ['title' => 'Hello', 'summary' => 'An article.'], $entry);
+    translate('*', ['title' => 'Urgent'], type: Label::class);
+    config(['kami.sites.default.locales' => ['fr'], 'kami.types' => [Article::class, Page::class]]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('Rows of kami_translations, kami_type_article are in a Locale the default Site does not declare: en.')
+        ->expectsOutputToContain('Entries are of a type config/kami.php does not declare: label.')
+        ->expectsOutputToContain('docs/guide/multilingual.md#locales')
+        ->expectsOutputToContain('docs/guide/content-types.md#declaring-a-type')
+        ->doesntExpectOutputToContain('Paths do not follow')
+        ->assertSuccessful();
+});

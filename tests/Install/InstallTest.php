@@ -8,13 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Illuminate\Testing\PendingCommand;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
-
-function install(): PendingCommand
-{
-    return test()->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada']);
-}
 
 /**
  * Each file of the skeleton with a hash of its contents, minus the directories Laravel writes to at run time.

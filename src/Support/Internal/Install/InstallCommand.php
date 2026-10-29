@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\PrintsProblems;
 use Psyao\Kami\Users\Internal\Permissions;
@@ -31,7 +32,7 @@ final class InstallCommand extends Command
 {
     use PrintsProblems;
 
-    public function handle(Doctor $doctor, PluginRegistration $registration): int
+    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths): int
     {
         // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
         if (($problems = $doctor->blocking()) !== []) {
@@ -61,6 +62,10 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
+        if (! $this->syncPaths($syncPaths)) {
+            return self::FAILURE;
+        }
+
         if (! $this->firstAdministrator()) {
             return self::FAILURE;
         }
@@ -70,6 +75,19 @@ final class InstallCommand extends Command
         $this->components->info('Kami is installed.');
 
         return self::SUCCESS;
+    }
+
+    /** Moves URLs to follow the declarations (ADR 0008); an address another Entry holds fails the deploy, naming both sides. */
+    private function syncPaths(SyncPaths $syncPaths): bool
+    {
+        $result = $syncPaths();
+        $this->components->info("Paths: {$result['created']} created, {$result['rewritten']} rewritten, {$result['deleted']} deleted.");
+
+        foreach ($result['clashes'] as $clash) {
+            $this->components->error("Entry {$clash['entry_id']} cannot take /{$clash['path']} in {$clash['locale']}: Entry {$clash['holder']} holds it. Change one of the two slugs, then run kami:install again.");
+        }
+
+        return $result['clashes'] === [];
     }
 
     /**
