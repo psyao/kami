@@ -78,8 +78,17 @@ final class InstallCommand extends Command
      */
     private function firstAdministrator(): bool
     {
-        if (DB::table('kami_role_user')->whereIn('role', Permissions::rolesGranting('kami.users.manage'))->exists()) {
+        $granting = Permissions::rolesGranting('kami.users.manage');
+
+        if (DB::table('kami_role_user')->whereIn('role', $granting)->exists()) {
             return true;
+        }
+
+        // Created without it, the administrator would not count, and every deploy would ask for another one.
+        if (! in_array('administrator', $granting, true)) {
+            $this->components->error('The administrator Role in config/kami.php does not grant kami.users.manage, so kami:install cannot create the first administrator. Give it kami.users.manage, or kami.*.');
+
+            return false;
         }
 
         // kami_role_user points at this model (its migration), whichever guard the panel signs in with.

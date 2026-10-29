@@ -43,7 +43,7 @@ On a site where no User may manage Users yet, `kami:install` ends by creating th
 php artisan kami:install --email=ada@example.com --name=Ada
 ```
 
-The password is never an option, so it stays out of the shell history and the process list. Without a terminal (`--no-interaction`, a deploy script, CI), `kami:install` reads it from the `KAMI_ADMIN_PASSWORD` environment variable, and fails, naming what to pass, when the email, the name or the password is missing. Set the variable from a CI secret, or in your shell without echoing it:
+The password is never an option, so it stays out of the shell history and the process list. Without a terminal (`--no-interaction`, a deploy script, CI), `kami:install` reads it from the `KAMI_ADMIN_PASSWORD` environment variable, and fails, naming what to pass, when the email, the name or the password is missing. Set it in the process's environment, from a CI secret or in your shell without echoing it, never in `.env`, which is no longer read once the configuration is cached:
 
 ```bash
 read -rs KAMI_ADMIN_PASSWORD && export KAMI_ADMIN_PASSWORD

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Workbench\App\Models\User;
 
@@ -72,5 +73,16 @@ it('changes nothing when an administrator exists', function () {
 
     $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
 
-    expect(User::query()->count())->toBe(1);
+    expect(User::query()->count())->toBe(1)
+        ->and(DB::table('kami_role_user')->pluck('role')->all())->toBe(['administrator']);
+});
+
+it('refuses while the administrator Role does not grant kami.users.manage', function () {
+    config(['kami.roles' => ['administrator' => ['kami.entries.*.*']]]);
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])
+        ->expectsOutputToContain('The administrator Role in config/kami.php does not grant kami.users.manage')
+        ->assertFailed();
+
+    expect(User::query()->count())->toBe(0);
 });
