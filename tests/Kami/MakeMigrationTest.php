@@ -64,7 +64,7 @@ function noteColumns(): array
 }
 
 /** Kami's Rector set adds `: void` to a closure without one: a site's CI would fail on the file as written. */
-function expectVoidClosures(string $migration): void
+function expectVoidSchemaClosures(string $migration): void
 {
     expect(File::get($migration))->toContain('function (Blueprint $table): void {')->not->toContain('function (Blueprint $table) {');
 }
@@ -85,7 +85,7 @@ it('writes a migration creating the table of a new type', function () {
         ->and(collect(Schema::getIndexes('kami_type_note'))->contains(fn (array $index): bool => $index['unique'] && $index['columns'] === ['entry_id', 'locale']))->toBeTrue()
         ->and(collect(Schema::getForeignKeys('kami_type_note'))->first())->toMatchArray(['columns' => ['entry_id'], 'foreign_table' => 'kami_entries', 'on_delete' => 'cascade']);
 
-    expectVoidClosures(writtenMigrations()[0]);
+    expectVoidSchemaClosures(writtenMigrations()[0]);
 });
 
 /** Writes the migration for the declared Fields and runs it. */
@@ -112,7 +112,7 @@ it('adds, drops and retypes columns, and undoes it', function () {
 
     expect(noteColumns())->toMatchArray(['summary' => 'varchar', 'body' => 'text', 'author' => 'varchar'])->not->toHaveKey('obsolete');
 
-    expectVoidClosures(writtenMigrations()[1]);
+    expectVoidSchemaClosures(writtenMigrations()[1]);
 
     rollBackLast();
 

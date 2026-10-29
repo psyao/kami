@@ -11,7 +11,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('kami_role_user', function (Blueprint $table) {
+        Schema::create('kami_role_user', function (Blueprint $table): void {
             /** @var class-string<Model> $users */
             $users = config('auth.providers.users.model');
             $user = new $users;
