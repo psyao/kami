@@ -12,7 +12,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('kami_entries', function (Blueprint $table) {
+        Schema::create('kami_entries', function (Blueprint $table): void {
             /** @var class-string<Model> $users */
             $users = config('auth.providers.users.model');
             $user = new $users;
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->datetimes();
         });
 
-        Schema::create('kami_translations', function (Blueprint $table) {
+        Schema::create('kami_translations', function (Blueprint $table): void {
             $table->ulid('id')->primary();
             $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
             $table->string('locale', 20);
@@ -40,7 +40,7 @@ return new class extends Migration
             $table->index(['status', 'published_at']);
         });
 
-        Schema::create('kami_paths', function (Blueprint $table) {
+        Schema::create('kami_paths', function (Blueprint $table): void {
             $table->ulid('id')->primary();
             $table->string('site', 40);
             $table->string('locale', 20);
