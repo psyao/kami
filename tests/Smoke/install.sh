@@ -38,5 +38,5 @@ if ! grep -q KamiUser app/Models/User.php; then
         || { echo "Could not add KamiUser to the starter kit's app/Models/User.php" >&2; exit 1; }
 fi
 php artisan key:generate --no-interaction
-php artisan kami:install --no-interaction
+KAMI_ADMIN_PASSWORD=smoke-password php artisan kami:install --no-interaction --email=admin@example.test --name=Admin
 php artisan optimize

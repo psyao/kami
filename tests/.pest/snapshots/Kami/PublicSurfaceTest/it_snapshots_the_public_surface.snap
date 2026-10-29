@@ -64,6 +64,8 @@ class Psyao\Kami\Users\KamiUser::kamiRoles() abstract public function kamiRoles(
 command kami:doctor
 command kami:doctor --strict [--strict]
 command kami:install
+command kami:install --email [--email [EMAIL]]
+command kami:install --name [--name [NAME]]
 config kami.resources.entry
 config kami.roles.administrator
 config kami.security.csp

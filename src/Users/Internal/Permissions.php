@@ -44,9 +44,22 @@ final class Permissions
         return [...$entries, 'kami.users.manage'];
     }
 
-    // ponytail: wildcards matched per check, the same answer as expanding them at boot; expand once if a profile ever shows it.
+    /**
+     * The declared Roles whose Permissions, wildcards included, cover this one.
+     *
+     * @return list<string>
+     */
+    public static function rolesGranting(string $permission): array
+    {
+        // ponytail: wildcards matched per check, the same answer as expanding them at boot; expand once if a profile ever shows it.
+        return array_map(strval(...), array_keys(array_filter(
+            Config::array('kami.roles', []),
+            fn (mixed $patterns): bool => is_array($patterns) && Str::is(array_filter($patterns, is_string(...)), $permission),
+        )));
+    }
+
     private static function granted(KamiUser $user, string $permission): bool
     {
-        return collect($user->kamiRoles())->contains(fn (string $role): bool => Str::is(array_filter(Config::array("kami.roles.{$role}", []), is_string(...)), $permission));
+        return array_intersect($user->kamiRoles(), self::rolesGranting($permission)) !== [];
     }
 }

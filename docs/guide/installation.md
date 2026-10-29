@@ -37,13 +37,21 @@ Accept Laravel Boost when the installer offers it: the starter kit's `boost.json
 
 ### The first User
 
-`kami:install` creates no User yet. Create the first one, who can sign in to the admin at `/admin`:
+On a site where no User may manage Users yet, `kami:install` ends by creating the first administrator, who can sign in to the admin at `/admin`. In a terminal it asks for the email, the name and the password; the password is checked against your application's `Password::defaults()`. The email and the name can come as options instead:
 
 ```bash
-php artisan make:filament-user
+php artisan kami:install --email=ada@example.com --name=Ada
 ```
 
-To see anything of Kami there, a User needs a Kami Role ([Users and roles](users-and-roles.md)).
+The password is never an option, so it stays out of the shell history and the process list. Without a terminal (`--no-interaction`, a deploy script, CI), `kami:install` reads it from the `KAMI_ADMIN_PASSWORD` environment variable, and fails, naming what to pass, when the email, the name or the password is missing. Set the variable from a CI secret, or in your shell without echoing it:
+
+```bash
+read -rs KAMI_ADMIN_PASSWORD && export KAMI_ADMIN_PASSWORD
+php artisan kami:install --no-interaction --email=ada@example.com --name=Ada
+unset KAMI_ADMIN_PASSWORD
+```
+
+The new User gets the `administrator` Role ([Users and roles](users-and-roles.md#the-first-administrator)). An email that belongs to an existing User fails: `kami:install` does not grant a Role to an existing User yet. Once a User holds a Role that grants `kami.users.manage`, the step does nothing, and later deploys need neither the options nor the variable.
 
 ## Checking the environment
 
@@ -93,11 +101,12 @@ Then run, on the first install and on every deploy:
 php artisan kami:install --no-interaction
 ```
 
-There is no separate upgrade command: `kami:install` is safe to run again and changes nothing when the site is up to date. It needs no terminal, so it runs as is in a deploy script or CI. On shared hosting, run it over SSH or from your deploy script: it needs no cron, worker or Node, only the command-line PHP that `kami:doctor` checks. In order, it:
+There is no separate upgrade command: `kami:install` is safe to run again and changes nothing when the site is up to date. It needs no terminal, so it runs as is in a deploy script or CI; only the first install without one needs the administrator's details ([The first User](#the-first-user)). On shared hosting, run it over SSH or from your deploy script: it needs no cron, worker or Node, only the command-line PHP that `kami:doctor` checks. In order, it:
 
 1. stops on any error `kami:doctor` reports about the environment, before touching the database (warnings do not stop it: run `kami:doctor` to see them);
 2. stops while no panel carries `KamiPlugin`, printing the `KamiPlugin` lines above;
 3. runs the migrations (`migrate --force`);
-4. publishes Filament's assets to `public/`, so the server needs no Node.
+4. publishes Filament's assets to `public/`, so the server needs no Node;
+5. creates the first administrator while no User may manage Users ([The first User](#the-first-user)).
 
 It exits with 1 when any step fails, so the deploy fails with it. `kami:install` never writes to your application's files: it only adds Filament's assets under `public/`. On a server, `php artisan optimize` follows it ([Deployment](deployment.md#later-deploys)).

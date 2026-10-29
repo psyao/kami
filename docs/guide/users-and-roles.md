@@ -37,6 +37,10 @@ Roles are edited in code and deployed, never in the admin.
 
 `kami:doctor` warns about assignments whose handle `config/kami.php` does not declare: such a Role grants nothing. Declare it again, or delete its rows from `kami_role_user`.
 
+## The first administrator
+
+While no User holds a Role that grants `kami.users.manage`, `kami:install` creates one with the `administrator` Role, from the email, name and password you give it ([Installation](installation.md#the-first-user)). The User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has.
+
 ## Permissions
 
 Every check targets a Permission, never a Role. Each declared Content Type has four, named after its handle:

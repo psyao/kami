@@ -102,18 +102,14 @@ Kami's own admin assets need nothing: `kami:install` copies them.
 
 ### Install Kami
 
+Over SSH, run the first install in the terminal, so that it asks for the first administrator's email, name and password:
+
 ```bash
-php artisan kami:install --no-interaction
+php artisan kami:install
 php artisan optimize
 ```
 
-`kami:install` stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). `optimize` caches the configuration, routes, events and views. Then create the first User, who can sign in to the admin:
-
-```bash
-php artisan make:filament-user
-```
-
-It asks for the name, the email and the password: answer at its prompts rather than with `--password`, which would leave the password in the shell history. Sign in at `https://example.com/admin`.
+`kami:install` stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). `optimize` caches the configuration, routes, events and views. A first install from a deploy script, with no terminal, takes `--no-interaction --email=... --name=...` and the password in the `KAMI_ADMIN_PASSWORD` environment variable, never as an argument ([Installation](installation.md#the-first-user)). Sign in at `https://example.com/admin`.
 
 Run `php artisan kami:doctor` once the site answers. It sees the command line's PHP, not the web's ([Hosting](hosting.md#infomaniak-shared-hosting)).
 
