@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Internal\Translation;
 
 /** A type whose handle and Fields each test declares. */
 final class Declared extends ContentType
@@ -34,11 +35,11 @@ final class Twin extends ContentType
     }
 }
 
-/** Boots a fresh application with these types, as a site's deploy would. */
-function bootWithTypes(string ...$types): void
+/** Runs a Kami command, the registry's first use, with these types. */
+function runWithTypes(string ...$types): void
 {
-    test()->bootConfig = ['kami.types' => $types];
-    test()->refreshApplication();
+    config(['kami.types' => $types]);
+    test()->artisan('kami:doctor')->run();
 }
 
 beforeEach(function () {
@@ -46,19 +47,26 @@ beforeEach(function () {
     Declared::$declared = [];
 });
 
-it('boots with sound declarations', function () {
+it('accepts sound declarations', function () {
     Declared::$declared = [Text::make('summary'), Text::make('cover_alt_2')];
 
-    bootWithTypes(Declared::class);
-
-    expect(true)->toBeTrue();
+    expect(fn () => runWithTypes(Declared::class))->not->toThrow(InvalidArgumentException::class);
 });
 
-it('fails boot on an invalid declaration, naming the class and the handle', function (string $handle, array $fields, array $types, string $message) {
+it('boots with an invalid declaration, so Composer\'s package:discover can install the fix', function () {
+    Declared::$declaredHandle = 'NewsItem';
+    // Booting the panel's routes included; running package:discover here would rewrite Testbench's shared manifest.
+    $this->bootConfig = ['kami.types' => [Declared::class]];
+    $this->refreshApplication();
+
+    expect($this->app->isBooted())->toBeTrue();
+});
+
+it('fails on an invalid declaration, naming the class and the handle', function (string $handle, array $fields, array $types, string $message) {
     Declared::$declaredHandle = $handle;
     Declared::$declared = $fields;
 
-    expect(fn () => bootWithTypes(...$types))->toThrow(InvalidArgumentException::class, $message);
+    expect(fn () => runWithTypes(...$types))->toThrow(InvalidArgumentException::class, $message);
 })->with([
     'type handle not snake_case' => ['NewsItem', [], [Declared::class], 'Declared: the handle "NewsItem" is not snake_case'],
     'type handle with a double underscore' => ['news__item', [], [Declared::class], 'Declared: the handle "news__item" is not snake_case'],
@@ -69,7 +77,8 @@ it('fails boot on an invalid declaration, naming the class and the handle', func
     'duplicate Field handle' => ['declared', [Text::make('summary'), Text::make('summary')], [Declared::class], 'Declared: the Field handle "summary" appears twice'],
     'reserved Field handle' => ['declared', [Text::make('published_at')], [Declared::class], 'Declared: the Field handle "published_at" is reserved'],
     'Field handle of a type table column' => ['declared', [Text::make('entry_id')], [Declared::class], 'Declared: the Field handle "entry_id" is reserved'],
-    'Field handle of an Entry method' => ['declared', [Text::make('url')], [Declared::class], 'Declared: the Field handle "url" is reserved'],
+    'Field handle of a planned SEO attribute' => ['declared', [Text::make('noindex')], [Declared::class], 'Declared: the Field handle "noindex" is reserved'],
+    'Field handle of an Entry method' => ['declared', [Text::make('url')], [Declared::class], 'Declared: the Field handle "url" names a method of Psyao\\Kami\\Content\\Entry'],
 ]);
 
 it('reads labels from kami-types by handle, or humanises the handle', function () {
@@ -87,4 +96,8 @@ it('reads labels from kami-types by handle, or humanises the handle', function (
         ->and($type->fieldHelp('cover_alt'))->toBe('Describe the image.')
         ->and($type->fieldLabel('lead'))->toBe('Lead')
         ->and($type->fieldHelp('lead'))->toBeNull();
+});
+
+it('reserves every Translation attribute as a Field handle', function () {
+    expect(Field::RESERVED_HANDLES)->toContain(...Translation::ATTRIBUTES);
 });

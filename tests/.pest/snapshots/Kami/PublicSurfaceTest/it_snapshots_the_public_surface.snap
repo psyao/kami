@@ -43,7 +43,7 @@ class Psyao\Kami\Content\Events\EntryUnpublished::__construct() public function 
 class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
-class Psyao\Kami\Content\Fields\Field::RESERVED_HANDLES public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'entry_id', 12 => 'locale', 13 => 'parent', 14 => 'parent_id', 15 => 'position', 16 => 'deleted_at', )
+class Psyao\Kami\Content\Fields\Field::RESERVED_HANDLES public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'meta_title', 12 => 'meta_description', 13 => 'noindex', 14 => 'entry_id', 15 => 'locale', 16 => 'parent', 17 => 'parent_id', 18 => 'position', 19 => 'deleted_at', )
 class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)
 class Psyao\Kami\Content\Fields\Field::default() public function default(mixed $value): static
 class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static

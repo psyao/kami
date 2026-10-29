@@ -50,9 +50,6 @@ final class KamiServiceProvider extends PackageServiceProvider
         $router->middlewareGroup('kami', [FrontSecurityHeaders::class, ResolveLocale::class]);
         $router->aliasMiddleware('kami.security-headers', SecurityHeaders::class);
 
-        // A mistake in a declaration fails every request and command, before it reaches the database (ADR 0007).
-        $this->app->booted(fn () => $this->app->make(ContentTypes::class)->all());
-
         // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
         $this->callAfterResolving(Gate::class, Permissions::register(...));
     }

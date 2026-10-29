@@ -46,7 +46,7 @@ public function handle(): string
 }
 ```
 
-A handle is snake_case (lowercase letters and digits, words joined by single underscores) and 40 characters at most, so the table `kami_type_<handle>` fits every engine. Two types may not share a handle. Kami checks this when the application boots: a mistake fails every request and Artisan command, with a message naming the class and the handle.
+A handle is snake_case (lowercase letters and digits, words joined by single underscores) and 40 characters at most, so the table `kami_type_<handle>` fits every engine. Two types may not share a handle. Kami checks this the first time something reads the types: a mistake fails every page, admin screen and `kami:` command, with a message naming the class and the handle. Composer's `package:discover` still runs, so the fix can be deployed.
 
 ### Prefix
 
@@ -81,9 +81,9 @@ Text::make('author')->shared()->default('The newsroom'),
 
 A Field handle follows the type handle's rules (snake_case, 40 characters at most) and appears once in its type. It may not take a name Kami keeps for its own attributes, listed in `Field::RESERVED_HANDLES`:
 
-`id`, `site`, `type`, `created_by`, `updated_by`, `created_at`, `updated_at`, `title`, `slug`, `status`, `published_at`, `entry_id`, `locale`, `parent`, `parent_id`, `position`, `deleted_at`.
+`id`, `site`, `type`, `created_by`, `updated_by`, `created_at`, `updated_at`, `title`, `slug`, `status`, `published_at`, `meta_title`, `meta_description`, `noindex`, `entry_id`, `locale`, `parent`, `parent_id`, `position`, `deleted_at`.
 
-Nor may it name a method of `Entry`, such as `url` or `translations`: the method would hide the value. The list only grows in a major version. Each rule is checked at boot, like the type's handle.
+Nor may it name a method of `Entry`, Eloquent's included, such as `url`, `translations`, `save` or `touch`: the method would hide the value. The list only grows in a major version. Each rule is checked with the type's handle.
 
 ## The type's table
 

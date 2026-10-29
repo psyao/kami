@@ -280,6 +280,7 @@ final readonly class Doctor
      */
     private function missingViews(): array
     {
+        // ponytail: every M2 type is routable; M3's Singletons and Global Sets are not, and skip this check.
         $viewless = array_filter(
             resolve(ContentTypes::class)->all(),
             fn (ContentType $type): bool => new ReflectionMethod($type, 'render')->getDeclaringClass()->getName() === ContentType::class && ! view()->exists("kami.{$type->handle()}"),
@@ -306,6 +307,7 @@ final readonly class Doctor
             array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->fields()));
         }
 
+        // ponytail: the `default` Site's Locales only, as `Site::current()`; multisite checks every Site's.
         $locales = array_unique([Config::string('app.locale'), ...Site::current()->locales]);
         $problems = [];
 

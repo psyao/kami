@@ -11,7 +11,10 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 
 /**
- * The Content Types listed in `config/kami.php`, found by class or handle, validated when first built: at boot (ADR 0007).
+ * The Content Types listed in `config/kami.php`, found by class or handle, validated when first built (ADR 0007).
+ *
+ * Not at boot: an invalid declaration would break every Artisan command, Composer's `package:discover` included,
+ * the one that installs the fix. Any request or command that reads a type fails instead.
  *
  * @internal
  */
@@ -22,6 +25,9 @@ final class ContentTypes
 
     /** @var array<mixed> The `kami.types` the registry was built from. */
     private array $classes = [];
+
+    /** @var array<mixed> The `kami.types` last found valid. */
+    private array $validated = [];
 
     /** @var array<string, ContentType> */
     private array $types = [];
@@ -38,59 +44,77 @@ final class ContentTypes
      */
     public function all(): array
     {
+        $types = $this->declared();
+
+        if ($this->classes !== $this->validated) {
+            $this->validate($types);
+            $this->validated = $this->classes;
+        }
+
+        return $types;
+    }
+
+    /**
+     * Unvalidated, for the panel: it registers one Resource per type while the application boots.
+     *
+     * @return array<string, ContentType>
+     */
+    public function declared(): array
+    {
         // Rebuilt only when `kami.types` changes, as in a test.
         if (($classes = Config::array('kami.types')) !== $this->classes) {
-            $this->types = $this->build($classes);
+            $this->types = [];
+
+            foreach ($classes as $class) {
+                $type = is_string($class) ? app()->make($class) : null;
+
+                if (! $type instanceof ContentType) {
+                    throw new InvalidArgumentException('Every entry of kami.types is a class extending ' . ContentType::class . '.');
+                }
+
+                $this->types[$class] = $type;
+            }
+
             $this->classes = $classes;
         }
 
         return $this->types;
     }
 
-    /**
-     * @param  array<mixed>  $classes
-     * @return array<string, ContentType>
-     */
-    private function build(array $classes): array
+    /** @param array<string, ContentType> $types */
+    private function validate(array $types): void
     {
-        $types = [];
+        $handles = [];
 
-        foreach ($classes as $class) {
-            $type = is_string($class) ? app()->make($class) : null;
-
-            if (! $type instanceof ContentType) {
-                throw new InvalidArgumentException('Every entry of kami.types is a class extending ' . ContentType::class . '.');
-            }
-
+        foreach ($types as $class => $type) {
             $this->validateHandle($class, 'the handle', $type->handle());
 
-            foreach ($types as $other => $declared) {
-                if ($declared->handle() === $type->handle()) {
-                    throw new InvalidArgumentException("{$class}: the handle \"{$type->handle()}\" is already the handle of {$other}; override handle() on one of them.");
-                }
+            if (isset($handles[$type->handle()])) {
+                throw new InvalidArgumentException("{$class}: the handle \"{$type->handle()}\" is already the handle of {$handles[$type->handle()]}; override handle() on one of them.");
             }
 
-            $handles = [];
+            $handles[$type->handle()] = $class;
+            $fields = [];
 
             foreach ($type->fields() as $field) {
                 $this->validateHandle($class, 'the Field handle', $field->handle);
 
-                if (in_array($field->handle, $handles, true)) {
+                if (in_array($field->handle, $fields, true)) {
                     throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" appears twice.");
                 }
 
-                // A column or a method of `Entry` would hide the Field's value (`Entry::getAttribute()`).
-                if (in_array($field->handle, Field::RESERVED_HANDLES, true) || method_exists(Entry::class, $field->handle)) {
+                if (in_array($field->handle, Field::RESERVED_HANDLES, true)) {
                     throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" is reserved by Kami's own attributes; rename the Field.");
                 }
 
-                $handles[] = $field->handle;
+                // `Entry::getAttribute()` would return the method's relation or nothing, never the Field's value.
+                if (method_exists(Entry::class, $field->handle)) {
+                    throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" names a method of " . Entry::class . ', which would hide its value; rename the Field.');
+                }
+
+                $fields[] = $field->handle;
             }
-
-            $types[$class] = $type;
         }
-
-        return $types;
     }
 
     private function validateHandle(string $class, string $what, string $handle): void

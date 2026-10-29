@@ -65,7 +65,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 
 - `public protected(set) readonly string $handle`
 - `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
-- `public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'entry_id', 12 => 'locale', 13 => 'parent', 14 => 'parent_id', 15 => 'position', 16 => 'deleted_at', )`: Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
+- `public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'meta_title', 12 => 'meta_description', 13 => 'noindex', 14 => 'entry_id', 15 => 'locale', 16 => 'parent', 17 => 'parent_id', 18 => 'position', 19 => 'deleted_at', )`: Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
 - `final public function __construct(string $handle)`
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
 - `public static function make(string $handle): static`
