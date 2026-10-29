@@ -9,6 +9,8 @@ use Orchestra\Testbench\TestCase as Orchestra;
 use Workbench\App\Models\User;
 use Workbench\App\Providers\AdminPanelProvider;
 
+use function Orchestra\Testbench\default_migration_path;
+
 /**
  * Testbench's bare skeleton, with no panel: an application Kami has not been added to yet.
  * The suite runs serially, as `kami:install` publishes assets into the skeleton's shared `public/`.
@@ -27,6 +29,8 @@ abstract class InstallTestCase extends Orchestra
         $this->panelProviders = [AdminPanelProvider::class];
         $this->refreshApplication();
         config(['auth.providers.users.model' => User::class]);
+        // A site has its users table: Laravel's migrations run with Kami's when kami:install migrates.
+        $this->app->make('migrator')->path(default_migration_path());
     }
 
     protected function getPackageProviders($app): array
@@ -40,11 +44,14 @@ abstract class InstallTestCase extends Orchestra
 
         // The skeleton ships `public/` without a directory: anything there was published by an earlier run.
         File::deleteDirectories(public_path());
+        // What a deploy script exports for the first administrator; a test about its absence unsets it.
+        $_SERVER['KAMI_ADMIN_PASSWORD'] = 'correct horse battery';
     }
 
     protected function tearDown(): void
     {
         File::deleteDirectories(public_path());
+        unset($_SERVER['KAMI_ADMIN_PASSWORD']);
 
         parent::tearDown();
     }

@@ -20,11 +20,10 @@ A new site starts from the starter kit:
 laravel new site --using=psyao/kami-starter
 cd site
 php artisan kami:install
-php artisan make:filament-user
 php artisan serve
 ```
 
-The admin answers at `/admin`. To add Kami to an application you already have, see [Existing application](docs/guide/existing-application.md).
+`kami:install` asks for the first administrator, who signs in at `/admin`. To add Kami to an application you already have, see [Existing application](docs/guide/existing-application.md).
 
 ## Documentation
 

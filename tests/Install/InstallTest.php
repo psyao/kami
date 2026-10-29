@@ -13,7 +13,7 @@ use Psyao\Kami\Support\Internal\Doctor\Doctor;
 
 function install(): PendingCommand
 {
-    return test()->artisan('kami:install', ['--no-interaction' => true]);
+    return test()->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada']);
 }
 
 /**

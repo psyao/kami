@@ -11,3 +11,6 @@ Check that this environment can run Kami
 ## `kami:install`
 
 Install Kami, or bring it up to date after a deploy
+
+- `[--email [EMAIL]]`: The first administrator's email, used while no User may manage Users
+- `[--name [NAME]]`: The first administrator's name

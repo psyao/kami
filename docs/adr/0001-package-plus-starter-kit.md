@@ -37,5 +37,5 @@ Inside a host application, Kami registers nothing global unless the host opts in
   7. makes sure at least one User holds `kami.users.manage`. When `--email` names an existing User, that User gets the `administrator` Role and keeps their password. An unknown email creates the User. With no terminal and no `--email`, the command fails and prints `kami:user:grant {email} administrator`. This step never creates a second account in a host application whose staff already exist (kawaiidream.net, "Kami inside a custom application").
 - `kami:install` never writes to host files (Velox friction A7). In an existing application, it prints the lines the host must add and fails until `KamiPlugin` is registered on a panel.
 - First admin credentials (Velox friction I-120):
-  - Email and name come from `--email` and `--name`, prompted through `PromptsForMissingInput` in a terminal.
+  - Email and name come from `--email` and `--name`, prompted in a terminal only while no User holds `kami.users.manage` (`PromptsForMissingInput` prompts for missing arguments, not options, and would ask on every deploy).
   - The password is never a command argument. In a terminal it is read with Laravel Prompts `password()`. Without a terminal it comes from `KAMI_ADMIN_PASSWORD`; when that is unset, the command prints a one-time link to set the password.
