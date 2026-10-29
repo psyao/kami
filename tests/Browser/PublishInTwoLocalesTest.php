@@ -15,7 +15,14 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')]);
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
 
-    visit('/admin/login')
+    // Filament's theme drops its transitions under reduced motion, so axe never measures a notification mid-fade.
+    $page = visit('/admin/login', ['reducedMotion' => 'reduce']);
+
+    // Filament loads the password field's Alpine component after the page (`x-load`, `x-ignore` until it arrives):
+    // its `wire:model` then resets the field to the empty Livewire state, wiping a password typed before.
+    $page->script("new Promise(function wait(resolve) { document.querySelector('[x-load][x-ignore]') ? requestAnimationFrame(() => wait(resolve)) : resolve(); })");
+
+    $page
         ->fill('[id="form.email"]', 'ada@example.test')
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]')
