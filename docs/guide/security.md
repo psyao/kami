@@ -30,7 +30,7 @@ The companion headers:
 
 ## Your own pages
 
-Your application's routes run in the `web` group, not Kami's. Append the middleware to it in `bootstrap/app.php`, so they get the same policy:
+Your application's routes run in the `web` group, not Kami's. Append the middleware to it in `bootstrap/app.php`, so they get the same policy; the starter kit does:
 
 ```php
 use Psyao\Kami\Support\SecurityHeaders;

@@ -95,4 +95,4 @@ class User extends Authenticatable implements FilamentUser, KamiUser
 }
 ```
 
-In an application with its own staff, `canAccessPanel()` may admit Users with no Kami Role: they sign in and see nothing of Kami. `kami:doctor` counts them as an information, which never fails it, not even with `--strict`.
+The starter kit's User does exactly this. In an application with its own staff, `canAccessPanel()` may admit Users with no Kami Role: they sign in and see nothing of Kami. `kami:doctor` counts them as an information, which never fails it, not even with `--strict`.
