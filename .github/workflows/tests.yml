@@ -240,7 +240,17 @@ jobs:
       - name: Browser suite
         run: |
           mkdir -p tests/Browser/Traces
-          vendor/bin/pest --testsuite=Browser --ci
+          vendor/bin/pest --testsuite=Browser --ci --trace
+
+      # A failed test leaves a screenshot and a Playwright trace (console, network, DOM): open the trace on trace.playwright.dev.
+      - name: Upload screenshots and traces
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-failures
+          path: |
+            tests/Browser/Screenshots
+            tests/Browser/Traces
 
   smoke:
     name: Smoke (Apache + FPM, MariaDB 10.11)
