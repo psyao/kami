@@ -10,9 +10,6 @@ abstract class Field
     /** One value per Locale, or one Shared value for the whole Entry (ADR 0013). */
     protected bool $translatable = true;
 
-    /** The Laravel column type of its `kami_type_<handle>` column (ADR 0006). */
-    protected string $column = 'string';
-
     private bool $required = false;
 
     /** @var array<mixed> */
@@ -93,10 +90,14 @@ abstract class Field
         return $this->rules;
     }
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * The Laravel column type of its `kami_type_<handle>` column (ADR 0006).
+     */
     public function column(): string
     {
-        return $this->column;
+        return 'string';
     }
 
     /** @internal */

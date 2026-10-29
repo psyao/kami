@@ -59,7 +59,6 @@ One content item in all its Locales, read in the current Locale; only visible En
 
 A value a Content Type stores, in a typed column of its `kami_type_<handle>` table (ADR 0006).
 
-- `protected string $column = 'string'`: The Laravel column type of its `kami_type_<handle>` column (ADR 0006).
 - `public protected(set) readonly string $handle`
 - `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
 - `final public function __construct(string $handle)`

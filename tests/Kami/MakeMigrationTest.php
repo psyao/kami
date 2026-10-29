@@ -217,3 +217,14 @@ it('refuses to drop or retype a column whose type it could not write back', func
 
     expect(writtenMigrations())->toHaveCount(1);
 });
+
+it('says so when a lost column is dropped because no new one is left to rename it to', function () {
+    declareNote([Text::make('summary'), Text::make('author')]);
+    generateAndMigrate();
+
+    declareNote([Text::make('lede')]);
+    $this->artisan('kami:make:migration')
+        ->expectsChoice('kami_type_note.summary is no longer declared. Is it renamed?', 'lede', ['lede' => 'Renamed to lede', '-' => 'Dropped, with its values'])
+        ->expectsOutputToContain('kami_type_note.author is dropped, with its values')
+        ->assertSuccessful();
+});

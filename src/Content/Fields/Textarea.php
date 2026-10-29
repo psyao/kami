@@ -7,6 +7,10 @@ namespace Psyao\Kami\Content\Fields;
 /** Several lines of plain text. */
 final class Textarea extends Field
 {
+    /** @internal */
     #[\Override]
-    protected string $column = 'text';
+    public function column(): string
+    {
+        return 'text';
+    }
 }

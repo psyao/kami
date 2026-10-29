@@ -37,7 +37,6 @@ class Psyao\Kami\Content\Events\EntryUnpublished::$entry public protected(set) r
 class Psyao\Kami\Content\Events\EntryUnpublished::$locale public protected(set) readonly string $locale
 class Psyao\Kami\Content\Events\EntryUnpublished::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Fields\Field abstract class
-class Psyao\Kami\Content\Fields\Field::$column protected string $column = 'string'
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)

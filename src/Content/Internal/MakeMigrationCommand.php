@@ -67,7 +67,7 @@ final class MakeMigrationCommand extends Command
             return self::SUCCESS;
         }
 
-        $name = count($changes) > 1 ? 'update_kami_type_tables' : (str_starts_with(current($changes)['up'], 'Schema::create') ? 'create_' : 'update_') . key($changes) . '_table';
+        $name = count($changes) > 1 ? 'update_kami_type_tables' : (current($changes)['create'] ? 'create_' : 'update_') . key($changes) . '_table';
         $path = database_path('migrations/' . date('Y_m_d_His') . "_{$name}.php");
 
         // A generator only creates files: a second run in the same second would overwrite the first.
@@ -77,7 +77,7 @@ final class MakeMigrationCommand extends Command
             return self::FAILURE;
         }
 
-        File::put($path, $this->migration(array_column($changes, 'up'), array_reverse(array_column($changes, 'down'))));
+        File::put($path, $this->migration(array_merge(...array_column($changes, 'up')), array_merge(...array_reverse(array_column($changes, 'down')))));
         $this->components->info("Migration [{$path}] created.");
 
         return self::SUCCESS;
@@ -100,9 +100,9 @@ final class MakeMigrationCommand extends Command
     }
 
     /**
-     * The statements creating or altering a type's table and undoing it, `null` when it matches, `false` when the command must stop.
+     * The `Schema` calls creating or altering a type's table and undoing them, `null` when it matches, `false` when the command must stop.
      *
-     * @return array{up: string, down: string}|false|null
+     * @return array{create: bool, up: list<string>, down: list<string>}|false|null
      */
     private function change(ContentType $type): array | false | null
     {
@@ -119,13 +119,14 @@ final class MakeMigrationCommand extends Command
             }
 
             return [
-                'up' => $this->schema('create', $table, [
+                'create' => true,
+                'up' => [$this->schema('create', $table, [
                     "\$table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();",
                     "\$table->string('locale', 20);",
                     ...array_map($this->column(...), array_keys($declared), $declared),
                     "\$table->unique(['entry_id', 'locale']);",
-                ]),
-                'down' => "Schema::dropIfExists('{$table}');",
+                ])],
+                'down' => ["Schema::dropIfExists('{$table}');"],
             ];
         }
 
@@ -156,8 +157,10 @@ final class MakeMigrationCommand extends Command
         $dropped = array_diff_key($existing, $declared);
 
         // down() writes these columns back as they are: Kami knows how only for the types a Field declares.
-        foreach (array_diff(array_intersect_key($existing, $retyped + $dropped), self::COLUMN_TYPES) as $field => $column) {
-            $this->components->error("{$table}.{$field} has type {$column}, which kami:make:migration cannot write back in down(). Write this migration by hand.");
+        $unknown = array_diff(array_intersect_key($existing, $retyped + $dropped), self::COLUMN_TYPES);
+
+        if (($field = array_key_first($unknown)) !== null) {
+            $this->components->error("{$table}.{$field} has type {$unknown[$field]}, which kami:make:migration cannot write back in down(). Write this migration by hand.");
 
             return false;
         }
@@ -183,8 +186,9 @@ final class MakeMigrationCommand extends Command
 
         // Laravel runs a Blueprint's change() before its renameColumn(): renames get a Blueprint of their own.
         return [
-            'up' => implode("\n\n        ", array_filter([$this->schema('table', $table, $renames), $this->schema('table', $table, $up)])),
-            'down' => implode("\n\n        ", array_filter([$this->schema('table', $table, array_reverse($down)), $this->schema('table', $table, $unrenames)])),
+            'create' => false,
+            'up' => array_values(array_filter([$this->schema('table', $table, $renames), $this->schema('table', $table, $up)])),
+            'down' => array_values(array_filter([$this->schema('table', $table, array_reverse($down)), $this->schema('table', $table, $unrenames)])),
         ];
     }
 
@@ -214,7 +218,9 @@ final class MakeMigrationCommand extends Command
             $candidates = array_diff($added, $renamed);
 
             if ($candidates === []) {
-                break;
+                $this->components->warn("{$table}.{$from} is dropped, with its values: no new column is left to rename it to.");
+
+                continue;
             }
 
             $to = select(
