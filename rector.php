@@ -10,5 +10,6 @@ return RectorConfig::configure()
         __DIR__ . '/config',
         __DIR__ . '/src',
         __DIR__ . '/workbench/app',
+        __DIR__ . '/workbench/database',
     ])
     ->withSets([__DIR__ . '/rector-set.php']);

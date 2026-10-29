@@ -8,7 +8,7 @@ pre-commit:
     - name: gitleaks
       run: gitleaks git --pre-commit --staged --redact --no-banner
     - name: rector
-      glob: "{config,src,workbench/app}/**/*.php" # rector.php's paths: tests are left as written
+      glob: "{config,src,workbench/app,workbench/database}/**/*.php" # rector.php's paths: tests are left as written
       run: vendor/bin/rector process {staged_files}
       stage_fixed: true
     - name: pint # after Rector, to format what it wrote

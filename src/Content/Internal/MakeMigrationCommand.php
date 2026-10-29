@@ -251,7 +251,7 @@ final class MakeMigrationCommand extends Command
 
         $body = implode("\n", array_map(fn (string $statement): string => "            {$statement}", $statements));
 
-        return "Schema::{$method}('{$table}', function (Blueprint \$table) {\n{$body}\n        });";
+        return "Schema::{$method}('{$table}', function (Blueprint \$table): void {\n{$body}\n        });";
     }
 
     /**

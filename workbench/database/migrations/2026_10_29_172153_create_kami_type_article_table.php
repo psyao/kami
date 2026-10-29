@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('kami_type_article', function (Blueprint $table) {
+        Schema::create('kami_type_article', function (Blueprint $table): void {
             $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
             $table->string('locale', 20);
             $table->string('summary')->nullable();
