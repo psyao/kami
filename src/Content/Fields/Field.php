@@ -90,6 +90,16 @@ abstract class Field
         return $this->rules;
     }
 
+    /**
+     * @internal
+     *
+     * The Laravel column type of its `kami_type_<handle>` column (ADR 0006).
+     */
+    public function column(): string
+    {
+        return 'string';
+    }
+
     /** @internal */
     public function isTranslatable(): bool
     {

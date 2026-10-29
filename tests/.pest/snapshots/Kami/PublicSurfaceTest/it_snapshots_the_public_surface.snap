@@ -66,6 +66,8 @@ command kami:doctor --strict [--strict]
 command kami:install
 command kami:install --email [--email [EMAIL]]
 command kami:install --name [--name [NAME]]
+command kami:make:migration
+command kami:make:migration type [<type>]
 config kami.resources.entry
 config kami.roles.administrator
 config kami.security.csp

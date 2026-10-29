@@ -14,3 +14,9 @@ Install Kami, or bring it up to date after a deploy
 
 - `[--email [EMAIL]]`: The first administrator's email, used while no User may manage Users
 - `[--name [NAME]]`: The first administrator's name
+
+## `kami:make:migration`
+
+Write a migration bringing the kami_type_* tables in line with the declared Content Types
+
+- `[<type>]`: A Content Type's handle or class, every declared type when left out

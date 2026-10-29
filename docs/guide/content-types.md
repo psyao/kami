@@ -77,33 +77,25 @@ Text::make('author')->shared()->default('The newsroom'),
 
 ## The type's table
 
-A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale and one `'*'` row for the Shared Fields (ADR 0006). Until `kami:make:migration` writes it for you, add the migration by hand in `database/migrations`:
+A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale and one `'*'` row for the Shared Fields (ADR 0006). Kami writes its migration for you:
 
-```php
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::create('kami_type_article', function (Blueprint $table) {
-            $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
-            $table->string('locale', 20);
-            $table->string('summary')->nullable();
-            $table->unique(['entry_id', 'locale']);
-        });
-    }
-
-    public function down(): void
-    {
-        Schema::dropIfExists('kami_type_article');
-    }
-};
+```bash
+php artisan kami:make:migration
 ```
 
-One nullable column per Field, with no default: a Draft may be incomplete. A type with no Field needs no table. `kami:install` runs the migration with Kami's own.
+The command compares every declared type with the database and writes one ordinary migration into `database/migrations`, then prints its path. It never runs it: read it, commit it, and `kami:install` (or `php artisan migrate`) runs it with Kami's own. Pass a handle or a class (`kami:make:migration article`) to look at one type only. When nothing differs, it says "Nothing to do" and writes no file.
+
+What it writes:
+
+- **A new type**: its table, with `entry_id` (deleted with the Entry), `locale`, one unique row per Entry and Locale, and one column per Field.
+- **An added Field**: a new column. **A removed Field**: a dropped column, with its values. **A Field whose type changed** (`Text` to `Textarea`): the column's new type.
+- **A down() method** that undoes all of it.
+
+Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. A `Text` Field is a `string` column, a `Textarea` Field a `text` one. A type with no Field gets no table, and a type you remove from `types` keeps its table: the command never drops one.
+
+Renaming a Field looks like removing one and adding another, and the drop would lose its values. So when a type both loses and gains columns, the command asks in a terminal, for each lost column, whether it is renamed to one of the new ones (`renameColumn`, values kept) or dropped. Without a terminal (a deploy script, `--no-interaction`), it refuses and prints both options rather than guess.
+
+Run `php artisan migrate` between two runs: while a migration that touches a `kami_type_*` table is pending, the command refuses, since it would write the same change twice.
 
 ## In the admin
 
