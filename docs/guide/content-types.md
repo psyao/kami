@@ -35,6 +35,8 @@ List it in `config/kami.php`:
 
 Every Entry has a title, a slug, a status and a publication date of its own: they are not Fields. The type adds the rest.
 
+Removing a type from the list deletes nothing: its Entries are kept and answer 404 until it is listed again. `kami:doctor` warns about them.
+
 ### Handle
 
 A type's handle is the snake_case of its class name: `Article` is `article`, `NewsItem` is `news_item`. Kami stores it with every Entry and names the type's table and view after it. To rename the class without changing the handle, override `handle()`:
@@ -57,6 +59,8 @@ A handle is snake_case (lowercase letters and digits, words joined by single und
 | not set (handle `article`) | `/article/hello` |
 | `'articles'` | `/articles/hello` |
 | `''` | `/hello` |
+
+Changing a Prefix moves the type's Entries on the next `kami:install` ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
 ## Fields
 

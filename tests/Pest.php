@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Illuminate\Testing\PendingCommand;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
@@ -23,6 +24,12 @@ pest()->extend(TestCase::class)->beforeEach(function () {
     $this->artisan('filament:assets');
 })->in('Browser');
 pest()->extend(InstallTestCase::class)->in('Install');
+
+/** `kami:install` as a deploy runs it, with the first administrator's inputs. */
+function install(): PendingCommand
+{
+    return test()->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada']);
+}
 
 /**
  * The anchors of a Markdown file's headings, as GitHub and the Boost resources link them.

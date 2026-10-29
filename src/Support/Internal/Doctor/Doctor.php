@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
@@ -19,6 +20,7 @@ use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\Internal\SecurityPolicy;
@@ -66,6 +68,7 @@ final readonly class Doctor
         $panels = $this->panels();
         // A database Kami cannot reach is already an error, and the table is missing until the first `kami:install`.
         $assignments = rescue(fn (): bool => Schema::hasTable('kami_role_user'), false, report: false);
+        $content = rescue(fn (): bool => Schema::hasTable('kami_paths'), false, report: false);
 
         return [
             ...$this->environment(),
@@ -77,6 +80,7 @@ final readonly class Doctor
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
+            ...($content ? [...array_filter([$this->pathDrift()]), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
         ];
     }
@@ -322,6 +326,59 @@ final readonly class Doctor
                     'content-types.md#labels',
                 );
             }
+        }
+
+        return $problems;
+    }
+
+    /** A Prefix changed or a Locale added since the last `kami:install`: the 200 rows still hold the old addresses (ADR 0008). */
+    private function pathDrift(): ?Problem
+    {
+        $drift = resolve(SyncPaths::class)(write: false);
+
+        return $drift['created'] + $drift['rewritten'] + $drift['deleted'] === 0 ? null : new Problem(
+            Severity::Warning,
+            "Paths do not follow the declarations yet: kami:install would create {$drift['created']}, rewrite {$drift['rewritten']} and delete {$drift['deleted']}.",
+            'run php artisan kami:install, as every deploy does: until then, Entries answer at their former addresses.',
+            'routing-and-rendering.md#after-a-deploy',
+        );
+    }
+
+    /**
+     * Content the declarations no longer reach: kept, never deleted, and answering nowhere (ADR 0006).
+     *
+     * @return list<Problem>
+     */
+    private function undeclaredContent(): array
+    {
+        // ponytail: the `default` Site only, as `Site::current()`; multisite checks every Site's.
+        $site = Site::current();
+        $declared = [...$site->locales, '*'];
+        $types = array_map(fn (ContentType $type): string => $type->handle(), array_values(resolve(ContentTypes::class)->all()));
+        $tables = array_filter(['kami_translations', ...array_map(fn (string $type): string => "kami_type_{$type}", $types)], Schema::hasTable(...));
+        $locales = collect($tables)
+            ->mapWithKeys(fn (string $table): array => [$table => DB::table($table)->join('kami_entries', 'kami_entries.id', '=', "{$table}.entry_id")
+                ->where('kami_entries.site', $site->handle)->whereNotIn("{$table}.locale", $declared)->distinct()->pluck("{$table}.locale")])
+            ->filter(fn (Collection $locales): bool => $locales->isNotEmpty());
+        $undeclared = DB::table('kami_entries')->where('site', $site->handle)->whereNotIn('type', $types)->distinct()->pluck('type');
+        $problems = [];
+
+        if ($locales->isNotEmpty()) {
+            $problems[] = new Problem(
+                Severity::Warning,
+                "Rows of {$locales->keys()->implode(', ')} are in a Locale the {$site->handle} Site does not declare: {$locales->flatten()->unique()->sort()->implode(', ')}.",
+                "declare it again in config/kami.php under sites.{$site->handle}.locales: until then they are kept and answer nowhere.",
+                'multilingual.md#locales',
+            );
+        }
+
+        if ($undeclared->isNotEmpty()) {
+            $problems[] = new Problem(
+                Severity::Warning,
+                "Entries are of a type config/kami.php does not declare: {$undeclared->sort()->implode(', ')}.",
+                'declare it again in config/kami.php under types: until then its Entries are kept and answer 404.',
+                'content-types.md#declaring-a-type',
+            );
         }
 
         return $problems;
