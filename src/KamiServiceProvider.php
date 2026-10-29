@@ -6,6 +6,7 @@ namespace Psyao\Kami;
 
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Routing\Router;
+use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
@@ -32,6 +33,7 @@ final class KamiServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->app->singleton(PluginRegistration::class);
+        $this->app->singleton(ContentTypes::class);
 
         // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
         config(['app.timezone' => 'UTC']);
@@ -47,6 +49,9 @@ final class KamiServiceProvider extends PackageServiceProvider
         $router = $this->app->make(Router::class);
         $router->middlewareGroup('kami', [FrontSecurityHeaders::class, ResolveLocale::class]);
         $router->aliasMiddleware('kami.security-headers', SecurityHeaders::class);
+
+        // A mistake in a declaration fails every request and command, before it reaches the database (ADR 0007).
+        $this->app->booted(fn () => $this->app->make(ContentTypes::class)->all());
 
         // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
         $this->callAfterResolving(Gate::class, Permissions::register(...));

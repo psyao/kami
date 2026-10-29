@@ -16,6 +16,9 @@ abstract class TestCase extends Orchestra
     /** Load Filament and Kami the way a real Site does: through package discovery. */
     protected $enablesPackageDiscoveries = true;
 
+    /** @var array<string, mixed> Config set before the application boots, for a test of boot itself. */
+    public array $bootConfig = [];
+
     /** @var list<string> The databases this process created, once each. */
     private static array $databases = [];
 
@@ -23,6 +26,7 @@ abstract class TestCase extends Orchestra
     {
         // A lazy load, a discarded or a missing Eloquent attribute throws.
         Model::shouldBeStrict();
+        $app->make('config')->set($this->bootConfig);
 
         $this->useOwnDatabaseInParallel($app);
     }

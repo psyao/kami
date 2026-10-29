@@ -7,6 +7,18 @@ namespace Psyao\Kami\Content\Fields;
 /** A value a Content Type stores, in a typed column of its `kami_type_<handle>` table (ADR 0006). */
 abstract class Field
 {
+    /**
+     * Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
+     *
+     * A new one only arrives in a major version. A handle naming a method of `Entry` is refused too.
+     */
+    public const array RESERVED_HANDLES = [
+        'id', 'site', 'type', 'created_by', 'updated_by', 'created_at', 'updated_at',
+        'title', 'slug', 'status', 'published_at',
+        'entry_id', 'locale',
+        'parent', 'parent_id', 'position', 'deleted_at',
+    ];
+
     /** One value per Locale, or one Shared value for the whole Entry (ADR 0013). */
     protected bool $translatable = true;
 
