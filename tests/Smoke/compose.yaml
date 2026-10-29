@@ -29,6 +29,18 @@ services:
     environment:
       COMPOSER_HOME: /tmp/composer
 
+  # The developer's machine: builds the front assets, which the host never does (docs/guide/deployment.md § Front assets).
+  node:
+    image: node:lts-bookworm-slim
+    profiles: [cli] # like cli: left out of `up`, run once by run.sh
+    user: www-data
+    working_dir: /var/www/site
+    environment:
+      npm_config_cache: /tmp/npm
+    volumes:
+      - site:/var/www/site
+    command: sh -c 'npm ci --no-audit --no-fund && npm run build'
+
   apache:
     image: httpd:2.4
     depends_on: [php]

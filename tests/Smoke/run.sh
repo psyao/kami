@@ -12,8 +12,21 @@ base_url="http://localhost:${SMOKE_PORT:-8080}"
 
 docker compose down --volumes --remove-orphans
 docker compose up --build --detach --wait php mariadb
-# -T: the container never reads this script's stdin.
+# -T: no TTY, so the runs work in CI; stdin stays attached, which the Page's heredoc below relies on.
 docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
+docker compose run -T --rm node
+
+# An editor's first Page, published in both Locales from the command line, as an import would.
+docker compose run -T --rm cli php <<'PHP'
+<?php
+require 'vendor/autoload.php';
+$app = require 'bootstrap/app.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+$save = $app->make(Psyao\Kami\Content\Actions\SaveEntry::class);
+$page = $save->handle(App\Content\Page::class, ['title' => 'Fumée', 'slug' => 'smoke', 'status' => 'published', 'body' => 'Bonjour']);
+$save->handle(App\Content\Page::class, ['title' => 'Smoke', 'slug' => 'smoke', 'status' => 'published', 'body' => 'Hello'], $page, 'en');
+PHP
 # Apache needs the site's public/ to start.
 docker compose up --detach --wait apache
 
@@ -31,8 +44,27 @@ expect() {
     fi
 }
 
+# A Kami page after `php artisan optimize`: its Locale's text, Kami's CSP, and no session cookie, since the
+# `kami` group runs without `web`. Only a cached route table proves the group survives `route:cache` (psyao/kami#102).
+expect_page() {
+    local response problems=()
+    response=$(curl --silent --show-error --include --header 'X-Forwarded-Proto: https' "$base_url$1" | tr -d '\r' || true)
+    head -n 1 <<<"$response" | grep -q ' 200' || problems+=("$(head -n 1 <<<"$response")")
+    grep -qi '^content-security-policy:' <<<"$response" || problems+=('no Content-Security-Policy')
+    ! grep -qi '^set-cookie:' <<<"$response" || problems+=('a Set-Cookie')
+    sed '1,/^$/d' <<<"$response" | grep -qF "$2" || problems+=("no \"$2\"")
+    if [ ${#problems[@]} -eq 0 ]; then
+        echo "GET $1: 200, CSP, no cookie, \"$2\""
+    else
+        echo "GET $1: $(IFS=,; echo "${problems[*]}")"
+        failed=1
+    fi
+}
+
 # One step per subsystem as the milestones land it.
 expect 200 /admin/login
+expect_page /smoke Bonjour
+expect_page /en/smoke Hello
 
 logs=$(docker compose exec -T php sh -c 'cat /var/log/php/error.log /var/www/site/storage/logs/*.log 2>/dev/null' || true)
 if [ -n "$logs" ]; then
