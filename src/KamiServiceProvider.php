@@ -6,6 +6,7 @@ namespace Psyao\Kami;
 
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Routing\Router;
+use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -25,7 +26,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         $package->name('kami')
             ->hasConfigFile()
             ->hasTranslations()
-            ->hasCommands([DoctorCommand::class, InstallCommand::class]);
+            ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class]);
     }
 
     public function packageRegistered(): void
