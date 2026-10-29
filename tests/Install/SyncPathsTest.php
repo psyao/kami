@@ -161,12 +161,12 @@ it('fails before the first administrator, naming the address, when another Entry
     installedSite();
     DB::table('kami_role_user')->delete();
     $page = saved(Page::class, ['title' => 'Urgent', 'slug' => 'urgent'], locale: 'fr');
-    saved(Label::class, ['title' => 'Urgent']);
+    $label = saved(Label::class, ['title' => 'Urgent']);
     $rows = paths();
     config(['kami.types' => [PageUnderLabel::class, Label::class]]);
 
     install()
-        ->expectsOutputToContain("Entry {$page->id} cannot take /label/urgent in fr: another Entry holds it.")
+        ->expectsOutputToContain("Entry {$page->id} cannot take /label/urgent in fr: Entry {$label->id} holds it.")
         ->assertFailed();
 
     expect(paths())->toBe($rows)

@@ -30,7 +30,7 @@ An Entry answers only while it is visible. A Draft, an Entry whose publication d
 
 Saving an Entry reserves its Path, a Draft's included. A change in code moves Paths only when `kami:install` runs, as every deploy does ([Deployment](deployment.md#later-deploys)):
 
-- a new Prefix moves the type's Entries to their new addresses; the former ones answer 404;
+- a new Prefix moves the type's Entries to their new addresses; Kami does not redirect the former ones yet, so they answer 404;
 - a new Locale gives each Entry of an untranslatable type its Path there;
 - a Path whose Translation is gone is deleted.
 

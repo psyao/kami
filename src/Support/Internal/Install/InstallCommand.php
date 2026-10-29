@@ -84,7 +84,7 @@ final class InstallCommand extends Command
         $this->components->info("Paths: {$result['created']} created, {$result['rewritten']} rewritten, {$result['deleted']} deleted.");
 
         foreach ($result['clashes'] as $clash) {
-            $this->components->error("Entry {$clash['entry_id']} cannot take /{$clash['path']} in {$clash['locale']}: another Entry holds it. Change one of the two slugs, then run kami:install again.");
+            $this->components->error("Entry {$clash['entry_id']} cannot take /{$clash['path']} in {$clash['locale']}: Entry {$clash['holder']} holds it. Change one of the two slugs, then run kami:install again.");
         }
 
         return $result['clashes'] === [];

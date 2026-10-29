@@ -30,21 +30,22 @@ final readonly class SyncPaths
     /**
      * With `$write` false, counts the differences and changes nothing.
      *
-     * @return array{created: int, rewritten: int, deleted: int, clashes: list<Row>}
+     * @return array{created: int, rewritten: int, deleted: int, clashes: list<array{entry_id: string, locale: string, path: string, holder: string|null}>}
      */
     public function __invoke(bool $write = true): array
     {
+        // ponytail: the `default` Site only, as `Site::current()`; multisite syncs every Site's.
         $site = Site::current();
         $counts = ['created' => 0, 'rewritten' => 0, 'deleted' => 0];
-        /** @var list<array{row: Row, current: Path|null}> $clashes */
-        $clashes = [];
+        /** @var list<array{row: Row, current: Path|null}> $pending */
+        $pending = [];
 
         foreach ($this->types->all() as $type) {
             DB::table('kami_entries')->where(['site' => $site->handle, 'type' => $type->handle()])->select('id')
-                ->chunkById(self::BATCH, function (Collection $entries) use ($site, $type, $write, &$counts, &$clashes): void {
+                ->chunkById(self::BATCH, function (Collection $entries) use ($site, $type, $write, &$counts, &$pending): void {
                     $ids = $entries->pluck('id');
                     $stored = Path::query()->where(['site' => $site->handle, 'status' => 200])->whereIn('entry_id', $ids)
-                        ->whereIn('locale', $site->locales)->get()->keyBy(fn (Path $path): string => "{$path->entry_id} {$path->locale}");
+                        ->whereIn('locale', $site->locales)->get()->keyBy(fn (Path $path): string => $this->key($path->entry_id, $path->locale));
                     $expected = $this->expected($site, $type, $ids);
 
                     // Deleted first: a freed address may be the one another row moves to.
@@ -62,23 +63,28 @@ final readonly class SyncPaths
                             continue;
                         }
 
-                        $counts[$current === null ? 'created' : 'rewritten']++;
-
-                        if ($write && ! $this->write($site, $row, $current)) {
-                            $clashes[] = ['row' => $row, 'current' => $current];
+                        if (! $write || $this->write($site, $row, $current)) {
+                            $counts[$current === null ? 'created' : 'rewritten']++;
+                        } else {
+                            $pending[] = ['row' => $row, 'current' => $current];
                         }
                     }
                 });
         }
 
-        // ponytail: one more pass settles a row that waited for an address a later row freed; longer chains stay clashes.
-        $clashes = array_values(array_filter($clashes, fn (array $clash): bool => ! $this->write($site, $clash['row'], $clash['current'])));
+        // ponytail: one more pass settles a row that waited for an address a later row freed; a swap between two Entries stays a clash.
+        $clashes = [];
 
-        foreach ($clashes as $clash) {
-            $counts[$clash['current'] === null ? 'created' : 'rewritten']--;
+        foreach ($pending as ['row' => $row, 'current' => $current]) {
+            if ($this->write($site, $row, $current)) {
+                $counts[$current === null ? 'created' : 'rewritten']++;
+            } else {
+                $holder = Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->value('entry_id');
+                $clashes[] = [...$row, 'holder' => is_string($holder) ? $holder : null];
+            }
         }
 
-        return [...$counts, 'clashes' => array_column($clashes, 'row')];
+        return [...$counts, 'clashes' => $clashes];
     }
 
     /**
@@ -97,17 +103,27 @@ final readonly class SyncPaths
                 : ($translation->locale === '*' ? $site->locales : []);
 
             foreach ($locales as $locale) {
-                $rows["{$translation->entry_id} {$locale}"] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => Path::of($type, (string) $translation->slug)];
+                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => Path::of($type, (string) $translation->slug)];
             }
         }
 
         return collect($rows);
     }
 
-    /** @param  Row  $row */
+    private function key(?string $entry, string $locale): string
+    {
+        return "{$entry} {$locale}";
+    }
+
+    /**
+     * Each write stands alone: wrapped in a transaction, a caught clash would abort every later statement on PostgreSQL.
+     *
+     * @param  Row  $row
+     */
     private function write(Site $site, array $row, ?Path $current): bool
     {
         try {
+            // ponytail: rewritten in place, so the former address answers 404; M7 (Redirects) keeps it as a 301 once published.
             $current instanceof Path
                 ? $current->update(['path' => $row['path']])
                 : Path::query()->create(['site' => $site->handle, 'status' => 200, ...$row]);

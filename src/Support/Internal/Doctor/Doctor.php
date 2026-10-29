@@ -68,7 +68,7 @@ final readonly class Doctor
         $panels = $this->panels();
         // A database Kami cannot reach is already an error, and the table is missing until the first `kami:install`.
         $assignments = rescue(fn (): bool => Schema::hasTable('kami_role_user'), false, report: false);
-        $content = rescue(fn (): bool => Schema::hasTable('kami_paths'), false, report: false);
+        $paths = rescue(fn (): bool => Schema::hasTable('kami_paths'), false, report: false);
 
         return [
             ...$this->environment(),
@@ -80,7 +80,7 @@ final readonly class Doctor
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
-            ...($content ? [...array_filter([$this->pathDrift()]), ...$this->undeclaredContent()] : []),
+            ...($paths ? [...array_filter([$this->pathDrift()]), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
         ];
     }
