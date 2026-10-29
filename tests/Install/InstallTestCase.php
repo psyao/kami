@@ -44,11 +44,14 @@ abstract class InstallTestCase extends Orchestra
 
         // The skeleton ships `public/` without a directory: anything there was published by an earlier run.
         File::deleteDirectories(public_path());
+        // What a deploy script exports for the first administrator; a test about its absence unsets it.
+        $_SERVER['KAMI_ADMIN_PASSWORD'] = 'correct horse battery';
     }
 
     protected function tearDown(): void
     {
         File::deleteDirectories(public_path());
+        unset($_SERVER['KAMI_ADMIN_PASSWORD']);
 
         parent::tearDown();
     }

@@ -7,14 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Workbench\App\Models\User;
 
-beforeEach(function () {
-    $this->bootWithKamiOnAPanel();
-    $_SERVER['KAMI_ADMIN_PASSWORD'] = 'correct horse battery';
-});
-
-afterEach(function () {
-    unset($_SERVER['KAMI_ADMIN_PASSWORD']);
-});
+beforeEach(fn () => $this->bootWithKamiOnAPanel());
 
 it('creates the first administrator from options and KAMI_ADMIN_PASSWORD without a terminal', function () {
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])

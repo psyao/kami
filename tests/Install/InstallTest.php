@@ -16,12 +16,6 @@ function install(): PendingCommand
     return test()->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada']);
 }
 
-beforeEach(fn () => $_SERVER['KAMI_ADMIN_PASSWORD'] = 'correct horse battery');
-
-afterEach(function () {
-    unset($_SERVER['KAMI_ADMIN_PASSWORD']);
-});
-
 /**
  * Each file of the skeleton with a hash of its contents, minus the directories Laravel writes to at run time.
  *
