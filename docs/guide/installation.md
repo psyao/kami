@@ -23,13 +23,22 @@ On SQLite, the database file need not exist: `kami:install` creates it, as on a 
 
 ## Creating a site
 
-A new site starts from the starter kit, a Laravel application already wired for Kami: its panel carries `KamiPlugin` and the local avatar provider. On your machine, with PHP, Composer, Node and the [Laravel installer](https://laravel.com/docs/13.x/installation):
+A new site starts from the starter kit, a Laravel application already wired for Kami. On your machine, with PHP, Composer, Node and the [Laravel installer](https://laravel.com/docs/13.x/installation):
 
 ```bash
 laravel new site --using=psyao/kami-starter
 cd site
 php artisan kami:install
 ```
+
+`kami:install` asks for the first administrator ([The first User](#the-first-user)). The site then has:
+
+- an admin at `/admin`, whose panel carries `KamiPlugin`, the local avatar provider and Kami's admin security headers, and lets in only Users holding a Kami Role ([Users and roles](users-and-roles.md#panel-access));
+- an example `Page` type in `app/Content/Page.php`, with one `body` Field, its table's migration and its view `resources/views/kami/page.blade.php` ([Content types](content-types.md));
+- two Locales, French by default and English: a Page published in both answers at `/about` and `/en/about` ([Multilingual](multilingual.md));
+- a minimal accessible layout, built by Vite and Tailwind, with no JavaScript, no web font and nothing inline, as Kami's front policy requires ([Security](security.md)).
+
+Until Kami 0.2.0, the starter kit requires Kami's `main` branch: once 0.2.0 is out, change `"psyao/kami": "dev-main"` to `"^0.2"` in the site's `composer.json`.
 
 The site owns the starter kit's code from then on: Kami's updates come with `composer update psyao/kami`, never from the starter kit.
 
