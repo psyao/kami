@@ -46,6 +46,8 @@ public function handle(): string
 }
 ```
 
+A handle is snake_case (lowercase letters and digits, words joined by single underscores) and 40 characters at most, so the table `kami_type_<handle>` fits every engine. Two types may not share a handle. Kami checks this the first time something reads the types: a mistake fails every page, admin screen and `kami:` command, with a message naming the class and the handle. Composer's `package:discover` still runs, so the fix can be deployed.
+
 ### Prefix
 
 `$prefix` is the fixed start of the type's Paths. It defaults to the handle; `''` puts the type's Entries at the root of the site:
@@ -75,6 +77,14 @@ Both are Translatable: one value per Locale. `->shared()` keeps one value for th
 Text::make('author')->shared()->default('The newsroom'),
 ```
 
+### Field handles
+
+A Field handle follows the type handle's rules (snake_case, 40 characters at most) and appears once in its type. It may not take a name Kami keeps for its own attributes, listed in `Field::RESERVED_HANDLES`:
+
+`id`, `site`, `type`, `created_by`, `updated_by`, `created_at`, `updated_at`, `title`, `slug`, `status`, `published_at`, `meta_title`, `meta_description`, `noindex`, `entry_id`, `locale`, `parent`, `parent_id`, `position`, `deleted_at`.
+
+Nor may it name a method of `Entry`, Eloquent's included, such as `url`, `translations`, `save` or `touch`: the method would hide the value. The list only grows in a major version. Each rule is checked with the type's handle.
+
 ## The type's table
 
 A type's Field values live in its own table, `kami_type_<handle>`, one row per Locale and one `'*'` row for the Shared Fields (ADR 0006). Kami writes its migration for you:
@@ -101,7 +111,11 @@ Run `php artisan migrate` between two runs: while a migration that touches a `ka
 
 Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input and `Textarea` as a multi-line one. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
 
-Labels come from the site's `lang/<locale>/kami-types.php`, by handle, and fall back to the humanised handle:
+A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
+
+### Labels
+
+Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration. A missing key falls back to the humanised handle: `news_item` reads `News Item`, its plural `News Items`, and a Field with no `help` has no help text:
 
 ```php
 return [
@@ -115,7 +129,7 @@ return [
 ];
 ```
 
-A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
+The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')` and `fieldHelp('summary')`. `kami:doctor` warns about each missing `label`, `plural` and Field `label` key, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 
 ## Writing Entries
 

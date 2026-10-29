@@ -15,5 +15,8 @@ class WorkbenchServiceProvider extends ServiceProvider
     {
         // A site's `$middleware->web(append: [SecurityHeaders::class])`, so its own pages get Kami's policy (ADR 0018).
         $router->pushMiddlewareToGroup('web', SecurityHeaders::class);
+
+        // The site's lang/<locale>/kami-types.php: Testbench's skeleton keeps its own lang directory.
+        $this->loadTranslationsFrom(dirname(__DIR__, 2) . '/lang');
     }
 }

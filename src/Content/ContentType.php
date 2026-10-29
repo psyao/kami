@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Fields\Field;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,6 +29,30 @@ abstract class ContentType
     public function fields(): array
     {
         return [];
+    }
+
+    /** The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle. */
+    final public function label(): string
+    {
+        return $this->translation('label') ?? Str::headline($this->handle());
+    }
+
+    /** `kami-types.{handle}.plural`, or the humanised handle in the plural. */
+    final public function pluralLabel(): string
+    {
+        return $this->translation('plural') ?? Str::plural(Str::headline($this->handle()));
+    }
+
+    /** `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle. */
+    final public function fieldLabel(string $field): string
+    {
+        return $this->translation("fields.{$field}.label") ?? Str::headline($field);
+    }
+
+    /** `kami-types.{handle}.fields.{field}.help`, or none. */
+    final public function fieldHelp(string $field): ?string
+    {
+        return $this->translation("fields.{$field}.help");
     }
 
     /**
@@ -54,5 +79,13 @@ abstract class ContentType
     public function prefix(): string
     {
         return $this->prefix ?? $this->handle();
+    }
+
+    /** Display strings come from the site's translation files, never from the declaration (ADR 0007). */
+    private function translation(string $key): ?string
+    {
+        $key = "kami-types.{$this->handle()}.{$key}";
+
+        return Lang::has($key) ? (string) __($key) : null;
     }
 }

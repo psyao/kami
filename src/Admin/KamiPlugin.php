@@ -54,7 +54,7 @@ final class KamiPlugin implements Plugin
         }
 
         // Added twice to one panel, the plugin registers its types once.
-        foreach (resolve(ContentTypes::class)->all() as $type) {
+        foreach (resolve(ContentTypes::class)->declared() as $type) {
             if (! $panel->getResourceConfiguration($resource, $type->handle()) instanceof ResourceConfiguration) {
                 $panel->resources([$resource::configure($type)]);
             }

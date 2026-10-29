@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use LogicException;
@@ -74,12 +73,12 @@ final class EntryResource extends FilamentResource
 
     public static function getModelLabel(): string
     {
-        return self::label('label', Str::headline(self::type()->handle()));
+        return self::type()->label();
     }
 
     public static function getPluralModelLabel(): string
     {
-        return self::label('plural', Str::plural(Str::headline(self::type()->handle())));
+        return self::type()->pluralLabel();
     }
 
     /** As translated: Filament would title-case it. */
@@ -201,8 +200,8 @@ final class EntryResource extends FilamentResource
         };
 
         $component
-            ->label(self::label("fields.{$field->handle}.label", Str::headline($field->handle)))
-            ->helperText(self::label("fields.{$field->handle}.help", '') ?: null)
+            ->label(self::type()->fieldLabel($field->handle))
+            ->helperText(self::type()->fieldHelp($field->handle))
             ->default($field->defaultValue());
 
         if (! self::type()->isTranslatable() || self::type()->isTranslatable($field)) {
@@ -214,13 +213,5 @@ final class EntryResource extends FilamentResource
             ->hint(__('kami::admin.fields.shared'))
             ->disabled(fn (?Entry $record): bool => $record instanceof Entry && ! self::can('publish', $record)
                 && $record->translations->contains(fn (Translation $translation): bool => Visibility::isVisible($translation)));
-    }
-
-    // ponytail: reads kami-types directly; #100's public label read replaces it.
-    private static function label(string $key, string $fallback): string
-    {
-        $key = 'kami-types.' . self::type()->handle() . ".{$key}";
-
-        return Lang::has($key) ? (string) __($key) : $fallback;
     }
 }

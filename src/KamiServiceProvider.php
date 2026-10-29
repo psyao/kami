@@ -6,6 +6,7 @@ namespace Psyao\Kami;
 
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Routing\Router;
+use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
@@ -32,6 +33,7 @@ final class KamiServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->app->singleton(PluginRegistration::class);
+        $this->app->singleton(ContentTypes::class);
 
         // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
         config(['app.timezone' => 'UTC']);

@@ -11,14 +11,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\Internal\SecurityPolicy;
 use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\KamiUser;
+use ReflectionMethod;
 use Throwable;
 
 /**
@@ -69,6 +75,8 @@ final readonly class Doctor
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
             ...$this->weakeningOptions(),
+            ...$this->missingViews(),
+            ...$this->missingLabels(),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
         ];
     }
@@ -263,6 +271,60 @@ final readonly class Doctor
             "add ->strictAuthorization() to the panel {$panel['id']}.",
             'users-and-roles.md#strict-authorization',
         ), array_filter($panels, fn (array $panel): bool => ! $panel['strict'])));
+    }
+
+    /**
+     * A type that keeps `ContentType::render()` renders the view `kami.{handle}` (ADR 0009).
+     *
+     * @return list<Problem>
+     */
+    private function missingViews(): array
+    {
+        // ponytail: every M2 type is routable; M3's Singletons and Global Sets are not, and skip this check.
+        $viewless = array_filter(
+            resolve(ContentTypes::class)->all(),
+            fn (ContentType $type): bool => new ReflectionMethod($type, 'render')->getDeclaringClass()->getName() === ContentType::class && ! view()->exists("kami.{$type->handle()}"),
+        );
+
+        return array_values(array_map(fn (ContentType $type): Problem => new Problem(
+            Severity::Warning,
+            "The Content Type {$type->handle()} has no view kami.{$type->handle()}: its Entries cannot render.",
+            "create resources/views/kami/{$type->handle()}.blade.php, or override render() in " . $type::class . '.',
+            'routing-and-rendering.md#rendering',
+        ), $viewless));
+    }
+
+    /**
+     * One warning per language the admin may show, listing the label keys the admin humanises instead; help texts are optional.
+     *
+     * @return list<Problem>
+     */
+    private function missingLabels(): array
+    {
+        $keys = [];
+
+        foreach (resolve(ContentTypes::class)->all() as $type) {
+            array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->fields()));
+        }
+
+        // ponytail: the `default` Site's Locales only, as `Site::current()`; multisite checks every Site's.
+        $locales = array_unique([Config::string('app.locale'), ...Site::current()->locales]);
+        $problems = [];
+
+        foreach ($locales as $locale) {
+            $missing = array_values(array_filter($keys, fn (string $key): bool => ! Lang::hasForLocale("kami-types.{$key}", $locale)));
+
+            if ($missing !== []) {
+                $problems[] = new Problem(
+                    Severity::Warning,
+                    "lang/{$locale}/kami-types.php lacks " . count($missing) . ' label ' . Str::plural('key', count($missing)) . ': ' . implode(', ', $missing) . '.',
+                    'add them: until then, the admin shows the humanised handle.',
+                    'content-types.md#labels',
+                );
+            }
+        }
+
+        return $problems;
     }
 
     /** @return list<Problem> */
