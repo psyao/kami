@@ -12,7 +12,7 @@ base_url="http://localhost:${SMOKE_PORT:-8080}"
 
 docker compose down --volumes --remove-orphans
 docker compose up --build --detach --wait php mariadb
-# -T: the container never reads this script's stdin.
+# -T: no TTY, so the runs work in CI; stdin stays attached, which the Page's heredoc below relies on.
 docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
 docker compose run -T --rm node
 
@@ -52,7 +52,7 @@ expect_page() {
     head -n 1 <<<"$response" | grep -q ' 200' || problems+=("$(head -n 1 <<<"$response")")
     grep -qi '^content-security-policy:' <<<"$response" || problems+=('no Content-Security-Policy')
     ! grep -qi '^set-cookie:' <<<"$response" || problems+=('a Set-Cookie')
-    grep -q "$2" <<<"$response" || problems+=("no \"$2\"")
+    sed '1,/^$/d' <<<"$response" | grep -qF "$2" || problems+=("no \"$2\"")
     if [ ${#problems[@]} -eq 0 ]; then
         echo "GET $1: 200, CSP, no cookie, \"$2\""
     else
