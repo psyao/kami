@@ -47,8 +47,8 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - `->rules()` takes any Laravel rule.
 - **Conditions** are declarative and limited to a Field of the same type: `->visibleWhen('field', value)` (equality or membership) and `->visibleWhenFilled('field')`. A hidden Field is neither validated nor stored. `SaveEntry` clears its value, so an import or the local API behaves like the form. Anything richer goes through the escape hatch.
   - A condition's target may not be conditional itself: the form keeps a hidden component's state, so a chain would show there what `SaveEntry` hides.
-  - A Shared Field may not depend on a Translatable one: its one value would vary by Locale.
-  - A Translatable Field hidden by a Shared one is cleared in every Locale, since the target holds for all of them. This costs a translation's value, and favours Stability (form, import and front agree) over keeping data nobody can see or edit.
+  - A target must be Shared: a Translatable one would answer differently per Locale and through Fallback, so a value given for one Locale could vanish silently while a reader sees the Field apply.
+  - A hidden Field is cleared in every Locale, since its target holds for all of them. This weighs Stability (no value lost) against Simplicity (form, import and front agree). Stability's promise covers migrations, not an editor's own change, so it does not outrank here: a value kept would stay readable on the front while no editor can see or edit it, which this ADR refuses. The price is a translation's value, gone with no way back in Kami.
 - **Labels.** Labels, tab titles and help texts never appear in a declaration.
   - They come from `lang/<locale>/kami-types.php`, by handle.
   - A missing key falls back to the humanised handle.

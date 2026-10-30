@@ -111,28 +111,18 @@ final class SaveEntry
         }
 
         // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.
-        $conditional = array_filter($contentType->flatFields(), fn (Field $field): bool => $field->target() !== null);
-        Validator::make($data, Arr::only($rules, array_map(fn (Field $field): ?string => $field->target(), $conditional)))->validate();
+        $conditional = array_filter($contentType->flatFields(), fn (Field $field): bool => $field->conditionTarget() !== null);
+        Validator::make($data, Arr::only($rules, array_map(fn (Field $field): ?string => $field->conditionTarget(), $conditional)))->validate();
 
-        $clearedEverywhere = [];
+        $cleared = [];
 
         foreach ($conditional as $field) {
-            // A Translatable target out of this call's scope says nothing: its Field is out of scope too.
-            $target = $fields[(string) $field->target()] ?? null;
+            // A target is Shared, so in scope of every call, and hides its Field in every Locale.
+            $target = $fields[(string) $field->conditionTarget()];
 
-            if (! $target instanceof Field || $field->isVisibleGiven($target, $data[$target->handle])) {
-                continue;
-            }
-
-            unset($rules[$field->handle]);
-
-            if (isset($fields[$field->handle]) && $data[$field->handle] !== null) {
-                $values[$field->handle] = $data[$field->handle] = null;
-            }
-
-            // A Shared target hides the Field in every Locale, not only this one's.
-            if ($contentType->isTranslatable($field) && ! $contentType->isTranslatable($target)) {
-                $clearedEverywhere[$field->handle] = null;
+            if (! $field->isVisibleGiven($target, $data[$target->handle])) {
+                unset($rules[$field->handle], $values[$field->handle]);
+                $cleared[$field->handle] = null;
             }
         }
 
@@ -141,7 +131,7 @@ final class SaveEntry
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
 
-        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $clearedEverywhere): string {
+        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
 
@@ -170,8 +160,8 @@ final class SaveEntry
                 DB::table("kami_type_{$contentType->handle()}")->updateOrInsert(['entry_id' => $entry->id, 'locale' => $rowLocale], $row);
             }
 
-            if ($clearedEverywhere !== []) {
-                DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($clearedEverywhere);
+            if ($cleared !== []) {
+                DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($cleared);
             }
 
             if ($writesTranslation) {

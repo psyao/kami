@@ -25,6 +25,7 @@ use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -130,7 +131,7 @@ final class EntryResource extends FilamentResource
             TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
                 // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
-            ...self::components(self::type()->fields(), $lang),
+            ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
             DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record)),
@@ -214,16 +215,17 @@ final class EntryResource extends FilamentResource
      *
      * @param  list<Field|Layout>  $declared
      * @param  array<string, string>  $lang
+     * @param  Collection<string, Field>  $fields
      * @return list<Component>
      */
-    private static function components(array $declared, array $lang): array
+    private static function components(array $declared, array $lang, Collection $fields): array
     {
         $components = [];
         $tabs = [];
 
         foreach ($declared as $item) {
             if ($item instanceof Tab) {
-                $tabs[] = FilamentTab::make(self::type()->tabLabel($item->handle))->schema(self::components($item->children, $lang));
+                $tabs[] = FilamentTab::make(self::type()->tabLabel($item->handle))->schema(self::components($item->children, $lang, $fields));
 
                 continue;
             }
@@ -234,8 +236,8 @@ final class EntryResource extends FilamentResource
             }
 
             $components[] = $item instanceof Layout
-                ? FilamentSection::make(self::type()->sectionLabel($item->handle))->schema(self::components($item->children, $lang))
-                : self::component($item, $lang);
+                ? FilamentSection::make(self::type()->sectionLabel($item->handle))->schema(self::components($item->children, $lang, $fields))
+                : self::component($item, $lang, $fields);
         }
 
         if ($tabs !== []) {
@@ -245,13 +247,15 @@ final class EntryResource extends FilamentResource
         return $components;
     }
 
-    /** @param  array<string, string>  $lang */
-    private static function component(Field $field, array $lang): FormField
+    /**
+     * @param  array<string, string>  $lang
+     * @param  Collection<string, Field>  $fields
+     */
+    private static function component(Field $field, array $lang, Collection $fields): FormField
     {
         $plugin = Filament::getPlugin('kami');
         $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
-        $fields = collect(self::type()->flatFields())->keyBy('handle');
-        $target = $fields->get($field->target() ?? '');
+        $target = $fields->get($field->conditionTarget() ?? '');
 
         $component
             ->label(self::type()->fieldLabel($field->handle))
@@ -264,7 +268,7 @@ final class EntryResource extends FilamentResource
         }
 
         // A target refreshes the form as it changes, typed text once it loses focus.
-        if ($fields->contains(fn (Field $other): bool => $other->target() === $field->handle)) {
+        if ($fields->contains(fn (Field $other): bool => $other->conditionTarget() === $field->handle)) {
             $component->live(onBlur: $component instanceof TextInput || $component instanceof Textarea);
         }
 

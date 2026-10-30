@@ -154,32 +154,42 @@ final class ContentTypes
                 }
 
                 if ($child instanceof Section && $layout instanceof Section) {
-                    throw new InvalidArgumentException("{$class}: the Section \"{$child->handle}\" can only sit inside a Tab.");
+                    throw new InvalidArgumentException("{$class}: the Section \"{$child->handle}\" sits at the top level or inside a Tab.");
                 }
             }
         }
     }
 
     /**
-     * A chain would hide a Field by a target itself hidden, whose stale state the form keeps; a Shared value cannot depend on a Locale's (ADR 0007).
+     * A chain would hide a Field by a target itself hidden, whose stale state the form keeps; a Translatable target would answer differently per Locale, and through Fallback (ADR 0007).
      */
     private function validateConditions(string $class, ContentType $type): void
     {
         $fields = collect($type->flatFields())->keyBy('handle');
 
         foreach ($fields as $field) {
-            if ($field->target() === null) {
+            if ($field->conditionTarget() === null) {
                 continue;
             }
 
-            $target = $fields->get($field->target()) ?? throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to \"{$field->target()}\", which the type does not declare.");
+            $target = $fields->get($field->conditionTarget()) ?? throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to \"{$field->conditionTarget()}\", which the type does not declare.");
 
-            if ($target->target() !== null) {
+            if ($target->conditionTarget() !== null) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to \"{$target->handle}\", which is itself conditional.");
             }
 
-            if (! $type->isTranslatable($field) && $type->isTranslatable($target)) {
-                throw new InvalidArgumentException("{$class}: the Shared Field \"{$field->handle}\" is shown according to the Translatable \"{$target->handle}\"; make one match the other.");
+            if ($type->isTranslatable($target)) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the Translatable \"{$target->handle}\"; a target holds for every Locale: make it ->shared().");
+            }
+
+            $values = $field->conditionValues();
+
+            if ($values === null && $target->column() === 'boolean') {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown when the Boolean \"{$target->handle}\" is filled, which it always is; use ->visibleWhen().");
+            }
+
+            if ($target instanceof Select && array_filter($values ?? [], fn (mixed $value): bool => ! in_array($value, $target->optionKeys(), true)) !== []) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown for a value that is not an option of the Select \"{$target->handle}\".");
             }
         }
     }

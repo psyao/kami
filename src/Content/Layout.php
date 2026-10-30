@@ -6,7 +6,7 @@ namespace Psyao\Kami\Content;
 
 use Psyao\Kami\Content\Fields\Field;
 
-/** Arranges Fields in the form and holds no value: columns, validation and reads ignore it (ADR 0007). */
+/** Arranges Fields in the form and holds no value: columns, validation and reads ignore it (ADR 0007). Kami's own `Tab` and `Section`: not an extension point. */
 abstract class Layout
 {
     /** @param list<Field|Layout> $children */

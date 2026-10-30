@@ -119,7 +119,7 @@ abstract class Field
         return $this;
     }
 
-    /** Shown only while another Field of the type holds a value, `false` included. Hidden, it is neither validated nor stored, and `SaveEntry` clears it. */
+    /** Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and `SaveEntry` clears it. */
     public function visibleWhenFilled(string $field): static
     {
         $this->target = $field;
@@ -129,9 +129,19 @@ abstract class Field
     }
 
     /** @internal */
-    public function target(): ?string
+    public function conditionTarget(): ?string
     {
         return $this->target;
+    }
+
+    /**
+     * @internal
+     *
+     * @return list<mixed>|null
+     */
+    public function conditionValues(): ?array
+    {
+        return $this->targetValues;
     }
 
     /**
@@ -148,7 +158,8 @@ abstract class Field
         }
 
         $comparable = function (mixed $value) use ($target): mixed {
-            $read = $target->read(blank($value) ? null : $value);
+            // An untouched toggle is `false` in the form and absent from an import: the same answer.
+            $read = blank($value) && $target->column() === 'boolean' ? false : $target->read(blank($value) ? null : $value);
 
             return $read instanceof DateTimeInterface ? $read->getTimestamp() : $read;
         };

@@ -131,17 +131,19 @@ Boolean::make('featured'),
 Text::make('featured_note')->visibleWhen('featured', true),
 Select::make('kind')->options(['news', 'review', 'essay']),
 Text::make('source')->shared()->visibleWhen('kind', ['review', 'essay']), // one of these
-Textarea::make('story')->visibleWhenFilled('client'),                     // any value, `false` included
+Text::make('client')->shared(),
+Textarea::make('story')->visibleWhenFilled('client'),                     // any value
 ```
 
 A hidden Field is neither validated nor stored, not even required to publish, and takes no `default()`. `SaveEntry` applies this whoever calls it, so an import and the form give the same result:
 
 - A value given for a hidden Field is ignored, without an error.
 - A stored value is cleared as soon as its Field becomes hidden, and does not come back when the Field shows again.
-- A Translatable Field hidden by a Shared Field is cleared in every Locale, since that Shared value holds for all of them.
-- A Translatable Field hidden by a Translatable Field is cleared in the Locale written only. The read then falls back to the default Locale's value, like any blank value ([Multilingual](multilingual.md)).
+- A Translatable Field is cleared in every Locale, since the target holds for all of them.
 
-At the first read of the declarations, it is an error for a condition to name a Field the type does not declare, or one that is itself conditional, and for a Shared Field to depend on a Translatable one, whose value differs by Locale. Anything richer belongs in code of your own, in front of `SaveEntry`.
+A Boolean with no value reads as `false`, as an untouched toggle does.
+
+At the first read of the declarations, it is an error for a condition to name a Field the type does not declare, one that is itself conditional, or a Translatable one: a target holds for every Locale, so it must be Shared, the default of every type but `Text` and `Textarea`. So is `visibleWhenFilled()` on a Boolean, which always holds a value, and a `visibleWhen()` value that is not an option of its `Select`. Anything richer belongs in code of your own, in front of `SaveEntry`.
 
 ### Your own Field type
 

@@ -12,6 +12,7 @@ use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Section;
 use Psyao\Kami\Content\Tab;
@@ -77,12 +78,14 @@ it('fails on an invalid layout or condition, naming the class and the handle', f
     'layout handle duplicated' => [[Tab::make('main', []), Section::make('main', [])], 'Arranged: the layout handle "main" appears twice'],
     'tab inside a section' => [[Section::make('main', [Tab::make('inner', [])])], 'Arranged: the Tab "inner" cannot sit inside a layout'],
     'tab inside a tab' => [[Tab::make('main', [Tab::make('inner', [])])], 'Arranged: the Tab "inner" cannot sit inside a layout'],
-    'section inside a section' => [[Section::make('main', [Section::make('inner', [])])], 'Arranged: the Section "inner" can only sit inside a Tab'],
+    'section inside a section' => [[Section::make('main', [Section::make('inner', [])])], 'Arranged: the Section "inner" sits at the top level or inside a Tab'],
     'undeclared target' => [[Text::make('note')->visibleWhen('nope', true)], 'Arranged: the Field "note" is shown according to "nope", which the type does not declare'],
     'filled, undeclared target' => [[Text::make('note')->visibleWhenFilled('nope')], 'Arranged: the Field "note" is shown according to "nope"'],
     'itself as target' => [[Text::make('note')->visibleWhenFilled('note')], 'Arranged: the Field "note" is shown according to "note", which is itself conditional'],
     'conditional target' => [[Boolean::make('active'), Text::make('a')->visibleWhen('active', true), Text::make('b')->visibleWhenFilled('a')], 'Arranged: the Field "b" is shown according to "a", which is itself conditional'],
-    'Shared Field on a Translatable target' => [[Text::make('lead'), Text::make('note')->shared()->visibleWhenFilled('lead')], 'Arranged: the Shared Field "note" is shown according to the Translatable "lead"'],
+    'Translatable target' => [[Text::make('lead'), Text::make('note')->visibleWhenFilled('lead')], 'Arranged: the Field "note" is shown according to the Translatable "lead"'],
+    'filled Boolean target' => [[Boolean::make('active'), Text::make('note')->visibleWhenFilled('active')], 'Arranged: the Field "note" is shown when the Boolean "active" is filled'],
+    'value no option of the Select' => [[Select::make('kind')->options(['news']), Text::make('note')->visibleWhen('kind', 'newz')], 'Arranged: the Field "note" is shown for a value that is not an option of the Select "kind"'],
 ]);
 
 it('accepts a target declared after the Field, in another tab', function () {
@@ -166,14 +169,11 @@ it('clears them from a Shared-only write too', function () {
     expect(projectRow($entry, 'fr')['featured_note'])->toBeNull();
 });
 
-it('hides a Translatable Field by its Translatable target, one Locale at a time', function () {
+it('keeps a given value in a Locale whose own target row is empty: a target is Shared', function () {
     $entry = saveProject(['title' => 'Kami', 'client' => 'Ada', 'story' => 'Il était une fois'], locale: 'fr');
-    saveProject(['title' => 'Kami', 'client' => 'Ada', 'story' => 'Once upon a time'], $entry, 'en');
 
-    saveProject(['client' => ''], $entry, 'en');
-
-    expect(projectRow($entry, 'en')['story'])->toBeNull()
-        ->and(projectRow($entry, 'fr')['story'])->toBe('Il était une fois');
+    expect(saveProject(['title' => 'Kami', 'story' => 'Once upon a time'], $entry, 'en')->story)->toBe('Il était une fois')
+        ->and(projectRow($entry, 'en')['story'])->toBe('Once upon a time');
 });
 
 it('reports an invalid target before reading a condition on it', function () {
@@ -188,7 +188,8 @@ it('compares through the target\'s cast, so stored, typed and declared values ag
     'stored true' => [Boolean::make('active'), true, 1, true],
     'typed false' => [Boolean::make('active'), true, false, false],
     'stored false' => [Boolean::make('active'), false, 0, true],
-    'blank is not false' => [Boolean::make('active'), false, null, false],
+    'absent reads as an untouched toggle' => [Boolean::make('active'), false, null, true],
+    'absent is not true' => [Boolean::make('active'), true, null, false],
     'typed number' => [Number::make('n'), 5, '5', true],
     'stored decimal' => [Number::make('n')->decimal(), '12.50', 12.5, true],
     'a stored day' => [Date::make('d'), '2026-10-30', '2026-10-30T00:00:00Z', true],
@@ -197,6 +198,6 @@ it('compares through the target\'s cast, so stored, typed and declared values ag
     'out of the list' => [Text::make('t'), ['a', 'b'], 'c', false],
 ]);
 
-it('counts false as filled and blank as not', function (mixed $given, bool $visible) {
-    expect(Text::make('note')->visibleWhenFilled('active')->isVisibleGiven(Boolean::make('active'), $given))->toBe($visible);
-})->with([[false, true], [true, true], [null, false], ['', false]]);
+it('counts a value as filled and a blank as not', function (mixed $given, bool $visible) {
+    expect(Text::make('note')->visibleWhenFilled('lead')->isVisibleGiven(Text::make('lead'), $given))->toBe($visible);
+})->with([['Ada', true], [0, true], [null, false], ['', false]]);

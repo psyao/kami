@@ -20,13 +20,13 @@ final class Project extends ContentType
     {
         return [
             Tab::make('details', [
-                Text::make('client'),
+                Text::make('client')->shared(),
                 Section::make('highlight', [
                     Boolean::make('featured'),
                     Text::make('featured_note')->required()->visibleWhen('featured', true),
                 ]),
                 Select::make('kind')->options(['news', 'review', 'essay']),
-                Text::make('source')->shared()->default('Press')->rules(['url'])->visibleWhen('kind', ['review', 'essay']),
+                Text::make('source')->shared()->default('https://example.test/press')->rules(['url'])->visibleWhen('kind', ['review', 'essay']),
             ]),
             Tab::make('story', [
                 Textarea::make('story')->visibleWhenFilled('client'),
