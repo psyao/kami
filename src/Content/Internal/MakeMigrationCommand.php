@@ -176,15 +176,16 @@ final class MakeMigrationCommand extends Command
 
         foreach (Schema::getIndexes($table) as $index) {
             if (count($index['columns']) === 1 && ! $index['primary']) {
-                $indexes[$renamed[$index['columns'][0]] ?? $index['columns'][0]] = $index['name'];
+                $indexes[$renamed[$index['columns'][0]] ?? $index['columns'][0]] = $index;
             }
         }
 
-        // Before its column goes: SQLite refuses to drop an indexed column. An index the site wrote by hand is left alone.
-        foreach (array_diff_key($indexes, array_flip($indexed)) as $field => $name) {
-            if (str_starts_with($name, self::INDEX_PREFIX)) {
-                $up[] = "\$table->dropIndex('{$name}');";
-                $down[] = "\$table->index('{$field}', '{$name}');";
+        // Before its column goes: SQLite refuses to drop an indexed column. An index the site wrote by hand on a column that stays is left alone.
+        foreach (array_diff_key($indexes, array_flip($indexed)) as $field => $index) {
+            if (str_starts_with($index['name'], self::INDEX_PREFIX) || isset($dropped[$field])) {
+                [$create, $drop] = $index['unique'] ? ['unique', 'dropUnique'] : ['index', 'dropIndex'];
+                $up[] = "\$table->{$drop}('{$index['name']}');";
+                $down[] = "\$table->{$create}('{$field}', '{$index['name']}');";
             }
         }
 

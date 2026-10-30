@@ -165,7 +165,7 @@ What it writes:
 
 - **A new type**: its table, with `entry_id` (deleted with the Entry), `locale`, one unique row per Entry and Locale, and one column per Field.
 - **An added Field**: a new column. **A removed Field**: a dropped column, with its values. **A Field whose type changed** (`Text` to `Textarea`): the column's new type.
-- **A Field declared `->filterable()` or `->sortable()`**: an index on its column. **A Field no longer declared so**: that index dropped. An index you wrote by hand on the column counts as its index, and is never dropped.
+- **A Field declared `->filterable()` or `->sortable()`**: an index on its column. **A Field no longer declared so**: that index dropped. An index you wrote by hand on the column counts as its index, and is dropped only with its column.
 - **A down() method** that undoes all of it.
 
 Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A type with no Field gets no table, and a type you remove from `types` keeps its table: the command never drops one.

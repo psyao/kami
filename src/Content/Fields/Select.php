@@ -12,10 +12,10 @@ final class Select extends Field
     #[\Override]
     protected bool $translatable = false;
 
-    /** @var list<string> */
+    /** @var array<string> */
     private array $options = [];
 
-    /** @param list<string> $options */
+    /** @param array<string> $options  Keys only: `kami-types.php` holds their labels. */
     public function options(array $options): self
     {
         $this->options = $options;
@@ -26,7 +26,7 @@ final class Select extends Field
     /**
      * @internal
      *
-     * @return list<string>
+     * @return array<string>
      */
     public function optionKeys(): array
     {

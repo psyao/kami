@@ -406,3 +406,27 @@ it('leaves an index the site wrote by hand alone, and does not add a second', fu
 
     $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
 });
+
+it('drops a hand-written index with its Field, so every engine drops the column, and writes it back', function (string $method, bool $unique) {
+    declareNote([Text::make('summary'), Text::make('kind')]);
+    generateAndMigrate();
+    Schema::table('kami_type_note', fn (Blueprint $table) => $table->{$method}('kind', 'site_kind'));
+
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+
+    expect(noteColumns())->not->toHaveKey('kind');
+
+    rollBackLast();
+
+    expect(collect(Schema::getIndexes('kami_type_note'))->firstWhere('name', 'site_kind'))->toMatchArray(['columns' => ['kind'], 'unique' => $unique]);
+})->with([
+    'plain' => ['index', false],
+    'unique' => ['unique', true],
+]);
+
+it('finds the Workbench\'s Article matching its migration, indexes included', function () {
+    config(['kami.types' => [Article::class]]);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+});

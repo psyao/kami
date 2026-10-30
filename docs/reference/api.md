@@ -119,7 +119,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 A whole number read as an `int`, or with `->decimal()` a number with two decimals read as a `string`, which stays exact.
 
 - `public function column(): string`
-- `public function decimal(): Psyao\Kami\Content\Fields\Number`: ponytail: Laravel's default `decimal(8,2)`; a precision argument when a site needs more than 999999.99.
+- `public function decimal(): Psyao\Kami\Content\Fields\Number`: A number with up to two decimals, up to 999999.99.
 
 ## `Psyao\Kami\Content\Fields\Select`
 

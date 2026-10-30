@@ -121,6 +121,10 @@ final class ContentTypes
                     throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" has no options; declare them with ->options([...]).");
                 }
 
+                if ($field instanceof Select && ! array_is_list($field->optionKeys())) {
+                    throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" takes a list of option keys; its labels live in kami-types.php.");
+                }
+
                 $fields[] = $field->handle;
             }
         }

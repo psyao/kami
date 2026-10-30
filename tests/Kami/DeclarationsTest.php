@@ -93,6 +93,7 @@ it('fails on an invalid declaration, naming the class and the handle', function 
     'sortable text column' => ['declared', [Textarea::make('body')->sortable()], [Declared::class], 'Declared: the Field "body" cannot be filterable or sortable'],
     'filterable json column of a site Field type' => ['declared', [Structured::make('data')->filterable()], [Declared::class], 'Declared: the Field "data" cannot be filterable or sortable: no engine indexes its json column whole'],
     'Select with no option' => ['declared', [Select::make('kind')], [Declared::class], 'Declared: the Select "kind" has no options'],
+    'Select with labels in the declaration' => ['declared', [Select::make('kind')->options(['news' => 'News'])], [Declared::class], 'Declared: the Select "kind" takes a list of option keys; its labels live in kami-types.php'],
     'Field handle of an Entry method' => ['declared', [Text::make('url')], [Declared::class], 'Declared: the Field handle "url" names a method of Psyao\\Kami\\Content\\Entry'],
 ]);
 

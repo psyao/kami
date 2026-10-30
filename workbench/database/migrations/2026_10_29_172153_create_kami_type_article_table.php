@@ -21,8 +21,8 @@ return new class extends Migration
             $table->string('contact')->nullable();
             $table->integer('pages')->nullable();
             $table->decimal('rating')->nullable();
-            $table->date('starts_on')->nullable();
-            $table->dateTime('starts_at')->nullable();
+            $table->date('starts_on')->nullable()->index();
+            $table->dateTime('starts_at')->nullable()->index();
             $table->string('kind')->nullable();
             $table->unique(['entry_id', 'locale']);
         });
