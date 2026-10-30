@@ -9,11 +9,8 @@ Kami added to a Laravel application that already does other things. Kami takes n
 
 ## Install the package
 
-Until Kami's first release on Packagist, Composer installs it from GitHub:
-
 ```bash
-composer config repositories.kami vcs https://github.com/psyao/kami
-composer require psyao/kami:dev-main
+composer require psyao/kami
 ```
 
 ## Add Kami to your panel
