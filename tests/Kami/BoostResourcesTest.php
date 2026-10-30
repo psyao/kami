@@ -42,9 +42,9 @@ it('names only paths and anchors the package ships', function () {
     }
 });
 
-it('names only classes that exist', function () {
+it('names only classes, interfaces and traits that exist', function () {
     foreach (boostSpans('Psyao\\Kami\\') as $class) {
-        expect(class_exists($class))->toBeTrue("{$class} does not exist");
+        expect(class_exists($class) || interface_exists($class) || trait_exists($class))->toBeTrue("{$class} does not exist");
     }
 });
 
