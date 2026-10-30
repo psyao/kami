@@ -3,13 +3,16 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
@@ -46,6 +49,15 @@ final class Fieldless extends ContentType
     public function fields(): array
     {
         return [];
+    }
+}
+
+/** A Text Field holding digits. */
+final class Zipped extends ContentType
+{
+    public function fields(): array
+    {
+        return [Text::make('zip')->rules(['numeric'])];
     }
 }
 
@@ -305,6 +317,17 @@ it('refuses a value over its column\'s limit on the Field, and stores one at the
         ->and(save(['title' => 'Long', 'author' => $atLimit])->author)->toBe($atLimit)
         ->and(failures(fn () => $page(['title' => 'Long', 'body' => $body . 'a'])))->toBe(['body'])
         ->and($page(['title' => 'Long', 'body' => $body])->body)->toBe($body);
+});
+
+it('counts a number\'s characters against its column\'s limit, not its value', function () {
+    config(['kami.types' => [Zipped::class]]);
+    Schema::create('kami_type_zipped', function (Blueprint $table): void {
+        $table->ulid('entry_id');
+        $table->string('locale', 20);
+        $table->string('zip')->nullable();
+    });
+
+    expect(resolve(SaveEntry::class)->handle(Zipped::class, ['title' => 'Geneva', 'zip' => '1000'])->zip)->toBe('1000');
 });
 
 it('names a Field\'s length limit as Laravel\'s max rule does', function () {

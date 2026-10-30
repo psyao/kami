@@ -170,14 +170,24 @@ abstract class Field
     private function columnRules(): array
     {
         return match ($this->column()) {
-            'string' => ['max:255'],
-            // MySQL's `text` counts bytes, which Laravel's `max` does not.
-            'text' => [function (string $attribute, mixed $value, Closure $fail): void {
-                if (is_string($value) && strlen($value) > 65535) {
-                    $fail(__('validation.max.string', ['max' => 65535]));
-                }
-            }],
+            'string' => [$this->lengthRule(255, mb_strlen(...))],
+            // MySQL's `text` counts bytes.
+            'text' => [$this->lengthRule(65535, strlen(...))],
             default => [],
+        };
+    }
+
+    /**
+     * Not Laravel's `max`, which beside `numeric` compares the number itself.
+     *
+     * @param  Closure(string): int  $length
+     */
+    private function lengthRule(int $max, Closure $length): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($max, $length): void {
+            if (is_string($value) && $length($value) > $max) {
+                $fail(__('validation.max.string', ['max' => $max]));
+            }
         };
     }
 

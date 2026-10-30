@@ -100,7 +100,7 @@ final class SaveEntry
         $publishing = ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
             'title' => [$publishing ? 'required' : 'nullable', 'string', 'max:255'],
-            'slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->answersAtItsUrl($contentType, $site, $locale)],
+            'slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->slugRule($contentType, $site, $locale)],
             'status' => ['required', 'in:draft,published'],
             'published_at' => ['nullable', 'date'],
         ] : [];
@@ -164,8 +164,12 @@ final class SaveEntry
         return $saved;
     }
 
-    /** The slug's rule: its characters, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment. */
-    private function answersAtItsUrl(ContentType $contentType, Site $site, string $locale): Closure
+    /**
+     * Its characters, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
+     *
+     * ponytail: at save only, so a Locale or Prefix declared later can still hide a stored Path; M7's reserved paths lift it.
+     */
+    private function slugRule(ContentType $contentType, Site $site, string $locale): Closure
     {
         return function (string $attribute, mixed $slug, Closure $fail) use ($contentType, $site, $locale): void {
             if (! is_string($slug)) {
