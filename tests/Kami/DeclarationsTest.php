@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\Translation;
 
 /** A type whose handle and Fields each test declares. */
@@ -32,6 +34,15 @@ final class Twin extends ContentType
     public function handle(): string
     {
         return 'declared';
+    }
+}
+
+/** A site's Field type on a column no index takes. */
+final class Structured extends Field
+{
+    public function column(): string
+    {
+        return 'json';
     }
 }
 
@@ -78,6 +89,10 @@ it('fails on an invalid declaration, naming the class and the handle', function 
     'reserved Field handle' => ['declared', [Text::make('published_at')], [Declared::class], 'Declared: the Field handle "published_at" is reserved'],
     'Field handle of a type table column' => ['declared', [Text::make('entry_id')], [Declared::class], 'Declared: the Field handle "entry_id" is reserved'],
     'Field handle of a planned SEO attribute' => ['declared', [Text::make('noindex')], [Declared::class], 'Declared: the Field handle "noindex" is reserved'],
+    'filterable text column' => ['declared', [Textarea::make('body')->filterable()], [Declared::class], 'Declared: the Field "body" cannot be filterable or sortable: no engine indexes its text column whole'],
+    'sortable text column' => ['declared', [Textarea::make('body')->sortable()], [Declared::class], 'Declared: the Field "body" cannot be filterable or sortable'],
+    'filterable json column of a site Field type' => ['declared', [Structured::make('data')->filterable()], [Declared::class], 'Declared: the Field "data" cannot be filterable or sortable: no engine indexes its json column whole'],
+    'Select with no option' => ['declared', [Select::make('kind')], [Declared::class], 'Declared: the Select "kind" has no options'],
     'Field handle of an Entry method' => ['declared', [Text::make('url')], [Declared::class], 'Declared: the Field handle "url" names a method of Psyao\\Kami\\Content\\Entry'],
 ]);
 
@@ -96,6 +111,14 @@ it('reads labels from kami-types by handle, or humanises the handle', function (
         ->and($type->fieldHelp('cover_alt'))->toBe('Describe the image.')
         ->and($type->fieldLabel('lead'))->toBe('Lead')
         ->and($type->fieldHelp('lead'))->toBeNull();
+});
+
+it('reads an option\'s label from kami-types by key, or humanises the key', function () {
+    app('translator')->addLines(['kami-types.declared.fields.kind.options.news' => 'Latest news'], 'en');
+    $type = new Declared;
+
+    expect($type->optionLabel('kind', 'news'))->toBe('Latest news')
+        ->and($type->optionLabel('kind', 'long_read'))->toBe('Long Read');
 });
 
 it('reserves every Translation attribute as a Field handle', function () {

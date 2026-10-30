@@ -71,10 +71,23 @@ A Field is built with `::make()` and its handle, which names its column:
 | `Text` | a single line of plain text | `string` |
 | `Textarea` | several lines of plain text | `text` |
 | `Boolean` | yes or no, read as a `bool`, `null` until given | `boolean` |
+| `Url` | an `http` or `https` address, 255 characters at most | `string` |
+| `Email` | an email address, 255 characters at most | `string` |
+| `Number` | a whole number, read as an `int` | `integer` |
+| `Number` with `->decimal()` | a number with up to two decimals, up to 999999.99, read as a `string` such as `'12.50'`, which stays exact | `decimal` |
+| `Date` | a calendar day, read as a `CarbonImmutable` at midnight UTC | `date` |
+| `DateTime` | a moment, read as a `CarbonImmutable` in UTC | `dateTime` |
+| `Select` | one key out of `->options(['news', 'review'])` | `string` |
 
-`Text` and `Textarea` are Translatable: one value per Locale. `Boolean` is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
+`Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
 `->required()` makes a Field required to publish, while a Draft may leave it blank; `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
+
+Each type refuses what it cannot hold, with no rule of yours: `Url::make('website')` refuses a non-URL on every save.
+
+A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Site's time zone in the admin, as `published_at` is. A `Date` has no time, so no zone converts it: the day given is the day stored, in the admin and in code.
+
+`->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it. A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
 
 `->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only while the Entry has no Shared value yet, so adding a Locale never overwrites one. An update never applies a default, and a value given as `null` stays `null`:
 
@@ -94,7 +107,7 @@ final class Colour extends Field
     // Shared by default; `->translatable()` still overrides it.
     protected bool $translatable = false;
 
-    // `string`, `text` or `boolean`, the column types kami:make:migration can compare.
+    // `string`, `text`, `boolean`, `integer`, `decimal`, `date` or `dateTime`, the column types kami:make:migration can compare.
     public function column(): string
     {
         return 'string';
@@ -104,6 +117,12 @@ final class Colour extends Field
     protected function baseRules(): array
     {
         return ['hex_color'];
+    }
+
+    // What the column stores for a valid value given to SaveEntry; never called with `null`.
+    protected function store(mixed $value): mixed
+    {
+        return is_string($value) ? trim($value) : $value;
     }
 
     // What `$entry->accent` returns for the stored value; never called with `null`.
@@ -146,9 +165,10 @@ What it writes:
 
 - **A new type**: its table, with `entry_id` (deleted with the Entry), `locale`, one unique row per Entry and Locale, and one column per Field.
 - **An added Field**: a new column. **A removed Field**: a dropped column, with its values. **A Field whose type changed** (`Text` to `Textarea`): the column's new type.
+- **A Field declared `->filterable()` or `->sortable()`**: an index on its column. **A Field no longer declared so**: that index dropped. An index you wrote by hand on the column counts as its index, and is never dropped.
 - **A down() method** that undoes all of it.
 
-Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. A `Text` Field is a `string` column, a `Textarea` Field a `text` one, a `Boolean` Field a `boolean` one. A type with no Field gets no table, and a type you remove from `types` keeps its table: the command never drops one.
+Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A type with no Field gets no table, and a type you remove from `types` keeps its table: the command never drops one.
 
 Renaming a Field looks like removing one and adding another, and the drop would lose its values. So when a type both loses and gains columns, the command asks in a terminal, for each lost column, whether it is renamed to one of the new ones (`renameColumn`, values kept) or dropped. Without a terminal (a deploy script, `--no-interaction`), it refuses and prints both options rather than guess.
 
@@ -156,7 +176,7 @@ Run `php artisan migrate` between two runs: while a migration that touches a `ka
 
 ## In the admin
 
-Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input, `Textarea` as a multi-line one and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
+Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input, `Textarea` as a multi-line one, `Url`, `Email` and `Number` as inputs of their kind, `Date` and `DateTime` as pickers, the latter showing the Site's time zone, `Select` as a dropdown, and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
 
 A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
 
@@ -171,12 +191,13 @@ return [
         'plural' => 'Blog posts',
         'fields' => [
             'summary' => ['label' => 'Summary', 'help' => 'Two sentences at most.'],
+            'kind' => ['label' => 'Kind', 'options' => ['news' => 'News', 'review' => 'Review']],
         ],
     ],
 ];
 ```
 
-The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')` and `fieldHelp('summary')`. `kami:doctor` warns about each missing `label`, `plural` and Field `label` key, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
+The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')` and `optionLabel('kind', 'news')`. `kami:doctor` warns about each missing `label`, `plural`, Field `label` and `Select` option key, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 
 ## Writing Entries
 

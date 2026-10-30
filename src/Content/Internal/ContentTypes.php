@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Select;
 
 /**
  * The Content Types listed in `config/kami.php`, found by class or handle, validated when first built (ADR 0007).
@@ -110,6 +111,14 @@ final class ContentTypes
                 // `Entry::getAttribute()` would return the method's relation or nothing, never the Field's value.
                 if (method_exists(Entry::class, $field->handle)) {
                     throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" names a method of " . Entry::class . ', which would hide its value; rename the Field.');
+                }
+
+                if ($field->isIndexed() && in_array($field->column(), ['text', 'json'], true)) {
+                    throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot be filterable or sortable: no engine indexes its {$field->column()} column whole.");
+                }
+
+                if ($field instanceof Select && $field->optionKeys() === []) {
+                    throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" has no options; declare them with ->options([...]).");
                 }
 
                 $fields[] = $field->handle;

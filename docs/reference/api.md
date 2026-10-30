@@ -43,6 +43,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `public function fields(): array`
 - `public function handle(): string`: The snake_case of the class name; override it to keep the handle after renaming the class.
 - `final public function label(): string`: The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle.
+- `final public function optionLabel(string $field, string $option): string`: `kami-types.{handle}.fields.{field}.options.{option}`, or the humanised option key.
 - `final public function pluralLabel(): string`: `kami-types.{handle}.plural`, or the humanised handle in the plural.
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
 
@@ -66,6 +67,28 @@ Yes or no, one value for the whole Entry unless `->translatable()`; `null` until
 
 - `public function column(): string`
 
+## `Psyao\Kami\Content\Fields\Date`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+A calendar day, read as a `CarbonImmutable` at midnight UTC. It has no time, so no time zone converts it: the day given is the day stored.
+
+- `public function column(): string`
+
+## `Psyao\Kami\Content\Fields\DateTime`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+A moment, read as a `CarbonImmutable`, stored in UTC and shown in the Site's time zone in the admin, as `published_at` (ADR 0004).
+
+- `public function column(): string`
+
+## `Psyao\Kami\Content\Fields\Email`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+An email address.
+
 ## `Psyao\Kami\Content\Fields\Field`
 
 `abstract class`
@@ -78,13 +101,33 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `final public function __construct(string $handle)`
 - `protected function baseRules(): array`: The rules every value of this Field type passes, before those of `->rules()`.
 - `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
-- `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text` or `boolean` (ADR 0006).
+- `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date` or `dateTime` (ADR 0006).
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
+- `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
 - `public function required(): static`: Required to publish; a Draft may leave it blank.
 - `public function rules(array $rules): static`: Laravel validation rules, applied on every save, Drafts included; a blank value passes them unless the rule is implicit.
 - `public function shared(): static`: One value for the whole Entry, whatever the Locale.
+- `public function sortable(): static`: A listing sorts on this Field: `kami:make:migration` indexes its column.
+- `protected function store(mixed $value): mixed`: What its column stores for a valid value given to `SaveEntry`; never called with `null`.
 - `public function translatable(): static`: One value per Locale, falling back to the default Locale's when blank.
+
+## `Psyao\Kami\Content\Fields\Number`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+A whole number read as an `int`, or with `->decimal()` a number with two decimals read as a `string`, which stays exact.
+
+- `public function column(): string`
+- `public function decimal(): Psyao\Kami\Content\Fields\Number`: ponytail: Laravel's default `decimal(8,2)`; a precision argument when a site needs more than 999999.99.
+
+## `Psyao\Kami\Content\Fields\Select`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+One option out of a list of keys; labels come from `kami-types.php`, by key.
+
+- `public function options(array $options): Psyao\Kami\Content\Fields\Select`
 
 ## `Psyao\Kami\Content\Fields\Text`
 
@@ -97,6 +140,12 @@ A single line of plain text.
 `final class extends Psyao\Kami\Content\Fields\Field`
 
 Several lines of plain text.
+
+## `Psyao\Kami\Content\Fields\Url`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+A web address: `http` or `https` only, since a view prints it in a link.
 
 ## `Psyao\Kami\Facades\Kami`
 

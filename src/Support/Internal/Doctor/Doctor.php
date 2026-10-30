@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
@@ -309,6 +310,12 @@ final readonly class Doctor
 
         foreach (resolve(ContentTypes::class)->all() as $type) {
             array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->fields()));
+
+            foreach ($type->fields() as $field) {
+                if ($field instanceof Select) {
+                    array_push($keys, ...array_map(fn (string $option): string => "{$type->handle()}.fields.{$field->handle}.options.{$option}", $field->optionKeys()));
+                }
+            }
         }
 
         // ponytail: the `default` Site's Locales only, as `Site::current()`; V1 multisite checks every Site's.

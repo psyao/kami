@@ -11,9 +11,15 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
+use Psyao\Kami\Content\Fields\Date;
+use Psyao\Kami\Content\Fields\DateTime;
+use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
+use Psyao\Kami\Content\Fields\Url;
 use Workbench\App\Content\Article;
 
 // Each test migrates and rolls back for real, and DDL commits on MySQL: a transaction could not undo it.
@@ -95,6 +101,8 @@ it('writes a migration creating the table of a new type', function () {
 /** Writes the migration for the declared Fields and runs it. */
 function generateAndMigrate(): void
 {
+    // Two migrations written in one second would share a file name.
+    test()->travel(1)->seconds();
     test()->artisan('kami:make:migration')->assertSuccessful();
     migrateWritten();
 }
@@ -225,7 +233,7 @@ it('asks about each lost column when several are lost and gained, and retypes a 
 it('refuses to drop or retype a column whose type it could not write back', function () {
     declareNote([Text::make('summary')]);
     generateAndMigrate();
-    Schema::table('kami_type_note', fn (Blueprint $table) => $table->integer('views')->nullable());
+    Schema::table('kami_type_note', fn (Blueprint $table) => $table->float('views')->nullable());
 
     $this->artisan('kami:make:migration')->expectsOutputToContain('kami_type_note.views has type')->assertFailed();
 
@@ -258,13 +266,14 @@ it('creates a nullable Boolean column and finds it matching on every engine, the
     expect(Schema::hasTable('kami_type_note'))->toBeFalse();
 });
 
-it('does not take a small integer column for a Boolean', function () {
+it('does not find a small integer column matching a Boolean', function () {
     declareNote([Text::make('summary')]);
     generateAndMigrate();
     Schema::table('kami_type_note', fn (Blueprint $table) => $table->tinyInteger('featured')->nullable());
     declareNote([Text::make('summary'), Boolean::make('featured')]);
 
-    $this->artisan('kami:make:migration')->expectsOutputToContain('kami_type_note.featured has type')->assertFailed();
+    // SQLite reports `integer` for it, which #186's retype answers; the others a type Kami cannot write back.
+    $this->artisan('kami:make:migration')->doesntExpectOutputToContain('Nothing to do');
 });
 
 it('keeps working on a Field type with no registered component, so the declaration can be fixed', function () {
@@ -273,4 +282,127 @@ it('keeps working on a Field type with no registered component, so the declarati
     generateAndMigrate();
 
     expect(noteColumns())->toHaveKey('rumour');
+});
+
+it('creates each column type and finds it matching on every engine, then undoes it', function () {
+    declareNote([
+        Url::make('website'), Email::make('contact'), Select::make('kind')->options(['a']),
+        Number::make('pages'), Number::make('rating')->decimal(),
+        Date::make('starts_on'), DateTime::make('starts_at'),
+    ]);
+    generateAndMigrate();
+
+    expect(collect(Schema::getColumns('kami_type_note'))->except([0, 1])->every(fn (array $column): bool => $column['nullable']))->toBeTrue();
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+
+    rollBackLast();
+
+    expect(Schema::hasTable('kami_type_note'))->toBeFalse();
+});
+
+it('adds a column of each new type to an existing table, and writes it back when dropped', function () {
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+
+    declareNote([Text::make('summary'), Number::make('pages'), Number::make('rating')->decimal(), Date::make('starts_on'), DateTime::make('starts_at')]);
+    generateAndMigrate();
+
+    expect(noteColumns())->toHaveKeys(['pages', 'rating', 'starts_on', 'starts_at']);
+
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+    rollBackLast();
+
+    expect(noteColumns())->toHaveKeys(['pages', 'rating', 'starts_on', 'starts_at']);
+
+    File::delete(last(writtenMigrations()));
+    declareNote([Text::make('summary'), Number::make('pages'), Number::make('rating')->decimal(), Date::make('starts_on'), DateTime::make('starts_at')]);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+});
+
+/** @return list<string> The columns with an index of their own, the unique pair aside. */
+function indexedNoteColumns(): array
+{
+    return collect(Schema::getIndexes('kami_type_note'))->filter(fn (array $index): bool => count($index['columns']) === 1 && ! $index['primary'])->pluck('columns.0')->sort()->values()->all();
+}
+
+it('indexes only a filterable or sortable Field, under a name every engine accepts', function () {
+    declareNote([Text::make('summary'), Date::make('starts_on')->filterable(), Number::make(str_repeat('a', 40))->sortable()]);
+    generateAndMigrate();
+
+    expect(indexedNoteColumns())->toBe([str_repeat('a', 40), 'starts_on']);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+});
+
+it('indexes a column once it is declared filterable, drops the index once it is not, and undoes both', function () {
+    declareNote([Text::make('kind')]);
+    generateAndMigrate();
+
+    declareNote([Text::make('kind')->filterable()]);
+    generateAndMigrate();
+
+    expect(indexedNoteColumns())->toBe(['kind']);
+
+    rollBackLast();
+
+    expect(indexedNoteColumns())->toBe([]);
+
+    migrateWritten();
+    declareNote([Text::make('kind')]);
+    generateAndMigrate();
+
+    expect(indexedNoteColumns())->toBe([]);
+
+    rollBackLast();
+
+    expect(indexedNoteColumns())->toBe(['kind']);
+});
+
+it('indexes a Field added to an existing table, and drops an indexed Field with its index, then undoes it', function () {
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+
+    declareNote([Text::make('summary'), Text::make('kind')->sortable()]);
+    generateAndMigrate();
+
+    expect(indexedNoteColumns())->toBe(['kind']);
+
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+
+    expect(noteColumns())->not->toHaveKey('kind');
+
+    rollBackLast();
+
+    expect(indexedNoteColumns())->toBe(['kind']);
+});
+
+it('keeps the index of a renamed column', function () {
+    declareNote([Text::make('kind')->filterable()]);
+    generateAndMigrate();
+
+    declareNote([Text::make('genre')->filterable()]);
+    $this->artisan('kami:make:migration')->expectsQuestion('kami_type_note.kind is no longer declared. Is it renamed?', 'genre')->assertSuccessful();
+    migrateWritten();
+
+    expect(indexedNoteColumns())->toBe(['genre']);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+});
+
+it('leaves an index the site wrote by hand alone, and does not add a second', function () {
+    declareNote([Text::make('kind'), Text::make('genre')->filterable()]);
+    Schema::create('kami_type_note', function (Blueprint $table): void {
+        $table->string('kind')->nullable()->index('site_kind');
+        $table->string('genre')->nullable()->index('site_genre');
+    });
+    Schema::table('kami_type_note', function (Blueprint $table): void {
+        $table->string('entry_id')->nullable();
+        $table->string('locale')->nullable();
+    });
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
 });

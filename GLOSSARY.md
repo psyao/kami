@@ -45,7 +45,7 @@ A language a Site publishes in. A Site has one or more Locales and one default L
 _Avoid_: Language site, translation site
 
 **Display time zone**:
-The time zone a Site shows dates in. Dates are always kept in UTC.
+The time zone a Site shows dates in. Dates are always kept in UTC, except a `Date` Field, a calendar day that no zone converts.
 
 **Admin language**:
 The language the admin's interface is shown in to Users. It is not a Locale: a Site may publish in languages the admin is never shown in.

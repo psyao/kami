@@ -6,7 +6,11 @@ use Filament\Actions\Testing\TestAction;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -583,6 +587,66 @@ it('edits a site\'s own Field type with the component it registered', function (
 
     entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])->assertSchemaStateSet(['accent' => '#abcdef']);
 });
+
+it('edits each scalar Field with its usual input and reads the value back', function () {
+    entryPage(CreateEntry::class)
+        ->assertFormFieldExists('website', fn (Field $field): bool => $field instanceof TextInput && $field->getType() === 'url')
+        ->assertFormFieldExists('contact', fn (Field $field): bool => $field instanceof TextInput && $field->getType() === 'email')
+        ->assertFormFieldExists('pages', fn (Field $field): bool => $field instanceof TextInput && $field->getType() === 'number')
+        ->assertFormFieldExists('rating', fn (Field $field): bool => $field instanceof TextInput && $field->getType() === 'number')
+        ->assertFormFieldExists('starts_on', fn (Field $field): bool => $field instanceof DatePicker && ! $field->hasTime())
+        ->assertFormFieldExists('starts_at', fn (Field $field): bool => $field instanceof DateTimePicker && $field->hasTime())
+        ->assertFormFieldExists('kind', fn (Field $field): bool => $field instanceof Select && $field->getOptions() === ['news' => 'News', 'review' => 'Review'])
+        ->fillForm(['title' => 'Bonjour', 'website' => 'https://example.test', 'contact' => 'ada@example.test', 'pages' => 12, 'rating' => '4.50', 'starts_on' => '2026-03-15', 'kind' => 'review'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $entry = onlyEntry();
+
+    expect($entry->pages)->toBe(12)
+        ->and($entry->rating)->toBe('4.50')
+        ->and($entry->starts_on->toDateString())->toBe('2026-03-15')
+        ->and($entry->kind)->toBe('review');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        ->assertSchemaStateSet(['pages' => 12, 'rating' => '4.50', 'starts_on' => '2026-03-15', 'kind' => 'review'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->starts_on->toDateString())->toBe('2026-03-15');
+});
+
+it('shows a DateTime in the Display time zone and stores it in UTC; a Date moves with no zone', function () {
+    config(['kami.sites.default.timezone' => 'Europe/Zurich']);
+
+    entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour', 'starts_at' => '2026-03-15 10:30:00', 'starts_on' => '2026-03-15'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->starts_at->toDateTimeString())->toBe('2026-03-15 09:30:00')
+        ->and(onlyEntry()->starts_on->toDateString())->toBe('2026-03-15');
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])
+        ->assertSet('data.starts_at', '2026-03-15 10:30:00')
+        ->assertSet('data.starts_on', '2026-03-15')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->starts_at->toDateTimeString())->toBe('2026-03-15 09:30:00')
+        ->and(onlyEntry()->starts_on->toDateString())->toBe('2026-03-15');
+});
+
+it('refuses an invalid value on its input', function (string $field, mixed $value) {
+    entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour', $field => $value])
+        ->call('create')
+        ->assertHasFormErrors([$field]);
+})->with([
+    'Url' => ['website', 'nope'],
+    'Email' => ['contact', 'nope'],
+    'Select' => ['kind', 'gossip'],
+]);
 
 it('fails on the panel, naming the type, when a Field type has no registered component', function () {
     config(['kami.types' => [...config('kami.types'), Unregistered::class]]);
