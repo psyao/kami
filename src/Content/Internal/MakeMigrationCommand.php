@@ -11,7 +11,7 @@ use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Psyao\Kami\Content\ContentType;
-use Psyao\Kami\Support\Internal\DetectsTerminal;
+use Psyao\Kami\Support\Internal\ChecksPrompting;
 
 use function Laravel\Prompts\select;
 
@@ -25,7 +25,7 @@ use function Laravel\Prompts\select;
     {type? : A Content Type\'s handle or class, every declared type when left out}')]
 final class MakeMigrationCommand extends Command
 {
-    use DetectsTerminal;
+    use ChecksPrompting;
 
     /** The column type names every engine reports for the column types a Field declares. */
     private const array COLUMN_TYPES = ['varchar' => 'string', 'text' => 'text'];
@@ -208,7 +208,7 @@ final class MakeMigrationCommand extends Command
             return [];
         }
 
-        if (! $this->hasTerminal()) {
+        if (! $this->canPrompt()) {
             $this->components->error("{$table} loses " . implode(', ', $dropped) . ' and gains ' . implode(', ', $added) . '. Without a terminal, kami:make:migration cannot tell a rename from a drop and an add, which loses the values. Run it in a terminal to choose, for each lost column, between:');
             $this->components->bulletList(['renaming it to one of ' . implode(', ', $added) . ' (renameColumn, values kept)', 'dropping it (dropColumn, values lost)']);
 

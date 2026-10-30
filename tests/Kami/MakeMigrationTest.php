@@ -160,6 +160,7 @@ it('refuses to guess a rename from a process with no terminal, even without --no
     touch($database = database_path() . '/kami.sqlite');
     $artisan = Process::path(dirname(__DIR__, 2))->env(['APP_ENV' => 'local', 'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => $database]);
     $artisan->run(['php', 'vendor/bin/testbench', 'migrate', '--force'])->throw();
+    // The process's SQLite file, not the test's own connection, which CI runs on every engine.
     (new PDO("sqlite:{$database}"))->exec('ALTER TABLE kami_type_label RENAME COLUMN colour TO legacy');
 
     $result = $artisan->run(['php', 'vendor/bin/testbench', 'kami:make:migration', 'label']);
