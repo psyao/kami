@@ -104,7 +104,7 @@ That file must never reach production: pages would load their scripts from a dev
 
 ## Local development over HTTP
 
-The front policy is the same in every environment, `upgrade-insecure-requests` included. On a local site served over plain `http`, the browser therefore requests `/build/*` over https, the certificate check fails (`ERR_CERT_COMMON_NAME_INVALID`) and the page renders unstyled.
+The front policy sends `upgrade-insecure-requests` in every environment. On a local site served over plain `http`, the browser therefore requests `/build/*` over HTTPS, the certificate check fails (for example `ERR_CERT_COMMON_NAME_INVALID`) and the page renders unstyled.
 
 Serve the site over HTTPS, with an `https` `APP_URL`. On Herd, from the site's directory:
 
