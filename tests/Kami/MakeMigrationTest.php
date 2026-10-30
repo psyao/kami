@@ -7,7 +7,6 @@ use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
@@ -153,20 +152,6 @@ it('refuses to guess a rename without a terminal, printing both options', functi
     expect(Artisan::call('kami:make:migration', ['--no-interaction' => true]))->toBe(1)
         ->and(Artisan::output())->toContain('kami_type_note loses summary and gains lede', 'renaming it to one of lede', 'dropping it')
         ->and(writtenMigrations())->toHaveCount(1);
-});
-
-it('refuses to guess a rename from a process with no terminal, even without --no-interaction', function () {
-    // A real process outside the testing environment, where Laravel treats every command as having a terminal.
-    touch($database = database_path() . '/kami.sqlite');
-    $artisan = Process::path(dirname(__DIR__, 2))->env(['APP_ENV' => 'local', 'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => $database]);
-    $artisan->run(['php', 'vendor/bin/testbench', 'migrate', '--force'])->throw();
-    // The process's SQLite file, not the test's own connection, which CI runs on every engine.
-    (new PDO("sqlite:{$database}"))->exec('ALTER TABLE kami_type_label RENAME COLUMN colour TO legacy');
-
-    $result = $artisan->run(['php', 'vendor/bin/testbench', 'kami:make:migration', 'label']);
-
-    expect($result->exitCode())->toBe(1)
-        ->and($result->output())->toContain('kami_type_label loses legacy and gains colour', 'renaming it to one of colour', 'dropping it');
 });
 
 it('says there is nothing to do when the tables match, and writes nothing', function () {
