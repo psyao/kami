@@ -107,9 +107,9 @@ final class Colour extends Field
     }
 
     // What `$entry->accent` returns for the stored value; never called with `null`.
-    protected function cast(mixed $value): string
+    protected function cast(mixed $value): mixed
     {
-        return strtolower($value);
+        return is_string($value) ? strtolower($value) : $value;
     }
 }
 ```
@@ -156,7 +156,7 @@ Run `php artisan migrate` between two runs: while a migration that touches a `ka
 
 ## In the admin
 
-Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input, `Textarea` as a multi-line one and `Boolean` as a toggle. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
+Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input, `Textarea` as a multi-line one and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
 
 A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
 

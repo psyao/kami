@@ -68,6 +68,6 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - Storage and rendering belong to "Editing: rich text format and blocks".
 - **Field types.**
   - `Field` is a public, open abstract class. A site adds its own Field type by declaring its column, cast, rules and default scope.
-  - Its admin component is registered with `KamiPlugin::make()->fieldComponents([...])`, the same mechanism Kami uses for its own Field types. A Field type with no registered component is a boot error.
+  - Its admin component is registered with `KamiPlugin::make()->fieldComponents([...])`, the same mechanism Kami uses for its own Field types. A Field type with no registered component is an error when the panel boots, on its own requests: Artisan keeps working, so the declaration can be fixed.
 - **No infolist** in the MVP: an Entry is seen through its form or its front preview. `->infolists()` can be added later without breaking anything.
 - **Open classes.** The extension points this adds (`Field`, `Entry`, `Term`, `EntryForm`, `EntryTable`, `fieldComponents`) join the closed list owned by "Extension points: events, registries, overrides".

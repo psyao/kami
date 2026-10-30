@@ -563,6 +563,15 @@ it('edits a Boolean with a toggle and reads a bool back', function () {
     expect(onlyEntry()->featured)->toBeFalse();
 });
 
+it('stores false for a Boolean whose toggle the form never touches', function () {
+    entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->featured)->toBeFalse();
+});
+
 it('edits a site\'s own Field type with the component it registered', function () {
     entryPage(CreateEntry::class)
         ->assertFormFieldExists('accent', fn (Field $field): bool => $field instanceof ColorPicker)

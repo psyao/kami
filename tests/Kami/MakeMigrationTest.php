@@ -258,7 +258,7 @@ it('creates a nullable Boolean column and finds it matching on every engine, the
     expect(Schema::hasTable('kami_type_note'))->toBeFalse();
 });
 
-it('retypes a small integer column to a Boolean: only a boolean column matches', function () {
+it('does not take a small integer column for a Boolean', function () {
     declareNote([Text::make('summary')]);
     generateAndMigrate();
     Schema::table('kami_type_note', fn (Blueprint $table) => $table->tinyInteger('featured')->nullable());

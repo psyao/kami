@@ -45,7 +45,7 @@ Each Translation is published on its own. An Entry with no English Translation, 
 
 ## Shared and Translatable Fields
 
-`Text` and `Textarea` Fields are Translatable. `->shared()` makes a Field hold one value for the whole Entry, whatever the Locale; `->translatable()` states the default explicitly:
+`Text` and `Textarea` Fields are Translatable, `Boolean` Fields Shared. `->shared()` makes a Field hold one value for the whole Entry, whatever the Locale; `->translatable()` gives it one value per Locale:
 
 ```php
 public function fields(): array
