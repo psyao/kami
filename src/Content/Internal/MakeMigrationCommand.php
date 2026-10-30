@@ -31,6 +31,8 @@ final class MakeMigrationCommand extends Command
 
     private const string INDEX_PREFIX = 'kami_idx_';
 
+    private const array INTERCHANGEABLE = ['string', 'text'];
+
     public function handle(ContentTypes $types, Migrator $migrator): int
     {
         $handle = $this->argument('type');
@@ -172,6 +174,22 @@ final class MakeMigrationCommand extends Command
             return false;
         }
 
+        // A value that does not convert has no portable answer. Only these two hold each other's values, and a too long one stops the migration.
+        $refused = array_filter($retyped, fn (string $column, string $field): bool => array_diff([$column, $existing[$field]], self::INTERCHANGEABLE) !== [], ARRAY_FILTER_USE_BOTH);
+
+        if ($refused !== []) {
+            foreach ($refused as $field => $column) {
+                $this->components->error("{$table}.{$field} goes from {$existing[$field]} to {$column}, and no cast works on every engine. Write this migration by hand, converting the values where marked, and drop any index on the column first: the command adds a declared one back.");
+            }
+
+            $this->line($this->migration(
+                array_merge(...array_map(fn (string $field, string $column): array => $this->retype($table, $field, $column), array_keys($refused), $refused)),
+                array_merge(...array_map(fn (string $field): array => $this->retype($table, $field, $existing[$field]), array_keys($refused))),
+            ));
+
+            return false;
+        }
+
         $indexes = [];
 
         foreach (Schema::getIndexes($table) as $index) {
@@ -269,6 +287,27 @@ final class MakeMigrationCommand extends Command
     private function column(string $field, string $column, string $suffix = ''): string
     {
         return "\$table->{$column}('{$field}')->nullable(){$suffix};";
+    }
+
+    /**
+     * The statements moving a column's values into a new column of another type, for a migration the site finishes by hand.
+     *
+     * @return list<string>
+     */
+    private function retype(string $table, string $field, string $column): array
+    {
+        return [
+            $this->schema('table', $table, [$this->column("{$field}_new", $column)]),
+            <<<PHP
+            \\Illuminate\\Support\\Facades\\DB::table('{$table}')->orderBy('entry_id')->orderBy('locale')->each(function (object \$row): void {
+                        \\Illuminate\\Support\\Facades\\DB::table('{$table}')->where('entry_id', \$row->entry_id)->where('locale', \$row->locale)->update([
+                            '{$field}_new' => \$row->{$field}, // Convert the value here: one the new type refuses stops the migration.
+                        ]);
+                    });
+            PHP,
+            $this->schema('table', $table, ["\$table->dropColumn('{$field}');"]),
+            $this->schema('table', $table, ["\$table->renameColumn('{$field}_new', '{$field}');"]),
+        ];
     }
 
     private function index(string $table, string $field): string

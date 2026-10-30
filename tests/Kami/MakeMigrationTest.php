@@ -272,8 +272,71 @@ it('does not find a small integer column matching a Boolean', function () {
     Schema::table('kami_type_note', fn (Blueprint $table) => $table->tinyInteger('featured')->nullable());
     declareNote([Text::make('summary'), Boolean::make('featured')]);
 
-    // SQLite reports `integer` for it, which #186's retype answers; the others a type Kami cannot write back.
-    $this->artisan('kami:make:migration')->doesntExpectOutputToContain('Nothing to do');
+    // SQLite reports `integer` for it, a retype it refuses; the others a type Kami cannot write back. Both say the same.
+    $this->artisan('kami:make:migration')->expectsOutputToContain('by hand')->assertFailed();
+
+    expect(writtenMigrations())->toHaveCount(1);
+});
+
+it('refuses a retype no cast answers on every engine, and the migration it prints converts the values and undoes it', function (Field $field, string $value) {
+    declareNote([Text::make('amount')]);
+    generateAndMigrate();
+    DB::table('kami_entries')->insert(['id' => $id = (string) Str::ulid(), 'site' => 'default', 'type' => 'note', 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('kami_type_note')->insert(['entry_id' => $id, 'locale' => '*', 'amount' => $value]);
+
+    declareNote([$field]);
+    $this->withoutMockingConsoleOutput();
+
+    expect(Artisan::call('kami:make:migration', ['--no-interaction' => true]))->toBe(1)
+        ->and($output = Artisan::output())->toContain('kami_type_note.amount', 'by hand')
+        ->and(writtenMigrations())->toHaveCount(1);
+
+    $this->travel(1)->seconds();
+    File::put(database_path('migrations/' . now()->format('Y_m_d_His') . '_retype_amount.php'), mb_substr($output, mb_strpos($output, '<?php')));
+    Artisan::call('migrate', ['--path' => database_path('migrations'), '--realpath' => true]);
+
+    expect((string) DB::table('kami_type_note')->value('amount'))->toStartWith(rtrim($value, '0'))
+        ->and(Artisan::call('kami:make:migration'))->toBe(0)
+        ->and(Artisan::output())->toContain('Nothing to do');
+
+    Artisan::call('migrate:rollback', ['--path' => database_path('migrations'), '--realpath' => true, '--step' => 1]);
+
+    expect(noteColumns()['amount'])->toBe('varchar')
+        ->and((string) DB::table('kami_type_note')->value('amount'))->toStartWith(rtrim($value, '0'));
+})->with([
+    'boolean' => [fn () => Boolean::make('amount'), '1'],
+    'integer' => [fn () => Number::make('amount'), '12'],
+    'decimal' => [fn () => Number::make('amount')->decimal(), '12.50'],
+    'date' => [fn () => Date::make('amount'), '2026-01-02'],
+    'dateTime' => [fn () => DateTime::make('amount'), '2026-01-02 03:04:05'],
+]);
+
+it('refuses a retype away from a column type just as it does towards one', function () {
+    declareNote([Number::make('amount'), Boolean::make('featured')]);
+    generateAndMigrate();
+
+    declareNote([Text::make('amount'), Date::make('featured')]);
+
+    $this->artisan('kami:make:migration')
+        ->expectsOutputToContain('kami_type_note.amount')
+        ->expectsOutputToContain('kami_type_note.featured')
+        ->assertFailed();
+
+    expect(writtenMigrations())->toHaveCount(1);
+});
+
+it('still retypes between string and text, both ways', function () {
+    declareNote([Textarea::make('summary')]);
+    generateAndMigrate();
+
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+
+    expect(noteColumns()['summary'])->toBe('varchar');
+
+    rollBackLast();
+
+    expect(noteColumns()['summary'])->toBe('text');
 });
 
 it('keeps working on a Field type with no registered component, so the declaration can be fixed', function () {
