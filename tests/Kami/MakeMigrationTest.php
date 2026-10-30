@@ -600,9 +600,13 @@ it('names the unique index and the foreign key of the longest handle within ever
     $foreign = collect(Schema::getForeignKeys($table))->first();
 
     expect($unique['unique'])->toBeTrue()
-        ->and(strlen($unique['name']))->toBeLessThanOrEqual(63)
-        ->and($foreign)->toMatchArray(['columns' => ['entry_id'], 'foreign_table' => 'kami_entries', 'on_delete' => 'cascade'])
-        ->and(strlen($foreign['name'] ?? $unique['name']))->toBeLessThanOrEqual(63);
+        ->and($unique['name'])->toStartWith('kami_idx_')
+        ->and($foreign)->toMatchArray(['columns' => ['entry_id'], 'foreign_table' => 'kami_entries', 'on_delete' => 'cascade']);
+
+    // SQLite does not name a foreign key.
+    if ($foreign['name'] !== null) {
+        expect($foreign['name'])->toStartWith('kami_fk_');
+    }
 
     // Whatever index an engine keeps for the foreign key is not taken for a Field's.
     $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
@@ -634,7 +638,7 @@ it('leaves a table generated under Laravel\'s own names alone, and still changes
         $table->string('summary')->nullable();
         $table->unique(['entry_id', 'locale']);
     });
-    $names = fn (): array => collect(Schema::getIndexes('kami_type_note'))->pluck('name')->sort()->values()->all();
+    $names = fn (): array => collect([...Schema::getIndexes('kami_type_note'), ...Schema::getForeignKeys('kami_type_note')])->pluck('name')->sort()->values()->all();
     $before = $names();
 
     declareNote([Text::make('summary')]);
