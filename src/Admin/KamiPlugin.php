@@ -22,6 +22,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\DateTime;
@@ -29,6 +30,7 @@ use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Number;
 use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
@@ -121,10 +123,21 @@ final class KamiPlugin implements Plugin
         // On the panel's own requests only: `register()` runs for Artisan too, which must keep working to fix a declaration (see `ContentTypes`).
         foreach (resolve(ContentTypes::class)->declared() as $type) {
             foreach ($type->flatFields() as $field) {
-                if (! isset($this->fieldComponents[$field::class])) {
-                    throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $type::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');
+                $this->requireComponent($field, $type);
+            }
+        }
+    }
+
+    private function requireComponent(Field $field, ContentType $type): void
+    {
+        if ($field instanceof StructuredField) {
+            foreach ($field->subFields() as $sub) {
+                if ($sub instanceof Field) {
+                    $this->requireComponent($sub, $type);
                 }
             }
+        } elseif (! isset($this->fieldComponents[$field::class])) {
+            throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $type::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');
         }
     }
 }

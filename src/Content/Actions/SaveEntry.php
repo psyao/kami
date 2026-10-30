@@ -18,6 +18,7 @@ use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
@@ -84,10 +85,15 @@ final class SaveEntry
             }
         }
 
+        foreach (array_intersect_key($fields, $values) as $handle => $field) {
+            $values[$handle] = $field->normalise($values[$handle]);
+        }
+
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
         $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? Translation::DRAFT] : [];
         foreach ($fields as $handle => $field) {
-            $data[$handle] = $stored->get($contentType->isTranslatable($field) ? $locale : '*')?->{$handle};
+            $column = $stored->get($contentType->isTranslatable($field) ? $locale : '*')?->{$handle};
+            $data[$handle] = $field instanceof StructuredField ? $field->decoded($column) : $column;
         }
 
         $data = [...$data, ...$values];
@@ -107,7 +113,7 @@ final class SaveEntry
         ] : [];
 
         foreach ($fields as $handle => $field) {
-            $rules[$handle] = [$publishing && $field->isRequired() ? 'required' : 'nullable', ...$field->validationRules()];
+            $rules = [...$rules, ...$field->rulesAt($handle, $publishing)];
         }
 
         // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.
@@ -121,7 +127,8 @@ final class SaveEntry
             $target = $fields[(string) $field->conditionTarget()];
 
             if (! $field->isVisibleGiven($target, $data[$target->handle])) {
-                unset($rules[$field->handle], $values[$field->handle]);
+                unset($values[$field->handle]);
+                $rules = array_diff_key($rules, $field->rulesAt($field->handle, $publishing));
                 $cleared[$field->handle] = null;
             }
         }

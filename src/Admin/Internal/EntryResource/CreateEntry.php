@@ -25,7 +25,7 @@ final class CreateEntry extends CreateRecord
 
     protected function handleRecordCreation(array $data): Entry
     {
-        return EntryResource::save($data, status: $this->status);
+        return EntryResource::save($data, status: $this->status, state: $this->data ?? []);
     }
 
     protected function getFormActions(): array

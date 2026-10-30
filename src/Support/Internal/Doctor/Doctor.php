@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Tab;
@@ -301,6 +302,26 @@ final readonly class Doctor
         ), $viewless));
     }
 
+    /** @return list<string> */
+    private function labelKeys(string $key, Field $field): array
+    {
+        $keys = ["{$key}.label"];
+
+        if ($field instanceof Select) {
+            array_push($keys, ...array_map(fn (string $option): string => "{$key}.options.{$option}", $field->optionKeys()));
+        }
+
+        if ($field instanceof StructuredField) {
+            foreach ($field->subFields() as $sub) {
+                if ($sub instanceof Field) {
+                    array_push($keys, ...$this->labelKeys("{$key}.fields.{$sub->handle}", $sub));
+                }
+            }
+        }
+
+        return $keys;
+    }
+
     /**
      * One warning per language the admin may show, listing the label keys the admin humanises instead; help texts are optional.
      *
@@ -311,12 +332,10 @@ final readonly class Doctor
         $keys = [];
 
         foreach (resolve(ContentTypes::class)->all() as $type) {
-            array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->flatFields()), ...array_map(fn (Layout $layout): string => "{$type->handle()}." . ($layout instanceof Tab ? 'tabs' : 'sections') . ".{$layout->handle}.label", $type->layouts()));
+            array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Layout $layout): string => "{$type->handle()}." . ($layout instanceof Tab ? 'tabs' : 'sections') . ".{$layout->handle}.label", $type->layouts()));
 
             foreach ($type->flatFields() as $field) {
-                if ($field instanceof Select) {
-                    array_push($keys, ...array_map(fn (string $option): string => "{$type->handle()}.fields.{$field->handle}.options.{$option}", $field->optionKeys()));
-                }
+                array_push($keys, ...$this->labelKeys("{$type->handle()}.fields.{$field->handle}", $field));
             }
         }
 

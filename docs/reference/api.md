@@ -39,7 +39,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
 - `final public function fieldHelp(string $field): ?string`: `kami-types.{handle}.fields.{field}.help`, or none.
-- `final public function fieldLabel(string $field): string`: `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle.
+- `final public function fieldLabel(string $field): string`: `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`.
 - `public function fields(): array`: What the type stores, in the order of the form, optionally arranged in `Tab` and `Section`.
 - `public function handle(): string`: The snake_case of the class name; override it to keep the handle after renaming the class.
 - `final public function label(): string`: The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle.
@@ -103,7 +103,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `final public function __construct(string $handle)`
 - `protected function baseRules(): array`: The rules every value of this Field type passes, before those of `->rules()`.
 - `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
-- `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date` or `dateTime` (ADR 0006).
+- `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date`, `dateTime` or `json` (ADR 0006).
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
 - `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
@@ -116,6 +116,14 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `public function visibleWhen(string $field, mixed $value): static`: Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
 - `public function visibleWhenFilled(string $field): static`: Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
 
+## `Psyao\Kami\Content\Fields\Group`
+
+`final class extends Psyao\Kami\Content\Fields\StructuredField`
+
+One set of named sub-Fields, read as an array, `null` when all are blank. Shared by default, in one `json` column.
+
+- `public static function make(string $handle, array $fields = []): static`
+
 ## `Psyao\Kami\Content\Fields\Number`
 
 `final class extends Psyao\Kami\Content\Fields\Field`
@@ -125,6 +133,14 @@ A whole number read as an `int`, or with `->decimal()` a number with two decimal
 - `public function column(): string`
 - `public function decimal(): Psyao\Kami\Content\Fields\Number`: A number with up to two decimals, up to 999999.99.
 
+## `Psyao\Kami\Content\Fields\Repeater`
+
+`final class extends Psyao\Kami\Content\Fields\StructuredField`
+
+A variable list of rows of sub-Fields, read as a list of arrays, `null` with no row. Shared by default, in one `json` column.
+
+- `public static function make(string $handle, array $fields = []): static`
+
 ## `Psyao\Kami\Content\Fields\Select`
 
 `final class extends Psyao\Kami\Content\Fields\Field`
@@ -132,6 +148,12 @@ A whole number read as an `int`, or with `->decimal()` a number with two decimal
 One option out of a list of keys; labels come from `kami-types.php`, by key.
 
 - `public function options(array $options): Psyao\Kami\Content\Fields\Select`
+
+## `Psyao\Kami\Content\Fields\StructuredField`
+
+`abstract class extends Psyao\Kami\Content\Fields\Field`
+
+Sub-Fields kept in one `json` column, an opaque document no SQL looks into, always handled decoded (ADR 0006).
 
 ## `Psyao\Kami\Content\Fields\Text`
 

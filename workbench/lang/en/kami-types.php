@@ -53,6 +53,14 @@ return [
             'source' => ['label' => 'Source'],
             'story' => ['label' => 'Story'],
             'launched_on' => ['label' => 'Launched on'],
+            'links' => ['label' => 'Links', 'fields' => [
+                'label' => ['label' => 'Label'],
+                'url' => ['label' => 'Address'],
+            ]],
+            'address' => ['label' => 'Address', 'fields' => [
+                'street' => ['label' => 'Street'],
+                'city' => ['label' => 'City'],
+            ]],
         ],
     ],
 ];

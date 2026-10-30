@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('source')->nullable();
             $table->text('story')->nullable();
             $table->date('launched_on')->nullable();
+            $table->json('links')->nullable();
+            $table->json('address')->nullable();
             $table->unique(['entry_id', 'locale']);
         });
     }

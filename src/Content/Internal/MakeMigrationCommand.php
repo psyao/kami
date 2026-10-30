@@ -165,6 +165,12 @@ final class MakeMigrationCommand extends Command
             unset($existing[$from]);
         }
 
+        foreach (array_intersect_key($declared, $existing) as $field => $column) {
+            if ($column === 'json' && $existing[$field] === 'text' && ColumnTypes::holdsJson($table, (string) (array_search($field, $renamed, true) ?: $field))) {
+                $existing[$field] = 'json';
+            }
+        }
+
         $retyped = array_filter(array_intersect_key($declared, $existing), fn (string $column, string $field): bool => $existing[$field] !== $column, ARRAY_FILTER_USE_BOTH);
         $dropped = array_diff_key($existing, $declared);
 

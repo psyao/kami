@@ -78,7 +78,7 @@ final class EditEntry extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Entry
     {
-        return $this->record = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale);
+        return $this->record = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? []);
     }
 
     protected function getHeaderActions(): array

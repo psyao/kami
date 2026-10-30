@@ -25,11 +25,13 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field as KamiField;
+use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
 use Workbench\App\Content\Page;
+use Workbench\App\Content\Project;
 use Workbench\App\Models\User;
 
 // A User committed here would outlive the test on MySQL, MariaDB and PostgreSQL and clash with the next one's.
@@ -43,6 +45,14 @@ final class Unregistered extends ContentType
     public function fields(): array
     {
         return [Rumour::make('whisper')];
+    }
+}
+
+final class UnregisteredInside extends ContentType
+{
+    public function fields(): array
+    {
+        return [Group::make('place', [Rumour::make('whisper')])];
     }
 }
 
@@ -698,4 +708,64 @@ it('clears a Field the form hid, as SaveEntry does for anyone', function () {
 
     expect(onlyEntry('project')->featured_note)->toBeNull()
         ->and(onlyEntry('project')->story)->toBe('Once');
+});
+
+it('adds, removes and reorders a Repeater\'s rows, and fills its Group', function () {
+    $this->actingAs(userWithRole('administrator'));
+
+    $entry = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'links' => [['label' => 'One', 'url' => 'https://one.test'], ['label' => 'Two', 'url' => 'https://two.test']], 'address' => ['street' => 'Rue du Lac', 'city' => 'Vevey']], locale: 'fr');
+
+    $page = entryPage(EditEntry::class, 'project', ['record' => $entry->getKey()])
+        ->assertSet('data.address.city', 'Vevey');
+    $rows = array_keys($page->get('data.links'));
+
+    $page->callAction(TestAction::make('reorder')->schemaComponent('links', 'form'), arguments: ['items' => array_reverse($rows)])
+        ->callAction(TestAction::make('delete')->schemaComponent('links', 'form'), arguments: ['item' => $rows[0]])
+        ->callAction(TestAction::make('add')->schemaComponent('links', 'form'));
+
+    $added = array_key_last($page->get('data.links'));
+
+    $page->set("data.links.{$added}.label", 'Three')->set("data.links.{$added}.url", 'https://three.test')
+        ->set('data.address.city', 'Montreux')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $saved = Entry::query()->withUnpublished()->findOrFail($entry->getKey());
+
+    expect($saved->links)->toBe([['label' => 'Two', 'url' => 'https://two.test'], ['label' => 'Three', 'url' => 'https://three.test']])
+        ->and($saved->address)->toBe(['street' => 'Rue du Lac', 'city' => 'Montreux']);
+});
+
+it('opens a new Entry with no row and an empty Group, and stores neither', function () {
+    $this->actingAs(userWithRole('administrator'));
+
+    $page = entryPage(CreateEntry::class, 'project');
+
+    expect($page->get('data.links'))->toBeEmpty();
+
+    $page->set('data.title', 'Kami')->call('create')->assertHasNoFormErrors();
+
+    expect(DB::table('kami_type_project')->where('locale', '*')->first())->links->toBeNull()->address->toBeNull();
+});
+
+it('puts SaveEntry\'s error on the input of the row concerned', function () {
+    $this->actingAs(userWithRole('administrator'));
+
+    $entry = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'links' => [['label' => 'One', 'url' => 'https://one.test'], ['label' => 'No address']]], locale: 'fr');
+    $page = entryPage(EditEntry::class, 'project', ['record' => $entry->getKey()]);
+    $rows = array_keys($page->get('data.links'));
+
+    $page->callAction(formAction('publish'))->assertHasErrors(["data.links.{$rows[1]}.url"])->assertHasNoErrors(["data.links.{$rows[0]}.url"]);
+});
+
+it('shows a Repeater and a Group with their labels, sub-Fields included', function () {
+    $this->actingAs(userWithRole('administrator'));
+
+    entryPage(CreateEntry::class, 'project')->assertSee('Links')->assertSee('Address')->assertSee('City')->assertDontSee('kami-types');
+});
+
+it('stops the panel on a sub-Field type with no component', function () {
+    config(['kami.types' => [UnregisteredInside::class]]);
+
+    expect(fn () => Filament::getPanel('admin')->getPlugin('kami')->boot(Filament::getPanel('admin')))->toThrow(LogicException::class, Rumour::class);
 });
