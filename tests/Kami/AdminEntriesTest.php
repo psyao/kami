@@ -656,3 +656,46 @@ it('fails on the panel, naming the type, when a Field type has no registered com
 
     $this->withoutExceptionHandling()->get('/admin');
 })->throws(LogicException::class, 'No admin component for the Field type ' . Rumour::class);
+
+it('arranges the form in the declared tabs and sections, titled from kami-types', function () {
+    entryPage(CreateEntry::class, 'project')
+        ->assertSee(['Details', 'Story', 'Highlight'])
+        ->assertFormFieldExists('client')
+        ->assertFormFieldExists('featured')
+        ->assertFormFieldExists('story')
+        ->assertFormFieldExists('launched_on');
+});
+
+it('shows a conditional Field as the editor fills its target', function () {
+    entryPage(CreateEntry::class, 'project')
+        ->assertFormFieldHidden('featured_note')
+        ->assertFormFieldHidden('source')
+        ->assertFormFieldHidden('story')
+        ->fillForm(['featured' => true, 'kind' => 'essay', 'client' => 'Ada'])
+        ->assertFormFieldVisible('featured_note')
+        ->assertFormFieldVisible('source')
+        ->assertFormFieldVisible('story')
+        ->fillForm(['featured' => false, 'kind' => 'news', 'client' => ''])
+        ->assertFormFieldHidden('featured_note')
+        ->assertFormFieldHidden('source')
+        ->assertFormFieldHidden('story');
+});
+
+it('clears a Field the form hid, as SaveEntry does for anyone', function () {
+    entryPage(CreateEntry::class, 'project')
+        ->fillForm(['title' => 'Kami', 'featured' => true, 'featured_note' => 'Why', 'client' => 'Ada', 'story' => 'Once'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry('project')->featured_note)->toBe('Why');
+
+    entryPage(EditEntry::class, 'project', ['record' => onlyEntry('project')->id])
+        ->assertFormFieldVisible('featured_note')
+        ->fillForm(['featured' => false])
+        ->assertFormFieldHidden('featured_note')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry('project')->featured_note)->toBeNull()
+        ->and(onlyEntry('project')->story)->toBe('Once');
+});

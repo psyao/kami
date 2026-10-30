@@ -68,7 +68,7 @@ final class EditEntry extends EditRecord
         $entry = $this->getRecord();
         $values = [];
 
-        foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->fields())] as $key) {
+        foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->flatFields())] as $key) {
             // A value fallen back from the default Locale is not this Locale's: saved, it would become its own.
             $values[$key] = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
         }

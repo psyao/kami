@@ -116,7 +116,7 @@ final class MakeMigrationCommand extends Command
         $table = "kami_type_{$type->handle()}";
         $declared = $indexed = [];
 
-        foreach ($type->fields() as $field) {
+        foreach ($type->flatFields() as $field) {
             $declared[$field->handle] = $field->column();
 
             if ($field->isIndexed()) {

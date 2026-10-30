@@ -120,7 +120,7 @@ final class KamiPlugin implements Plugin
     {
         // On the panel's own requests only: `register()` runs for Artisan too, which must keep working to fix a declaration (see `ContentTypes`).
         foreach (resolve(ContentTypes::class)->declared() as $type) {
-            foreach ($type->fields() as $field) {
+            foreach ($type->flatFields() as $field) {
                 if (! isset($this->fieldComponents[$field::class])) {
                     throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $type::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');
                 }

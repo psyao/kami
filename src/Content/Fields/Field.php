@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Fields;
 
 use Closure;
+use DateTimeInterface;
 
 /** A value a Content Type stores, in a typed column of its `kami_type_<handle>` table (ADR 0006). */
 abstract class Field
@@ -32,6 +33,11 @@ abstract class Field
     private mixed $default = null;
 
     private bool $indexed = false;
+
+    private ?string $target = null;
+
+    /** @var list<mixed>|null The target's values that show this Field; `null` shows it whenever the target is filled. */
+    private ?array $targetValues = null;
 
     final public function __construct(public readonly string $handle) {}
 
@@ -98,6 +104,67 @@ abstract class Field
         $this->indexed = true;
 
         return $this;
+    }
+
+    /**
+     * Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
+     *
+     * @param  mixed  $value  A value, or a list of values.
+     */
+    public function visibleWhen(string $field, mixed $value): static
+    {
+        $this->target = $field;
+        $this->targetValues = is_array($value) ? array_values($value) : [$value];
+
+        return $this;
+    }
+
+    /** Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and `SaveEntry` clears it. */
+    public function visibleWhenFilled(string $field): static
+    {
+        $this->target = $field;
+        $this->targetValues = null;
+
+        return $this;
+    }
+
+    /** @internal */
+    public function conditionTarget(): ?string
+    {
+        return $this->target;
+    }
+
+    /**
+     * @internal
+     *
+     * @return list<mixed>|null
+     */
+    public function conditionValues(): ?array
+    {
+        return $this->targetValues;
+    }
+
+    /**
+     * @internal
+     *
+     * Whether the condition holds for this value of its target: read through the target's cast, as a column, a form and a declaration each spell it differently.
+     */
+    public function isVisibleGiven(self $target, mixed $value): bool
+    {
+        $values = $this->targetValues;
+
+        if ($values === null) {
+            return filled($value);
+        }
+
+        $comparable = function (mixed $value) use ($target): mixed {
+            // An untouched toggle is `false` in the form and absent from an import: the same answer.
+            $read = blank($value) && $target->column() === 'boolean' ? false : $target->read(blank($value) ? null : $value);
+
+            return $read instanceof DateTimeInterface ? $read->getTimestamp() : $read;
+        };
+
+        return in_array($comparable($value), array_map($comparable, $values), true);
     }
 
     /** @internal */

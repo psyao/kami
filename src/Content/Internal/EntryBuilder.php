@@ -52,7 +52,7 @@ final class EntryBuilder extends Builder
 
         foreach (collect($models)->groupBy(fn (Entry $entry): string => $entry->contentType()?->handle() ?? '') as $handle => $entries) {
             // An undeclared type, a partial select or a type with no Field has no table to read.
-            if (($types->find((string) $handle)?->fields() ?? []) === []) {
+            if (($types->find((string) $handle)?->flatFields() ?? []) === []) {
                 continue;
             }
 

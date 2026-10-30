@@ -8,10 +8,14 @@ use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field as FormField;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Resources\ResourceConfiguration;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Section as FilamentSection;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab as FilamentTab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -21,6 +25,7 @@ use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -37,6 +42,8 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Content\Layout;
+use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
@@ -124,7 +131,7 @@ final class EntryResource extends FilamentResource
             TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
                 // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
-            ...array_map(fn (Field $field): Component => self::component($field, $lang), self::type()->fields()),
+            ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
             DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record)),
@@ -203,16 +210,67 @@ final class EntryResource extends FilamentResource
         };
     }
 
-    /** @param  array<string, string>  $lang */
-    private static function component(Field $field, array $lang): FormField
+    /**
+     * The declaration as the form arranges it: adjacent Tabs form one set.
+     *
+     * @param  list<Field|Layout>  $declared
+     * @param  array<string, string>  $lang
+     * @param  Collection<string, Field>  $fields
+     * @return list<Component>
+     */
+    private static function components(array $declared, array $lang, Collection $fields): array
+    {
+        $components = [];
+        $tabs = [];
+
+        foreach ($declared as $item) {
+            if ($item instanceof Tab) {
+                $tabs[] = FilamentTab::make(self::type()->tabLabel($item->handle))->schema(self::components($item->children, $lang, $fields));
+
+                continue;
+            }
+
+            if ($tabs !== []) {
+                $components[] = Tabs::make()->tabs($tabs);
+                $tabs = [];
+            }
+
+            $components[] = $item instanceof Layout
+                ? FilamentSection::make(self::type()->sectionLabel($item->handle))->schema(self::components($item->children, $lang, $fields))
+                : self::component($item, $lang, $fields);
+        }
+
+        if ($tabs !== []) {
+            $components[] = Tabs::make()->tabs($tabs);
+        }
+
+        return $components;
+    }
+
+    /**
+     * @param  array<string, string>  $lang
+     * @param  Collection<string, Field>  $fields
+     */
+    private static function component(Field $field, array $lang, Collection $fields): FormField
     {
         $plugin = Filament::getPlugin('kami');
         $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
+        $target = $fields->get($field->conditionTarget() ?? '');
 
         $component
             ->label(self::type()->fieldLabel($field->handle))
             ->helperText(self::type()->fieldHelp($field->handle))
             ->default($field->defaultValue());
+
+        // The condition `SaveEntry` reads, on the form's state; a hidden component is not sent, and `SaveEntry` clears its value.
+        if ($target instanceof Field) {
+            $component->visible(fn (Get $get): bool => $field->isVisibleGiven($target, $get($target->handle)));
+        }
+
+        // A target refreshes the form as it changes, typed text once it loses focus.
+        if ($fields->contains(fn (Field $other): bool => $other->conditionTarget() === $field->handle)) {
+            $component->live(onBlur: $component instanceof TextInput || $component instanceof Textarea);
+        }
 
         if (! self::type()->isTranslatable() || self::type()->isTranslatable($field)) {
             // A toggle or a site's component may type no text, so may have no input to mark.

@@ -95,6 +95,56 @@ A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Si
 Text::make('author')->shared()->default('The newsroom'),
 ```
 
+### Tabs and sections
+
+`fields()` may arrange its Fields in a `Tab` or a `Section`, from `Psyao\Kami\Content`. They shape the form and nothing else: columns, validation and reads see the same flat list of Fields, and moving a Field between them needs no migration.
+
+```php
+use Psyao\Kami\Content\Section;
+use Psyao\Kami\Content\Tab;
+
+public function fields(): array
+{
+    return [
+        Tab::make('details', [
+            Text::make('client'),
+            Section::make('highlight', [
+                Boolean::make('featured'),
+            ]),
+        ]),
+        Tab::make('story', [
+            Textarea::make('story'),
+        ]),
+        Date::make('launched_on'),
+    ];
+}
+```
+
+Adjacent Tabs form one set of tabs. A `Section` sits at the top level or in a `Tab`; a `Tab` sits at the top level only. A layout handle follows the rules of a Field handle and appears once in its type; it may equal a Field's, as `story` does here. In the form, the title and the slug stay above the declared Fields, and the publication date below. Their titles are in [Labels](#labels).
+
+### Conditional Fields
+
+A Field can show only when it applies, according to another Field of the same type, wherever each is arranged:
+
+```php
+Boolean::make('featured'),
+Text::make('featured_note')->visibleWhen('featured', true),
+Select::make('kind')->options(['news', 'review', 'essay']),
+Text::make('source')->shared()->visibleWhen('kind', ['review', 'essay']), // one of these
+Text::make('client')->shared(),
+Textarea::make('story')->visibleWhenFilled('client'),                     // any value
+```
+
+A hidden Field is neither validated nor stored, not even required to publish, and takes no `default()`. `SaveEntry` applies this whoever calls it, so an import and the form give the same result:
+
+- A value given for a hidden Field is ignored, without an error.
+- A stored value is cleared as soon as its Field becomes hidden, and does not come back when the Field shows again.
+- A Translatable Field is cleared in every Locale, since the target holds for all of them.
+
+A Boolean with no value reads as `false`, as an untouched toggle does.
+
+At the first read of the declarations, it is an error for a condition to name a Field the type does not declare, one that is itself conditional, or a Translatable one: a target holds for every Locale, so it must be Shared, the default of every type but `Text` and `Textarea`. So is `visibleWhenFilled()` on a Boolean, which always holds a value, and a `visibleWhen()` value that is not an option of its `Select`. Anything richer belongs in code of your own, in front of `SaveEntry`.
+
 ### Your own Field type
 
 A type Kami lacks is a class extending `Field`. Every hook is optional: the default is a Translatable `string` column, with no rule of its own, read as stored.
@@ -182,7 +232,7 @@ Run `php artisan migrate` between two runs: while a migration that touches a `ka
 
 ## In the admin
 
-Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input, `Textarea` as a multi-line one, `Url`, `Email` and `Number` as inputs of their kind, `Date` and `DateTime` as pickers, the latter showing the Site's time zone, `Select` as a dropdown, and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
+Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field in its [tab or section](#tabs-and-sections), appearing and disappearing as its [condition](#conditional-fields) changes, `Text` as a single-line input, `Textarea` as a multi-line one, `Url`, `Email` and `Number` as inputs of their kind, `Date` and `DateTime` as pickers, the latter showing the Site's time zone, `Select` as a dropdown, and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
 
 A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
 
@@ -195,6 +245,8 @@ return [
     'article' => [
         'label' => 'Article',
         'plural' => 'Blog posts',
+        'tabs' => ['details' => ['label' => 'Details']],
+        'sections' => ['highlight' => ['label' => 'Highlight']],
         'fields' => [
             'summary' => ['label' => 'Summary', 'help' => 'Two sentences at most.'],
             'kind' => ['label' => 'Kind', 'options' => ['news' => 'News', 'review' => 'Review']],
@@ -203,7 +255,7 @@ return [
 ];
 ```
 
-The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')` and `optionLabel('kind', 'news')`. `kami:doctor` warns about each missing `label`, `plural`, Field `label` and `Select` option key, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
+The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')`, `optionLabel('kind', 'news')`, `tabLabel('details')` and `sectionLabel('highlight')`. `kami:doctor` warns about each missing `label`, `plural`, Field `label`, `Select` option key and tab or section `label`, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 
 ## Writing Entries
 

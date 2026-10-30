@@ -21,6 +21,8 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Layout;
+use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
@@ -309,9 +311,9 @@ final readonly class Doctor
         $keys = [];
 
         foreach (resolve(ContentTypes::class)->all() as $type) {
-            array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->fields()));
+            array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->flatFields()), ...array_map(fn (Layout $layout): string => "{$type->handle()}." . ($layout instanceof Tab ? 'tabs' : 'sections') . ".{$layout->handle}.label", $type->layouts()));
 
-            foreach ($type->fields() as $field) {
+            foreach ($type->flatFields() as $field) {
                 if ($field instanceof Select) {
                     array_push($keys, ...array_map(fn (string $option): string => "{$type->handle()}.fields.{$field->handle}.options.{$option}", $field->optionKeys()));
                 }

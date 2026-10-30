@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
+use Workbench\App\Content\Project;
 
 // The Workbench Site's declarations: two Sites sharing two Locales, so tests never assume a single one.
 return [
@@ -13,6 +14,7 @@ return [
         Article::class,
         Page::class,
         Label::class,
+        Project::class,
     ],
 
     'sites' => [

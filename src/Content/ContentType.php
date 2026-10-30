@@ -25,10 +25,48 @@ abstract class ContentType
         return Str::snake(class_basename(static::class));
     }
 
-    /** @return list<Field> */
+    /**
+     * What the type stores, in the order of the form, optionally arranged in `Tab` and `Section`.
+     *
+     * @return list<Field|Layout>
+     */
     public function fields(): array
     {
         return [];
+    }
+
+    /**
+     * @internal
+     *
+     * The type's Fields whatever their layout: what every reader but the form's own goes through.
+     *
+     * @return list<Field>
+     */
+    final public function flatFields(): array
+    {
+        return array_values(array_filter($this->flatten($this->fields()), fn (Field | Layout $item): bool => $item instanceof Field));
+    }
+
+    /**
+     * @internal
+     *
+     * @return list<Layout>
+     */
+    final public function layouts(): array
+    {
+        return array_values(array_filter($this->flatten($this->fields()), fn (Field | Layout $item): bool => $item instanceof Layout));
+    }
+
+    /** `kami-types.{handle}.tabs.{tab}.label`, or the humanised handle. */
+    final public function tabLabel(string $tab): string
+    {
+        return $this->translation("tabs.{$tab}.label") ?? Str::headline($tab);
+    }
+
+    /** `kami-types.{handle}.sections.{section}.label`, or the humanised handle. */
+    final public function sectionLabel(string $section): string
+    {
+        return $this->translation("sections.{$section}.label") ?? Str::headline($section);
     }
 
     /** The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle. */
@@ -85,6 +123,25 @@ abstract class ContentType
     public function prefix(): string
     {
         return $this->prefix ?? $this->handle();
+    }
+
+    /**
+     * @param  list<Field|Layout>  $declared
+     * @return list<Field|Layout>
+     */
+    private function flatten(array $declared): array
+    {
+        $items = [];
+
+        foreach ($declared as $item) {
+            $items[] = $item;
+
+            if ($item instanceof Layout) {
+                array_push($items, ...$this->flatten($item->children));
+            }
+        }
+
+        return $items;
     }
 
     /** Display strings come from the site's translation files, never from the declaration (ADR 0007). */

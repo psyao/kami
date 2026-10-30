@@ -40,12 +40,14 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
 - `final public function fieldHelp(string $field): ?string`: `kami-types.{handle}.fields.{field}.help`, or none.
 - `final public function fieldLabel(string $field): string`: `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle.
-- `public function fields(): array`
+- `public function fields(): array`: What the type stores, in the order of the form, optionally arranged in `Tab` and `Section`.
 - `public function handle(): string`: The snake_case of the class name; override it to keep the handle after renaming the class.
 - `final public function label(): string`: The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle.
 - `final public function optionLabel(string $field, string $option): string`: `kami-types.{handle}.fields.{field}.options.{option}`, or the humanised option key.
 - `final public function pluralLabel(): string`: `kami-types.{handle}.plural`, or the humanised handle in the plural.
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
+- `final public function sectionLabel(string $section): string`: `kami-types.{handle}.sections.{section}.label`, or the humanised handle.
+- `final public function tabLabel(string $tab): string`: `kami-types.{handle}.tabs.{tab}.label`, or the humanised handle.
 
 ## `Psyao\Kami\Content\Entry`
 
@@ -111,6 +113,8 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `public function sortable(): static`: A listing sorts on this Field: `kami:make:migration` indexes its column.
 - `protected function store(mixed $value): mixed`: What its column stores for a valid value given to `SaveEntry`; never called with `null`.
 - `public function translatable(): static`: One value per Locale, falling back to the default Locale's when blank.
+- `public function visibleWhen(string $field, mixed $value): static`: Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
+- `public function visibleWhenFilled(string $field): static`: Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
 
 ## `Psyao\Kami\Content\Fields\Number`
 
@@ -146,6 +150,29 @@ Several lines of plain text.
 `final class extends Psyao\Kami\Content\Fields\Field`
 
 A web address: `http` or `https` only, since a view prints it in a link.
+
+## `Psyao\Kami\Content\Layout`
+
+`abstract class`
+
+Arranges Fields in the form and holds no value: columns, validation and reads ignore it (ADR 0007). Kami's own `Tab` and `Section`: not an extension point.
+
+- `public protected(set) readonly array $children`
+- `public protected(set) readonly string $handle`
+- `final public function __construct(string $handle, array $children)`
+- `public static function make(string $handle, array $children): static`
+
+## `Psyao\Kami\Content\Section`
+
+`final class extends Psyao\Kami\Content\Layout`
+
+A titled group of Fields in the form, at the top level or inside a Tab; titled from `kami-types.{handle}.sections.{section}.label`.
+
+## `Psyao\Kami\Content\Tab`
+
+`final class extends Psyao\Kami\Content\Layout`
+
+One tab of the form, titled from `kami-types.{handle}.tabs.{tab}.label`; adjacent Tabs form one set.
 
 ## `Psyao\Kami\Facades\Kami`
 
