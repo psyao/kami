@@ -2,6 +2,7 @@ laravel: '@testbench'
 
 env:
   - AUTH_MODEL="Workbench\\App\\Models\\User"
+  - DB_CONNECTION=sqlite # the command line's default; the suites never read this key, and phpunit.xml.dist forces `testing`
 
 providers:
   - Workbench\App\Providers\WorkbenchServiceProvider
@@ -10,8 +11,16 @@ providers:
 migrations:
   - workbench/database/migrations
 
+seeders:
+  - Workbench\Database\Seeders\DatabaseSeeder
+
 workbench:
   start: '/admin'
   discovers:
     config: true
     views: true
+  build:
+    - create-sqlite-db
+    - db-wipe
+    - migrate-fresh
+    - filament-assets # the Install suite empties the skeleton's public/

@@ -8,6 +8,21 @@ Kami is tested inside [Testbench](https://packages.tools/testbench): a Laravel s
 
 `composer install` also links every Boost skill found in `vendor/` and Kami's own (`resources/boost/skills/`) into `.claude/skills/`, git-ignored, for a coding agent working on Kami.
 
+## Workbench Site
+
+```bash
+composer serve
+```
+
+Rebuilds the database from nothing, so switching branches is safe, seeds it through `workbench/database/seeders/DatabaseSeeder.php`, publishes Filament's assets and serves the Site at <http://127.0.0.1:8000>, the front included. `vendor/bin/testbench serve` serves it again and keeps the database; `composer build` only rebuilds.
+
+| Account | Password | Role |
+| --- | --- | --- |
+| `admin@example.test` | `password` | `administrator` |
+| `editor@example.test` | `password` | `editor`: may update Entries, not publish them |
+
+The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per state: Published in both Locales, Published in `fr` and Draft in `en`, Scheduled, Draft, a blank `en` Field showing Fallback, an untranslatable `Label`, a `Project` with its tabs and conditions. The database is a SQLite file in Testbench's skeleton, which no test suite uses: `testbench.yaml`'s `env` applies to the command line only, and `phpunit.xml.dist` forces `testing`.
+
 ## Suites
 
 | Suite | Directory | Boots | Runs |

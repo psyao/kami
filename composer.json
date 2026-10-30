@@ -45,7 +45,8 @@
     "autoload-dev": {
         "psr-4": {
             "Psyao\\Kami\\Tests\\": "tests/",
-            "Workbench\\App\\": "workbench/app/"
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
         }
     },
     "scripts": {
@@ -55,6 +56,12 @@
             "@link-skills"
         ],
         "link-skills": "mkdir -p .claude/skills && for d in vendor/*/*/resources/boost/skills/*/ resources/boost/skills/*/; do [ -d \"$d\" ] && ln -sfn \"../../$d\" .claude/skills/$(basename \"$d\"); done; true",
+        "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ],
         "analyse": "phpstan analyse",
         "test": [
             "Composer\\Config::disableProcessTimeout",
