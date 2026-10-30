@@ -35,4 +35,24 @@ return [
             'colour' => ['label' => 'Couleur'],
         ],
     ],
+    'project' => [
+        'label' => 'Projet',
+        'plural' => 'Projets',
+        'tabs' => [
+            'details' => ['label' => 'Détails'],
+            'story' => ['label' => 'Récit'],
+        ],
+        'sections' => [
+            'highlight' => ['label' => 'Mise en avant'],
+        ],
+        'fields' => [
+            'client' => ['label' => 'Client'],
+            'featured' => ['label' => 'À la une'],
+            'featured_note' => ['label' => 'Pourquoi à la une'],
+            'kind' => ['label' => 'Genre', 'options' => ['news' => 'Actualité', 'review' => 'Critique', 'essay' => 'Essai']],
+            'source' => ['label' => 'Source'],
+            'story' => ['label' => 'Récit'],
+            'launched_on' => ['label' => 'Lancé le'],
+        ],
+    ],
 ];

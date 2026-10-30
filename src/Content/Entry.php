@@ -146,7 +146,7 @@ class Entry extends Model
 
     private function field(string $handle): ?Field
     {
-        return collect($this->contentType()?->fields() ?? [])->firstWhere('handle', $handle);
+        return collect($this->contentType()?->flatFields() ?? [])->firstWhere('handle', $handle);
     }
 
     private function readLocale(): string

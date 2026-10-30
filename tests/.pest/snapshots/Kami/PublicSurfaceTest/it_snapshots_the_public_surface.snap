@@ -19,6 +19,8 @@ class Psyao\Kami\Content\ContentType::label() final public function label(): str
 class Psyao\Kami\Content\ContentType::optionLabel() final public function optionLabel(string $field, string $option): string
 class Psyao\Kami\Content\ContentType::pluralLabel() final public function pluralLabel(): string
 class Psyao\Kami\Content\ContentType::render() public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
+class Psyao\Kami\Content\ContentType::sectionLabel() final public function sectionLabel(string $section): string
+class Psyao\Kami\Content\ContentType::tabLabel() final public function tabLabel(string $tab): string
 class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Content\Entry::fallbackLocale() public function fallbackLocale(string $field): ?string
 class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void
@@ -66,6 +68,8 @@ class Psyao\Kami\Content\Fields\Field::shared() public function shared(): static
 class Psyao\Kami\Content\Fields\Field::sortable() public function sortable(): static
 class Psyao\Kami\Content\Fields\Field::store() protected function store(mixed $value): mixed
 class Psyao\Kami\Content\Fields\Field::translatable() public function translatable(): static
+class Psyao\Kami\Content\Fields\Field::visibleWhen() public function visibleWhen(string $field, mixed $value): static
+class Psyao\Kami\Content\Fields\Field::visibleWhenFilled() public function visibleWhenFilled(string $field): static
 class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Number::column() public function column(): string
 class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number
@@ -74,6 +78,13 @@ class Psyao\Kami\Content\Fields\Select::options() public function options(array 
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Url final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Layout abstract class
+class Psyao\Kami\Content\Layout::$children public protected(set) readonly array $children
+class Psyao\Kami\Content\Layout::$handle public protected(set) readonly string $handle
+class Psyao\Kami\Content\Layout::__construct() final public function __construct(string $handle, array $children)
+class Psyao\Kami\Content\Layout::make() public static function make(string $handle, array $children): static
+class Psyao\Kami\Content\Section final class extends Psyao\Kami\Content\Layout
+class Psyao\Kami\Content\Tab final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::routes() public function routes(): void

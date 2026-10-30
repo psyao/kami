@@ -17,6 +17,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
+use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
@@ -59,7 +60,7 @@ final class SaveEntry
         $values = array_map(fn (mixed $value): mixed => $value === '' || $value === [] ? null : $value, $values);
         $fields = [];
 
-        foreach ($contentType->fields() as $field) {
+        foreach ($contentType->flatFields() as $field) {
             if ($writesTranslation || ! $contentType->isTranslatable($field)) {
                 $fields[$field->handle] = $field;
             }
@@ -72,7 +73,7 @@ final class SaveEntry
 
         $translation = $entry instanceof Entry ? Translation::query()->firstOrNew(['entry_id' => $entry->id, 'locale' => $locale]) : new Translation(['locale' => $locale]);
         // A type with no Field has no table.
-        $stored = $entry instanceof Entry && $contentType->fields() !== [] ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
+        $stored = $entry instanceof Entry && $contentType->flatFields() !== [] ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
 
         // A new Translation starts from its Fields' defaults; a Shared Field's only while the Entry has no `'*'` row yet.
         if ($writesTranslation && ! $translation->exists) {
@@ -109,12 +110,38 @@ final class SaveEntry
             $rules[$handle] = [$publishing && $field->isRequired() ? 'required' : 'nullable', ...$field->validationRules()];
         }
 
+        // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.
+        $conditional = array_filter($contentType->flatFields(), fn (Field $field): bool => $field->target() !== null);
+        Validator::make($data, Arr::only($rules, array_map(fn (Field $field): ?string => $field->target(), $conditional)))->validate();
+
+        $clearedEverywhere = [];
+
+        foreach ($conditional as $field) {
+            // A Translatable target out of this call's scope says nothing: its Field is out of scope too.
+            $target = $fields[(string) $field->target()] ?? null;
+
+            if (! $target instanceof Field || $field->isVisibleGiven($target, $data[$target->handle])) {
+                continue;
+            }
+
+            unset($rules[$field->handle]);
+
+            if (isset($fields[$field->handle]) && $data[$field->handle] !== null) {
+                $values[$field->handle] = $data[$field->handle] = null;
+            }
+
+            // A Shared target hides the Field in every Locale, not only this one's.
+            if ($contentType->isTranslatable($field) && ! $contentType->isTranslatable($target)) {
+                $clearedEverywhere[$field->handle] = null;
+            }
+        }
+
         Validator::make($data, $rules)->validate();
 
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
 
-        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields): string {
+        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $clearedEverywhere): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
 
@@ -141,6 +168,10 @@ final class SaveEntry
 
             foreach ($rows as $rowLocale => $row) {
                 DB::table("kami_type_{$contentType->handle()}")->updateOrInsert(['entry_id' => $entry->id, 'locale' => $rowLocale], $row);
+            }
+
+            if ($clearedEverywhere !== []) {
+                DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($clearedEverywhere);
             }
 
             if ($writesTranslation) {

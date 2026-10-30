@@ -10,6 +10,8 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Section;
+use Psyao\Kami\Content\Tab;
 
 /**
  * The Content Types listed in `config/kami.php`, found by class or handle, validated when first built (ADR 0007).
@@ -97,7 +99,7 @@ final class ContentTypes
             $handles[$type->handle()] = $class;
             $fields = [];
 
-            foreach ($type->fields() as $field) {
+            foreach ($type->flatFields() as $field) {
                 $this->validateHandle($class, 'the Field handle', $field->handle);
 
                 if (in_array($field->handle, $fields, true)) {
@@ -126,6 +128,58 @@ final class ContentTypes
                 }
 
                 $fields[] = $field->handle;
+            }
+
+            $this->validateLayout($class, $type);
+            $this->validateConditions($class, $type);
+        }
+    }
+
+    private function validateLayout(string $class, ContentType $type): void
+    {
+        $handles = [];
+
+        foreach ($type->layouts() as $layout) {
+            $this->validateHandle($class, 'the layout handle', $layout->handle);
+
+            if (in_array($layout->handle, $handles, true)) {
+                throw new InvalidArgumentException("{$class}: the layout handle \"{$layout->handle}\" appears twice.");
+            }
+
+            $handles[] = $layout->handle;
+
+            foreach ($layout->children as $child) {
+                if ($child instanceof Tab) {
+                    throw new InvalidArgumentException("{$class}: the Tab \"{$child->handle}\" cannot sit inside a layout.");
+                }
+
+                if ($child instanceof Section && $layout instanceof Section) {
+                    throw new InvalidArgumentException("{$class}: the Section \"{$child->handle}\" can only sit inside a Tab.");
+                }
+            }
+        }
+    }
+
+    /**
+     * A chain would hide a Field by a target itself hidden, whose stale state the form keeps; a Shared value cannot depend on a Locale's (ADR 0007).
+     */
+    private function validateConditions(string $class, ContentType $type): void
+    {
+        $fields = collect($type->flatFields())->keyBy('handle');
+
+        foreach ($fields as $field) {
+            if ($field->target() === null) {
+                continue;
+            }
+
+            $target = $fields->get($field->target()) ?? throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to \"{$field->target()}\", which the type does not declare.");
+
+            if ($target->target() !== null) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to \"{$target->handle}\", which is itself conditional.");
+            }
+
+            if (! $type->isTranslatable($field) && $type->isTranslatable($target)) {
+                throw new InvalidArgumentException("{$class}: the Shared Field \"{$field->handle}\" is shown according to the Translatable \"{$target->handle}\"; make one match the other.");
             }
         }
     }
