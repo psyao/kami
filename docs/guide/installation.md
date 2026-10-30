@@ -38,6 +38,8 @@ php artisan kami:install
 - two Locales, French by default and English: a Page published in both answers at `/about` and `/en/about` ([Multilingual](multilingual.md));
 - a minimal accessible layout, built by Vite and Tailwind, with no JavaScript, no web font and nothing inline, as Kami's front policy requires ([Security](security.md)).
 
+Served locally over plain `http`, that layout renders unstyled: serve the site over HTTPS ([Local development over HTTP](security.md#local-development-over-http)).
+
 The site owns the starter kit's code from then on: Kami's updates come with `composer update psyao/kami`, never from the starter kit.
 
 Accept Laravel Boost when the installer offers it: the starter kit's `boost.json` selects Kami's guideline and `kami-development` skill, and Filament's skill, so the site's coding agent knows Kami. Declined, `php artisan boost:install` sets it up later.

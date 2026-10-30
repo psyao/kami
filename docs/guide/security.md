@@ -101,3 +101,15 @@ Shared hosting and a server behave the same: the headers are sent by PHP on ever
 While `npm run dev` runs, Vite writes `public/hot`, and both profiles add its dev server's origin to `script-src`, `style-src`, `img-src`, `font-src` and `connect-src`, with its websocket for hot reloading. Nothing to configure.
 
 That file must never reach production: pages would load their scripts from a dev server, and the policy would allow it. `kami:doctor` fails when it finds `public/hot` in production.
+
+## Local development over HTTP
+
+The front policy is the same in every environment, `upgrade-insecure-requests` included. On a local site served over plain `http`, the browser therefore requests `/build/*` over https, the certificate check fails (`ERR_CERT_COMMON_NAME_INVALID`) and the page renders unstyled.
+
+Serve the site over HTTPS, with an `https` `APP_URL`. On Herd, from the site's directory:
+
+```bash
+herd secure
+```
+
+The console's `Cross-Origin-Opener-Policy` message about an untrustworthy origin goes away over HTTPS too.
