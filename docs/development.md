@@ -114,6 +114,16 @@ Known gaps with the real host (`docs/velox-retrospective.md` § 5.1):
 - ImageMagick is the host's 6.9.11-60, but built on Debian 12 where the host runs Debian 11: its delegates, AVIF and HEIC among them, may differ. AVIF through Imagick stays a manual probe on the host.
 - The database runs next to PHP; the host's is remote, so every query there pays network latency.
 
+## Uncached TTFB
+
+ADR 0021's uncached budget is 200 ms. Rendering milestones before M7 measure it on staging with this loop; `kami:bench` replaces it in M7. No page cache exists before M7, so every request is uncached. The staging site is Digest-protected, with its credentials in a `netrc` file (`machine staging.example.com login … password …`, mode 600):
+
+```bash
+for i in $(seq 1 21); do curl -s -o /dev/null --digest --netrc-file ~/.ttfb-netrc -w '%{http_code} %{time_pretransfer} %{time_starttransfer}\n' https://staging.example.com/a-propos; done | tail -n +2 | awk '$1 == 200 { print ($3 - $2) * 1000 }' | sort -n | awk '{ t[NR] = $1 } END { printf "%d runs, median %.0f ms, p95 %.0f ms, max %.0f ms\n", NR, t[int((NR + 1) / 2)], t[int(NR * 0.95 + 0.999)], t[NR] }'
+```
+
+It drops the first request as a warm-up and keeps the 200 responses: fewer than 20 runs means some requests failed. The time is the server's, `time_starttransfer - time_pretransfer`, which leaves out DNS, TLS and connection setup, though not the network round trip of the request and its first byte. The budget holds when the p95 is at most 200 ms; a miss becomes a `friction` issue.
+
 ## Releases
 
 [release-please](https://github.com/googleapis/release-please) keeps a release pull request open on `main`, with the next version and its `CHANGELOG.md` entry, from the Conventional Commit titles of squash-merged pull requests. Merging it is the release: it tags `v*` and publishes the GitHub Release, which Packagist picks up. Its settings sit in `release-please-config.json`; `.release-please-manifest.json` holds the last released version.
