@@ -27,12 +27,6 @@ final class Number extends Field
         return $this->decimal ? 'decimal' : 'integer';
     }
 
-    /** @internal */
-    public function isDecimal(): bool
-    {
-        return $this->decimal;
-    }
-
     /** Within the column's range, so a value out of it is a validation error and not a database one. */
     #[\Override]
     protected function baseRules(): array

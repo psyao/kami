@@ -37,6 +37,6 @@ final class Date extends Field
     protected function cast(mixed $value): CarbonImmutable
     {
         /** @var DateTimeInterface|string $value */
-        return CarbonImmutable::parse($value, 'UTC')->startOfDay();
+        return CarbonImmutable::parse($value, 'UTC');
     }
 }
