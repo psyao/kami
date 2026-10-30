@@ -63,6 +63,7 @@ flowchart LR
 - New `x-kami::` components pass axe at level 3, new Kami admin pages at level 1.
 - End-of-milestone ritual: the playground updated locally (`composer update` + `kami:install`), the milestone's features tried from the documentation only, `kami:doctor --strict` clean; every problem met becomes a `friction` issue. The playground is also deployed to Infomaniak staging, with `kami:doctor --strict` clean there, at M1 and at every milestone that touches rendering or switches a site over (M2, M5, M7, M9, M10, M11, M12, M13).
 - Milestones that touch rendering (M2, M5, M7, M10, M12) end with `kami:bench` on Infomaniak staging, within the budgets of ADR 0021; M2 and M5, before `kami:bench` exists, measure the uncached TTFB with the loop in `docs/development.md`.
+- Before the release, prose in `docs/guide/` and `README.md` that names the coming version ("Until 0.x") goes.
 - The milestone closes with a merged release-please release.
 
 ## Milestones
