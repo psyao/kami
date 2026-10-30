@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -14,7 +15,11 @@ use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Workbench\App\Models\User;
 
-beforeEach(fn () => $this->bootWithKamiOnAPanel());
+beforeEach(function () {
+    $this->bootWithKamiOnAPanel();
+    // kami:install migrates by itself, so no RefreshDatabase; CI also runs this file on MySQL and PostgreSQL, whose database outlives a test.
+    Artisan::call('db:wipe', ['--force' => true]);
+});
 
 it('creates the first administrator from options and KAMI_ADMIN_PASSWORD without a terminal', function () {
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])
@@ -149,20 +154,73 @@ it('treats a bare Enter at the confirmation as no', function () {
         ->and(DB::table('kami_role_user')->count())->toBe(0);
 });
 
+it('grants the User stored under another spelling of the email without a terminal, naming the stored address', function () {
+    $existing = existingUser();
+    unset($_SERVER['KAMI_ADMIN_PASSWORD']);
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'Grace@Example.test'])
+        ->expectsOutputToContain('grace@example.test, an existing User, is now an administrator.')
+        ->assertSuccessful();
+
+    expect(User::query()->count())->toBe(1)
+        ->and(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeTrue();
+});
+
+it('refuses several stored spellings of the email, listing them and changing nothing', function () {
+    existingUser();
+    // MySQL's collation would refuse the second spelling under the unique index; the host's table may have none.
+    Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
+    User::query()->forceCreate(['name' => 'Other', 'email' => 'Grace@example.test', 'password' => 'hash']);
+
+    // Artisan::call: both addresses sit in one message, whose order no query fixes, and expectsOutputToContain() spends a write on each expectation.
+    expect(Artisan::call('kami:install', ['--no-interaction' => true, '--email' => 'grace@example.test']))->toBe(1)
+        ->and(Artisan::output())->toContain('grace@example.test')->toContain('Grace@example.test')
+        ->and(DB::table('kami_role_user')->count())->toBe(0)
+        ->and(User::query()->count())->toBe(2);
+});
+
+it('refuses several stored spellings of a prompted email too', function () {
+    existingUser();
+    Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
+    User::query()->forceCreate(['name' => 'Other', 'email' => 'Grace@example.test', 'password' => 'hash']);
+
+    $this->artisan('kami:install')
+        ->expectsQuestion('Email of the first administrator', 'grace@example.test')
+        ->expectsOutputToContain('Several Users match this email')
+        ->assertFailed();
+
+    expect(DB::table('kami_role_user')->count())->toBe(0);
+});
+
+it('does not take an accented address for the plain one, as MySQL\'s default collation would', function () {
+    $existing = existingUser();
+    // Otherwise the same collation refuses the new User under the unique index, which grants nothing either.
+    Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'gràce@example.test', '--name' => 'Other'])->assertSuccessful();
+
+    expect(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeFalse()
+        ->and(User::query()->count())->toBe(2);
+});
+
+it('treats an underscore in the email as a literal character', function () {
+    $this->artisan('migrate')->assertSuccessful();
+    $other = User::query()->forceCreate(['name' => 'Other', 'email' => 'axb@example.test', 'password' => 'hash']);
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'a_b@example.test', '--name' => 'Ada'])->assertSuccessful();
+
+    expect(Gate::forUser($other->fresh())->allows('kami.users.manage'))->toBeFalse()
+        ->and(User::query()->where('email', 'a_b@example.test')->count())->toBe(1);
+});
+
+it('stores a new User\'s email as typed', function () {
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'Ada@Example.test', '--name' => 'Ada'])->assertSuccessful();
+
+    expect(User::query()->sole()->email)->toBe('Ada@Example.test');
+});
+
 it('shows the stored email and strips control characters from the name at the confirmation', function () {
     $this->artisan('migrate')->assertSuccessful();
-    // Rebuilt case-insensitive, as MySQL's default collation is: SQLite's own would not match another spelling.
-    Schema::disableForeignKeyConstraints();
-    Schema::drop('users');
-    Schema::create('users', function (Blueprint $table): void {
-        $table->id();
-        $table->string('name');
-        $table->string('email')->collation('nocase')->unique();
-        $table->string('password');
-        $table->rememberToken();
-        $table->timestamps();
-    });
-    Schema::enableForeignKeyConstraints();
     User::query()->forceCreate(['name' => "Grace\e\u{202E}", 'email' => 'grace@example.test', 'password' => 'hash']);
 
     $this->artisan('kami:install', ['--email' => 'GRACE@example.test'])

@@ -187,6 +187,10 @@ jobs:
       - name: Kami suite
         run: vendor/bin/pest --testsuite=Kami --parallel --ci
 
+      # The rest of the Install suite is bound to SQLite. This lookup hands out every Permission and depends on the engine.
+      - name: First administrator
+        run: vendor/bin/pest tests/Install/FirstAdministratorTest.php --ci
+
   mysql:
     name: MySQL 8.4
     runs-on: ubuntu-latest
@@ -216,6 +220,10 @@ jobs:
 
       - name: Kami suite
         run: vendor/bin/pest --testsuite=Kami --parallel --ci
+
+      # The rest of the Install suite is bound to SQLite. This lookup hands out every Permission and depends on the engine.
+      - name: First administrator
+        run: vendor/bin/pest tests/Install/FirstAdministratorTest.php --ci
 
   browser:
     name: Browser (Chromium)
