@@ -55,6 +55,12 @@ abstract class ContentType
         return $this->translation("fields.{$field}.help");
     }
 
+    /** `kami-types.{handle}.fields.{field}.options.{option}`, or the humanised option key. */
+    final public function optionLabel(string $field, string $option): string
+    {
+        return $this->translation("fields.{$field}.options.{$option}") ?? Str::headline($option);
+    }
+
     /**
      * Turns a visible Entry into the response at its Path (ADR 0009).
      *

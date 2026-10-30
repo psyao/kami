@@ -18,4 +18,4 @@ Every uniqueness constraint includes `site`. Translations, References and revisi
 ## Consequences
 
 - Turning multisite on (V1) means declaring a second Site and adding a resolver for the current Site. The schema does not change.
-- Dates are stored in UTC in `datetime` columns, never `timestamp` (Velox friction S2). Kami forces UTC itself rather than trusting the host's `date.timezone`. The display time zone is a Site attribute, not a global setting as in Velox ADR 0017.
+- Dates are stored in UTC in `datetime` columns, never `timestamp` (Velox friction S2). Kami forces UTC itself rather than trusting the host's `date.timezone`. The display time zone is a Site attribute, not a global setting as in Velox ADR 0017. A `Date` Field is the exception: a calendar day in a `date` column, with no time for a zone to convert, since converting would move the 15th at midnight in Zurich to the 14th.

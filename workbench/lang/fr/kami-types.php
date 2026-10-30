@@ -12,6 +12,13 @@ return [
             'author' => ['label' => 'Auteur'],
             'featured' => ['label' => 'À la une'],
             'accent' => ['label' => 'Accent'],
+            'website' => ['label' => 'Site web'],
+            'contact' => ['label' => 'Contact'],
+            'pages' => ['label' => 'Pages'],
+            'rating' => ['label' => 'Note'],
+            'starts_on' => ['label' => 'Commence le'],
+            'starts_at' => ['label' => 'Commence à'],
+            'kind' => ['label' => 'Genre', 'options' => ['news' => 'Actualité', 'review' => 'Critique']],
         ],
     ],
     'page' => [

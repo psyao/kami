@@ -12,6 +12,13 @@ return [
             'author' => ['label' => 'Author'],
             'featured' => ['label' => 'Featured'],
             'accent' => ['label' => 'Accent'],
+            'website' => ['label' => 'Website'],
+            'contact' => ['label' => 'Contact'],
+            'pages' => ['label' => 'Pages'],
+            'rating' => ['label' => 'Rating'],
+            'starts_on' => ['label' => 'Starts on'],
+            'starts_at' => ['label' => 'Starts at'],
+            'kind' => ['label' => 'Kind', 'options' => ['news' => 'News', 'review' => 'Review']],
         ],
     ],
     'page' => [

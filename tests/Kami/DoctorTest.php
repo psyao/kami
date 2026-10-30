@@ -18,6 +18,8 @@ use Psyao\Kami\Admin\InitialsAvatarProvider;
 use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\SecurityHeaders;
@@ -26,9 +28,12 @@ use Symfony\Component\HttpFoundation\Response;
 /** A type with no view and no label. */
 final class Undescribed extends ContentType
 {
+    /** @var list<Field>|null */
+    public static ?array $fields = null;
+
     public function fields(): array
     {
-        return [Text::make('note')];
+        return self::$fields ?? [Text::make('note')];
     }
 }
 
@@ -407,6 +412,15 @@ it('warns about a type whose view is missing, unless it renders without one', fu
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#rendering')
         ->doesntExpectOutputToContain('kami.rendered')
         ->assertSuccessful();
+});
+
+it('lists each Select option with no label', function () {
+    Undescribed::$fields = [Select::make('kind')->options(['news'])];
+    config(['kami.types' => [Undescribed::class]]);
+
+    $this->artisan('kami:doctor')->expectsOutputToContain('undescribed.fields.kind.options.news');
+
+    Undescribed::$fields = null;
 });
 
 it('warns about each missing label key, per language, leaving help texts optional', function () {

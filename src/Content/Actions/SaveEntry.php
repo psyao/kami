@@ -128,7 +128,7 @@ final class SaveEntry
             $rows = [];
             foreach ($fields as $handle => $field) {
                 if (array_key_exists($handle, $values)) {
-                    $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $values[$handle];
+                    $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $field->write($values[$handle]);
                 }
             }
 

@@ -29,6 +29,8 @@ final class MakeMigrationCommand extends Command
 
     private const string DROP = '-';
 
+    private const string INDEX_PREFIX = 'kami_idx_';
+
     public function handle(ContentTypes $types, Migrator $migrator): int
     {
         $handle = $this->argument('type');
@@ -68,7 +70,7 @@ final class MakeMigrationCommand extends Command
         }
 
         $name = count($changes) > 1 ? 'update_kami_type_tables' : (current($changes)['create'] ? 'create_' : 'update_') . key($changes) . '_table';
-        $path = database_path('migrations/' . date('Y_m_d_His') . "_{$name}.php");
+        $path = database_path('migrations/' . now()->format('Y_m_d_His') . "_{$name}.php");
 
         // A generator only creates files: a second run in the same second would overwrite the first.
         if (File::exists($path)) {
@@ -107,10 +109,14 @@ final class MakeMigrationCommand extends Command
     private function change(ContentType $type): array | false | null
     {
         $table = "kami_type_{$type->handle()}";
-        $declared = [];
+        $declared = $indexed = [];
 
         foreach ($type->fields() as $field) {
             $declared[$field->handle] = $field->column();
+
+            if ($field->isIndexed()) {
+                $indexed[] = $field->handle;
+            }
         }
 
         if (! Schema::hasTable($table)) {
@@ -125,6 +131,7 @@ final class MakeMigrationCommand extends Command
                     "\$table->string('locale', 20);",
                     ...array_map($this->column(...), array_keys($declared), $declared),
                     "\$table->unique(['entry_id', 'locale']);",
+                    ...array_map(fn (string $field): string => $this->index($table, $field), $indexed),
                 ])],
                 'down' => ["Schema::dropIfExists('{$table}');"],
             ];
@@ -165,6 +172,23 @@ final class MakeMigrationCommand extends Command
             return false;
         }
 
+        $indexes = [];
+
+        foreach (Schema::getIndexes($table) as $index) {
+            if (count($index['columns']) === 1 && ! $index['primary']) {
+                $indexes[$renamed[$index['columns'][0]] ?? $index['columns'][0]] = $index;
+            }
+        }
+
+        // Before its column goes: SQLite refuses to drop an indexed column. An index the site wrote by hand on a column that stays is left alone.
+        foreach (array_diff_key($indexes, array_flip($indexed)) as $field => $index) {
+            if (str_starts_with($index['name'], self::INDEX_PREFIX) || isset($dropped[$field])) {
+                [$create, $drop] = $index['unique'] ? ['unique', 'dropUnique'] : ['index', 'dropIndex'];
+                $up[] = "\$table->{$drop}('{$index['name']}');";
+                $down[] = "\$table->{$create}('{$field}', '{$index['name']}');";
+            }
+        }
+
         foreach ($retyped as $field => $column) {
             $up[] = $this->column($field, $column, '->change()');
             $down[] = $this->column($field, $existing[$field], '->change()');
@@ -178,6 +202,11 @@ final class MakeMigrationCommand extends Command
         foreach ($dropped as $field => $column) {
             $up[] = "\$table->dropColumn('{$field}');";
             $down[] = $this->column($field, $column);
+        }
+
+        foreach (array_diff($indexed, array_keys($indexes)) as $field) {
+            $up[] = $this->index($table, $field);
+            $down[] = "\$table->dropIndex('{$this->indexName($table, $field)}');";
         }
 
         if ($renames === [] && $up === []) {
@@ -240,6 +269,17 @@ final class MakeMigrationCommand extends Command
     private function column(string $field, string $column, string $suffix = ''): string
     {
         return "\$table->{$column}('{$field}')->nullable(){$suffix};";
+    }
+
+    private function index(string $table, string $field): string
+    {
+        return "\$table->index('{$field}', '{$this->indexName($table, $field)}');";
+    }
+
+    /** Laravel's own name would reach 97 characters with two 40-character handles, where MySQL stops at 64 and PostgreSQL at 63. */
+    private function indexName(string $table, string $field): string
+    {
+        return self::INDEX_PREFIX . hash('xxh128', "{$table}.{$field}");
     }
 
     /** @param  list<string>  $statements */

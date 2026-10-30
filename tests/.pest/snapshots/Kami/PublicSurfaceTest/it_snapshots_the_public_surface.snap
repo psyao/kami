@@ -16,6 +16,7 @@ class Psyao\Kami\Content\ContentType::fieldLabel() final public function fieldLa
 class Psyao\Kami\Content\ContentType::fields() public function fields(): array
 class Psyao\Kami\Content\ContentType::handle() public function handle(): string
 class Psyao\Kami\Content\ContentType::label() final public function label(): string
+class Psyao\Kami\Content\ContentType::optionLabel() final public function optionLabel(string $field, string $option): string
 class Psyao\Kami\Content\ContentType::pluralLabel() final public function pluralLabel(): string
 class Psyao\Kami\Content\ContentType::render() public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
@@ -43,6 +44,11 @@ class Psyao\Kami\Content\Events\EntryUnpublished::$locale public protected(set) 
 class Psyao\Kami\Content\Events\EntryUnpublished::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Fields\Boolean final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Boolean::column() public function column(): string
+class Psyao\Kami\Content\Fields\Date final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Date::column() public function column(): string
+class Psyao\Kami\Content\Fields\DateTime final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\DateTime::column() public function column(): string
+class Psyao\Kami\Content\Fields\Email final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
@@ -52,13 +58,22 @@ class Psyao\Kami\Content\Fields\Field::baseRules() protected function baseRules(
 class Psyao\Kami\Content\Fields\Field::cast() protected function cast(mixed $value): mixed
 class Psyao\Kami\Content\Fields\Field::column() public function column(): string
 class Psyao\Kami\Content\Fields\Field::default() public function default(mixed $value): static
+class Psyao\Kami\Content\Fields\Field::filterable() public function filterable(): static
 class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static
 class Psyao\Kami\Content\Fields\Field::required() public function required(): static
 class Psyao\Kami\Content\Fields\Field::rules() public function rules(array $rules): static
 class Psyao\Kami\Content\Fields\Field::shared() public function shared(): static
+class Psyao\Kami\Content\Fields\Field::sortable() public function sortable(): static
+class Psyao\Kami\Content\Fields\Field::store() protected function store(mixed $value): mixed
 class Psyao\Kami\Content\Fields\Field::translatable() public function translatable(): static
+class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Number::column() public function column(): string
+class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number
+class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Select::options() public function options(array $options): Psyao\Kami\Content\Fields\Select
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Url final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::routes() public function routes(): void

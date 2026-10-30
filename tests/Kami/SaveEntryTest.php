@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -196,4 +197,67 @@ it('refuses a value that is no boolean', function () {
 it('applies a site Field type\'s baseline rules and cast, under the declaration\'s own rules', function () {
     expect(failures(fn () => save(['title' => 'Bonjour', 'accent' => 'red'])))->toBe(['accent'])
         ->and(save(['title' => 'Bonjour', 'accent' => '#ABCDEF'])->accent)->toBe('#abcdef');
+});
+
+it('refuses what a Field type cannot hold, with no extra rule', function (string $field, mixed $value) {
+    expect(failures(fn () => save(['title' => 'Bonjour', $field => $value])))->toBe([$field]);
+})->with([
+    'not a URL' => ['website', 'not a url'],
+    'a URL that is not the web, which a link would open' => ['website', 'data://text/html,x'],
+    'a URL too long for its column' => ['website', 'https://example.test/' . str_repeat('a', 255)],
+    'not an email' => ['contact', 'ada'],
+    'an email too long for its column' => ['contact', str_repeat('a', 250) . '@example.test'],
+    'not a number' => ['pages', 'many'],
+    'a decimal in an integer column' => ['pages', '1.5'],
+    'above the integer column' => ['pages', 2147483648],
+    'below the integer column' => ['pages', -2147483649],
+    'not a decimal' => ['rating', 'high'],
+    'too many decimals' => ['rating', '1.234'],
+    'above the decimal column' => ['rating', '1000000'],
+    'not a date' => ['starts_on', 'soon'],
+    'not a date and time' => ['starts_at', 'soon'],
+    'an unknown option' => ['kind', 'gossip'],
+]);
+
+it('reads each Field type as its cast value, Shared by default', function (string $field, mixed $given, mixed $read) {
+    $entry = save(['title' => 'Bonjour', $field => $given]);
+
+    expect($entry->{$field})->toEqual($read)
+        ->and(get_debug_type($entry->{$field}))->toBe(get_debug_type($read))
+        ->and(DB::table('kami_type_article')->where('entry_id', $entry->id)->where('locale', 'fr')->exists())->toBeFalse()
+        ->and(DB::table('kami_type_article')->where('entry_id', $entry->id)->where('locale', '*')->value($field))->not->toBeNull();
+})->with([
+    'Url' => ['website', 'https://example.test/a', 'https://example.test/a'],
+    'Email' => ['contact', 'ada@example.test', 'ada@example.test'],
+    'Number' => ['pages', '12', 12],
+    'Number at zero' => ['pages', 0, 0],
+    'decimal Number, exact and alike on every engine' => ['rating', '12.5', '12.50'],
+    'Date' => ['starts_on', '2026-03-15', CarbonImmutable::parse('2026-03-15 00:00:00', 'UTC')],
+    'DateTime' => ['starts_at', '2026-03-15 10:30:00', CarbonImmutable::parse('2026-03-15 10:30:00', 'UTC')],
+    'Select' => ['kind', 'review', 'review'],
+]);
+
+it('stores a DateTime in UTC, whatever the zone it is given in', function (mixed $given) {
+    $entry = save(['title' => 'Bonjour', 'starts_at' => $given]);
+
+    expect(DB::table('kami_type_article')->where('entry_id', $entry->id)->value('starts_at'))->toStartWith('2026-03-15 09:30:00')
+        ->and($entry->starts_at->utc()->toDateTimeString())->toBe('2026-03-15 09:30:00');
+})->with([
+    'a string with an offset' => ['2026-03-15T10:30:00+01:00'],
+    'a date in another zone' => [CarbonImmutable::parse('2026-03-15 10:30:00', 'Europe/Zurich')],
+]);
+
+it('keeps a Date on its calendar day, whatever the zone it is given in', function (mixed $given) {
+    $entry = save(['title' => 'Bonjour', 'starts_on' => $given]);
+
+    expect($entry->starts_on->toDateString())->toBe('2026-03-15');
+})->with([
+    'a date just after midnight in Zurich' => [CarbonImmutable::parse('2026-03-15 00:30:00', 'Europe/Zurich')],
+    'a string with an offset' => ['2026-03-15T23:30:00-05:00'],
+]);
+
+it('saves again over stored values of every type', function () {
+    $entry = save(['title' => 'Bonjour', 'website' => 'https://example.test', 'pages' => 3, 'rating' => '1.50', 'starts_on' => '2026-03-15', 'starts_at' => '2026-03-15 10:30:00', 'kind' => 'news']);
+
+    expect(save(['title' => 'Salut'], $entry)->title)->toBe('Salut');
 });

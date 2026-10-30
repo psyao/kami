@@ -7,7 +7,10 @@ namespace Psyao\Kami\Admin;
 use Closure;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Contracts\Plugin;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field as FormField;
+use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\Textarea as TextareaInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -20,10 +23,17 @@ use Illuminate\Support\Facades\Config;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Fields\Boolean;
+use Psyao\Kami\Content\Fields\Date;
+use Psyao\Kami\Content\Fields\DateTime;
+use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
+use Psyao\Kami\Content\Fields\Url;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 
 /** Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make())`. */
@@ -36,8 +46,14 @@ final class KamiPlugin implements Plugin
     {
         return (new self)->fieldComponents([
             Boolean::class => fn (Boolean $field): Toggle => Toggle::make($field->handle),
+            Date::class => fn (Date $field): DatePicker => DatePicker::make($field->handle),
+            DateTime::class => fn (DateTime $field): DateTimePicker => DateTimePicker::make($field->handle)->timezone(Site::current()->timezone)->suffix(Site::current()->timezone),
+            Email::class => fn (Email $field): TextInput => TextInput::make($field->handle)->email(),
+            Number::class => fn (Number $field): TextInput => TextInput::make($field->handle)->numeric()->step($field->column() === 'decimal' ? 0.01 : 1),
+            Select::class => fn (Select $field): SelectInput => SelectInput::make($field->handle)->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => EntryResource::type()->optionLabel($field->handle, $option), $field->optionKeys()))),
             Text::class => fn (Text $field): TextInput => TextInput::make($field->handle),
             Textarea::class => fn (Textarea $field): TextareaInput => TextareaInput::make($field->handle),
+            Url::class => fn (Url $field): TextInput => TextInput::make($field->handle)->url(),
         ]);
     }
 

@@ -29,6 +29,8 @@ abstract class Field
 
     private mixed $default = null;
 
+    private bool $indexed = false;
+
     final public function __construct(public readonly string $handle) {}
 
     public static function make(string $handle): static
@@ -80,6 +82,28 @@ abstract class Field
         return $this;
     }
 
+    /** A listing filters on this Field: `kami:make:migration` indexes its column. */
+    public function filterable(): static
+    {
+        $this->indexed = true;
+
+        return $this;
+    }
+
+    /** A listing sorts on this Field: `kami:make:migration` indexes its column. */
+    public function sortable(): static
+    {
+        $this->indexed = true;
+
+        return $this;
+    }
+
+    /** @internal */
+    public function isIndexed(): bool
+    {
+        return $this->indexed;
+    }
+
     /** @internal */
     public function defaultValue(): mixed
     {
@@ -108,7 +132,13 @@ abstract class Field
         return $stored === null ? null : $this->cast($stored);
     }
 
-    /** The column type of its `kami_type_<handle>` column: `string`, `text` or `boolean` (ADR 0006). */
+    /** @internal */
+    public function write(mixed $value): mixed
+    {
+        return $value === null ? null : $this->store($value);
+    }
+
+    /** The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date` or `dateTime` (ADR 0006). */
     public function column(): string
     {
         return 'string';
@@ -128,6 +158,12 @@ abstract class Field
     protected function baseRules(): array
     {
         return [];
+    }
+
+    /** What its column stores for a valid value given to `SaveEntry`; never called with `null`. */
+    protected function store(mixed $value): mixed
+    {
+        return $value;
     }
 
     /** The value `$entry->handle` returns for what its column stores; never called with `null`. */
