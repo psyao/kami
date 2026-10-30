@@ -64,6 +64,8 @@ The new User gets the `administrator` Role ([Users and roles](users-and-roles.md
 
 An email that belongs to an existing User gives that User the `administrator` Role instead. They keep their password, name and other Roles: no password is asked for, and `--name` and `KAMI_ADMIN_PASSWORD` are ignored. In a terminal, `kami:install` shows the User's email and name and asks for confirmation, defaulting to no, because no password proves who they are; refusing returns to the email prompt, or fails when the email came from `--email`. Without a terminal, `--email` is the consent and the output says that an existing User became an administrator.
 
+The email is compared case-insensitively on every database, for ASCII letters: `Grace@example.com` finds `grace@example.com`, and the output shows the address as stored. When several Users hold spellings of the same address, which SQLite and PostgreSQL allow, `kami:install` lists them and fails, granting and creating nothing: fix the duplicates in your users table, then run it again. A new User's email is stored as typed. Sign-in stays your application's: Kami normalises neither your data nor it, so on SQLite and PostgreSQL the email must be typed as stored to sign in.
+
 Once a User holds a Role that grants `kami.users.manage`, the step does nothing, and later deploys need neither the options nor the variable.
 
 ## Checking the environment

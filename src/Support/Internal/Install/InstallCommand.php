@@ -132,8 +132,21 @@ final class InstallCommand extends Command
 
         while (true) {
             $email = is_string($emailOption) ? $emailOption : ($interactive ? text('Email of the first administrator', required: true, validate: ['email' => $rules['email']]) : null);
-            // @phpstan-ignore argument.type (the base Model declares no email; the host's model does, as creating the User below assumes)
-            $existing = $email === null ? null : $users::query()->where('email', $email)->first();
+            $query = $users::query();
+            // The same on every engine, whatever the column's collation (ADR 0001, step 7). No whereLike(): `_` is valid in an email and would be a wildcard.
+            // ponytail: outside ASCII, SQLite does not fold case and PostgreSQL depends on its locale, so those addresses match exactly; lifts if a site reports one.
+            // @phpstan-ignore argument.type (the only non-literal part is the grammar's quoting of a constant column name; the email is bound)
+            $matches = $email === null ? null : $query->whereRaw('lower(' . $query->getGrammar()->wrap('email') . ') = lower(?)', [$email])->get();
+
+            // A grant hands out every Permission, so it never rests on a guess between two accounts, even when one spelling is exact.
+            if ($matches !== null && $matches->count() > 1) {
+                $stored = $matches->pluck('email')->implode(', ');
+                $this->components->error('Several Users match this email: ' . (preg_replace('/\p{C}/u', '', $stored) ?? $stored) . '. Fix the duplicates in your users table, then run kami:install again.');
+
+                return false;
+            }
+
+            $existing = $matches?->first();
 
             if ($existing === null) {
                 break;
