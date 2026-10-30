@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.1](https://github.com/psyao/kami/compare/v0.2.0...v0.2.1) (2026-10-30)
+
+
+### Features
+
+* fill the slug from the title in the admin form ([#165](https://github.com/psyao/kami/issues/165)) ([7961e08](https://github.com/psyao/kami/commit/7961e08dac1178c336714aa73f360f96467607f7))
+* kami:install --email grants an existing User the administrator Role ([#164](https://github.com/psyao/kami/issues/164)) ([f13a267](https://github.com/psyao/kami/commit/f13a267534bfbad0ab897bf8363624ce7562e8ec))
+
+
+### Bug Fixes
+
+* kami:install and kami:make:migration detect a missing terminal ([#156](https://github.com/psyao/kami/issues/156)) ([2c191df](https://github.com/psyao/kami/commit/2c191dfc5f94a796d4edc522dc1489816b0c91ce))
+* kami:install matches emails case-insensitively on every engine ([#166](https://github.com/psyao/kami/issues/166)) ([822689b](https://github.com/psyao/kami/commit/822689b876431bff80dbdfffae141d6d0657f4da))
+* kami:install's existing-email message fits the prompt ([#158](https://github.com/psyao/kami/issues/158)) ([6eb25fc](https://github.com/psyao/kami/commit/6eb25fcc2d6c6711629d69740dcb5c915c59ffed)), closes [#150](https://github.com/psyao/kami/issues/150)
+
 ## [0.2.0](https://github.com/psyao/kami/compare/v0.1.0...v0.2.0) (2026-10-30)
 
 
