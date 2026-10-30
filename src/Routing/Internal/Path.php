@@ -44,6 +44,12 @@ final class Path extends Model
         return self::normalise(Str::slug($title, '-', $locale));
     }
 
+    /** Whether a normalised slug can answer at its URL: invalid UTF-8, a character a URL cannot carry there, an empty or dot segment cannot. */
+    public static function isAnswerable(string $slug): bool
+    {
+        return preg_match('~[\s\p{C}?#%\\\\]|//|(^|/)\.\.?(/|$)~u', $slug) === 0;
+    }
+
     /** The stored form: percent-decoded, lowercase, NFC, without leading or trailing slash. */
     public static function normalise(string $path): string
     {

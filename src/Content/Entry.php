@@ -67,7 +67,10 @@ class Entry extends Model
     /** @internal */
     public function contentType(): ?ContentType
     {
-        return resolve(ContentTypes::class)->find($this->type);
+        // From the attributes: reading `$this->type` asks for its Field, hence for this type. A partial select or a new Entry has none.
+        $type = $this->attributes['type'] ?? null;
+
+        return is_string($type) ? resolve(ContentTypes::class)->find($type) : null;
     }
 
     /**
@@ -124,16 +127,6 @@ class Entry extends Model
         }
 
         return Visibility::isVisible($this->translations->firstWhere('locale', $default)) ? $default : null;
-    }
-
-    /**
-     * @internal
-     *
-     * Whether visitors see the Translation it is read in (ADR 0019).
-     */
-    public function isVisible(): bool
-    {
-        return Visibility::isVisible($this->translation($this->readLocale()));
     }
 
     /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there. */

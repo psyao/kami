@@ -251,4 +251,4 @@ Entry::query()->ofType(Article::class)->get();                     // visible Ar
 Entry::query()->ofType('article')->withUnpublished()->get();       // every Article
 ```
 
-Field values load with the Entries, in one query per type, so a list costs the same few queries whatever its length. Lazy loading throws.
+Field values load with the Entries, in one query per type, so a list costs the same few queries whatever its length. Lazy loading throws. For large sets use `lazy()` or `chunk()`: `cursor()` throws, as it would load no Field value.

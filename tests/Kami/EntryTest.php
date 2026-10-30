@@ -61,3 +61,18 @@ it('loads Translations and Field values with a collection, never lazily', functi
 
     expect($entries->map(fn (Entry $entry) => [$entry->title, $entry->summary])->all())->toBe([['One', 'First'], ['Two', 'Second']]);
 });
+
+it('reads a partial select and a new Entry without a type', function () {
+    $entry = article(['title' => 'Hello', 'status' => 'published', 'summary' => 'Hi']);
+
+    expect(Entry::query()->select('id')->get()->sole()->id)->toBe($entry->id)
+        ->and(Entry::query()->select('id')->get()->sole()->title)->toBe('Hello')
+        ->and((new Entry)->id)->toBeNull();
+});
+
+it('fails loudly on cursor(), which would read no Field value, and lazy() loads them', function () {
+    article(['title' => 'Hello', 'status' => 'published', 'summary' => 'Hi']);
+
+    expect(fn () => Entry::query()->cursor())->toThrow(LogicException::class, 'lazy()')
+        ->and(Entry::query()->lazy()->sole()->summary)->toBe('Hi');
+});

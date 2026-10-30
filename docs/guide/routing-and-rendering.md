@@ -20,7 +20,7 @@ Kami's route runs in its own `kami` middleware group, without the `web` group's 
 
 ## Paths
 
-Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read.
+Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read, byte for byte on every engine: `/café` and `/cafe` are two addresses.
 
 The default Locale's Paths start at the root; another Locale's sit under its code, as `/en/articles/hello-world`. See [Multilingual](multilingual.md).
 

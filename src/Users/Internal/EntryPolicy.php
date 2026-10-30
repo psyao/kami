@@ -7,6 +7,7 @@ namespace Psyao\Kami\Users\Internal;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\Translation;
 
 /**
  * Filament's policy methods mapped to the Entry's type Permissions (ADR 0014). Without a record, Filament passes the type's handle: `[Entry::class, 'article']`.
@@ -30,10 +31,10 @@ final class EntryPolicy
         return $this->can($user, $type, 'create');
     }
 
-    /** The Translation the Entry is read in: changing a visible one changes what visitors see, so it takes `publish` too (ADR 0019). */
+    /** The Translation the Entry is read in: changing a Published or Scheduled one changes what visitors see, so it takes `publish` too (ADR 0019). */
     public function update(Authenticatable $user, Entry $entry): bool
     {
-        return $this->can($user, $entry->type, 'update') && (! $entry->isVisible() || $this->can($user, $entry->type, 'publish'));
+        return $this->can($user, $entry->type, 'update') && ($entry->status !== Translation::PUBLISHED || $this->can($user, $entry->type, 'publish'));
     }
 
     /** Making a Translation visible, or keeping it so, on an Entry or on one being created. */
