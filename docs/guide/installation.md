@@ -116,6 +116,7 @@ There is no separate upgrade command: `kami:install` is safe to run again and ch
 2. stops while no panel carries `KamiPlugin`, printing the `KamiPlugin` lines above;
 3. runs the migrations (`migrate --force`);
 4. publishes Filament's assets to `public/`, so the server needs no Node;
-5. creates the first administrator while no User may manage Users ([The first User](#the-first-user)).
+5. syncs Paths with the declarations, and stops on a Path clash ([After a deploy](routing-and-rendering.md#after-a-deploy));
+6. creates the first administrator while no User may manage Users ([The first User](#the-first-user)).
 
 It exits with 1 when any step fails, so the deploy fails with it. `kami:install` never writes to your application's files: it only adds Filament's assets under `public/`. On a server, `php artisan optimize` follows it ([Deployment](deployment.md#later-deploys)).
