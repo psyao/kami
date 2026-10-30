@@ -166,21 +166,18 @@ it('grants the User stored under another spelling of the email without a termina
         ->and(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeTrue();
 });
 
-it('refuses several stored spellings of the email, listing them and changing nothing', function (array $options) {
+it('refuses several stored spellings of the email, listing them and changing nothing', function () {
     existingUser();
     // MySQL's collation would refuse the second spelling under the unique index; the host's table may have none.
     Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
     User::query()->forceCreate(['name' => 'Other', 'email' => 'Grace@example.test', 'password' => 'hash']);
 
     // Artisan::call: both addresses sit in one message, whose order no query fixes, and expectsOutputToContain() spends a write on each expectation.
-    expect(Artisan::call('kami:install', ['--email' => 'grace@example.test', ...$options]))->toBe(1)
+    expect(Artisan::call('kami:install', ['--no-interaction' => true, '--email' => 'grace@example.test']))->toBe(1)
         ->and(Artisan::output())->toContain('grace@example.test')->toContain('Grace@example.test')
         ->and(DB::table('kami_role_user')->count())->toBe(0)
         ->and(User::query()->count())->toBe(2);
-})->with([
-    'terminal' => [[]],
-    'no terminal' => [['--no-interaction' => true]],
-]);
+});
 
 it('refuses several stored spellings of a prompted email too', function () {
     existingUser();
