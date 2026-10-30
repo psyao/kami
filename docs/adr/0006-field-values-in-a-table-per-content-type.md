@@ -16,7 +16,7 @@ This departs from Velox ADR 0002 (Field values in a JSON `data` column). The bri
 
 ## Consequences
 
-- **Table names.** A type handle is snake_case, 40 characters at most, checked at boot, so `kami_type_<handle>` stays within the identifier limits of PostgreSQL (63) and MySQL (64). A type with no stored Field has no table.
+- **Table names.** A type handle is snake_case, 40 characters at most, checked at boot, so `kami_type_<handle>` stays within the identifier limits of PostgreSQL (63) and MySQL (64). Laravel's index and foreign key names append to the table name and exceed those limits, so `kami:make:migration` writes hashed ones (`kami_idx_<hash>`, `kami_fk_<hash>`). A table generated before keeps its names. A type with no stored Field has no table.
 - **Columns.**
   - Each Field type class declares its Laravel column type (`string`, `text`, `integer`, `decimal`, `boolean`, `date`, `dateTime`, `json`).
   - Relation and Media Fields have no column: they live in `kami_references` (ADR 0005).

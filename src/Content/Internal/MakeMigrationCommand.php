@@ -31,6 +31,9 @@ final class MakeMigrationCommand extends Command
 
     private const string INDEX_PREFIX = 'kami_idx_';
 
+    /** Not INDEX_PREFIX, which this command's comparison reads as a Field's index: MySQL and MariaDB give a foreign key an index of its name, until the unique pair replaces it. */
+    private const string FOREIGN_KEY_PREFIX = 'kami_fk_';
+
     private const array INTERCHANGEABLE_TYPES = ['string', 'text'];
 
     public function handle(ContentTypes $types, Migrator $migrator): int
@@ -129,10 +132,10 @@ final class MakeMigrationCommand extends Command
             return [
                 'create' => true,
                 'up' => [$this->schema('create', $table, [
-                    "\$table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();",
+                    "\$table->foreignUlid('entry_id')->constrained('kami_entries', indexName: '{$this->indexName($table, 'entry_id', self::FOREIGN_KEY_PREFIX)}')->cascadeOnDelete();",
                     "\$table->string('locale', 20);",
                     ...array_map($this->column(...), array_keys($declared), $declared),
-                    "\$table->unique(['entry_id', 'locale']);",
+                    "\$table->unique(['entry_id', 'locale'], '{$this->indexName($table, 'entry_id.locale')}');",
                     ...array_map(fn (string $field): string => $this->index($table, $field), $indexed),
                 ])],
                 'down' => ["Schema::dropIfExists('{$table}');"],
@@ -322,9 +325,9 @@ final class MakeMigrationCommand extends Command
     }
 
     /** Laravel's own name would reach 97 characters with two 40-character handles, where MySQL stops at 64 and PostgreSQL at 63. */
-    private function indexName(string $table, string $field): string
+    private function indexName(string $table, string $columns, string $prefix = self::INDEX_PREFIX): string
     {
-        return self::INDEX_PREFIX . hash('xxh128', "{$table}.{$field}");
+        return $prefix . hash('xxh128', "{$table}.{$columns}");
     }
 
     /** @param  list<string>  $statements */

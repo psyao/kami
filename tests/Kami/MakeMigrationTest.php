@@ -31,6 +31,20 @@ uses(DatabaseMigrations::class);
 /** A Field type no plugin registers a component for. */
 final class Whisper extends Field {}
 
+/** A type with the longest handle ContentTypes allows. */
+final class LongHandled extends ContentType
+{
+    public function handle(): string
+    {
+        return str_repeat('a', 40);
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('summary')];
+    }
+}
+
 /** A type whose Fields each test declares. */
 final class Note extends ContentType
 {
@@ -575,6 +589,67 @@ it('drops a hand-written index with its Field, so every engine drops the column,
     'plain' => ['index', false],
     'unique' => ['unique', true],
 ]);
+
+it('names the unique index and the foreign key of the longest handle within every engine\'s limit, and undoes it', function () {
+    config(['kami.types' => [LongHandled::class]]);
+    $table = 'kami_type_' . str_repeat('a', 40);
+
+    generateAndMigrate();
+
+    $unique = collect(Schema::getIndexes($table))->firstWhere('columns', ['entry_id', 'locale']);
+    $foreign = collect(Schema::getForeignKeys($table))->first();
+
+    expect($unique['unique'])->toBeTrue()
+        ->and($unique['name'])->toStartWith('kami_idx_')
+        ->and($foreign)->toMatchArray(['columns' => ['entry_id'], 'foreign_table' => 'kami_entries', 'on_delete' => 'cascade']);
+
+    // SQLite does not name a foreign key.
+    if ($foreign['name'] !== null) {
+        expect($foreign['name'])->toStartWith('kami_fk_');
+    }
+
+    // Whatever index an engine keeps for the foreign key is not taken for a Field's.
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+
+    rollBackLast();
+
+    expect(Schema::hasTable($table))->toBeFalse();
+});
+
+it('gives two tables different names for their unique index and foreign key', function () {
+    declareNote([Text::make('summary')]);
+    config(['kami.types' => [Note::class, LongHandled::class]]);
+
+    generateAndMigrate();
+
+    $tables = ['kami_type_note', 'kami_type_' . str_repeat('a', 40)];
+    $names = collect($tables)->flatMap(fn (string $table): array => [
+        collect(Schema::getIndexes($table))->firstWhere('columns', ['entry_id', 'locale'])['name'],
+        collect(Schema::getForeignKeys($table))->first()['name'],
+    ]);
+
+    expect($names->unique())->toHaveCount($names->count());
+})->skip(fn (): bool => DB::getDriverName() === 'sqlite', 'SQLite does not name a foreign key.');
+
+it('leaves a table generated under Laravel\'s own names alone, and still changes it', function () {
+    Schema::create('kami_type_note', function (Blueprint $table): void {
+        $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
+        $table->string('locale', 20);
+        $table->string('summary')->nullable();
+        $table->unique(['entry_id', 'locale']);
+    });
+    $names = fn (): array => collect([...Schema::getIndexes('kami_type_note'), ...Schema::getForeignKeys('kami_type_note')])->pluck('name')->sort()->values()->all();
+    $before = $names();
+
+    declareNote([Text::make('summary')]);
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+
+    declareNote([Text::make('summary'), Date::make('starts_on')]);
+    generateAndMigrate();
+
+    expect(noteColumns())->toHaveKey('starts_on')
+        ->and($names())->toBe($before);
+});
 
 it('finds the Workbench\'s Article matching its migration, indexes included', function () {
     config(['kami.types' => [Article::class]]);
