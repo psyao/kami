@@ -87,6 +87,105 @@ it('creates a Draft in the default Locale, hidden from the front', function () {
     $this->get('/articles/bonjour')->assertNotFound();
 });
 
+it('fills the slug from the title on the create form, as SaveEntry would derive it, and follows the title while untouched', function () {
+    $page = entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Été à Genève'])
+        ->assertSchemaStateSet(['slug' => 'ete-a-geneve'])
+        ->fillForm(['title' => 'Hiver à Genève'])
+        ->assertSchemaStateSet(['slug' => 'hiver-a-geneve']);
+
+    $page->call('create')->assertHasNoFormErrors();
+
+    expect(onlyEntry()->slug)->toBe('hiver-a-geneve');
+});
+
+it('never overwrites a slug typed by hand, and resumes filling once it is emptied', function () {
+    entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour'])
+        ->fillForm(['slug' => 'a-la-main'])
+        ->fillForm(['title' => 'Bonsoir'])
+        ->assertSchemaStateSet(['slug' => 'a-la-main'])
+        ->fillForm(['slug' => ''])
+        ->fillForm(['title' => 'Bonne nuit'])
+        ->assertSchemaStateSet(['slug' => 'bonne-nuit']);
+});
+
+it('fills the slug on the screen of a Locale with no Translation yet, and saves what it showed', function () {
+    entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour'])->call('create');
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])
+        ->fillForm(['title' => 'Hello there', 'author' => 'Ada Lovelace'])
+        ->assertSchemaStateSet(['slug' => 'hello-there'])
+        ->callAction(formAction('publish'))
+        ->assertHasNoFormErrors();
+
+    $this->get('/en/articles/hello-there')->assertOk();
+});
+
+it('derives the slug in the screen\'s Locale', function () {
+    entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour'])->call('create');
+
+    // German transliterates ü to ue, the default Locale's rules to u.
+    config(['kami.sites.default.locales' => ['fr', 'de']]);
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'de'])
+        ->fillForm(['title' => 'Grüße'])
+        ->assertSchemaStateSet(['slug' => 'gruesse']);
+});
+
+it('fills the slug of a Draft saved without a title, which has none stored', function () {
+    entryPage(CreateEntry::class)->fillForm(['summary' => 'Sans titre'])->call('create')->assertHasNoFormErrors();
+
+    expect(onlyEntry()->slug)->toBeNull();
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])
+        ->fillForm(['title' => 'Enfin un titre'])
+        ->assertSchemaStateSet(['slug' => 'enfin-un-titre']);
+});
+
+it('never changes a stored slug from the title, in any Locale, and warns that changing it moves the address', function () {
+    entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour'])->call('create');
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])->fillForm(['title' => 'Hello'])->call('save');
+
+    foreach (['fr' => 'bonjour', 'en' => 'hello'] as $locale => $slug) {
+        entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, ...($locale === 'fr' ? [] : ['locale' => $locale])])
+            ->assertSee(__('kami::admin.fields.slug_moves'))
+            ->fillForm(['title' => 'Autre titre'])
+            ->assertSchemaStateSet(['slug' => $slug])
+            ->call('save')
+            ->assertHasNoFormErrors();
+    }
+
+    expect(onlyEntry()->slug)->toBe('bonjour');
+});
+
+it('keeps the blank-slug help text until a slug is stored, then warns, on the same screen', function () {
+    entryPage(CreateEntry::class)->assertSee(__('kami::admin.fields.slug_help'))->assertDontSee(__('kami::admin.fields.slug_moves'));
+
+    entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour'])->call('create');
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])
+        ->assertSee(__('kami::admin.fields.slug_help'))
+        ->fillForm(['title' => 'Hello'])
+        ->call('save')
+        ->assertSee(__('kami::admin.fields.slug_moves'))
+        ->assertDontSee(__('kami::admin.fields.slug_help'))
+        ->fillForm(['title' => 'Hello again'])
+        ->assertSchemaStateSet(['slug' => 'hello']);
+});
+
+it('fills and protects the slug of an untranslatable type the same way', function () {
+    entryPage(CreateEntry::class, 'label')
+        ->fillForm(['title' => 'À propos'])
+        ->assertSchemaStateSet(['slug' => 'a-propos'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    entryPage(EditEntry::class, 'label', ['record' => onlyEntry('label')->id])
+        ->fillForm(['title' => 'Qui sommes-nous'])
+        ->assertSchemaStateSet(['slug' => 'a-propos']);
+});
+
 it('publishes now, and the front shows the Entry', function () {
     entryPage(CreateEntry::class)
         ->fillForm(['title' => 'Bonjour', 'author' => 'Ada Lovelace'])

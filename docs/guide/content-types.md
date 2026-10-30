@@ -113,7 +113,7 @@ Run `php artisan migrate` between two runs: while a migration that touches a `ka
 
 ## In the admin
 
-Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input and `Textarea` as a multi-line one. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
+Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field, `Text` as a single-line input and `Textarea` as a multi-line one. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
 
 A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
 

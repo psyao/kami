@@ -9,7 +9,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
@@ -86,7 +85,7 @@ final class SaveEntry
         $data = [...$data, ...$values];
 
         if ($writesTranslation) {
-            $data['slug'] ??= is_string($data['title'] ?? null) ? Str::slug($data['title'], '-', $locale === '*' ? $site->defaultLocale() : $locale) : null;
+            $data['slug'] ??= is_string($data['title'] ?? null) ? Path::slugFrom($data['title'], $locale === '*' ? $site->defaultLocale() : $locale) : null;
             $data['slug'] = is_string($data['slug']) ? Path::normalise($data['slug']) : $data['slug'];
             $data['slug'] = $data['slug'] === '' ? null : $data['slug'];
         }

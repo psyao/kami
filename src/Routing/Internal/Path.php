@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Normalizer;
 use Psyao\Kami\Content\ContentType;
 
@@ -35,6 +36,12 @@ final class Path extends Model
     public static function of(ContentType $type, string $slug): string
     {
         return self::normalise("{$type->prefix()}/{$slug}");
+    }
+
+    /** The slug a title gives in a Locale, the same in the admin form and on save. */
+    public static function slugFrom(string $title, string $locale): string
+    {
+        return self::normalise(Str::slug($title, '-', $locale));
     }
 
     /** The stored form: percent-decoded, lowercase, NFC, without leading or trailing slash. */
