@@ -21,7 +21,7 @@ Rebuilds the database from nothing, so switching branches is safe, seeds it thro
 | `admin@example.test` | `password` | `administrator` |
 | `editor@example.test` | `password` | `editor`: may view, create and update Entries, not publish them |
 
-The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per state: Published in both Locales, Published in `fr` and Draft in `en`, Scheduled, Draft, a blank `en` Field showing Fallback, an untranslatable `Label`, a `Project` with its tabs and conditions. The database is a SQLite file in Testbench's skeleton, which no test suite uses: `testbench.yaml`'s `env` applies to the command line only, and the suites take `testing` from `phpunit.xml.dist`, or the engine from CI's environment.
+The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per state: Published in both Locales, Published in `fr` and Draft in `en`, Scheduled, Draft, a blank `en` Field showing Fallback, an untranslatable `Label`, a `Project` with its tabs and conditions. The database is a SQLite file in Testbench's skeleton, which no test suite uses: the suites take `testing` from `phpunit.xml.dist`, or the engine from CI's environment.
 
 ## Suites
 
