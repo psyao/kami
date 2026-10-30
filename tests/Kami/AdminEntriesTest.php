@@ -99,6 +99,12 @@ it('fills the slug from the title on the create form, as SaveEntry would derive 
     expect(onlyEntry()->slug)->toBe('hiver-a-geneve');
 });
 
+it('asks the server on leaving the title only while there is a slug to fill', function () {
+    entryPage(CreateEntry::class)->assertSeeHtml('wire:model.live.blur="data.title"')->fillForm(['title' => 'Bonjour'])->call('create');
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])->assertDontSeeHtml('wire:model.live.blur="data.title"');
+});
+
 it('never overwrites a slug typed by hand, and resumes filling once it is emptied', function () {
     entryPage(CreateEntry::class)
         ->fillForm(['title' => 'Bonjour'])
