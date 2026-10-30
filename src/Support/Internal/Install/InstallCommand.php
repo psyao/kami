@@ -133,26 +133,30 @@ final class InstallCommand extends Command
         while (true) {
             $email = is_string($emailOption) ? $emailOption : ($interactive ? text('Email of the first administrator', required: true, validate: ['email' => $rules['email']]) : null);
             $query = $users::query();
-            // The same on every engine, whatever the column's collation (ADR 0001, step 7). No whereLike(): `_` is valid in an email and would be a wildcard.
-            // ponytail: outside ASCII, SQLite does not fold case and PostgreSQL depends on its locale, so those addresses match exactly; lifts if a site reports one.
-            // @phpstan-ignore argument.type (the only non-literal part is the grammar's quoting of a constant column name; the email is bound)
-            $matches = $email === null ? null : $query->whereRaw('lower(' . $query->getGrammar()->wrap('email') . ') = lower(?)', [$email])->get();
+            // lower() finds every spelling on every engine (ADR 0001, step 7). No whereLike(): `_` is valid in an email and would be a wildcard.
+            // The PHP check drops what the engine matches beyond ASCII case: MySQL's default collation ignores accents, so gràce@ would find grace@.
+            // ponytail: outside ASCII an address matches exactly, whatever the engine could fold; V1 lifts it if a site needs it.
+            $matches = $email === null ? $query->getModel()->newCollection() : $query
+                // @phpstan-ignore argument.type (the only non-literal part is the grammar's quoting of a constant column name; the email is bound)
+                ->whereRaw('lower(' . $query->getGrammar()->wrap('email') . ') = lower(?)', [$email])
+                ->get()
+                ->filter(fn (Model $user): bool => is_string($stored = $user->getAttribute('email')) && strtolower($stored) === strtolower($email));
 
             // A grant hands out every Permission, so it never rests on a guess between two accounts, even when one spelling is exact.
-            if ($matches !== null && $matches->count() > 1) {
+            if ($matches->count() > 1) {
                 $stored = $matches->pluck('email')->implode(', ');
                 $this->components->error('Several Users match this email: ' . (preg_replace('/\p{C}/u', '', $stored) ?? $stored) . '. Fix the duplicates in your users table, then run kami:install again.');
 
                 return false;
             }
 
-            $existing = $matches?->first();
+            $existing = $matches->first();
 
             if ($existing === null) {
                 break;
             }
 
-            // Shows what the table holds, not what was typed: a collation can match another spelling of the address.
+            // Shows what the table holds, not what was typed: the lookup matches another spelling of the address.
             /** @var string $storedEmail */
             $storedEmail = $existing->getAttribute('email');
             $existingName = $existing->getAttribute('name');

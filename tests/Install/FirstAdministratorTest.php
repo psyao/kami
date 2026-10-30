@@ -182,6 +182,30 @@ it('refuses several stored spellings of the email, listing them and changing not
     'no terminal' => [['--no-interaction' => true]],
 ]);
 
+it('refuses several stored spellings of a prompted email too', function () {
+    existingUser();
+    Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
+    User::query()->forceCreate(['name' => 'Other', 'email' => 'Grace@example.test', 'password' => 'hash']);
+
+    $this->artisan('kami:install')
+        ->expectsQuestion('Email of the first administrator', 'grace@example.test')
+        ->expectsOutputToContain('Several Users match this email')
+        ->assertFailed();
+
+    expect(DB::table('kami_role_user')->count())->toBe(0);
+});
+
+it('does not take an accented address for the plain one, as MySQL\'s default collation would', function () {
+    $existing = existingUser();
+    // Otherwise the same collation refuses the new User under the unique index, which grants nothing either.
+    Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'gràce@example.test', '--name' => 'Other'])->assertSuccessful();
+
+    expect(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeFalse()
+        ->and(User::query()->count())->toBe(2);
+});
+
 it('treats an underscore in the email as a literal character', function () {
     $this->artisan('migrate')->assertSuccessful();
     $other = User::query()->forceCreate(['name' => 'Other', 'email' => 'axb@example.test', 'password' => 'hash']);
