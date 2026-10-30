@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -140,8 +142,54 @@ it('treats a bare Enter at the confirmation as no', function () {
     $input = new ArrayInput(['command' => 'kami:install', '--email' => 'grace@example.test']);
     $input->setStream(fopen('data://text/plain,' . "\n", 'r'));
 
-    expect(app(Kernel::class)->handle($input, new BufferedOutput))->toBe(1)
+    $output = new BufferedOutput;
+
+    expect(app(Kernel::class)->handle($input, $output))->toBe(1)
+        ->and($output->fetch())->toContain('grace@example.test did not get the administrator Role.')
         ->and(DB::table('kami_role_user')->count())->toBe(0);
+});
+
+it('shows the stored email and strips control characters from the name at the confirmation', function () {
+    $this->artisan('migrate')->assertSuccessful();
+    // Rebuilt case-insensitive, as MySQL's default collation is: SQLite's own would not match another spelling.
+    Schema::disableForeignKeyConstraints();
+    Schema::drop('users');
+    Schema::create('users', function (Blueprint $table): void {
+        $table->id();
+        $table->string('name');
+        $table->string('email')->collation('nocase')->unique();
+        $table->string('password');
+        $table->rememberToken();
+        $table->timestamps();
+    });
+    Schema::enableForeignKeyConstraints();
+    User::query()->forceCreate(['name' => "Grace\e\u{202E}", 'email' => 'grace@example.test', 'password' => 'hash']);
+
+    $this->artisan('kami:install', ['--email' => 'GRACE@example.test'])
+        ->expectsConfirmation(GRANT_QUESTION, 'yes')
+        ->expectsOutputToContain('grace@example.test, an existing User, is now an administrator.')
+        ->assertSuccessful();
+});
+
+it('still creates the User from an unknown email when other Users exist', function () {
+    $existing = existingUser();
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])->assertSuccessful();
+
+    expect(User::query()->count())->toBe(2)
+        ->and(Gate::forUser(User::query()->where('email', 'ada@example.test')->sole())->allows('kami.users.manage'))->toBeTrue()
+        ->and(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeFalse();
+});
+
+it('refuses a malformed --email before looking for a User, even one the table holds', function () {
+    $this->artisan('migrate')->assertSuccessful();
+    User::query()->forceCreate(['name' => 'Grace', 'email' => 'grace', 'password' => 'hash']);
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'grace'])
+        ->expectsOutputToContain('must be a valid email')
+        ->assertFailed();
+
+    expect(DB::table('kami_role_user')->count())->toBe(0);
 });
 
 it('does nothing with --email once a User may manage Users, whatever the email', function (string $email) {

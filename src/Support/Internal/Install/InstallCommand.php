@@ -123,6 +123,13 @@ final class InstallCommand extends Command
         $interactive = $this->canPrompt();
         $emailOption = $this->option('email');
 
+        // Before the lookup: a grant must not rest on a value that is no email, whatever the table holds.
+        if (is_string($emailOption) && ($emailCheck = Validator::make(['email' => $emailOption], ['email' => $rules['email']]))->fails()) {
+            $this->components->error($emailCheck->errors()->first());
+
+            return false;
+        }
+
         while (true) {
             $email = is_string($emailOption) ? $emailOption : ($interactive ? text('Email of the first administrator', required: true, validate: ['email' => $rules['email']]) : null);
             // @phpstan-ignore argument.type (the base Model declares no email; the host's model does, as creating the User below assumes)
@@ -132,23 +139,28 @@ final class InstallCommand extends Command
                 break;
             }
 
-            // No password is checked here: on an application with open registration, a mistyped email would hand every right to a stranger. Without a terminal, --email is the consent.
+            // Shows what the table holds, not what was typed: a collation can match another spelling of the address.
+            /** @var string $storedEmail */
+            $storedEmail = $existing->getAttribute('email');
             $existingName = $existing->getAttribute('name');
+            $label = $storedEmail . (is_string($existingName) && $existingName !== '' ? " ({$existingName})" : '');
 
-            if (! $interactive || confirm((is_string($existingName) && $existingName !== '' ? "{$email} ({$existingName})" : $email) . ' already exists. Give them the administrator Role?', default: false)) {
+            // No password is checked here: on an application with open registration, a mistyped email would hand every right to a stranger, who also chose this name, so it cannot rewrite the question. Without a terminal, --email is the consent.
+            if (! $interactive || confirm((preg_replace('/\p{C}/u', '', $label) ?? $storedEmail) . ' already exists. Give them the administrator Role?', default: false)) {
+                // ponytail: the grant leaves only this output; ADR 0022's Audit log row for it lands with kami_audit_events in M6.
                 DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $existing->getKey(), 'role' => 'administrator']);
 
                 if (is_string($this->option('name'))) {
                     $this->components->warn('--name was ignored: an existing User keeps their name.');
                 }
 
-                $this->components->info("{$email}, an existing User, is now an administrator.");
+                $this->components->info("{$storedEmail}, an existing User, is now an administrator.");
 
                 return true;
             }
 
             if (is_string($emailOption)) {
-                $this->components->error("{$email} did not get the administrator Role. Pass the email of the User to make an administrator.");
+                $this->components->error("{$storedEmail} did not get the administrator Role. Pass the email of the User to make an administrator.");
 
                 return false;
             }
