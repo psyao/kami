@@ -99,14 +99,16 @@ abstract class Field
      */
     public function validationRules(): array
     {
-        return $this->rules;
+        return [...$this->baseRules(), ...$this->rules];
     }
 
-    /**
-     * @internal
-     *
-     * The Laravel column type of its `kami_type_<handle>` column (ADR 0006).
-     */
+    /** @internal */
+    public function read(mixed $stored): mixed
+    {
+        return $stored === null ? null : $this->cast($stored);
+    }
+
+    /** The column type of its `kami_type_<handle>` column: `string`, `text` or `boolean` (ADR 0006). */
     public function column(): string
     {
         return 'string';
@@ -116,5 +118,21 @@ abstract class Field
     public function isTranslatable(): bool
     {
         return $this->translatable;
+    }
+
+    /**
+     * The rules every value of this Field type passes, before those of `->rules()`.
+     *
+     * @return array<mixed>
+     */
+    protected function baseRules(): array
+    {
+        return [];
+    }
+
+    /** The value `$entry->handle` returns for what its column stores; never called with `null`. */
+    protected function cast(mixed $value): mixed
+    {
+        return $value;
     }
 }

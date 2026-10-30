@@ -7,7 +7,7 @@ namespace Psyao\Kami\Admin\Internal;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Textarea as TextareaInput;
+use Filament\Forms\Components\Field as FormField;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Resources\ResourceConfiguration;
@@ -28,12 +28,11 @@ use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
+use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
-use Psyao\Kami\Content\Fields\Text;
-use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
@@ -205,14 +204,10 @@ final class EntryResource extends FilamentResource
     }
 
     /** @param  array<string, string>  $lang */
-    private static function component(Field $field, array $lang): Component
+    private static function component(Field $field, array $lang): FormField
     {
-        // ponytail: one arm per Field type, Kami's two only; M3's `fieldComponents()` registry replaces it.
-        $component = match (true) {
-            $field instanceof Text => TextInput::make($field->handle),
-            $field instanceof Textarea => TextareaInput::make($field->handle),
-            default => throw new LogicException('No admin component for the Field type ' . $field::class . '.'),
-        };
+        $plugin = Filament::getPlugin('kami');
+        $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
 
         $component
             ->label(self::type()->fieldLabel($field->handle))
@@ -220,7 +215,12 @@ final class EntryResource extends FilamentResource
             ->default($field->defaultValue());
 
         if (! self::type()->isTranslatable() || self::type()->isTranslatable($field)) {
-            return $component->extraInputAttributes($lang);
+            // A toggle or a site's component may type no text, so may have no input to mark.
+            if (method_exists($component, 'extraInputAttributes')) {
+                $component->extraInputAttributes($lang);
+            }
+
+            return $component;
         }
 
         // One value for every Locale: changing it changes visible Translations too, which takes `publish` (ADR 0019).

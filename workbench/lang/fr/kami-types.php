@@ -10,6 +10,8 @@ return [
         'fields' => [
             'summary' => ['label' => 'Résumé', 'help' => 'Deux phrases au plus.'],
             'author' => ['label' => 'Auteur'],
+            'featured' => ['label' => 'À la une'],
+            'accent' => ['label' => 'Accent'],
         ],
     ],
     'page' => [

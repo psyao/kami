@@ -17,6 +17,7 @@ Draws a User's initials as an inline SVG: unlike Filament's default, no name lea
 Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make())`.
 
 - `public function boot(Filament\Panel $panel): void`
+- `public function fieldComponents(array $components): Psyao\Kami\Admin\KamiPlugin`: The admin component of each Field type, by its exact class: a closure given the Field. A Field type with no component stops the panel.
 - `public function getId(): string`
 - `public static function make(): Psyao\Kami\Admin\KamiPlugin`
 - `public function register(Filament\Panel $panel): void`
@@ -57,6 +58,14 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too.
 
+## `Psyao\Kami\Content\Fields\Boolean`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+Yes or no, one value for the whole Entry unless `->translatable()`; `null` until given.
+
+- `public function column(): string`
+
 ## `Psyao\Kami\Content\Fields\Field`
 
 `abstract class`
@@ -67,6 +76,9 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
 - `public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'meta_title', 12 => 'meta_description', 13 => 'noindex', 14 => 'entry_id', 15 => 'locale', 16 => 'parent', 17 => 'parent_id', 18 => 'position', 19 => 'deleted_at', )`: Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
 - `final public function __construct(string $handle)`
+- `protected function baseRules(): array`: The rules every value of this Field type passes, before those of `->rules()`.
+- `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
+- `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text` or `boolean` (ADR 0006).
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
 - `public static function make(string $handle): static`
 - `public function required(): static`: Required to publish; a Draft may leave it blank.

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
@@ -17,6 +18,9 @@ use Workbench\App\Content\Article;
 
 // Each test migrates and rolls back for real, and DDL commits on MySQL: a transaction could not undo it.
 uses(DatabaseMigrations::class);
+
+/** A Field type no plugin registers a component for. */
+final class Whisper extends Field {}
 
 /** A type whose Fields each test declares. */
 final class Note extends ContentType
@@ -237,4 +241,36 @@ it('says so when a lost column is dropped because no new one is left to rename i
         ->expectsChoice('kami_type_note.summary is no longer declared. Is it renamed?', 'lede', ['lede' => 'Renamed to lede', '-' => 'Dropped, with its values'])
         ->expectsOutputToContain('kami_type_note.author is dropped, with its values')
         ->assertSuccessful();
+});
+
+it('creates a nullable Boolean column and finds it matching on every engine, then undoes it', function () {
+    declareNote([Boolean::make('featured')]);
+    generateAndMigrate();
+
+    expect(collect(Schema::getColumns('kami_type_note'))->firstWhere('name', 'featured')['nullable'])->toBeTrue();
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+
+    expect(writtenMigrations())->toHaveCount(1);
+
+    rollBackLast();
+
+    expect(Schema::hasTable('kami_type_note'))->toBeFalse();
+});
+
+it('retypes a small integer column to a Boolean: only a boolean column matches', function () {
+    declareNote([Text::make('summary')]);
+    generateAndMigrate();
+    Schema::table('kami_type_note', fn (Blueprint $table) => $table->tinyInteger('featured')->nullable());
+    declareNote([Text::make('summary'), Boolean::make('featured')]);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('kami_type_note.featured has type')->assertFailed();
+});
+
+it('keeps working on a Field type with no registered component, so the declaration can be fixed', function () {
+    declareNote([Whisper::make('rumour')]);
+
+    generateAndMigrate();
+
+    expect(noteColumns())->toHaveKey('rumour');
 });

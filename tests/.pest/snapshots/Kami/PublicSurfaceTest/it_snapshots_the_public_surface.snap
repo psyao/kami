@@ -2,6 +2,7 @@ class Psyao\Kami\Admin\InitialsAvatarProvider final class implements Filament\Av
 class Psyao\Kami\Admin\InitialsAvatarProvider::get() public function get(Illuminate\Database\Eloquent\Model|Illuminate\Contracts\Auth\Authenticatable $record): string
 class Psyao\Kami\Admin\KamiPlugin final class implements Filament\Contracts\Plugin
 class Psyao\Kami\Admin\KamiPlugin::boot() public function boot(Filament\Panel $panel): void
+class Psyao\Kami\Admin\KamiPlugin::fieldComponents() public function fieldComponents(array $components): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
@@ -40,11 +41,16 @@ class Psyao\Kami\Content\Events\EntryUnpublished::$actor public protected(set) r
 class Psyao\Kami\Content\Events\EntryUnpublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
 class Psyao\Kami\Content\Events\EntryUnpublished::$locale public protected(set) readonly string $locale
 class Psyao\Kami\Content\Events\EntryUnpublished::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Fields\Boolean final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Boolean::column() public function column(): string
 class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\Fields\Field::RESERVED_HANDLES public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'meta_title', 12 => 'meta_description', 13 => 'noindex', 14 => 'entry_id', 15 => 'locale', 16 => 'parent', 17 => 'parent_id', 18 => 'position', 19 => 'deleted_at', )
 class Psyao\Kami\Content\Fields\Field::__construct() final public function __construct(string $handle)
+class Psyao\Kami\Content\Fields\Field::baseRules() protected function baseRules(): array
+class Psyao\Kami\Content\Fields\Field::cast() protected function cast(mixed $value): mixed
+class Psyao\Kami\Content\Fields\Field::column() public function column(): string
 class Psyao\Kami\Content\Fields\Field::default() public function default(mixed $value): static
 class Psyao\Kami\Content\Fields\Field::make() public static function make(string $handle): static
 class Psyao\Kami\Content\Fields\Field::required() public function required(): static

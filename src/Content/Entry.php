@@ -100,12 +100,12 @@ class Entry extends Model
         }
 
         if (! $this->contentType()?->isTranslatable($field)) {
-            return $this->fieldRows['*'][$key] ?? null;
+            return $field->read($this->fieldRows['*'][$key] ?? null);
         }
 
         $locale = $this->fallbackLocale($key) ?? $this->readLocale();
 
-        return $this->fieldRows[$locale][$key] ?? null;
+        return $field->read($this->fieldRows[$locale][$key] ?? null);
     }
 
     /**

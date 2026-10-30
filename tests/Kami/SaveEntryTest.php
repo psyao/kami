@@ -171,3 +171,29 @@ it('stores a Field\'s default when it creates a Translation, a Shared one only w
         ->and(Entry::query()->withUnpublished()->find($entry->id)?->summary)->toBe('To be written.')
         ->and(Entry::query()->withUnpublished()->find($entry->id)?->author)->toBeNull();
 });
+
+it('stores a Boolean once for the whole Entry and reads it as a bool, null until given', function (mixed $given, bool $read) {
+    $entry = save(['title' => 'Bonjour']);
+
+    expect($entry->featured)->toBeNull();
+
+    $entry = save(['featured' => $given], $entry);
+
+    expect($entry->featured)->toBe($read)
+        ->and(DB::table('kami_type_article')->where('entry_id', $entry->id)->where('locale', '*')->count())->toBe(1);
+})->with([
+    'true' => [true, true],
+    'false' => [false, false],
+    'one' => [1, true],
+    'zero' => [0, false],
+    'form string' => ['1', true],
+]);
+
+it('refuses a value that is no boolean', function () {
+    expect(failures(fn () => save(['title' => 'Bonjour', 'featured' => 'maybe'])))->toBe(['featured']);
+});
+
+it('applies a site Field type\'s baseline rules and cast, under the declaration\'s own rules', function () {
+    expect(failures(fn () => save(['title' => 'Bonjour', 'accent' => 'red'])))->toBe(['accent'])
+        ->and(save(['title' => 'Bonjour', 'accent' => '#ABCDEF'])->accent)->toBe('#abcdef');
+});

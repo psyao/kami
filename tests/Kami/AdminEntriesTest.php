@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Filament\Actions\Testing\TestAction;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\Field;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -16,7 +18,9 @@ use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Field as KamiField;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
@@ -26,6 +30,17 @@ use Workbench\App\Models\User;
 
 // A User committed here would outlive the test on MySQL, MariaDB and PostgreSQL and clash with the next one's.
 uses(RefreshDatabase::class);
+
+/** A Field type no plugin registers a component for. */
+final class Rumour extends KamiField {}
+
+final class Unregistered extends ContentType
+{
+    public function fields(): array
+    {
+        return [Rumour::make('whisper')];
+    }
+}
 
 function userWithRole(string $role): User
 {
@@ -530,3 +545,38 @@ it('never writes a Kami model itself from Admin: every write goes through SaveEn
 
     expect($writes->values()->all())->toBe([]);
 });
+
+it('edits a Boolean with a toggle and reads a bool back', function () {
+    entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour', 'featured' => true])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->featured)->toBeTrue();
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])
+        ->assertSchemaStateSet(['featured' => true])
+        ->fillForm(['featured' => false])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->featured)->toBeFalse();
+});
+
+it('edits a site\'s own Field type with the component it registered', function () {
+    entryPage(CreateEntry::class)
+        ->assertFormFieldExists('accent', fn (Field $field): bool => $field instanceof ColorPicker)
+        ->fillForm(['title' => 'Bonjour', 'accent' => '#ABCDEF'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(onlyEntry()->accent)->toBe('#abcdef');
+
+    entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])->assertSchemaStateSet(['accent' => '#abcdef']);
+});
+
+it('fails on the panel, naming the type, when a Field type has no registered component', function () {
+    config(['kami.types' => [...config('kami.types'), Unregistered::class]]);
+
+    $this->withoutExceptionHandling()->get('/admin');
+})->throws(LogicException::class, 'No admin component for the Field type ' . Rumour::class);
