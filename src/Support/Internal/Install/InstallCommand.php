@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Support\Internal\ChecksPrompting;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\PrintsProblems;
 use Psyao\Kami\Users\Internal\Permissions;
@@ -30,6 +31,7 @@ use function Laravel\Prompts\text;
     {--name= : The first administrator\'s name}')]
 final class InstallCommand extends Command
 {
+    use ChecksPrompting;
     use PrintsProblems;
 
     public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths): int
@@ -123,7 +125,7 @@ final class InstallCommand extends Command
             'password' => ['required', 'string', Password::defaults()],
         ];
 
-        $interactive = $this->input->isInteractive();
+        $interactive = $this->canPrompt();
         $email = $this->option('email');
         $email = is_string($email) ? $email : ($interactive ? text('Email of the first administrator', required: true, validate: ['email' => $rules['email']]) : null);
         $name = $this->option('name');

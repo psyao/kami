@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Process;
 use Workbench\App\Models\User;
 
 beforeEach(fn () => $this->bootWithKamiOnAPanel());
@@ -78,4 +79,15 @@ it('refuses while the administrator Role does not grant kami.users.manage', func
         ->assertFailed();
 
     expect(User::query()->count())->toBe(0);
+});
+
+it('fails the same way from a process with no terminal, even without --no-interaction', function () {
+    // A real process outside the testing environment, where Laravel treats every command as having a terminal.
+    $result = Process::path(dirname(__DIR__, 2))
+        ->env(['APP_ENV' => 'local', 'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => ':memory:', 'KAMI_ADMIN_PASSWORD' => false])
+        ->run(['php', 'vendor/bin/testbench', 'kami:install']);
+
+    expect($result->exitCode())->toBe(1)
+        ->and($result->output() . $result->errorOutput())->toContain('Pass --email, --name, KAMI_ADMIN_PASSWORD')
+        ->not->toContain('NonInteractiveValidationException');
 });
