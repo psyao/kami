@@ -17,6 +17,11 @@ return [
         Project::class,
     ],
 
+    'roles' => [
+        'administrator' => ['kami.*'],
+        'editor' => ['kami.entries.*.view', 'kami.entries.*.create', 'kami.entries.*.update'],
+    ],
+
     'sites' => [
         'default' => [
             'url' => 'http://localhost',

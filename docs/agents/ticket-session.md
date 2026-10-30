@@ -15,6 +15,8 @@ The parent session starts the ticket's session with the ticket number, the conte
 5. **Stop at CI.** End the turn asking Steve "merge once CI is green?". The app wakes the session on failures, conflicts and review comments, never on success. A review comment from anyone but Steve goes to him before acting on it.
 6. **Merge on Steve's yes, given in this session.** Recheck CI on the latest commit, `gh pr merge --squash --delete-branch`, `git switch main`, `git pull --ff-only`, delete the local branch, check the issue is closed. The parent session then archives this one.
 
+A ticket adding something visible in the admin completes the Workbench seeder (`workbench/database/seeders/DatabaseSeeder.php`) in its pull request.
+
 ## Leftovers
 
 Every finding ends somewhere: a left one in the hand-over note with its reason, an out-of-scope one in a GitHub issue (its milestone if it exists, else `needs-triage`), one for the next ticket in that ticket's brief. Hand-over notes live outside the repository, so what a later milestone needs goes to the tracker.

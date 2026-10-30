@@ -10,8 +10,16 @@ providers:
 migrations:
   - workbench/database/migrations
 
+seeders:
+  - Workbench\Database\Seeders\DatabaseSeeder
+
 workbench:
   start: '/admin'
   discovers:
     config: true
     views: true
+  build:
+    - create-sqlite-db
+    - db-wipe
+    - migrate-fresh
+    - filament-assets # the Install suite empties the skeleton's public/

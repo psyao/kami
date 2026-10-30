@@ -140,10 +140,10 @@ it('takes publish to update a Published or Scheduled Translation, and update alo
 });
 
 it('warns on Role assignments naming an undeclared Role', function () {
-    userWithRoles('administrator', 'editor');
+    userWithRoles('administrator', 'ghost');
 
     $this->artisan('kami:doctor')
-        ->expectsOutputToContain('1 Role assignment names a Role config/kami.php does not declare: editor.')
+        ->expectsOutputToContain('1 Role assignment names a Role config/kami.php does not declare: ghost.')
         ->expectsOutputToContain('docs/guide/users-and-roles.md#roles')
         ->assertSuccessful();
 });
