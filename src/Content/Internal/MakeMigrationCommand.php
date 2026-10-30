@@ -31,6 +31,8 @@ final class MakeMigrationCommand extends Command
 
     private const string INDEX_PREFIX = 'kami_idx_';
 
+    private const array INTERCHANGEABLE_TYPES = ['string', 'text'];
+
     public function handle(ContentTypes $types, Migrator $migrator): int
     {
         $handle = $this->argument('type');
@@ -180,6 +182,24 @@ final class MakeMigrationCommand extends Command
             }
         }
 
+        // A value that does not convert has no portable answer. Only these two need no conversion: a value too long for a string stops the migration, or stays whole on SQLite.
+        $refused = array_filter($retyped, fn (string $column, string $field): bool => array_diff([$column, $existing[$field]], self::INTERCHANGEABLE_TYPES) !== [], ARRAY_FILTER_USE_BOTH);
+
+        if ($refused !== []) {
+            $up = [$this->schema('table', $table, $renames)];
+
+            foreach ($refused as $field => $column) {
+                $this->components->error("{$table}.{$field} goes from {$existing[$field]} to {$column}, and no cast works on every engine. Write this migration by hand, converting the values where marked.");
+                array_push($up, ...$this->retype($table, $field, $column, $indexes[$field] ?? null));
+                array_push($down, ...$this->retype($table, $field, $existing[$field], $indexes[$field] ?? null));
+            }
+
+            $this->components->warn('It holds only this: run the command again once it has run, for any other change.');
+            $this->line($this->migration(array_values(array_filter($up)), array_values(array_filter([...$down, $this->schema('table', $table, $unrenames)]))));
+
+            return false;
+        }
+
         // Before its column goes: SQLite refuses to drop an indexed column. An index the site wrote by hand on a column that stays is left alone.
         foreach (array_diff_key($indexes, array_flip($indexed)) as $field => $index) {
             if (str_starts_with($index['name'], self::INDEX_PREFIX) || isset($dropped[$field])) {
@@ -269,6 +289,31 @@ final class MakeMigrationCommand extends Command
     private function column(string $field, string $column, string $suffix = ''): string
     {
         return "\$table->{$column}('{$field}')->nullable(){$suffix};";
+    }
+
+    /**
+     * The statements moving a column's values into a new column of another type, for a migration the site finishes by hand.
+     *
+     * @param  array{name: string, unique: bool}|null  $index  Its index, dropped first since SQLite refuses to drop an indexed column, and put back unless the new type cannot hold one.
+     * @return list<string>
+     */
+    private function retype(string $table, string $field, string $column, ?array $index): array
+    {
+        [$create, $drop] = $index !== null && $index['unique'] ? ['unique', 'dropUnique'] : ['index', 'dropIndex'];
+
+        return [
+            $this->schema('table', $table, [$this->column("{$field}_new", $column)]),
+            <<<PHP
+            \\Illuminate\\Support\\Facades\\DB::table('{$table}')->orderBy('entry_id')->orderBy('locale')->each(function (object \$row): void {
+                        \\Illuminate\\Support\\Facades\\DB::table('{$table}')->where('entry_id', \$row->entry_id)->where('locale', \$row->locale)->update([
+                            '{$field}_new' => \$row->{$field}, // Convert the value here: one the new type refuses stops the migration.
+                        ]);
+                    });
+            PHP,
+            $this->schema('table', $table, [...($index !== null ? ["\$table->{$drop}('{$index['name']}');"] : []), "\$table->dropColumn('{$field}');"]),
+            $this->schema('table', $table, ["\$table->renameColumn('{$field}_new', '{$field}');"]),
+            $this->schema('table', $table, $index !== null && ! in_array($column, ['text', 'json'], true) ? ["\$table->{$create}('{$field}', '{$index['name']}');"] : []),
+        ];
     }
 
     private function index(string $table, string $field): string

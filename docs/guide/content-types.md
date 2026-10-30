@@ -164,13 +164,19 @@ The command compares every declared type with the database and writes one ordina
 What it writes:
 
 - **A new type**: its table, with `entry_id` (deleted with the Entry), `locale`, one unique row per Entry and Locale, and one column per Field.
-- **An added Field**: a new column. **A removed Field**: a dropped column, with its values. **A Field whose type changed** (`Text` to `Textarea`): the column's new type.
+- **An added Field**: a new column. **A removed Field**: a dropped column, with its values. **A Field going between a `string` and a `text` column** (`Text` to `Textarea`): the column's new type.
 - **A Field declared `->filterable()` or `->sortable()`**: an index on its column. **A Field no longer declared so**: that index dropped. An index you wrote by hand on the column counts as its index, and is dropped only with its column.
 - **A down() method** that undoes all of it.
 
 Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A type with no Field gets no table, and a type you remove from `types` keeps its table: the command never drops one.
 
 Renaming a Field looks like removing one and adding another, and the drop would lose its values. So when a type both loses and gains columns, the command asks in a terminal, for each lost column, whether it is renamed to one of the new ones (`renameColumn`, values kept) or dropped. Without a terminal (a deploy script, `--no-interaction`), it refuses and prints both options rather than guess.
+
+Any other change of column type, such as `Text` to `Boolean` or `Number` to `Date`, is refused, on every engine: a value that does not convert has no answer that holds on all of them, so the conversion is yours to write. The command writes no file and prints the migration to start from. It adds a column of the new type, copies each row's value to it, drops the old column and renames the new one, keeping any index the new type can hold. Convert the value where the comment says. It holds only these changes and the renames they rely on, so run the command again once it has run, for the type's other changes and for other types.
+
+That migration runs from the command line, like any other (`kami:install`), so a web request's time limit does not apply; it updates one row at a time, which takes longer the more Entries the type has. On MySQL and MariaDB, a value that fails partway leaves the new column behind, since their schema changes do not roll back: drop it before running the migration again.
+
+Going from `Textarea` to `Text`, a value over 255 characters stops the migration with an error and loses nothing on PostgreSQL, MySQL and MariaDB, while SQLite keeps it whole. MySQL and MariaDB truncate it without the connection's `strict` mode, which Laravel turns on by default.
 
 Run `php artisan migrate` between two runs: while a migration that touches a `kami_type_*` table is pending, the command refuses, since it would write the same change twice.
 
