@@ -116,13 +116,22 @@ Known gaps with the real host (`docs/velox-retrospective.md` § 5.1):
 
 ## Uncached TTFB
 
-ADR 0021's uncached budget is 200 ms. Rendering milestones before M7 measure it on staging with this loop; `kami:bench` replaces it in M7. No page cache exists before M7, so every request is uncached. The staging site is Digest-protected, with its credentials in a `netrc` file (`machine staging.example.com login … password …`, mode 600):
+The uncached budget is 200 ms (`docs/architecture.md`, "Cache and performance budget"). Rendering milestones before M7 measure it on staging, on a typical page, with this loop; `kami:bench` replaces it in M7. No page cache exists before M7, so every request is uncached. The staging site is Digest-protected, with its credentials in a `netrc` file (`machine staging.example.com login … password …`, mode 600):
 
 ```bash
-for i in $(seq 1 21); do curl -s -o /dev/null --digest --netrc-file ~/.ttfb-netrc -w '%{http_code} %{time_pretransfer} %{time_starttransfer}\n' https://staging.example.com/a-propos; done | tail -n +2 | awk '$1 == 200 { print ($3 - $2) * 1000 }' | sort -n | awk '{ t[NR] = $1 } END { printf "%d runs, median %.0f ms, p95 %.0f ms, max %.0f ms\n", NR, t[int((NR + 1) / 2)], t[int(NR * 0.95 + 0.999)], t[NR] }'
+for i in $(seq 1 21); do
+  curl -s -o /dev/null --digest --netrc-file ~/.ttfb-netrc \
+    -w '%{http_code} %{time_appconnect} %{time_starttransfer}\n' \
+    https://staging.example.com/a-propos
+done | tail -n +2 \
+  | awk '$1 == 200 { print ($3 - $2) * 1000 }' \
+  | sort -n \
+  | awk '{ t[NR] = $1 } END { printf "%d runs, median %.0f ms, p95 %.0f ms, max %.0f ms\n", NR, t[int((NR + 1) / 2)], t[int(NR * 0.95 + 0.999)], t[NR] }'
 ```
 
-It drops the first request as a warm-up and keeps the 200 responses: fewer than 20 runs means some requests failed. The time is the server's, `time_starttransfer - time_pretransfer`, which leaves out DNS, TLS and connection setup, though not the network round trip of the request and its first byte. The budget holds when the p95 is at most 200 ms; a miss becomes a `friction` issue.
+It drops the first request as a warm-up and keeps the 200 responses: fewer than 20 runs means some requests failed. The time is the server's, `time_starttransfer - time_appconnect`. The budget holds when the median is at most 200 ms; p95 and max are for information.
+
+`--digest` makes two exchanges per run, a 401 then the 200, and curl adds their times, so the figure overstates the TTFB. It also includes the round trip from your machine, which `kami:bench` will not, since it calls the site from the host. Before a miss becomes a `friction` issue, measure it again without the Digest protection.
 
 ## Releases
 
