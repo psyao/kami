@@ -271,13 +271,15 @@ jobs:
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      # The build took about 70 % of this job (psyao/kami#161). This step only fills the builder's cache from GHA:
-      # run.sh's `up --build` reuses it and loads the image. A new Dockerfile, php or composer image digest misses
-      # the cache; until then the apt packages stay as built.
+      # The build took about 70 % of this job (psyao/kami#161). `load` fetches the layers into the builder: without it
+      # a cache hit stays lazy and run.sh's `up --build` rebuilds everything. A new Dockerfile, php or composer image
+      # digest misses the cache; until then the apt packages stay as built.
       - name: PHP image cache
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: tests/Smoke
+          tags: kami-smoke-php
+          load: true
           cache-from: type=gha
           cache-to: type=gha,ignore-error=true
 
