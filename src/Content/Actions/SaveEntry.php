@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Actions;
 
+use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
@@ -41,6 +42,11 @@ final class SaveEntry
     public function handle(string $type, array $values, ?Entry $entry = null, ?string $locale = null, ?Authenticatable $actor = null): Entry
     {
         $contentType = resolve(ContentTypes::class)->find($type) ?? throw new InvalidArgumentException("No Content Type [{$type}] is declared in kami.types.");
+
+        if ($entry instanceof Entry && $entry->type !== $contentType->handle()) {
+            throw new InvalidArgumentException("The Entry [{$entry->id}] is of type [{$entry->type}], not [{$contentType->handle()}].");
+        }
+
         $site = Site::current();
         $locale = $contentType->isTranslatable() ? $locale ?? $site->defaultLocale() : '*';
 
@@ -65,7 +71,8 @@ final class SaveEntry
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
 
         $translation = $entry instanceof Entry ? Translation::query()->firstOrNew(['entry_id' => $entry->id, 'locale' => $locale]) : new Translation(['locale' => $locale]);
-        $stored = $entry instanceof Entry ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
+        // A type with no Field has no table.
+        $stored = $entry instanceof Entry && $contentType->fields() !== [] ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
 
         // A new Translation starts from its Fields' defaults; a Shared Field's only while the Entry has no `'*'` row yet.
         if ($writesTranslation && ! $translation->exists) {
@@ -93,7 +100,7 @@ final class SaveEntry
         $publishing = ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
             'title' => [$publishing ? 'required' : 'nullable', 'string', 'max:255'],
-            'slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255'],
+            'slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->slugRule($contentType, $site, $locale)],
             'status' => ['required', 'in:draft,published'],
             'published_at' => ['nullable', 'date'],
         ] : [];
@@ -155,6 +162,26 @@ final class SaveEntry
         }
 
         return $saved;
+    }
+
+    /**
+     * Its characters, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
+     *
+     * ponytail: at save only, so a Locale or Prefix declared later can still hide a stored Path; M7's reserved paths lift it.
+     */
+    private function slugRule(ContentType $contentType, Site $site, string $locale): Closure
+    {
+        return function (string $attribute, mixed $slug, Closure $fail) use ($contentType, $site, $locale): void {
+            if (! is_string($slug)) {
+                return;
+            }
+
+            if (! Path::isAnswerable($slug)) {
+                $fail(__('validation.regex'));
+            } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array(explode('/', Path::of($contentType, $slug))[0], array_slice($site->locales, 1), true)) {
+                $fail(__('validation.not_in'));
+            }
+        };
     }
 
     /** The Translation's 200 row, rewritten in place when its slug changes; the `'*'` Translation answers in every Locale of the Site, one row each (ADR 0008). */

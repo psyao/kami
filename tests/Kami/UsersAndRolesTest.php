@@ -123,7 +123,7 @@ it('maps Filament\'s policy methods to the type\'s Permissions', function (strin
     'publish on create' => ['publish', fn () => [Entry::class, 'article'], 'kami.entries.article.publish'],
 ]);
 
-it('takes publish to update a visible Translation, and update alone for a Draft or Scheduled one', function () {
+it('takes publish to update a Published or Scheduled Translation, and update alone for a Draft', function () {
     declareRole('author', 'kami.entries.article.update');
     declareRole('publisher', 'kami.entries.article.update', 'kami.entries.article.publish');
     $published = frenchArticle('published');
@@ -135,7 +135,8 @@ it('takes publish to update a visible Translation, and update alone for a Draft 
     expect($author->allows('update', Entry::withUnpublished()->inLocale('fr')->find($published->id)))->toBeFalse()
         ->and(Gate::forUser(userWithRoles('publisher'))->allows('update', Entry::withUnpublished()->inLocale('fr')->find($published->id)))->toBeTrue()
         ->and($author->allows('update', Entry::withUnpublished()->inLocale('fr')->find($draft->id)))->toBeTrue()
-        ->and($author->allows('update', Entry::withUnpublished()->inLocale('en')->find($scheduled->id)))->toBeTrue();
+        ->and($author->allows('update', Entry::withUnpublished()->inLocale('en')->find($scheduled->id)))->toBeFalse()
+        ->and(Gate::forUser(userWithRoles('publisher'))->allows('update', Entry::withUnpublished()->inLocale('en')->find($scheduled->id)))->toBeTrue();
 });
 
 it('warns on Role assignments naming an undeclared Role', function () {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Fields;
 
+use Closure;
+
 /** A value a Content Type stores, in a typed column of its `kami_type_<handle>` table (ADR 0006). */
 abstract class Field
 {
@@ -123,7 +125,7 @@ abstract class Field
      */
     public function validationRules(): array
     {
-        return [...$this->baseRules(), ...$this->rules];
+        return [...$this->columnRules(), ...$this->baseRules(), ...$this->rules];
     }
 
     /** @internal */
@@ -158,6 +160,35 @@ abstract class Field
     protected function baseRules(): array
     {
         return [];
+    }
+
+    /**
+     * What the smallest of the four engines' columns holds, so a longer value is a validation error on every engine.
+     *
+     * @return array<mixed>
+     */
+    private function columnRules(): array
+    {
+        return match ($this->column()) {
+            'string' => [$this->lengthRule(255, mb_strlen(...))],
+            // MySQL's `text` counts bytes.
+            'text' => [$this->lengthRule(65535, strlen(...))],
+            default => [],
+        };
+    }
+
+    /**
+     * Not Laravel's `max`, which beside `numeric` compares the number itself.
+     *
+     * @param  Closure(string): int  $length
+     */
+    private function lengthRule(int $max, Closure $length): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($max, $length): void {
+            if (is_string($value) && $length($value) > $max) {
+                $fail(__('validation.max.string', ['max' => $max]));
+            }
+        };
     }
 
     /** What its column stores for a valid value given to `SaveEntry`; never called with `null`. */

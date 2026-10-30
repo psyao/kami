@@ -391,17 +391,13 @@ it('hides Publish and Unpublish from a User without publish, who saves Drafts on
         ->assertActionDoesNotExist(formAction('publish'));
 });
 
-it('keeps the publication date from a User without publish, who cannot make a Scheduled Translation visible (ADR 0019)', function () {
+it('keeps a Scheduled Translation and a Draft\'s publication date from a User without publish (ADR 0019)', function () {
     $scheduled = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published', 'published_at' => now()->addDay()]);
+    $draft = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Brouillon']);
     $this->actingAs(userWithRole('writer'));
 
-    entryPage(EditEntry::class, parameters: ['record' => $scheduled->id])
-        ->fillForm(['published_at' => now()->subDay()->toDateTimeString()])
-        ->call('save')
-        ->assertHasNoFormErrors();
-
-    expect(onlyEntry()->published_at?->isFuture())->toBeTrue();
-    $this->get('/articles/bonjour')->assertNotFound();
+    $this->get("/admin/articles/{$scheduled->id}/edit")->assertForbidden();
+    entryPage(EditEntry::class, parameters: ['record' => $draft->id])->assertFormFieldDisabled('published_at');
 });
 
 it('adds English from the French screen, each Locale publishing on its own', function () {
@@ -470,6 +466,13 @@ it('keeps Shared Fields from a User without publish while another Translation is
 
     expect(Entry::query()->inLocale('en')->withUnpublished()->sole()->title)->toBe('Hello')
         ->and(onlyEntry()->author)->toBe('Ada Lovelace');
+});
+
+it('keeps Shared Fields from a User without publish while another Translation is Scheduled (ADR 0019)', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published', 'published_at' => now()->addDay()]);
+    $this->actingAs(userWithRole('writer'));
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])->assertFormFieldDisabled('author');
 });
 
 it('refuses a Locale the Site does not declare', function () {

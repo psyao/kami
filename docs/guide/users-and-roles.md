@@ -49,12 +49,12 @@ Every check targets a Permission, never a Role. Each declared Content Type has f
 | --- | --- |
 | `kami.entries.{type}.view` | list and read the type's Entries |
 | `kami.entries.{type}.create` | create an Entry |
-| `kami.entries.{type}.update` | edit a Translation that is not visible: a Draft or a Scheduled one |
-| `kami.entries.{type}.publish` | make a Translation visible, or edit one that is |
+| `kami.entries.{type}.update` | edit a Draft |
+| `kami.entries.{type}.publish` | publish or unpublish a Translation, or edit a Published or Scheduled one |
 
 `kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.
 
-Editing a visible Translation changes what visitors see, so it takes `publish` as well as `update` (ADR 0019). A User with `update` alone edits Drafts and Scheduled Translations only.
+Editing a Published or Scheduled Translation changes what visitors see, now or at its date, so it takes `publish` as well as `update` (ADR 0019). A User with `update` alone edits Drafts only.
 
 Each Permission is a Laravel Gate, so your own code checks it the usual way:
 

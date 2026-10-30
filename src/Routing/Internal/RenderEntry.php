@@ -22,10 +22,13 @@ final class RenderEntry
         // `ResolveLocale` found the Locale in the first segment, which no stored Path holds.
         $path = $locale === $site->defaultLocale() ? $request->path() : substr($request->path(), strlen($locale) + 1);
 
-        $entryId = Path::query()
+        $path = Path::normalise($path);
+
+        // MySQL's and MariaDB's binary collation ignores trailing spaces, which no stored Path has.
+        $entryId = str_ends_with($path, ' ') ? null : Path::query()
             ->where('site', $site->handle)
             ->where('locale', $locale)
-            ->where('path', Path::normalise($path))
+            ->where('path', $path)
             ->where('status', 200)
             ->value('entry_id');
 

@@ -102,3 +102,14 @@ it('sets no cookie on a front response, even inside the web group', function () 
     $this->get('/articles/hello-world')->assertOk()->assertHeaderMissing('Set-Cookie');
     $this->get('/articles/nowhere')->assertNotFound()->assertHeaderMissing('Set-Cookie');
 });
+
+it('tells addresses apart by their bytes on every engine', function () {
+    saveArticle(['title' => 'Cafe', 'slug' => 'cafe', 'summary' => 'Plain']);
+    $accented = saveArticle(['title' => 'Café', 'slug' => "caf\u{e9}", 'summary' => 'Accented']);
+
+    expect($accented->slug)->toBe("caf\u{e9}");
+    $this->get('/articles/caf%C3%A9')->assertOk()->assertSee('Accented');
+    $this->get('/articles/cafe')->assertOk()->assertSee('Plain');
+    $this->get('/articles/cafe%20')->assertNotFound();
+    $this->get('/articles/%C3%A7afe')->assertNotFound();
+});

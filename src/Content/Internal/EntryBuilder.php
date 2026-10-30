@@ -6,6 +6,7 @@ namespace Psyao\Kami\Content\Internal;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -33,6 +34,12 @@ final class EntryBuilder extends Builder
         return $this->locale ?? Site::current()->currentLocale();
     }
 
+    /** It hydrates without `eagerLoadRelations()`, so its Entries would read `null` for every stored Field value. */
+    public function cursor(): never
+    {
+        throw new LogicException('Entries load their Field values in batches: use lazy() or chunk(), not cursor().');
+    }
+
     public function eagerLoadRelations(array $models)
     {
         $models = parent::eagerLoadRelations($models);
@@ -43,8 +50,8 @@ final class EntryBuilder extends Builder
 
         $types = resolve(ContentTypes::class);
 
-        foreach (collect($models)->groupBy(fn (Entry $entry) => $entry->type) as $handle => $entries) {
-            // An undeclared type, or one with no Field, has no table to read.
+        foreach (collect($models)->groupBy(fn (Entry $entry): string => $entry->contentType()?->handle() ?? '') as $handle => $entries) {
+            // An undeclared type, a partial select or a type with no Field has no table to read.
             if (($types->find((string) $handle)?->fields() ?? []) === []) {
                 continue;
             }

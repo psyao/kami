@@ -223,10 +223,10 @@ final class EntryResource extends FilamentResource
             return $component;
         }
 
-        // One value for every Locale: changing it changes visible Translations too, which takes `publish` (ADR 0019).
+        // One value for every Locale: changing it changes Published and Scheduled Translations too, which takes `publish` (ADR 0019).
         return $component
             ->hint(__('kami::admin.fields.shared'))
             ->disabled(fn (?Entry $record): bool => $record instanceof Entry && ! self::can('publish', $record)
-                && $record->translations->contains(fn (Translation $translation): bool => Visibility::isVisible($translation)));
+                && $record->translations->contains(fn (Translation $translation): bool => $translation->status === Translation::PUBLISHED));
     }
 }

@@ -3,16 +3,21 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
 use Workbench\App\Content\Label;
+use Workbench\App\Content\Page;
 
 uses(RefreshDatabase::class);
 
@@ -36,6 +41,39 @@ function failures(Closure $save): array
     }
 
     return [];
+}
+
+/** A type with no Field, hence no table of its own. */
+final class Fieldless extends ContentType
+{
+    public function fields(): array
+    {
+        return [];
+    }
+}
+
+/** A Text Field holding digits. */
+final class Zipped extends ContentType
+{
+    public function fields(): array
+    {
+        return [Text::make('zip')->rules(['numeric'])];
+    }
+}
+
+/** An untranslatable type at the root of the Site. */
+final class RootLabel extends ContentType
+{
+    #[Override]
+    protected ?string $prefix = '';
+
+    #[Override]
+    protected bool $translatable = false;
+
+    public function fields(): array
+    {
+        return [];
+    }
 }
 
 it('saves a Draft with a required Field blank and refuses to publish it', function () {
@@ -260,4 +298,77 @@ it('saves again over stored values of every type', function () {
     $entry = save(['title' => 'Bonjour', 'website' => 'https://example.test', 'pages' => 3, 'rating' => '1.50', 'starts_on' => '2026-03-15', 'starts_at' => '2026-03-15 10:30:00', 'kind' => 'news']);
 
     expect(save(['title' => 'Salut'], $entry)->title)->toBe('Salut');
+});
+
+it('updates an Entry of a type with no Field', function () {
+    config(['kami.types' => [Fieldless::class]]);
+    $entry = resolve(SaveEntry::class)->handle(Fieldless::class, ['title' => 'One']);
+
+    expect(resolve(SaveEntry::class)->handle(Fieldless::class, ['title' => 'Two'], $entry)->title)->toBe('Two');
+});
+
+it('refuses a value over its column\'s limit on the Field, and stores one at the limit', function () {
+    $page = fn (array $values) => resolve(SaveEntry::class)->handle(Page::class, $values);
+    $atLimit = str_repeat('é', 255);
+    // 65,535 bytes, what a MySQL `text` column holds: half as many characters.
+    $body = str_repeat('é', 32767) . 'a';
+
+    expect(failures(fn () => save(['title' => 'Long', 'author' => str_repeat('é', 256)])))->toBe(['author'])
+        ->and(save(['title' => 'Long', 'author' => $atLimit])->author)->toBe($atLimit)
+        ->and(failures(fn () => $page(['title' => 'Long', 'body' => $body . 'a'])))->toBe(['body'])
+        ->and($page(['title' => 'Long', 'body' => $body])->body)->toBe($body);
+});
+
+it('counts a number\'s characters against its column\'s limit, not its value', function () {
+    config(['kami.types' => [Zipped::class]]);
+    Schema::create('kami_type_zipped', function (Blueprint $table): void {
+        $table->ulid('entry_id');
+        $table->string('locale', 20);
+        $table->string('zip')->nullable();
+    });
+
+    expect(resolve(SaveEntry::class)->handle(Zipped::class, ['title' => 'Geneva', 'zip' => '1000'])->zip)->toBe('1000');
+});
+
+it('names a Field\'s length limit as Laravel\'s max rule does', function () {
+    try {
+        resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Long', 'body' => str_repeat('a', 65536)]);
+    } catch (ValidationException $exception) {
+        expect($exception->errors()['body'][0])->toContain('65535');
+
+        return;
+    }
+
+    $this->fail('The value was accepted.');
+});
+
+it('refuses an Entry of another type', function () {
+    $page = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'A page']);
+
+    expect(fn () => save(['title' => 'An article'], $page))->toThrow(InvalidArgumentException::class, 'page');
+});
+
+it('refuses a slug that cannot answer at its URL', function (string $slug) {
+    expect(failures(fn () => save(['title' => 'Hello', 'slug' => $slug])))->toBe(['slug']);
+})->with(['a?b#c d', 'a b', 'a?b', 'a#b', '100%25', 'a\\b', 'a//b', '../a', 'a/..', '.', "a\u{7f}b", "\xff"]);
+
+it('accepts accents, dots and nested segments in a slug', function (string $slug) {
+    expect(save(['title' => 'Hello', 'slug' => $slug])->slug)->toBe($slug);
+})->with(["caf\u{e9}", 'a.b', '.well-known', 'a/b', 'a_b-c']);
+
+it('refuses a root type\'s slug starting with another Locale\'s code, in the default Locale only', function () {
+    $page = fn (string $slug, ?string $locale = null) => failures(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug], locale: $locale));
+
+    expect($page('en'))->toBe(['slug'])
+        ->and($page('en/about'))->toBe(['slug'])
+        ->and($page('fr'))->toBe([])
+        ->and($page('english'))->toBe([])
+        ->and($page('en', 'en'))->toBe([])
+        ->and(save(['title' => 'Hello', 'slug' => 'en'])->slug)->toBe('en');
+});
+
+it('refuses another Locale\'s code for an untranslatable root type, which answers in every Locale', function () {
+    config(['kami.types' => [...config('kami.types'), RootLabel::class]]);
+
+    expect(failures(fn () => resolve(SaveEntry::class)->handle(RootLabel::class, ['title' => 'Hello', 'slug' => 'en'])))->toBe(['slug']);
 });
