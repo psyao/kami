@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.2.0](https://github.com/psyao/kami/compare/v0.1.0...v0.2.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* SaveEntry::handle() takes a fifth argument, ?Authenticatable $actor, and throws ValidationException on invalid input; kami_translations.title and slug are nullable and kami_entries gains created_by and updated_by (migration edited in place before production, ADR 0035).
+
+### Features
+
+* a declared Content Type renders at its Path ([#111](https://github.com/psyao/kami/issues/111)) ([6f3ce67](https://github.com/psyao/kami/commit/6f3ce6702c90752f43dacc58f3bec406ffb78351))
+* a second Locale, Shared and Translatable Fields, Fallback with lang ([#113](https://github.com/psyao/kami/issues/113)) ([e3bd70f](https://github.com/psyao/kami/commit/e3bd70fe160c9c62b1908e18e9d31aa531d52861)), closes [#97](https://github.com/psyao/kami/issues/97)
+* admin edits each Locale, Shared Fields once, state per Locale ([#119](https://github.com/psyao/kami/issues/119)) ([c95f804](https://github.com/psyao/kami/commit/c95f80410b2a02610372f95ac1d61267b4fc0eba))
+* admin lists, creates and edits Entries in the default Locale ([#118](https://github.com/psyao/kami/issues/118)) ([1c6145b](https://github.com/psyao/kami/commit/1c6145b09371279b27eb442a2308e5ba3bf9dd8c))
+* Content events after commit ([#115](https://github.com/psyao/kami/issues/115)) ([34216ab](https://github.com/psyao/kami/commit/34216ab328058a484757255b8697398bcd11d9aa))
+* kami:install creates the first administrator ([#125](https://github.com/psyao/kami/issues/125)) ([9e9b033](https://github.com/psyao/kami/commit/9e9b03389d6d49b98c624fc6e42ef2fa50329ac0))
+* kami:install syncs Paths with the declarations ([#136](https://github.com/psyao/kami/issues/136)) ([10a0446](https://github.com/psyao/kami/commit/10a0446e66e72dd3ed3226c38eb8e5329a0e49fe))
+* kami:make:migration writes the kami_type_* migrations ([#129](https://github.com/psyao/kami/issues/129)) ([e4586e5](https://github.com/psyao/kami/commit/e4586e59f0e11eda6068377a7a9437142149cbf2))
+* Roles in code, Permissions and EntryPolicy ([#116](https://github.com/psyao/kami/issues/116)) ([72677dd](https://github.com/psyao/kami/commit/72677dd23495d651d164206c712a10e5a98f680b))
+* SaveEntry validates, publishes per ADR 0019, catches slug clashes and records the actor ([#114](https://github.com/psyao/kami/issues/114)) ([137a560](https://github.com/psyao/kami/commit/137a5607ac9134b32f439805e47afd13df91e30a)), closes [#98](https://github.com/psyao/kami/issues/98)
+* SecurityHeaders sends Kami's CSP on the front and the admin ([#122](https://github.com/psyao/kami/issues/122)) ([60b94f2](https://github.com/psyao/kami/commit/60b94f2fccc9ded74d83023725aaf3c9321ef371))
+* validate declarations and read labels from kami-types ([#134](https://github.com/psyao/kami/issues/134)) ([8a4d50f](https://github.com/psyao/kami/commit/8a4d50f7a1278e95eeff2193c84d6be03b854c0b))
+
+
+### Bug Fixes
+
+* kami:make:migration emits void return types on the Schema closures ([#141](https://github.com/psyao/kami/issues/141)) ([99ec9d6](https://github.com/psyao/kami/commit/99ec9d6819c1252c8708d76d96aed354a9176704))
+
+
+### Miscellaneous Chores
+
+* multisite ponytail markers name V1 ([#146](https://github.com/psyao/kami/issues/146)) ([7154dcc](https://github.com/psyao/kami/commit/7154dcc2cd09789d97629dc0c659cc615cdef1e8))
+* require Rector 2.8.3 and lift the PHPStan 2.3.4 exclusion ([#142](https://github.com/psyao/kami/issues/142)) ([3466886](https://github.com/psyao/kami/commit/3466886627b42c5132868429de674c9088000dc1))
+
 ## 0.1.0 (2026-10-28)
 
 
