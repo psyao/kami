@@ -83,6 +83,8 @@ A Path is unique within a Site and Locale. Saving a Translation whose Path anoth
 
 Changing a slug moves the Path: the old address answers 404. Kami does not redirect it yet.
 
+In the admin form, leaving the title field fills the slug with what saving would derive, in the Locale of the screen, for a Translation with no stored slug. It keeps following the title while the slug is blank or still the slug of the previous title, so a slug typed by hand is never overwritten; emptying it lets filling resume. A stored slug never changes with the title: its help text warns instead that changing it moves the address.
+
 ## Reacting to content
 
 `SaveEntry` dispatches Content events, in `Psyao\Kami\Content\Events`, so your code reacts to a write without changing it (ADR 0029). There is no event before a write and none can cancel one: validation belongs to the type's declaration.

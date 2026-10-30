@@ -12,6 +12,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Resources\ResourceConfiguration;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -36,6 +38,7 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
 
@@ -105,11 +108,23 @@ final class EntryResource extends FilamentResource
         $timezone = Site::current()->timezone;
         $livewire = $schema->getLivewire();
         // The Locale of the values typed, so assistive technology reads them in their language (WCAG 3.1.2).
-        $lang = self::locales() === [] ? [] : ['lang' => $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()];
+        $locale = $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale();
+        $lang = self::locales() === [] ? [] : ['lang' => $locale];
+        // Read from the page, not the schema's record: saving replaces it, and the first save stores a slug. No slug stored, no Path can move.
+        $hasStoredSlug = fn (): bool => $livewire instanceof EditEntry && filled($livewire->getRecord()->slug);
 
         return $schema->columns(1)->components([
-            TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang),
-            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->helperText(__('kami::admin.fields.slug_help'))->extraInputAttributes($lang),
+            TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)
+                ->live(onBlur: true, condition: fn (): bool => ! $hasStoredSlug())
+                // The hook also runs on a save's deferred update, hence the check. Blank or the previous title's slug: not typed by hand.
+                ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasStoredSlug, $locale): void {
+                    if (! $hasStoredSlug() && (blank($get('slug')) || $get('slug') === Path::slugFrom($old ?? '', $locale))) {
+                        $set('slug', Path::slugFrom($state ?? '', $locale));
+                    }
+                }),
+            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
+                // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
+                ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
             ...array_map(fn (Field $field): Component => self::component($field, $lang), self::type()->fields()),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
             DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
