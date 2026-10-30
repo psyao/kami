@@ -40,14 +40,14 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 
 ## Method
 
-- Process follows Matt Pocock's skills (see Agent skills below). User-invoked skills (`/wayfinder`, `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/setup-matt-pocock-skills`): name the command for Steve to run. Name every skill in full (`/mattpocock-skills:retro`): gstack installs a `/retro` of its own.
+- Process follows Matt Pocock's skills (see Agent skills below). User-invoked skills (`/wayfinder`, `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/mattpocock-skills:implement`, `/setup-matt-pocock-skills`): name the command for Steve to run. Name every skill in full (`/mattpocock-skills:retro`): gstack installs a `/retro` of its own.
 - The design path and current phase are in `docs/prompt-claude-code.md`.
+- Starting or running a ticket's session: `docs/agents/ticket-session.md`.
 - Project state lives in the repo and the tracker (research notes, map, ADRs, glossary, roadmap), so any session can resume after a long pause.
 - Ask blocking questions one at a time, each with a default recommendation. Stop after every deliverable that needs validation.
 - Be concrete: class, table and Artisan command names.
 - Velox is evidence, not a default: cite it as evidence (question, evidence, alternatives); a decision that departs from it on a structural point says so in one sentence with the reason.
 - For implementation work, load the `ponytail:ponytail` skill and keep it active. Before opening a ticket's pull request, run `/ponytail:ponytail-review` on the branch diff and apply what holds; the milestone ritual runs `/ponytail:ponytail-debt` on `main`.
-- No application code until the architecture and the first spec are validated.
 
 ## Code conventions
 

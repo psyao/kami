@@ -138,5 +138,5 @@ It drops the first request as a warm-up and keeps the 200 responses: fewer than 
 [release-please](https://github.com/googleapis/release-please) keeps a release pull request open on `main`, with the next version and its `CHANGELOG.md` entry, from the Conventional Commit titles of squash-merged pull requests. Merging it is the release: it tags `v*` and publishes the GitHub Release, which Packagist picks up. Its settings sit in `release-please-config.json`; `.release-please-manifest.json` holds the last released version.
 
 - In 0.x, a `!` commit bumps the minor and `feat` or `fix` bump the patch. A breaking change adds its section to `UPGRADING.md` in the pull request that makes it.
-- The release pull request is opened with the workflow's token, so `tests.yml` does not run on it: it only changes `CHANGELOG.md` and the manifest.
+- GitHub holds `tests.yml` on the release pull request: its run reads `action_required` until a maintainer clicks **Approve and run** on the pull request. Merge it once the six jobs are green. A `docs:`, `ci:` or `test:` commit leaves the changelog as it was, so release-please does not refresh the pull request for it; the merge still releases what `main` holds.
 - `v*` tags are immutable: a ruleset blocks their update and deletion. A wrong release is fixed by the next one.
