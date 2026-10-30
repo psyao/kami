@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Workbench\App\Providers;
 
+use Filament\Forms\Components\ColorPicker;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -19,6 +20,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Psyao\Kami\Admin\InitialsAvatarProvider;
 use Psyao\Kami\Admin\KamiPlugin;
+use Workbench\App\Content\Fields\Colour;
 
 /** The host's own panel, as a site or an existing application declares it, with Kami added as a plugin. */
 class AdminPanelProvider extends PanelProvider
@@ -33,7 +35,9 @@ class AdminPanelProvider extends PanelProvider
             ->strictAuthorization()
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->pages([Dashboard::class])
-            ->plugin(KamiPlugin::make())
+            ->plugin(KamiPlugin::make()->fieldComponents([
+                Colour::class => fn (Colour $field): ColorPicker => ColorPicker::make($field->handle),
+            ]))
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

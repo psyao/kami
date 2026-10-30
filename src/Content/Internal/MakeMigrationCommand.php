@@ -27,9 +27,6 @@ final class MakeMigrationCommand extends Command
 {
     use ChecksPrompting;
 
-    /** The column type names every engine reports for the column types a Field declares. */
-    private const array COLUMN_TYPES = ['varchar' => 'string', 'text' => 'text'];
-
     private const string DROP = '-';
 
     public function handle(ContentTypes $types, Migrator $migrator): int
@@ -137,7 +134,7 @@ final class MakeMigrationCommand extends Command
 
         foreach (Schema::getColumns($table) as $column) {
             if (! in_array($column['name'], ['entry_id', 'locale'], true)) {
-                $existing[$column['name']] = self::COLUMN_TYPES[$column['type_name']] ?? $column['type_name'];
+                $existing[$column['name']] = ColumnTypes::of($column);
             }
         }
 
@@ -160,7 +157,7 @@ final class MakeMigrationCommand extends Command
         $dropped = array_diff_key($existing, $declared);
 
         // down() writes these columns back as they are: Kami knows how only for the types a Field declares.
-        $unknown = array_diff(array_intersect_key($existing, $retyped + $dropped), self::COLUMN_TYPES);
+        $unknown = array_diff(array_intersect_key($existing, $retyped + $dropped), ColumnTypes::DECLARED);
 
         if (($field = array_key_first($unknown)) !== null) {
             $this->components->error("{$table}.{$field} has type {$unknown[$field]}, which kami:make:migration cannot write back in down(). Write this migration by hand.");

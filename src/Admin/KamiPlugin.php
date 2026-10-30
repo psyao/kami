@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin;
 
+use Closure;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Contracts\Plugin;
+use Filament\Forms\Components\Field as FormField;
+use Filament\Forms\Components\Textarea as TextareaInput;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Filament\Resources\ResourceConfiguration;
@@ -14,15 +19,46 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Content\Fields\Boolean;
+use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 
 /** Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make())`. */
 final class KamiPlugin implements Plugin
 {
+    /** @var array<class-string<Field>, Closure> */
+    private array $fieldComponents = [];
+
     public static function make(): self
     {
-        return new self;
+        return (new self)->fieldComponents([
+            Boolean::class => fn (Boolean $field): Toggle => Toggle::make($field->handle),
+            Text::class => fn (Text $field): TextInput => TextInput::make($field->handle),
+            Textarea::class => fn (Textarea $field): TextareaInput => TextareaInput::make($field->handle),
+        ]);
+    }
+
+    /**
+     * The admin component of each Field type, by its exact class: a closure given the Field. A Field type with no component stops the panel.
+     *
+     * @param  array<class-string<Field>, Closure>  $components
+     */
+    public function fieldComponents(array $components): self
+    {
+        $this->fieldComponents = [...$this->fieldComponents, ...$components];
+
+        return $this;
+    }
+
+    /** @internal */
+    public function component(Field $field): FormField
+    {
+        $component = ($this->fieldComponents[$field::class])($field);
+
+        return $component instanceof FormField ? $component : throw new LogicException('The component registered for the Field type ' . $field::class . ' is not a ' . FormField::class . '.');
     }
 
     public function getId(): string
@@ -64,5 +100,15 @@ final class KamiPlugin implements Plugin
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css')], 'psyao/kami');
     }
 
-    public function boot(Panel $panel): void {}
+    public function boot(Panel $panel): void
+    {
+        // On the panel's own requests only: `register()` runs for Artisan too, which must keep working to fix a declaration (see `ContentTypes`).
+        foreach (resolve(ContentTypes::class)->declared() as $type) {
+            foreach ($type->fields() as $field) {
+                if (! isset($this->fieldComponents[$field::class])) {
+                    throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $type::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');
+                }
+            }
+        }
+    }
 }
