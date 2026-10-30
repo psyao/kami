@@ -87,7 +87,7 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **MVP features (29).** 1 content types in code · 9 field validation · 11 stable ids (ULID) · 14 a PHP class per Content Type · 30 drafts · 44 native multilingual · 45 field-level translation · 46 fallback Locale · 48 configurable permalinks (Prefix) · 49 slugs · 51 declarative custom routes (Kami routes as fallbacks) · 54(p) prefixed Locale URLs · 56 layouts and partials (minimal accessible starter layout) · 59 controller per template (`render()` hook) · 66 typed local API · 69 relational database · 71 transactions · 72 schemas in files · 75 deploy without content loss · 76 events (first Content events, allow-list arch test) · 85 query optimisation (`shouldBeStrict`, exact query counts) · 90 CSRF and XSS protection · 91 login throttling · 93 security headers and CSP · 96 generators (`kami:make:migration`) · 97 migrations · 104 responsive admin · 105 dark mode · 106 translated admin (`kami::` English + French, no-raw-key test).
 
-**Also.** `administrator` Role only; tables `kami_entries`, `kami_translations`, `kami_type_<handle>`, `kami_paths`; `SecurityHeaders` with the fixed front CSP from the first rendered page; Filament's login throttling under test.
+**Also.** `administrator` Role only; tables `kami_entries`, `kami_translations`, `kami_type_<handle>`, `kami_paths`; `SecurityHeaders` with the fixed front CSP from the first rendered page; Filament's login throttling under test; `kami:install --email` granting the `administrator` Role to an existing User (0.2.x patch, #149).
 
 **Acceptance.** A site declares a Content Type, generates its migration, edits an Entry in French and English, publishes it and reads it at `/slug` and `/en/slug`; a blank English Field falls back with a `lang` attribute; a Draft or a future `published_at` is a 404; front responses carry the CSP; the page stays within the query budget.
 
@@ -131,7 +131,7 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **MVP features (5).** 39 custom Roles · 40 granular Permissions · 41 MFA · 42 protection against user enumeration · 92 Audit log.
 
-**Also.** `kami:install --email` granting a Role to an existing User; `HasKamiRoles`.
+**Also.** `HasKamiRoles`.
 
 **Acceptance.** MFA is enforced for `kami.users.manage`; the reset page never reveals whether an account exists; security and visibility events land in `kami_audit_events`.
 

@@ -39,7 +39,7 @@ Roles are edited in code and deployed, never in the admin.
 
 ## The first administrator
 
-While no User holds a Role that grants `kami.users.manage`, `kami:install` creates one with the `administrator` Role, from the email, name and password you give it ([Installation](installation.md#the-first-user)). The User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has.
+While no User holds a Role that grants `kami.users.manage`, `kami:install` gives the `administrator` Role to the User whose email you give it, after a confirmation in a terminal, or creates that User from the email, name and password you give it ([Installation](installation.md#the-first-user)). No Audit log row records the grant yet, only the command's output. A new User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has.
 
 ## Permissions
 
