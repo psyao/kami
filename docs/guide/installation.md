@@ -60,7 +60,11 @@ php artisan kami:install --no-interaction --email=ada@example.com --name=Ada
 unset KAMI_ADMIN_PASSWORD
 ```
 
-The new User gets the `administrator` Role ([Users and roles](users-and-roles.md#the-first-administrator)). An email that belongs to an existing User fails: `kami:install` does not grant a Role to an existing User yet. Once a User holds a Role that grants `kami.users.manage`, the step does nothing, and later deploys need neither the options nor the variable.
+The new User gets the `administrator` Role ([Users and roles](users-and-roles.md#the-first-administrator)).
+
+An email that belongs to an existing User gives that User the `administrator` Role instead. They keep their password, name and other Roles: no password is asked for, and `--name` and `KAMI_ADMIN_PASSWORD` are ignored. In a terminal, `kami:install` shows the User's email and name and asks for confirmation, defaulting to no, because no password proves who they are; refusing returns to the email prompt, or fails when the email came from `--email`. Without a terminal, `--email` is the consent and the output says that an existing User became an administrator.
+
+Once a User holds a Role that grants `kami.users.manage`, the step does nothing, and later deploys need neither the options nor the variable.
 
 ## Checking the environment
 
@@ -117,6 +121,6 @@ There is no separate upgrade command: `kami:install` is safe to run again and ch
 3. runs the migrations (`migrate --force`);
 4. publishes Filament's assets to `public/`, so the server needs no Node;
 5. syncs Paths with the declarations, and stops on a Path clash ([After a deploy](routing-and-rendering.md#after-a-deploy));
-6. creates the first administrator while no User may manage Users ([The first User](#the-first-user)).
+6. creates the first administrator, or gives an existing User the Role, while no User may manage Users ([The first User](#the-first-user)).
 
 It exits with 1 when any step fails, so the deploy fails with it. `kami:install` never writes to your application's files: it only adds Filament's assets under `public/`. On a server, `php artisan optimize` follows it ([Deployment](deployment.md#later-deploys)).

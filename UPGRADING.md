@@ -17,6 +17,6 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 3. **Kami's route.** `Kami::routes()` at the end of `routes/web.php` ([Routing and rendering](docs/guide/routing-and-rendering.md#kamis-route)).
 4. **The security headers.** `SecurityHeaders` appended to the `web` group in `bootstrap/app.php`, and `'kami.security-headers:admin'` at the end of the panel's middleware ([Security](docs/guide/security.md#your-own-pages)).
 5. **`storage/framework/kami/.gitignore`.** `kami:doctor` writes `doctor.json` there and Kami does not ignore it for you: add a `.gitignore` holding `*` and `!.gitignore`, as the starter kit does.
-6. **The first administrator.** `kami:install --no-interaction` now creates one and fails without `--email`, `--name` and the `KAMI_ADMIN_PASSWORD` environment variable ([The first User](docs/guide/installation.md#the-first-user)). A test or deploy script that runs it on an empty database passes them; the starter kit's `tests/Feature/InstallTest.php` shows how.
+6. **The first administrator.** `kami:install --no-interaction` now creates one and fails without `--email`, `--name` and the `KAMI_ADMIN_PASSWORD` environment variable ([The first User](docs/guide/installation.md#the-first-user)). A test or deploy script that runs it on an empty database passes them; the starter kit's `tests/Feature/InstallTest.php` shows how. A site with Users passes an existing User's email, with `--email` alone: that User gets the `administrator` Role and keeps their password.
 
-Then run `kami:install` as usual: it migrates, syncs Paths and creates the first administrator.
+Then run `kami:install` as usual: it migrates, syncs Paths and makes sure a first administrator exists.

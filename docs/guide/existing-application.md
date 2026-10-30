@@ -39,7 +39,7 @@ php artisan kami:install --no-interaction
 
 Until a panel carries `KamiPlugin` and its User model implements `KamiUser`, it stops before changing anything and prints the lines to add. It never edits your files. Run it on every deploy, as [Deployment](deployment.md#later-deploys) shows.
 
-On its first run it creates the first administrator, a new User with the `administrator` Role, from `--email`, `--name` and the `KAMI_ADMIN_PASSWORD` environment variable, or at its prompts in a terminal ([Installation](installation.md#the-first-user)). It refuses the email of one of your existing Users: it does not grant a Role to an existing User yet.
+On its first run it makes sure someone can manage Users. Give it the email of one of your existing Users, with `--email` or at its prompt, and that User gets the `administrator` Role and keeps their password, after a confirmation in a terminal. An unknown email creates a new User with the Role, from `--email`, `--name` and the `KAMI_ADMIN_PASSWORD` environment variable, or at its prompts ([Installation](installation.md#the-first-user)).
 
 ## What Kami changes in your application
 
