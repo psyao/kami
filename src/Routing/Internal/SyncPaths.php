@@ -34,7 +34,7 @@ final readonly class SyncPaths
      */
     public function __invoke(bool $write = true): array
     {
-        // ponytail: the `default` Site only, as `Site::current()`; multisite syncs every Site's.
+        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite syncs every Site's.
         $site = Site::current();
         $counts = ['created' => 0, 'rewritten' => 0, 'deleted' => 0];
         /** @var list<array{row: Row, current: Path|null}> $pending */

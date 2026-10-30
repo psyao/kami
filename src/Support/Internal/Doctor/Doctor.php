@@ -311,7 +311,7 @@ final readonly class Doctor
             array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Field $field): string => "{$type->handle()}.fields.{$field->handle}.label", $type->fields()));
         }
 
-        // ponytail: the `default` Site's Locales only, as `Site::current()`; multisite checks every Site's.
+        // ponytail: the `default` Site's Locales only, as `Site::current()`; V1 multisite checks every Site's.
         $locales = array_unique([Config::string('app.locale'), ...Site::current()->locales]);
         $problems = [];
 
@@ -351,7 +351,7 @@ final readonly class Doctor
      */
     private function undeclaredContent(): array
     {
-        // ponytail: the `default` Site only, as `Site::current()`; multisite checks every Site's.
+        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
         $site = Site::current();
         $declared = [...$site->locales, '*'];
         $types = array_map(fn (ContentType $type): string => $type->handle(), array_values(resolve(ContentTypes::class)->all()));
