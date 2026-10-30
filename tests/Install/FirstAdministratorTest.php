@@ -54,7 +54,7 @@ it('refuses an email that names an existing User, leaving that User as it was', 
     $existing = User::query()->forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => 'hash']);
 
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'grace@example.test', '--name' => 'Ada'])
-        ->expectsOutputToContain('A User with the email grace@example.test already exists')
+        ->expectsOutputToContain('A User with this email already exists: use the email of a new User.')
         ->assertFailed();
 
     expect($existing->fresh()->only('name', 'password'))->toBe(['name' => 'Grace', 'password' => 'hash'])

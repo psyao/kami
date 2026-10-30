@@ -118,7 +118,8 @@ final class InstallCommand extends Command
             'email' => ['bail', 'required', 'string', 'email', 'max:255', function (string $attribute, string $value, Closure $fail) use ($users): void {
                 // ponytail: an existing User is refused; granting them the Role, as ADR 0001 says, comes with kami:user:grant in M6.
                 if ($users::query()->toBase()->where('email', $value)->exists()) {
-                    $fail("A User with the email {$value} already exists, and kami:install grants no Role to an existing User yet: pass the email of a new User.");
+                    // Short enough for the prompt, which cuts its errors at the terminal's width minus 5.
+                    $fail('A User with this email already exists: use the email of a new User.');
                 }
             }],
             'name' => ['required', 'string', 'max:255'],
