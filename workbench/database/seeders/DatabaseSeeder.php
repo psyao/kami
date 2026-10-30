@@ -15,7 +15,7 @@ use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
 use Workbench\App\Models\User;
 
-/** What `composer serve` shows: known accounts and one Entry per state worth looking at. A ticket adding something visible in the admin completes it. */
+/** What `composer serve` shows: known accounts and one Entry per state worth looking at. */
 class DatabaseSeeder extends Seeder
 {
     public function run(SaveEntry $save): void

@@ -2,7 +2,7 @@ laravel: '@testbench'
 
 env:
   - AUTH_MODEL="Workbench\\App\\Models\\User"
-  - DB_CONNECTION=sqlite # the command line's default; the suites never read this key, and phpunit.xml.dist forces `testing`
+  - DB_CONNECTION=sqlite # the command line's default: the suites never read this key, and take `testing` from phpunit.xml.dist or the engine from CI's environment
 
 providers:
   - Workbench\App\Providers\WorkbenchServiceProvider

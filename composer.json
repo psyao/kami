@@ -60,7 +60,7 @@
         "serve": [
             "Composer\\Config::disableProcessTimeout",
             "@build",
-            "@php vendor/bin/testbench serve --ansi"
+            "@php vendor/bin/testbench serve --host=localhost --ansi"
         ],
         "analyse": "phpstan analyse",
         "test": [
