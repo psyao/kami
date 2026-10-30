@@ -186,15 +186,16 @@ final class MakeMigrationCommand extends Command
         $refused = array_filter($retyped, fn (string $column, string $field): bool => array_diff([$column, $existing[$field]], self::INTERCHANGEABLE_TYPES) !== [], ARRAY_FILTER_USE_BOTH);
 
         if ($refused !== []) {
+            $up = [$this->schema('table', $table, $renames)];
+
             foreach ($refused as $field => $column) {
                 $this->components->error("{$table}.{$field} goes from {$existing[$field]} to {$column}, and no cast works on every engine. Write this migration by hand, converting the values where marked.");
+                array_push($up, ...$this->retype($table, $field, $column, $indexes[$field] ?? null));
+                array_push($down, ...$this->retype($table, $field, $existing[$field], $indexes[$field] ?? null));
             }
 
             $this->components->warn('It holds only this: run the command again once it has run, for any other change.');
-            $this->line($this->migration(
-                array_values(array_filter([$this->schema('table', $table, $renames), ...array_merge(...array_map(fn (string $field, string $column): array => $this->retype($table, $field, $column, $indexes[$field] ?? null), array_keys($refused), $refused))])),
-                array_values(array_filter([...array_merge(...array_map(fn (string $field): array => $this->retype($table, $field, $existing[$field], $indexes[$field] ?? null), array_keys($refused))), $this->schema('table', $table, $unrenames)])),
-            ));
+            $this->line($this->migration(array_values(array_filter($up)), array_values(array_filter([...$down, $this->schema('table', $table, $unrenames)]))));
 
             return false;
         }
