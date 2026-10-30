@@ -19,7 +19,7 @@ final readonly class Site
      */
     public function __construct(public string $handle, public string $url, public array $locales, public string $timezone) {}
 
-    // ponytail: the `default` Site only; multisite resolves it from the request here.
+    // ponytail: the `default` Site only; V1 multisite resolves it from the request here.
     public static function current(): self
     {
         /** @var array{url: string, locales: list<string>, timezone: string} $site */
