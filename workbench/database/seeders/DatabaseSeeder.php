@@ -16,6 +16,7 @@ use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Tag;
 use Workbench\App\Content\Testimonial;
 use Workbench\App\Models\User;
 
@@ -54,8 +55,12 @@ class DatabaseSeeder extends Seeder
         $save->handle(Label::class, [...$published, 'title' => 'Urgent', 'colour' => 'red'], actor: $admin);
         $save->handle(Label::class, [...$published, 'title' => 'Archive', 'colour' => 'grey'], actor: $admin);
 
-        // Tabs, a section, conditions, a Repeater, a Group.
-        $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id]], locale: 'fr', actor: $admin);
+        // A Taxonomy: published when saved, one name for every Locale.
+        $laravel = $save->handle(Tag::class, ['title' => 'Laravel'], actor: $admin);
+        $filament = $save->handle(Tag::class, ['title' => 'Filament'], actor: $admin);
+
+        // Tabs, a section, conditions, a Repeater, a Group, relations.
+        $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id], 'tags' => [$filament->id, $laravel->id]], locale: 'fr', actor: $admin);
         $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
 
         // A Singleton at the root, one page in the admin.

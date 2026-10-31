@@ -11,6 +11,7 @@ use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
@@ -43,8 +44,9 @@ final class Project extends ContentType
             Group::make('address', [
                 Text::make('street'),
                 Text::make('city'),
-            ]),
+            ])->default(['city' => 'Vevey']),
             Entries::make('related')->of(Article::class, Page::class),
+            Terms::make('tags')->of(Tag::class),
         ];
     }
 }

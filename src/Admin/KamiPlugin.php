@@ -32,6 +32,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Number;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
@@ -55,6 +56,7 @@ final class KamiPlugin implements Plugin
             Email::class => fn (Email $field): TextInput => TextInput::make($field->handle)->email(),
             Number::class => fn (Number $field): TextInput => TextInput::make($field->handle)->numeric()->step($field->column() === 'decimal' ? 0.01 : 1),
             Select::class => fn (Select $field): SelectInput => SelectInput::make($field->handle)->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => EntryResource::type()->optionLabel($field->handle, $option), $field->optionKeys()))),
+            Terms::class => EntryResource::picker(...),
             Text::class => fn (Text $field): TextInput => TextInput::make($field->handle),
             Textarea::class => fn (Textarea $field): TextareaInput => TextareaInput::make($field->handle),
             Url::class => fn (Url $field): TextInput => TextInput::make($field->handle)->url(),

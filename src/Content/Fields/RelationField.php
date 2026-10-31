@@ -22,6 +22,9 @@ abstract class RelationField extends Field
     #[\Override]
     protected bool $translatable = false;
 
+    /** @internal */
+    protected bool $creatable = false;
+
     /** @var list<class-string<ContentType>> */
     private array $targets = [];
 
@@ -35,6 +38,20 @@ abstract class RelationField extends Field
         $this->targets = array_values($types);
 
         return $this;
+    }
+
+    /** Whether editors may create a target from the picker, with its title alone. */
+    public function creatable(bool $creatable = true): static
+    {
+        $this->creatable = $creatable;
+
+        return $this;
+    }
+
+    /** @internal */
+    public function isCreatable(): bool
+    {
+        return $this->creatable;
     }
 
     /**

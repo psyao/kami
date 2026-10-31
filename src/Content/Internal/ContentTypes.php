@@ -13,10 +13,14 @@ use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Section;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Content\Tab;
+use Psyao\Kami\Content\Taxonomy;
+use Psyao\Kami\Content\Term;
 
 /**
  * The Content Types listed in `config/kami.php`, found by class or handle, validated when first built (ADR 0007).
@@ -103,6 +107,7 @@ final class ContentTypes
             }
 
             $handles[$type->handle()] = $class;
+            $this->validateModel($class, $type);
             $fields = [];
 
             foreach ($type->flatFields() as $field) {
@@ -117,8 +122,8 @@ final class ContentTypes
                 }
 
                 // `Entry::getAttribute()` would return the method's relation or nothing, never the Field's value.
-                if (method_exists(Entry::class, $field->handle)) {
-                    throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" names a method of " . Entry::class . ', which would hide its value; rename the Field.');
+                if (method_exists($type->model(), $field->handle)) {
+                    throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" names a method of " . $type->model() . ', which would hide its value; rename the Field.');
                 }
 
                 if ($field instanceof RelationField) {
@@ -147,6 +152,17 @@ final class ContentTypes
         }
     }
 
+    /** A Taxonomy's Terms are promised as `Term`s to whatever links them. */
+    private function validateModel(string $class, ContentType $type): void
+    {
+        $base = $type instanceof Taxonomy ? Term::class : Entry::class;
+
+        // @phpstan-ignore function.alreadyNarrowedType (what a declaration promises is what this checks)
+        if (! is_a($type->model(), $base, true)) {
+            throw new InvalidArgumentException("{$class}: its \$model {$type->model()} must extend {$base}.");
+        }
+    }
+
     /** @param array<string, ContentType> $types */
     private function validateRelation(string $class, RelationField $field, array $types): void
     {
@@ -160,12 +176,46 @@ final class ContentTypes
             }
         }
 
+        foreach ($field instanceof Terms ? $field->targets() : [] as $target) {
+            if (! $types[$target] instanceof Taxonomy) {
+                throw new InvalidArgumentException("{$class}: the Terms \"{$field->handle}\" links to {$target}, which is no Taxonomy; use Entries.");
+            }
+        }
+
+        if ($field->isCreatable()) {
+            $this->validateQuickCreate($class, $field, $types);
+        }
+
         if ($field->isIndexed()) {
             throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot be filterable or sortable: it has no column.");
         }
 
         if ($field->defaultValue() !== null) {
             throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot take a default: no Entry id is known when the type is declared.");
+        }
+    }
+
+    /**
+     * The picker's form asks for a title and nothing else, for one type.
+     *
+     * @param  array<string, ContentType>  $types
+     */
+    private function validateQuickCreate(string $class, RelationField $field, array $types): void
+    {
+        if (count($field->targets()) !== 1) {
+            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" links to several types, and its picker creates one; add ->creatable(false).");
+        }
+
+        $target = $types[$field->targets()[0]];
+
+        if ($target instanceof Singleton) {
+            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" links to " . $target::class . ', which holds one Entry, so its picker cannot create another; add ->creatable(false) or remove ->creatable().');
+        }
+
+        foreach ($target->flatFields() as $targetField) {
+            if ($this->lacksValue($targetField, $targetField->defaultValue())) {
+                throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" links to " . $target::class . ", whose Field \"{$targetField->handle}\" is required with no default, and its picker asks for a title alone; give it a ->default() or add ->creatable(false).");
+            }
         }
     }
 
@@ -238,16 +288,17 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" is required; a Global Set is always published and a relation takes no default, so kami:install could not create it. Remove ->required().");
             }
 
-            if ($field->defaultValue() === null && $this->requiresValue($field)) {
+            if ($this->lacksValue($field, $field->defaultValue())) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is required with no default; a Global Set is always published, so kami:install could not create it. Give it a ->default().");
             }
         }
     }
 
-    /** A Group's required sub-Field needs a value as soon as the Group is saved; a Repeater may have no row. */
-    private function requiresValue(Field $field): bool
+    /** Saved with its default alone, it would be refused: a Group's required sub-Field needs a value as soon as the Group is saved; a Repeater may have no row. */
+    private function lacksValue(Field $field, mixed $default): bool
     {
-        return $field->isRequired() || ($field instanceof Group && array_filter($field->fields(), $this->requiresValue(...)) !== []);
+        return ($field->isRequired() && $default === null)
+            || ($field instanceof Group && collect($field->fields())->contains(fn (Field $sub, string $handle): bool => $this->lacksValue($sub, is_array($default) ? $default[$handle] ?? null : null)));
     }
 
     private function validateLayout(string $class, ContentType $type): void

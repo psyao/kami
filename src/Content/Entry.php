@@ -67,7 +67,26 @@ class Entry extends Model
      */
     public function translations(): HasMany
     {
-        return $this->hasMany(Translation::class);
+        // Named: a subclass would derive `term_id`.
+        return $this->hasMany(Translation::class, 'entry_id');
+    }
+
+    /**
+     * @internal
+     *
+     * Each row as its type's `$model`, whichever model queried it: a listing may mix types.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  string|null  $connection
+     * @return static
+     */
+    public function newFromBuilder($attributes = [], $connection = null)
+    {
+        $type = ((array) $attributes)['type'] ?? null;
+        $class = is_string($type) ? resolve(ContentTypes::class)->find($type)?->model() : null;
+
+        // @phpstan-ignore return.type (a query on a subclass may meet another type's row, as `Project::query()` is no filter)
+        return $class === null || $class === static::class ? parent::newFromBuilder($attributes, $connection) : (new $class)->newFromBuilder($attributes, $connection);
     }
 
     /** @internal */

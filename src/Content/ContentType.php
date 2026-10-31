@@ -23,6 +23,13 @@ abstract class ContentType
     /** `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013). */
     protected bool $translatable = true;
 
+    /**
+     * The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
+     *
+     * @var class-string<Entry>|null
+     */
+    protected ?string $model = null;
+
     /** The snake_case of the class name; override it to keep the handle after renaming the class. */
     public function handle(): string
     {
@@ -143,6 +150,16 @@ abstract class ContentType
     public function isTranslatable(?Field $field = null): bool
     {
         return $this->translatable && ($field?->isTranslatable() ?? true);
+    }
+
+    /**
+     * @internal
+     *
+     * @return class-string<Entry>
+     */
+    public function model(): string
+    {
+        return $this->model ?? Entry::class;
     }
 
     /** @internal */

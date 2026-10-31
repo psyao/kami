@@ -27,6 +27,7 @@ return [
     ],
 
     'actions' => [
+        'create_target' => 'Créer : :type',
         'save_draft' => 'Enregistrer le brouillon',
         'publish' => 'Publier',
         'unpublish' => 'Dépublier',

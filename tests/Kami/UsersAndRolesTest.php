@@ -42,7 +42,7 @@ function frenchArticle(string $status): Entry
 
 it('names one Permission per action on each declared type, plus kami.users.manage', function () {
     expect(kamiPermissions())->toEqualCanonicalizing([
-        ...collect(['article', 'page', 'label', 'project', 'home', 'testimonial', 'footer', 'site_settings'])->crossJoin(['view', 'create', 'update', 'publish'])->map(fn (array $pair) => "kami.entries.{$pair[0]}.{$pair[1]}"),
+        ...collect(['article', 'page', 'label', 'tag', 'project', 'home', 'testimonial', 'footer', 'site_settings'])->crossJoin(['view', 'create', 'update', 'publish'])->map(fn (array $pair) => "kami.entries.{$pair[0]}.{$pair[1]}"),
         'kami.users.manage',
     ]);
 });

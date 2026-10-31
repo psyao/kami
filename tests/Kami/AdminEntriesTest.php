@@ -24,10 +24,15 @@ use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field as KamiField;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
+use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Taxonomy;
+use Psyao\Kami\Content\Term;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
@@ -36,6 +41,7 @@ use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Tag;
 use Workbench\App\Content\Testimonial;
 use Workbench\App\Models\User;
 
@@ -50,6 +56,35 @@ final class Unregistered extends ContentType
     public function fields(): array
     {
         return [Rumour::make('whisper')];
+    }
+}
+
+/** Translatable and with an address, unlike the Workbench's `Tag`. */
+final class Genre extends Taxonomy {}
+
+/** A Taxonomy the panel knows, on a registered handle with nothing required. */
+final class PageAsGenre extends Taxonomy
+{
+    public function handle(): string
+    {
+        return 'page';
+    }
+}
+
+final class ProjectWithPickers extends ContentType
+{
+    public function handle(): string
+    {
+        return 'project';
+    }
+
+    public function fields(): array
+    {
+        return [
+            Terms::make('genres')->of(Genre::class),
+            Entries::make('pages')->of(Page::class)->creatable(),
+            Terms::make('tags')->of(Tag::class)->creatable(false),
+        ];
     }
 }
 
@@ -782,14 +817,14 @@ it('fills a translatable Repeater with the Locale edited, and leaves a fallen-ba
         ->and(entryPage(EditEntry::class, 'project', ['record' => $entry->id, 'locale' => 'en'])->get('data.links'))->toBeEmpty();
 });
 
-it('opens a new Entry with no row and an empty Group, and stores neither', function () {
+it('opens a new Entry with no row, and stores neither that nor an emptied Group', function () {
     $this->actingAs(userWithRole('administrator'));
 
     $page = entryPage(CreateEntry::class, 'project');
 
     expect($page->get('data.links'))->toBeEmpty();
 
-    $page->set('data.title', 'Kami')->call('create')->assertHasNoFormErrors();
+    $page->set('data.title', 'Kami')->set('data.address.city', null)->call('create')->assertHasNoFormErrors();
 
     expect(DB::table('kami_type_project')->where('locale', '*')->first())->links->toBeNull()->address->toBeNull();
 });
@@ -1049,3 +1084,105 @@ it('opens an Entry page in an exact number of queries, with relations', function
 
     expect(DB::getQueryLog())->toHaveCount(9);
 })->with([1, 5]);
+
+function quickCreate(string $field): TestAction
+{
+    return TestAction::make('createOption')->schemaComponent($field, 'form');
+}
+
+describe('quick create', function () {
+    beforeEach(function () {
+        config(['kami.types' => [Page::class, Genre::class, Tag::class, ProjectWithPickers::class]]);
+        $this->project = resolve(SaveEntry::class)->handle(ProjectWithPickers::class, ['title' => 'Refonte'], locale: 'fr');
+    });
+
+    it('creates a published Term from the picker and picks it', function () {
+        $page = entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
+            ->callAction(quickCreate('genres'), ['title' => 'Essai'])
+            ->assertHasNoErrors();
+
+        $term = Entry::query()->ofType(Genre::class)->sole();
+
+        expect($term)->toBeInstanceOf(Term::class)->title->toBe('Essai')->status->toBe('published')
+            ->and($term->created_by)->toBe(auth()->id())
+            ->and($page->get('data.genres'))->toBe([$term->id]);
+    });
+
+    it('creates the Term in the Locale edited', function () {
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id, 'locale' => 'en'])
+            ->callAction(quickCreate('genres'), ['title' => 'Essay'])
+            ->assertHasNoErrors();
+
+        expect(Entry::query()->withUnpublished()->ofType(Genre::class)->sole()->translations->pluck('locale')->all())->toBe(['en']);
+    });
+
+    it('creates a related Entry as a Draft', function () {
+        $page = entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
+            ->callAction(quickCreate('pages'), ['title' => 'À propos'])
+            ->assertHasNoErrors();
+
+        $created = Entry::query()->withUnpublished()->ofType(Page::class)->sole();
+
+        expect($created->status)->toBe('draft')->and($page->get('data.pages'))->toBe([$created->id]);
+    });
+
+    it('offers no creation on a Field that turns it off', function () {
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->assertActionDoesNotExist(quickCreate('tags'));
+    });
+
+    it('takes the target type\'s create Permission', function () {
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update']]);
+        $this->actingAs(userWithRole('picker'));
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->assertActionHidden(quickCreate('genres'));
+        expect(Entry::query()->withUnpublished()->ofType(Genre::class)->exists())->toBeFalse();
+
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create']]);
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->callAction(quickCreate('genres'), ['title' => 'Essai'])->assertHasNoErrors();
+        expect(Entry::query()->withUnpublished()->ofType(Genre::class)->exists())->toBeTrue();
+    });
+
+    it('creates a Draft for an editor who may not publish the Taxonomy, leaving no public page', function () {
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create']]);
+        $this->actingAs(userWithRole('picker'));
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->callAction(quickCreate('genres'), ['title' => 'Essai'])->assertHasNoErrors();
+
+        expect(Entry::query()->ofType(Genre::class)->exists())->toBeFalse()
+            ->and(Entry::query()->withUnpublished()->ofType(Genre::class)->sole()->status)->toBe('draft');
+    });
+
+    it('shows on the title what SaveEntry refuses', function () {
+        resolve(SaveEntry::class)->handle(Genre::class, ['title' => 'Essai'], locale: 'fr');
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
+            ->callAction(quickCreate('genres'), ['title' => 'Essai'])
+            ->assertHasActionErrors(['title']);
+
+        expect(Entry::query()->ofType(Genre::class)->count())->toBe(1);
+    });
+
+    it('asks for a title', function () {
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
+            ->callAction(quickCreate('genres'), ['title' => ''])
+            ->assertHasActionErrors(['title' => 'required']);
+    });
+});
+
+it('saves a Draft from a Taxonomy\'s own form, and publishes with the button', function () {
+    entryPage(CreateEntry::class, 'tag')->fillForm(['title' => 'Brouillon'])->call('create')->assertHasNoErrors();
+    expect(onlyEntry('tag')->status)->toBe('draft');
+
+    entryPage(EditEntry::class, 'tag', ['record' => onlyEntry('tag')->id])->callAction(formAction('publish'))->assertHasNoErrors();
+    expect(onlyEntry('tag')->status)->toBe('published');
+});
+
+it('adds a Taxonomy\'s new Translation from the form as a Draft', function () {
+    config(['kami.types' => [PageAsGenre::class]]);
+    $term = resolve(SaveEntry::class)->handle(PageAsGenre::class, ['title' => 'Essai'], locale: 'fr');
+
+    entryPage(EditEntry::class, 'page', ['record' => $term->id, 'locale' => 'en'])->fillForm(['title' => 'Essay'])->call('save')->assertHasNoErrors();
+
+    expect(Translation::query()->where(['entry_id' => $term->id, 'locale' => 'en'])->sole()->status)->toBe('draft');
+});

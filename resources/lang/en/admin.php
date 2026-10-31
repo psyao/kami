@@ -27,6 +27,7 @@ return [
     ],
 
     'actions' => [
+        'create_target' => 'Create a :type',
         'save_draft' => 'Save draft',
         'publish' => 'Publish',
         'unpublish' => 'Unpublish',

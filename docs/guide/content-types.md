@@ -232,6 +232,61 @@ A relation can be conditional, and hidden it loses its links in every Locale. Th
 
 Editors search targets by title and see them in pick order, Drafts included. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
 
+With `->creatable()`, editors holding the target type's `create` Permission also create a target from the picker, with a title alone, in the Locale they edit. It goes through `SaveEntry`, as a Draft. The first read of the declarations refuses it when the picker could not do so: several target types, a Singleton, or a target with a `->required()` Field its default does not fill.
+
+### Taxonomies
+
+A Taxonomy classifies other Entries. Its Entries are Terms, and everything an Entry has, a Term has: Fields, Translations, a Path.
+
+```php
+final class Tag extends Taxonomy
+{
+    protected bool $translatable = false; // one name for every Locale
+    protected bool $routable = false;     // no address of its own
+}
+```
+
+`Terms` links them, like `Entries`, and refuses a target that is no Taxonomy:
+
+```php
+Terms::make('tags')->of(Tag::class),
+```
+
+```php
+$project->tags;       // Collection<int, Term>, in pick order
+$term->entries;       // Collection<int, Entry>, the visible Entries linking it, once each
+$term->entries()->withUnpublished()->count();
+
+Term::query()->ofType(Tag::class)->with('entries')->get(); // no N+1
+```
+
+`entries()` is an Eloquent relation, across every relation Field naming the Term, reading visible Entries in the current Locale, whatever the Term's own query says: ask for more on the relation, with `$term->entries()->inLocale('en')` or `with(['entries' => fn ($query) => $query->withUnpublished()])`.
+
+`SaveEntry` publishes a new Term when `status` is left out; a Draft is asked for by name. The picker's creation does the same, so a Tag needs no second step, for an editor holding the Taxonomy's `publish`; without it, the Term is a Draft, left out of reads until someone publishes it. A Taxonomy's own form keeps its two buttons, Save draft and Publish.
+
+`Terms` is creatable by default. Name several Taxonomies or a Taxonomy with a required Field, and add `->creatable(false)`, as the first read of the declarations will ask.
+
+### Your own model
+
+`$model` names the `Entry` subclass a type's Entries hydrate to, so domain methods sit on the model, in any listing:
+
+```php
+final class Project extends ContentType
+{
+    protected ?string $model = \App\Models\Project::class;
+}
+
+class Project extends Entry // App\Models
+{
+    public function host(): string
+    {
+        return parse_url($this->site_url, PHP_URL_HOST);
+    }
+}
+```
+
+Each row hydrates to its own type's model, whichever model queried it: `Entry::query()->get()` may mix them, and `Project::query()` is no filter, so keep `->ofType()`. A Taxonomy's model extends `Term`, any other's `Entry`; the first read of the declarations refuses anything else, and a Field handle naming one of the model's methods.
+
 ### Tabs and sections
 
 `fields()` may arrange its Fields in a `Tab` or a `Section`, from `Psyao\Kami\Content`. They shape the form and nothing else: columns, validation and reads see the same flat list of Fields, and moving a Field between them needs no migration.
