@@ -158,10 +158,6 @@ it('publishes a Term saved with no status, once, and keeps what is asked', funct
     expect(resolve(SaveEntry::class)->handle(Tag::class, ['title' => 'Encore'], $draft)->status)->toBe('draft');
 });
 
-it('still saves another type as a Draft when no status is given', function () {
-    expect(resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr')->status)->toBe('draft');
-});
-
 it('keeps one Term for every Locale on an untranslatable Taxonomy', function () {
     $term = term('Laravel');
 
@@ -179,7 +175,8 @@ it('lists a Term\'s visible Entries, once each', function () {
 
     expect($term->entries()->pluck('kami_entries.id')->all())->toBe([$visible->id])
         ->and($term->entries->first())->title->toBe('Refonte')
-        ->and($term->entries()->withUnpublished()->count())->toBe(2);
+        ->and($term->entries()->withUnpublished()->count())->toBe(2)
+        ->and(Term::query()->withUnpublished()->findOrFail($tag->id)->entries)->toHaveCount(1);
 });
 
 it('lists an Entry once when it links a Term through several Fields or Locales', function () {

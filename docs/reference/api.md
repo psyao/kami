@@ -257,7 +257,7 @@ A Content Type classifying others: its Entries are `Term`s, published by default
 
 An Entry of a Taxonomy.
 
-- `public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany`: The Entries linking it through any relation Field, once each: visible ones, unless `withUnpublished()`.
+- `public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany`: The Entries linking it through any relation Field, once each: visible ones in the current Locale, unless the query says `inLocale()` or `withUnpublished()`.
 
 ## `Psyao\Kami\Facades\Kami`
 
