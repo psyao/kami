@@ -11,10 +11,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Support\Traits\Localizable;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\PrintsProblems;
@@ -32,9 +40,10 @@ use function Laravel\Prompts\text;
 final class InstallCommand extends Command
 {
     use ChecksPrompting;
+    use Localizable;
     use PrintsProblems;
 
-    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths): int
+    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types): int
     {
         // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
         if (($problems = $doctor->blocking()) !== []) {
@@ -59,6 +68,10 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
+        if (! $this->seed($save, $types)) {
+            return self::FAILURE;
+        }
+
         // Filament's own command, present wherever Kami runs (ADR 0001): it copies the admin's assets to public/, so the server needs no Node.
         if ($this->call('filament:assets') !== self::SUCCESS) {
             return self::FAILURE;
@@ -77,6 +90,40 @@ final class InstallCommand extends Command
         $this->components->info('Kami is installed.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Creates each missing Singleton and Global Set Entry, and never touches an existing one (ADR 0001): a Singleton waits as a Draft for its editor, a Global Set applies at once.
+     *
+     * ponytail: the `default` Site only, as `Site::current()`; V1 multisite seeds every Site.
+     */
+    private function seed(SaveEntry $save, ContentTypes $types): bool
+    {
+        foreach ($types->all() as $type) {
+            if (! $type instanceof Singleton || Entry::query()->withUnpublished()->ofType($type->handle())->where('site', Site::current()->handle)->exists()) {
+                continue;
+            }
+
+            // ponytail: with no value to write, a missing table would seed fine and break every read; the drift check (#182) runs before this step and removes it.
+            if ($type->flatFields() !== [] && ! Schema::hasTable("kami_type_{$type->handle()}")) {
+                $this->components->error("The {$type->handle()} Entry cannot be created: its table does not exist. Run php artisan kami:make:migration {$type->handle()}, then kami:install again.");
+
+                return false;
+            }
+
+            try {
+                // The Translation is written in the default Locale, whatever `app.locale` says.
+                $save->handle($type->handle(), ['title' => $this->withLocale(Site::current()->defaultLocale(), $type->label(...))]);
+            } catch (ValidationException $exception) {
+                $this->components->error("The {$type->handle()} Entry cannot be created: {$exception->getMessage()} Fix its declaration, then run kami:install again.");
+
+                return false;
+            }
+
+            $this->components->info("Created the {$type->handle()} Entry.");
+        }
+
+        return true;
     }
 
     /** Moves URLs to follow the declarations (ADR 0008); an address another Entry holds fails the deploy, naming both sides. */

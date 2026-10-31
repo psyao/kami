@@ -9,9 +9,12 @@ use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Section;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Content\Tab;
 
 /**
@@ -27,11 +30,11 @@ final class ContentTypes
     /** `kami_type_<handle>` stays within PostgreSQL's 63 and MySQL's 64 characters (ADR 0006). */
     private const int MAX_HANDLE_LENGTH = 40;
 
-    /** @var array<mixed> The `kami.types` the registry was built from. */
-    private array $classes = [];
+    /** @var array<mixed>|null The `kami.types` the registry was built from. */
+    private ?array $classes = null;
 
-    /** @var array<mixed> The `kami.types` last found valid. */
-    private array $validated = [];
+    /** @var array<mixed>|null The `kami.types` last found valid. */
+    private ?array $validated = null;
 
     /** @var array<string, ContentType> */
     private array $types = [];
@@ -69,7 +72,8 @@ final class ContentTypes
         if (($classes = Config::array('kami.types')) !== $this->classes) {
             $this->types = [];
 
-            foreach ($classes as $class) {
+            // `SiteSettings` is always there, listed or not: its table ships with the package.
+            foreach ([...$classes, SiteSettings::class] as $class) {
                 $type = is_string($class) ? app()->make($class) : null;
 
                 if (! $type instanceof ContentType) {
@@ -129,6 +133,10 @@ final class ContentTypes
                 $fields[] = $field->handle;
             }
 
+            if ($type instanceof GlobalSet) {
+                $this->validateGlobalSet($class, $type);
+            }
+
             $this->validateLayout($class, $type);
             $this->validateConditions($class, $type);
         }
@@ -185,6 +193,26 @@ final class ContentTypes
 
             $handles[] = $field->handle;
         }
+    }
+
+    /** Always published, by `kami:install` before anyone can fill it: nothing may be missing for that. */
+    private function validateGlobalSet(string $class, GlobalSet $type): void
+    {
+        if ($type->prefix() !== $type->handle()) {
+            throw new InvalidArgumentException("{$class}: a Global Set has no URL; remove its \$prefix.");
+        }
+
+        foreach ($type->flatFields() as $field) {
+            if ($field->defaultValue() === null && $this->requiresValue($field)) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is required with no default; a Global Set is always published, so kami:install could not create it. Give it a ->default().");
+            }
+        }
+    }
+
+    /** A Group's required sub-Field needs a value as soon as the Group is saved; a Repeater may have no row. */
+    private function requiresValue(Field $field): bool
+    {
+        return $field->isRequired() || ($field instanceof Group && array_filter($field->fields(), $this->requiresValue(...)) !== []);
     }
 
     private function validateLayout(string $class, ContentType $type): void

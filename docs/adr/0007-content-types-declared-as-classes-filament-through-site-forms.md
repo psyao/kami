@@ -40,6 +40,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - A Field handle never matches a core attribute (`title`, `slug`, `status`, `published_at`, `parent`, `position`, `site`, `type`, `locale`…): a collision is a boot error. The reserved list is public under SemVer, and a new core attribute only arrives in a major version.
   - A Block's handle is explicit and frozen, since every stored node carries it.
 - **URLs.** `protected bool $routable = true`; `false` gives a type no URL: no `kami_paths` row, no slug, `url()` null. Collections listed on another page, such as aguet.dev's Projects and Tags, need it. A `$prefix = null` cannot say it, as the prototype had it, since it has meant the handle since M2 (ADR 0008). A type flipped to `false` answers 404 at once and loses its 200 rows at the next `SyncPaths`, on purpose; its stored slugs stay, so flipping back restores those addresses; an Entry saved with no slug meanwhile has none until its next save. A `Singleton`'s Path is its Prefix: it takes no slug.
+- **Global Sets.** A `GlobalSet` is never routable and takes no Prefix. A required Field with no default, a `Group`'s sub-Field included, is a boot error: `kami:install` publishes the Entry before anyone can fill it, and a deploy never fails on absent content.
 - **Scope.**
   - A Field's default scope follows its type: Text, Textarea and RichText are Translatable; every other Field type is Shared. `->shared()` and `->translatable()` override it.
   - A type declared `$translatable = false` makes all its Fields Shared ("Multilingual content and fallback").
@@ -51,7 +52,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - A target must be Shared: a Translatable one would answer differently per Locale and through Fallback, so a value given for one Locale could vanish silently while a reader sees the Field apply.
   - A hidden Field is cleared in every Locale, since its target holds for all of them. This weighs Stability (no value lost) against Simplicity (form, import and front agree). Stability's promise covers migrations, not an editor's own change, so it does not outrank here: a value kept would stay readable on the front while no editor can see or edit it, which this ADR refuses. The price is a translation's value, gone with no way back in Kami.
 - **Labels.** Labels, tab titles and help texts never appear in a declaration.
-  - They come from `lang/<locale>/kami-types.php`, by handle.
+  - They come from `lang/<locale>/kami-types.php`, by handle. The package ships those of its own `SiteSettings`, which a site's file overrides.
   - A missing key falls back to the humanised handle.
   - `kami:doctor` lists missing keys.
 - **Reusable fieldsets** are plain PHP, with no Kami concept. A static method returns Fields under a prefix (`...SocialLink::fields('contact_linkedin')`), so columns stay flat, typed and unique.

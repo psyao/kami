@@ -8,7 +8,23 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Singleton;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Psyao\Kami\Tests\Install\InstallTestCase as TestCase;
+use Workbench\App\Content\Footer;
+use Workbench\App\Content\Home;
+
+use function Orchestra\Testbench\workbench_path;
+
+/** A second Singleton on Home's address. */
+final class TakenHome extends Singleton
+{
+    #[Override]
+    protected ?string $prefix = '';
+}
 
 /**
  * Each file of the skeleton with a hash of its contents, minus the directories Laravel writes to at run time.
@@ -97,6 +113,72 @@ it('changes nothing when run again', function () {
 
     expect(skeletonFiles())->toBe($files)
         ->and(DB::table('migrations')->get())->toEqual($migrations);
+});
+
+/** A site with a Singleton and a Global Set of its own, their tables migrated by `kami:install`. */
+function bootWithSeededTypes(TestCase $test, array $types = [Home::class, Footer::class]): void
+{
+    $test->bootWithKamiOnAPanel();
+    config(['kami.types' => $types]);
+    app('migrator')->path(workbench_path('database/migrations'));
+}
+
+describe('seeding', function () {
+    it('creates a Singleton as a Draft titled with its label, a Global Set published, with no actor', function () {
+        bootWithSeededTypes($this);
+        install()->assertSuccessful();
+
+        expect(Home::entry())->toBeNull();
+
+        $home = Entry::query()->withUnpublished()->ofType(Home::class)->sole();
+        $footer = Footer::entry();
+
+        expect($home->title)->toBe('Home')
+            ->and($home->status)->toBe('draft')
+            ->and($home->created_by)->toBeNull()
+            ->and($footer?->status)->toBe('published')
+            ->and($footer?->translations->pluck('locale')->all())->toBe([config('kami.sites.default.locales')[0]])
+            ->and(SiteSettings::entry()?->status)->toBe('published');
+    });
+
+    it('titles a Singleton in the default Locale, whatever app.locale says', function () {
+        bootWithSeededTypes($this);
+        config(['app.locale' => 'en', 'kami.sites.default.locales' => ['fr', 'en']]);
+        install()->assertSuccessful();
+
+        expect(SiteSettings::entry()?->title)->toBe('Réglages du site');
+    });
+
+    it('fails, naming the command, on a declared type with no table', function () {
+        $this->bootWithKamiOnAPanel();
+        config(['kami.types' => [Footer::class]]);
+
+        install()
+            ->expectsOutputToContain('kami:make:migration footer')
+            ->assertFailed();
+    });
+
+    it('changes no content when run again, and leaves an edited Entry alone', function () {
+        bootWithSeededTypes($this);
+        install()->assertSuccessful();
+
+        resolve(SaveEntry::class)->handle(Footer::class, ['tagline' => 'Edited'], Footer::entry());
+        $tables = fn (): array => collect(['kami_entries', 'kami_translations', 'kami_paths', 'kami_type_footer'])->mapWithKeys(fn (string $table) => [$table => DB::table($table)->orderBy('entry_id')->get()->toArray()])->all();
+        $before = $tables();
+
+        install()->assertSuccessful();
+
+        expect($tables())->toEqual($before)
+            ->and(Footer::entry()?->tagline)->toBe('Edited');
+    });
+
+    it('fails the deploy, naming the type, on an address another Entry holds', function () {
+        bootWithSeededTypes($this, [Home::class, TakenHome::class]);
+
+        install()
+            ->expectsOutputToContain('taken_home')
+            ->assertFailed();
+    });
 });
 
 it('writes no file of the host\'s, only Filament\'s public assets', function () {

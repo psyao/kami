@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
@@ -19,6 +20,7 @@ return [
         Project::class,
         Home::class,
         Testimonial::class,
+        Footer::class,
     ],
 
     'roles' => [

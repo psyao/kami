@@ -89,11 +89,52 @@ final class Home extends Singleton
 ```
 
 - **Its Path is its Prefix.** `Home` answers `/` and, published in `en`, `/en`. A Singleton with no `$prefix` answers at its handle. It has no slug: `SaveEntry` refuses one, and publishing needs none.
-- **One Entry.** `SaveEntry` refuses a second Entry of the type with a validation error on `type`. To write the first, call `SaveEntry` from a seeder; to update it, pass it as usual.
+- **One Entry.** `SaveEntry` refuses a second Entry of the type with a validation error on `type`. `kami:install` creates the first as a Draft titled with the type's label; to update it, pass it as usual.
 - **Reading it.** `Home::entry()` returns the Entry when visible in the current Locale, `null` otherwise, from any view.
-- **In the admin.** Its navigation item, in the singular, opens its form directly, at `/admin/home`, with no list, create or delete. Until its Entry exists, the page answers 404. The page is an edit form, so it takes the type's `update` Permission, and `publish` once the Entry is published: a User without them gets a 403 from the navigation item.
+- **In the admin.** Its navigation item, in the singular, opens its form directly, at `/admin/home`, with no list, create or delete. Where `kami:install` has not run since the type was declared, the page answers 404. The page is an edit form, so it takes the type's `update` Permission, and `publish` once the Entry is published: a User without them gets a 403 from the navigation item.
 
 A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` route for `Home` to answer.
+
+### Global Sets
+
+Values shown across the Site, such as footer details, go in a Singleton with no URL, which extends `GlobalSet`:
+
+```php
+use Psyao\Kami\Content\Fields\Email;
+use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\GlobalSet;
+
+final class Footer extends GlobalSet
+{
+    public function fields(): array
+    {
+        return [
+            Text::make('tagline'),
+            Email::make('contact'),
+        ];
+    }
+}
+```
+
+- **Reading it.** `Footer::entry()` works in any view and ignores visibility; a blank Translatable value falls back to the default Locale as usual. Each call costs three queries: in a view read several times, keep it in a variable.
+- **Always published.** `kami:install` creates it in the default Locale, and every save publishes the Locale it writes. `SaveEntry` refuses `status` and `published_at`, and fills a blank `title` with the type's label.
+- **No URL.** A `$prefix` other than its handle is an error, and `$routable` is ignored.
+- **A required Field needs a default.** `kami:install` publishes the Entry before anyone can fill it, so `->required()` with no `->default()`, on a Field or a `Group`'s sub-Field, is an error when the type is first read.
+- **In the admin.** Its form shows its Fields only. Saving changes what visitors see, so its page and navigation item take `publish` as well as `update`.
+
+### Site settings
+
+The package declares one Global Set itself, always registered: `SiteSettings`, with its table and labels. There is no second settings API.
+
+```php
+use Psyao\Kami\Content\SiteSettings;
+
+SiteSettings::entry()?->site_name;
+
+resolve(SaveEntry::class)->handle(SiteSettings::class, ['site_name' => 'Acme'], SiteSettings::entry());
+```
+
+`site_name` is Translatable and blank until written. To change its labels, set `site_settings` in your `kami-types.php`.
 
 ## Fields
 
@@ -303,7 +344,7 @@ A User sees a type only with its `view` Permission ([Users and roles](users-and-
 
 ### Labels
 
-Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration. A missing key falls back to the humanised handle: `news_item` reads `News Item`, its plural `News Items`, and a Field with no `help` has no help text:
+Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration; the package ships those of [`SiteSettings`](#site-settings), which a site's file overrides. A missing key falls back to the humanised handle: `news_item` reads `News Item`, its plural `News Items`, and a Field with no `help` has no help text:
 
 ```php
 return [

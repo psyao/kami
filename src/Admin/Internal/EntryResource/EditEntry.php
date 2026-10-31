@@ -12,6 +12,7 @@ use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
@@ -36,9 +37,7 @@ final class EditEntry extends EditRecord
     private ?string $status = null;
 
     /**
-     * A Singleton's URL names no record: its one Entry.
-     *
-     * ponytail: 404 until site code creates it, its navigation item included; #176's `kami:install` seed removes the case.
+     * A Singleton's URL names no record: its one Entry, which `kami:install` creates; 404 where it has not run yet.
      */
     public function mount(int | string | null $record = null, ?string $locale = null): void
     {
@@ -113,6 +112,10 @@ final class EditEntry extends EditRecord
 
     protected function getFormActions(): array
     {
+        if (EntryResource::type() instanceof GlobalSet) {
+            return [$this->getSaveFormAction(), $this->getCancelFormAction()];
+        }
+
         return [
             $this->getSaveFormAction(),
             $this->statusAction('publish', Translation::PUBLISHED)->visible(fn (): bool => $this->getRecord()->status !== Translation::PUBLISHED),

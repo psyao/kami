@@ -174,6 +174,14 @@ Several lines of plain text.
 
 A web address: `http` or `https` only, since a view prints it in a link.
 
+## `Psyao\Kami\Content\GlobalSet`
+
+`abstract class extends Psyao\Kami\Content\Singleton`
+
+A Singleton with no URL and always published, holding values shown across the Site, such as footer details.
+
+- `public static function entry(): ?Psyao\Kami\Content\Entry`: The Entry whatever its visibility; `null` until `kami:install` or site code creates it.
+
 ## `Psyao\Kami\Content\Layout`
 
 `abstract class`
@@ -198,6 +206,14 @@ A titled group of Fields in the form, at the top level or inside a Tab; titled f
 A Content Type with exactly one Entry per Site, whose Path is its Prefix, such as a home page.
 
 - `public static function entry(): ?Psyao\Kami\Content\Entry`: The Entry when visible in the current Locale; `null` otherwise.
+
+## `Psyao\Kami\Content\SiteSettings`
+
+`final class extends Psyao\Kami\Content\GlobalSet`
+
+The Site's own editable settings, always registered: read with `SiteSettings::entry()`, written with `SaveEntry` (ADR 0029).
+
+- `public function fields(): array`
 
 ## `Psyao\Kami\Content\Tab`
 

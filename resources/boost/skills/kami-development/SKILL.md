@@ -13,6 +13,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Add Kami to an existing application or to its Filament panel | `vendor/psyao/kami/docs/guide/existing-application.md` |
 | Declare a Content Type or its Fields, tabs, sections and conditions, with its labels, its view and its migration | `vendor/psyao/kami/docs/guide/content-types.md` |
 | Declare a type with no URL (`$routable = false`) or a Singleton (`Home::entry()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-with-no-url` |
+| Hold values shown across the Site in a Global Set (`Footer::entry()`), or read `SiteSettings` | `vendor/psyao/kami/docs/guide/content-types.md#global-sets` |
 | Write, publish, schedule or unpublish Entries, from the admin or from code | `vendor/psyao/kami/docs/guide/publishing.md` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |

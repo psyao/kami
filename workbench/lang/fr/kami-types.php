@@ -28,6 +28,13 @@ return [
             'body' => ['label' => 'Corps'],
         ],
     ],
+    'footer' => [
+        'label' => 'Pied de page',
+        'fields' => [
+            'tagline' => ['label' => 'Slogan'],
+            'contact' => ['label' => 'Contact'],
+        ],
+    ],
     'home' => [
         'label' => 'Accueil',
         'fields' => [

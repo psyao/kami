@@ -9,5 +9,6 @@
         <h1>{{ $entry->title }}</h1>
         <div @if ($lang = $entry->fallbackLocale('body'))lang="{{ $lang }}"@endif>{{ $entry->body }}</div>
     </main>
+    <footer>{{ \Workbench\App\Content\Footer::entry()?->tagline }}</footer>
 </body>
 </html>
