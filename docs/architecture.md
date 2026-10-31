@@ -156,7 +156,7 @@ erDiagram
         mixed field_columns "one typed column per stored Field"
     }
     kami_references {
-        bigint id PK
+        ulid id PK
         ulid source_entry_id FK
         string field
         string locale "null = shared"

@@ -97,7 +97,7 @@ it('allows exactly one target through the CHECK', function () {
     $entry = linkTarget('Target')->id;
 
     // In a savepoint: a refused statement aborts PostgreSQL's whole transaction otherwise.
-    $insert = fn (array $row) => DB::transaction(fn () => DB::table('kami_references')->insert(['source_entry_id' => $entry, 'field' => 'x', 'position' => 0, ...$row]));
+    $insert = fn (array $row) => DB::transaction(fn () => DB::table('kami_references')->insert(['id' => (string) str()->ulid(), 'source_entry_id' => $entry, 'field' => 'x', 'position' => 0, ...$row]));
 
     expect(fn () => $insert([]))->toThrow(QueryException::class)
         ->and(fn () => $insert(['target_entry_id' => $entry, 'target_media_id' => (string) str()->ulid()]))->toThrow(QueryException::class);
@@ -199,6 +199,21 @@ it('does not fall back from a filled relation whose targets are all hidden', fun
     saveLinked(['local' => [$draft->id]], $source, 'en');
 
     expect(readLinked('en')->local)->toBeEmpty();
+});
+
+it('falls back after a reload of an Entry whose Locale was emptied since', function () {
+    [$both, $other] = [linkTarget('Cible'), linkTarget('Autre')];
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Target', 'author' => 'Ada', 'status' => 'published'], $both, 'en');
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Other', 'author' => 'Ada', 'status' => 'published'], $other, 'en');
+    $source = saveLinked(['local' => [$both->id]]);
+    saveLinked(['local' => [$other->id]], $source, 'en');
+    $read = Entry::query()->ofType('linked')->inLocale('en')->with('local')->get();
+    expect(titlesOf($read->first()->local))->toBe(['Other']);
+
+    saveLinked(['local' => []], $source, 'en');
+    $read->load('local');
+
+    expect(titlesOf($read->first()->local))->toBe(['Target']);
 });
 
 it('loads with one query for the rows and the usual ones per target type', function () {

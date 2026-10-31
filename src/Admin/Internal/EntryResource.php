@@ -212,28 +212,41 @@ final class EntryResource extends FilamentResource
     }
 
     /**
-     * A relation Field's input: search on the server, the rows' labels in the Locale edited, or the default one's. A keyboard reorders by removing and picking again (ADR 0007).
+     * A relation Field's input, searched on the server. A keyboard reorders by removing and picking again (ADR 0007).
      */
     public static function picker(RelationField $field): SelectInput
     {
-        $translations = fn (mixed $livewire): Builder => Translation::query()->whereNotNull('title')->whereIn('locale', ['*', Site::current()->defaultLocale(), $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()]);
-
         return SelectInput::make($field->handle)
             ->multiple()
             ->reorderable()
             ->searchable()
-            ->getSearchResultsUsing(function (string $search, mixed $livewire) use ($field, $translations): array {
-                $targets = Entry::query()->withUnpublished()->where('site', Site::current()->handle)->whereIn('type', $field->targetHandles())->select('id')->toBase();
+            ->getSearchResultsUsing(function (string $search, mixed $livewire) use ($field): array {
+                $matches = Translation::query()->whereIn('entry_id', $field->linkable()->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
 
-                /** @var array<string, string> */
-                return $translations($livewire)->whereIn('entry_id', $targets)->whereLike('title', "%{$search}%")->limit(50)->pluck('title', 'entry_id')->all();
+                return self::pickerTitles($matches, $livewire);
             })
-            ->getOptionLabelsUsing(function (array $values, mixed $livewire) use ($translations): array {
-                $locale = $livewire instanceof EditEntry ? $livewire->locale : null;
+            ->getOptionLabelsUsing(fn (array $values, mixed $livewire): array => self::pickerTitles($values, $livewire));
+    }
 
-                /** @var array<string, string> The Locale edited last, so it wins. */
-                return $translations($livewire)->whereIn('entry_id', $values)->get()->sortBy(fn (Translation $translation): bool => $translation->locale === $locale)->pluck('title', 'entry_id')->all();
-            });
+    /**
+     * Each Entry's title in the Locale edited, or the default one's, or any: a target titled elsewhere stays recognisable.
+     *
+     * @param  array<mixed>  $entries
+     * @return array<string, string>
+     */
+    private static function pickerTitles(array $entries, mixed $livewire): array
+    {
+        $default = Site::current()->defaultLocale();
+        $edited = $livewire instanceof EditEntry ? $livewire->locale : $default;
+
+        /** @var array<string, string> The preferred last, so it wins. */
+        return Translation::query()->whereIn('entry_id', $entries)->whereNotNull('title')->get()
+            ->sortBy(fn (Translation $translation): int => match ($translation->locale) {
+                $edited => 2,
+                $default, '*' => 1,
+                default => 0,
+            })
+            ->pluck('title', 'entry_id')->all();
     }
 
     /**

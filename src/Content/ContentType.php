@@ -66,6 +66,16 @@ abstract class ContentType
     /**
      * @internal
      *
+     * @return list<RelationField>
+     */
+    final public function relationFields(): array
+    {
+        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => $field instanceof RelationField));
+    }
+
+    /**
+     * @internal
+     *
      * @return list<Layout>
      */
     final public function layouts(): array

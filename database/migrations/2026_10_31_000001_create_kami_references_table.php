@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('kami_references', function (Blueprint $table): void {
-            $table->id();
+            $table->ulid('id')->primary();
             $table->foreignUlid('source_entry_id')->constrained('kami_entries')->cascadeOnDelete();
             $table->string('field', 40);
             $table->string('locale', 20)->nullable();

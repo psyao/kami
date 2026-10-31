@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -46,9 +45,9 @@ final class EntryBuilder extends Builder
     {
         // A relation Field's handle is no method: it stays away from Eloquent, which would look for one.
         $requested = $this->eagerLoad;
-        $handles = collect($models)->flatMap(fn (Entry $entry): array => $entry->contentType()?->flatFields() ?? [])
-            ->filter(fn (Field $field): bool => $field instanceof RelationField && array_key_exists($field->handle, $requested))
-            ->map(fn (Field $field): string => $field->handle)->unique()->values()->all();
+        $handles = collect($models)->flatMap(fn (Entry $entry): array => $entry->contentType()?->relationFields() ?? [])
+            ->map(fn (RelationField $field): string => $field->handle)
+            ->filter(fn (string $handle): bool => array_key_exists($handle, $requested))->unique()->values()->all();
         $this->eagerLoad = array_diff_key($requested, array_flip($handles));
         $models = parent::eagerLoadRelations($models);
         $this->eagerLoad = $requested;
@@ -58,13 +57,13 @@ final class EntryBuilder extends Builder
         }
 
         if (in_array(Visibility::class, $this->removedScopes(), true)) {
-            array_walk($models, fn (Entry $entry) => $entry->readUnpublished());
+            array_walk($models, fn (Entry $entry) => $entry->markUnpublishedRead());
         }
 
         $types = resolve(ContentTypes::class);
 
         foreach (collect($models)->groupBy(fn (Entry $entry): string => $entry->contentType()?->handle() ?? '') as $handle => $entries) {
-            // An undeclared type, a partial select or a type with no Field has no table to read.
+            // An undeclared type, a partial select or a type with no column has no table to read.
             if (($types->find((string) $handle)?->columnFields() ?? []) === []) {
                 continue;
             }

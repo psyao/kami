@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Internal;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Fields\RelationField;
 
 /**
  * The one way relation Fields reach `kami_references` (ADR 0005). The `'*'` key stands for a shared Reference's null `locale`, as in a type's table.
@@ -47,6 +47,7 @@ final class References
         DB::table(self::TABLE)->where(['source_entry_id' => $entry, 'field' => $handle, 'locale' => $locale])->delete();
 
         DB::table(self::TABLE)->insert(array_map(fn (string $target, int $position): array => [
+            'id' => (string) Str::ulid(),
             'source_entry_id' => $entry,
             'field' => $handle,
             'locale' => $locale,
@@ -85,8 +86,8 @@ final class References
             $targets = $ids === [] ? [] : $query->whereIn('id', $ids)->get()->keyBy('id')->all();
 
             foreach ($group as $entry) {
-                foreach ($entry->contentType()?->flatFields() ?? [] as $field) {
-                    if ($field instanceof RelationField && in_array($field->handle, $handles, true)) {
+                foreach ($entry->contentType()?->relationFields() ?? [] as $field) {
+                    if (in_array($field->handle, $handles, true)) {
                         $entry->setReferences($field->handle, array_map(fn (array $fields): array => $fields[$field->handle] ?? [], $stored[$entry->id] ?? []), $targets);
                     }
                 }

@@ -99,7 +99,7 @@ class Entry extends Model
     }
 
     /** @internal */
-    public function readUnpublished(): void
+    public function markUnpublishedRead(): void
     {
         $this->unpublished = true;
     }
@@ -118,6 +118,11 @@ class Entry extends Model
      */
     public function setReferences(string $handle, array $byLocale, array $targets): void
     {
+        // A reload: a Locale emptied since holds no row to replace its old ids.
+        foreach (array_keys($this->fieldRows) as $locale) {
+            unset($this->fieldRows[$locale][$handle]);
+        }
+
         foreach ($byLocale as $locale => $ids) {
             $this->fieldRows[$locale][$handle] = $ids === [] ? null : $ids;
         }
@@ -187,6 +192,7 @@ class Entry extends Model
         return $this->getRelation($field->handle);
     }
 
+    /** `fallbackLocale()` on what is already loaded: it never loads a relation Field. */
     private function storedFallback(string $field): ?string
     {
         $default = Site::current()->defaultLocale();

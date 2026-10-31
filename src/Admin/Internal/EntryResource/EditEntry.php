@@ -13,7 +13,6 @@ use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
-use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
@@ -81,7 +80,7 @@ final class EditEntry extends EditRecord
     {
         $entry = $this->getRecord();
         $values = [];
-        $relations = array_filter(EntryResource::type()->flatFields(), fn (Field $field): bool => $field instanceof RelationField);
+        $relations = EntryResource::type()->relationFields();
 
         if ($relations !== []) {
             References::load([$entry], array_column($relations, 'handle'));

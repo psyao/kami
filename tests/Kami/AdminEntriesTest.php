@@ -1023,6 +1023,17 @@ it('labels a pick with the Locale edited, or the default one', function () {
     expect($picker->getOptionLabels())->toEqualCanonicalizing([$hello->id => 'Hello', $hi->id => 'Salut']);
 });
 
+it('finds and labels a target titled only in another Locale, and lists a target once', function () {
+    [$project, $hello] = projectAndTargets();
+    $english = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Only English'], locale: 'en');
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour you'], $hello, 'en');
+
+    $picker = entryPage(EditEntry::class, 'project', ['record' => $project->id])->instance()->getSchema('form')->getComponent('related');
+
+    expect($picker->getSearchResults('Only'))->toBe([$english->id => 'Only English'])
+        ->and($picker->getSearchResults('Bonjour'))->toBe([$hello->id => 'Bonjour']);
+});
+
 it('opens an Entry page in an exact number of queries, with relations', function (int $targets) {
     [$project] = projectAndTargets();
     $ids = [];

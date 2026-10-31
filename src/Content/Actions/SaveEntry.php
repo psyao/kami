@@ -87,10 +87,10 @@ final class SaveEntry
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
 
         $translation = $entry instanceof Entry ? Translation::query()->firstOrNew(['entry_id' => $entry->id, 'locale' => $locale]) : new Translation(['locale' => $locale]);
-        // A type with no Field has no table.
+        // A type with no column has no table.
         $stored = $entry instanceof Entry && $contentType->columnFields() !== [] ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
 
-        $relations = array_filter($contentType->flatFields(), fn (Field $field): bool => $field instanceof RelationField);
+        $relations = $contentType->relationFields();
         $references = $entry instanceof Entry && $relations !== [] ? References::stored([$entry->id], array_column($relations, 'handle'))[$entry->id] ?? [] : [];
 
         // A new Translation starts from its Fields' defaults; a Shared Field's only while the Entry has no `'*'` row yet.

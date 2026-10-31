@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Fields;
 
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
@@ -49,9 +50,17 @@ abstract class RelationField extends Field
     /**
      * @internal
      *
-     * @return list<string>
+     * What it may link to, in every state: in the current Site, of the named types.
+     *
+     * @return Builder<Entry>
      */
-    public function targetHandles(): array
+    public function linkable(): Builder
+    {
+        return Entry::query()->withUnpublished()->where('site', Site::current()->handle)->whereIn('type', $this->targetHandles());
+    }
+
+    /** @return list<string> */
+    private function targetHandles(): array
     {
         $types = resolve(ContentTypes::class);
 
@@ -103,7 +112,7 @@ abstract class RelationField extends Field
                 return;
             }
 
-            $found = Entry::query()->withUnpublished()->whereIn('id', $ids)->where('site', Site::current()->handle)->whereIn('type', $this->targetHandles())->count();
+            $found = $this->linkable()->whereIn('id', $ids)->count();
 
             if ($found !== count($ids)) {
                 $fail(__('validation.exists'));
