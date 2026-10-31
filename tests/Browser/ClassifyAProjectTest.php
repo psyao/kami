@@ -60,3 +60,20 @@ it('reorders a picker by dragging, and saves the order', function () {
 
     expect(Entry::query()->withUnpublished()->findOrFail($project->id)->tags->pluck('title')->all())->toBe(['Second', 'Premier']);
 });
+
+it('reorders the rows of an orderable type by dragging, and the front order follows', function () {
+    $save = resolve(SaveEntry::class);
+    $save->handle(Project::class, ['title' => 'Premier'], locale: 'fr');
+    $save->handle(Project::class, ['title' => 'Second'], locale: 'fr');
+
+    signIn()
+        ->navigate('/admin/projects')
+        ->press('internal:role=button[name="Reorder records"s]')
+        ->waitForText('Drag and drop')
+        ->assertNoAccessibilityIssues()
+        ->drag('.fi-ta-row:has-text("Second") .fi-ta-reorder-handle', '.fi-ta-row:has-text("Premier") .fi-ta-reorder-handle')
+        ->wait(2)
+        ->assertNoJavaScriptErrors();
+
+    expect(Entry::query()->withUnpublished()->inLocale('fr')->ofType(Project::class)->ordered()->get()->pluck('title')->all())->toBe(['Second', 'Premier']);
+});

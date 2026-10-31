@@ -10,6 +10,7 @@ class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$model protected ?string $model = NULL
+class Psyao\Kami\Content\ContentType::$orderable protected bool $orderable = false
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
 class Psyao\Kami\Content\ContentType::$routable protected bool $routable = true
 class Psyao\Kami\Content\ContentType::$translatable protected bool $translatable = true
@@ -27,6 +28,7 @@ class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Content\Entry::fallbackLocale() public function fallbackLocale(string $field): ?string
 class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
+class Psyao\Kami\Content\Entry::ordered() protected function ordered(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Events\EntryPublished final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
@@ -141,6 +143,7 @@ middleware kami group
 middleware kami.security-headers Psyao\Kami\Support\SecurityHeaders
 permission kami.entries.{type}.create
 permission kami.entries.{type}.publish
+permission kami.entries.{type}.reorder
 permission kami.entries.{type}.update
 permission kami.entries.{type}.view
 permission kami.users.manage

@@ -23,6 +23,7 @@ use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\References;
+use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
@@ -39,7 +40,7 @@ final class SaveEntry
 {
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
-     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`, a Taxonomy's default; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
+     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`, a Taxonomy's default; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set), `position` (last on a new Entry when blank; refused by a type that is not orderable) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
      * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
@@ -82,7 +83,7 @@ final class SaveEntry
             $contentType->hasSlug() => Translation::ATTRIBUTES,
             default => array_diff(Translation::ATTRIBUTES, ['slug']),
         };
-        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : [])]));
+        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : []), ...($contentType->isOrderable() ? ['position'] : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
@@ -145,6 +146,11 @@ final class SaveEntry
             'published_at' => ['nullable', 'date'],
         ] : [];
 
+        if ($contentType->isOrderable()) {
+            // PostgreSQL's integer has no unsigned range, and the next new Entry takes one more.
+            $rules['position'] = ['nullable', 'integer', 'min:0', 'max:2147483646'];
+        }
+
         foreach ($fields as $handle => $field) {
             $rules = [...$rules, ...$field->rulesAt($handle, $publishing)];
         }
@@ -178,7 +184,13 @@ final class SaveEntry
 
         $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
-            $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
+            $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()]);
+
+            if ($contentType->isOrderable() && (isset($values['position']) || ! $entry->exists)) {
+                $entry->forceFill(['position' => $values['position'] ?? ReorderEntries::next($contentType)]);
+            }
+
+            $entry->save();
 
             if ($writesTranslation) {
                 $translation->entry_id = $entry->id;

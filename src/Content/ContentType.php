@@ -23,6 +23,9 @@ abstract class ContentType
     /** `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013). */
     protected bool $translatable = true;
 
+    /** `true` lets editors drag the type's rows, and `ordered()` read that order; a new Entry goes last. */
+    protected bool $orderable = false;
+
     /**
      * The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
      *
@@ -160,6 +163,12 @@ abstract class ContentType
     public function model(): string
     {
         return $this->model ?? Entry::class;
+    }
+
+    /** @internal */
+    public function isOrderable(): bool
+    {
+        return $this->orderable;
     }
 
     /** @internal */

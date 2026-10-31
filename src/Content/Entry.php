@@ -37,6 +37,7 @@ use Psyao\Kami\Sites\Internal\Site;
  * @property-read string|null $slug
  * @property-read string|null $status `draft` or `published`.
  * @property-read CarbonImmutable|null $published_at
+ * @property-read int $position Its hand-set place among its siblings, on an orderable type.
  * @property-read int|string|null $created_by The Creator's User key.
  * @property-read int|string|null $updated_by The Last modifier's User key.
  */
@@ -268,6 +269,17 @@ class Entry extends Model
     protected function ofType(Builder $query, string $type): void
     {
         $query->where('type', resolve(ContentTypes::class)->find($type)?->handle() ?? $type);
+    }
+
+    /**
+     * In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function ordered(Builder $query): void
+    {
+        $query->orderBy('position')->orderBy('id');
     }
 
     /**

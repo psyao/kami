@@ -21,6 +21,9 @@ use Psyao\Kami\Content\Tab;
 /** A form arranged in tabs and a section, with Fields shown only when they apply, a list of rows and a set of named values. */
 final class Project extends ContentType
 {
+    #[\Override]
+    protected bool $orderable = true;
+
     public function fields(): array
     {
         return [
