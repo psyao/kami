@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.2](https://github.com/psyao/kami/compare/v0.2.1...v0.2.2) (2026-10-31)
+
+
+### Features
+
+* add Global Sets, SiteSettings and kami:install seeding ([#201](https://github.com/psyao/kami/issues/201)) ([6d289a3](https://github.com/psyao/kami/commit/6d289a31919670cd950951aa98363c62ba2d2927))
+* add hierarchical Content Types ([#208](https://github.com/psyao/kami/issues/208)) ([8d97c62](https://github.com/psyao/kami/commit/8d97c62eb02f5dbcac5c731b6453b3c413d1ec51))
+* add manual order for Content Types ([#206](https://github.com/psyao/kami/issues/206)) ([d903c57](https://github.com/psyao/kami/commit/d903c572ab30f96ba0a344cebb2250c18ae5754f))
+* add References and the Entries Field ([#202](https://github.com/psyao/kami/issues/202)) ([ec6050a](https://github.com/psyao/kami/commit/ec6050a3fb7e39b63c5e5d2d858b5edf5222bae6))
+* add Repeater and Group Fields ([#199](https://github.com/psyao/kami/issues/199)) ([88f3b24](https://github.com/psyao/kami/commit/88f3b24b27fcdca0ce0b0605cf2300e0f9689fa4))
+* add Tab and Section layout and declarative Field conditions ([#196](https://github.com/psyao/kami/issues/196)) ([faa6e2d](https://github.com/psyao/kami/commit/faa6e2d0a94b734c68794156efb313260798595f))
+* add Taxonomies, the Terms Field and $model ([#203](https://github.com/psyao/kami/issues/203)) ([60aa0cf](https://github.com/psyao/kami/commit/60aa0cf966007b1bfb7228d1c96dd46b55eaa06b))
+* add the Boolean Field and the fieldComponents() registry ([#187](https://github.com/psyao/kami/issues/187)) ([f00e9b1](https://github.com/psyao/kami/commit/f00e9b1e382a3e9724df92fe5c1f53461fd39261))
+* add the Url, Email, Number, Date, DateTime and Select Fields and indexed columns ([#189](https://github.com/psyao/kami/issues/189)) ([57a80ae](https://github.com/psyao/kami/commit/57a80aee0ff6d5eaaa4c6f6f8625ca2674d25ea3))
+* add types without URLs and Singletons ([#200](https://github.com/psyao/kami/issues/200)) ([39b7c19](https://github.com/psyao/kami/commit/39b7c1970ebe92ebfbf15e59024aec1f6f676f68))
+
+
+### Bug Fixes
+
+* correct the core defects found by the first code review ([#193](https://github.com/psyao/kami/issues/193)) ([97dfd89](https://github.com/psyao/kami/commit/97dfd89fe50c86f3ecab1d96c958347f2b20e984))
+* name a generated type table's unique index and foreign key within every engine's limit ([#195](https://github.com/psyao/kami/issues/195)) ([8df1c48](https://github.com/psyao/kami/commit/8df1c48cc3dc7302d16c9d5d521833806355a830))
+* refuse a column retype no cast answers on every engine ([#192](https://github.com/psyao/kami/issues/192)) ([b4bf93b](https://github.com/psyao/kami/commit/b4bf93bee093ab80c2efe407b2911e0980517621))
+
+
+### Miscellaneous Chores
+
+* add composer serve and the Workbench seeder ([#198](https://github.com/psyao/kami/issues/198)) ([8a78e29](https://github.com/psyao/kami/commit/8a78e291e8281cb93fdce3dddbba6d38bdc5f8ae))
+
 ## [0.2.1](https://github.com/psyao/kami/compare/v0.2.0...v0.2.1) (2026-10-30)
 
 
