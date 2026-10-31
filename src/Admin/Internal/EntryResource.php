@@ -239,7 +239,7 @@ final class EntryResource extends FilamentResource
             ->multiple()
             ->reorderable()
             ->searchable()
-            ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matches($field->linkable(), $search), $livewire))
+            ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matchingIds($field->linkable(), $search), $livewire))
             ->getOptionLabelsUsing(fn (array $values, mixed $livewire): array => self::pickerTitles($values, $livewire));
 
         return $field->isCreatable() ? self::withQuickCreate($picker, $field->targets()[0]) : $picker;
@@ -251,12 +251,12 @@ final class EntryResource extends FilamentResource
         return SelectInput::make('parent')
             ->label(__('kami::admin.fields.parent'))
             ->searchable()
-            ->default(fn (): mixed => request()->query('parent'))
+            ->default(fn (): ?string => is_string($parent = request()->query('parent')) ? $parent : null)
             ->disabled(fn (): bool => ! self::can('reorder'))
             ->getSearchResultsUsing(function (string $search, mixed $livewire): array {
                 $candidates = self::getEloquentQuery()->where('site', Site::current()->handle);
 
-                return self::pickerTitles(self::matches($livewire instanceof EditEntry ? $candidates->whereKeyNot($livewire->getRecord()->id) : $candidates, $search), $livewire);
+                return self::pickerTitles(self::matchingIds($livewire instanceof EditEntry ? $candidates->whereKeyNot($livewire->getRecord()->id) : $candidates, $search), $livewire);
             })
             ->getOptionLabelUsing(fn (string $value, mixed $livewire): string => self::pickerTitles([$value], $livewire)[$value] ?? __('kami::admin.fields.untitled'));
     }
@@ -267,7 +267,7 @@ final class EntryResource extends FilamentResource
      * @param  Builder<Entry>  $candidates
      * @return array<mixed>
      */
-    private static function matches(Builder $candidates, string $search): array
+    private static function matchingIds(Builder $candidates, string $search): array
     {
         return Translation::query()->whereIn('entry_id', $candidates->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
     }

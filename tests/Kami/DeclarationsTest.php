@@ -29,12 +29,12 @@ final class Declared extends ContentType
     }
 }
 
-/** A second type, to clash with the first. */
 final class HierarchicalSingleton extends Singleton
 {
     protected bool $hierarchical = true;
 }
 
+/** A second type, to clash with the first. */
 final class Twin extends ContentType
 {
     public function handle(): string

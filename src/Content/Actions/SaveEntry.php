@@ -299,7 +299,7 @@ final class SaveEntry
 
             if (! Entry::query()->withUnpublished()->ofType($contentType->handle())->where('site', $site->handle)->whereKey($value)->exists()) {
                 $fail(__('validation.exists'));
-            } elseif ($entry instanceof Entry && in_array($entry->id, [$value, ...Ancestors::ids($value)], true)) {
+            } elseif ($entry instanceof Entry && in_array($entry->id, Ancestors::ids($value), true)) {
                 $fail(__('kami::admin.fields.parent_cycle'));
             }
         };
@@ -309,6 +309,7 @@ final class SaveEntry
     private function reservePath(ContentType $contentType, Site $site, Entry $entry, string $locale, ?string $slug): void
     {
         $locales = $locale === '*' ? $site->locales : [$locale];
+        // ponytail: no ancestor's slug, so a Parent change moves no Path; M10's hierarchical URLs add them.
         $path = Path::of($contentType, $slug);
 
         if ($path === null) {

@@ -21,6 +21,7 @@ use Psyao\Kami\Routing\Internal\Path;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
+use Workbench\App\Content\Project;
 use Workbench\App\Content\Tag;
 use Workbench\App\Models\User;
 
@@ -311,4 +312,31 @@ it('reads the table in an exact number of queries, whatever the rows', function 
     page('C', ['parent' => $parent->id]);
 
     expect($first)->toBe(9)->and($count())->toBe($first);
+});
+
+it('reads one list on a type no longer hierarchical, whatever Parents its rows kept', function () {
+    $save = resolve(SaveEntry::class);
+    $one = $save->handle(Project::class, ['title' => 'One'], locale: 'fr');
+    $two = $save->handle(Project::class, ['title' => 'Two'], locale: 'fr');
+    DB::table('kami_entries')->where('id', $two->id)->update(['parent_id' => $one->id]);
+
+    resolve(ReorderEntries::class)->handle(new Project, [$two->id, $one->id]);
+
+    expect($two->fresh()->position)->toBe(1)
+        ->and(ReorderEntries::next(new Project))->toBe(3);
+});
+
+it('ignores a Parent that is not a string on the create page', function () {
+    level('administrator');
+
+    Livewire::withQueryParams(['parent' => ['x']])->test(CreateEntry::class)->assertSchemaStateSet(['parent' => null], 'form');
+});
+
+it('stops at a cycle concurrent moves could close', function () {
+    $save = resolve(SaveEntry::class);
+    $top = $save->handle(Tag::class, ['title' => 'Top']);
+    $bottom = $save->handle(Tag::class, ['title' => 'Bottom', 'parent' => $top->id]);
+    DB::table('kami_entries')->where('id', $top->id)->update(['parent_id' => $bottom->id]);
+
+    expect($bottom->ancestors()->pluck('title')->all())->toBe(['Top', 'Bottom']);
 });
