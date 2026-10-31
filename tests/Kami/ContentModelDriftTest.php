@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
@@ -53,6 +54,23 @@ it('reports each column and table that disagrees, on this engine', function () {
         ->expectsOutputToContain('The Field body of the type page has no column')
         ->expectsOutputToContain('kami_type_label.colour has type integer')
         ->assertFailed();
+});
+
+it('runs every check under a table prefix', function () {
+    config(['database.connections.prefixed' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => 'app_'], 'database.default' => 'prefixed']);
+    $this->artisan('migrate', ['--path' => [dirname(__DIR__, 2) . '/database/migrations', dirname(__DIR__, 2) . '/workbench/database/migrations'], '--realpath' => true])->assertSuccessful();
+    $page = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'slug' => 'kami']);
+    DB::table('kami_references')->insert(['id' => (string) Str::ulid(), 'source_entry_id' => $page->id, 'field' => 'relatd', 'target_entry_id' => $page->id, 'position' => 0]);
+
+    $drift = resolve(ContentModelDrift::class);
+    $messages = fn (array $problems): string => implode(' ', array_column($problems, 'message'));
+
+    expect($drift->problems())->toBe([])
+        ->and($messages($drift->strandedValues()))->toContain('are under relatd, which no relation Field declares');
+
+    Schema::create('kami_type_ghost', fn (Blueprint $table) => $table->string('locale'));
+
+    expect($messages($drift->problems()))->toContain('The table app_kami_type_ghost belongs to no declared type');
 });
 
 it('warns about a value left on the row a Field no longer reads, without failing', function () {

@@ -13,7 +13,7 @@ Kami (`psyao/kami`) is a CMS package installed into this Laravel application. It
 - `Psyao\Kami\Support\SecurityHeaders` is appended to the `web` group and `'kami.security-headers:admin'` ends the panel's middleware. Front markup loads scripts and styles from built files, since the policy blocks inline ones.
 - Access checks target Permissions, such as `kami.entries.{type}.publish` or `kami.users.manage`, through Laravel's Gate, never a Role. Roles are declared in `config/kami.php`, and the panel's User model implements `Psyao\Kami\Users\KamiUser` with `Psyao\Kami\Users\HasKamiRoles`.
 - `php artisan kami:install --no-interaction` is the install, deploy and upgrade step, safe to rerun: run it after every deploy, an update of Kami included, then `php artisan optimize`. Run `optimize` again after any change to `.env`: a cached configuration no longer reads it.
-- `kami:install` also moves Paths to follow a changed Prefix or a new Locale, and fails on a Path clash.
+- `kami:install` also moves Paths to follow a changed Prefix or a new Locale, and fails on a Path clash, or on content model drift: declarations and database that disagree, with the migration or `ContentMigrator` call to write.
 - `php artisan kami:doctor` checks the environment: run it after any change to PHP, its extensions, `.env` or the database. It sees the command line's PHP, which on shared hosting differs from the web's.
 - The site runs on shared hosting: work happens inside the web request or over SSH, with the database and `file` stores, and front assets are built before the deploy and copied with the code.
 - Dates are stored and computed in UTC: Kami sets `app.timezone` to UTC, and the application's code keeps it.

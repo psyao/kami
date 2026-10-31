@@ -67,7 +67,8 @@ expect_page /smoke Bonjour
 expect_page /en/smoke Hello
 
 # Drift fails the deploy with a non-zero exit code and takes no Path away, on the host's PHP and MariaDB.
-paths() {
+# Creates or drops the table with no declared type, and prints the 200 rows' count.
+drifted_table() {
     docker compose run -T --rm cli php -r '
         require "vendor/autoload.php";
         $app = require "bootstrap/app.php";
@@ -78,7 +79,7 @@ paths() {
         echo Illuminate\Support\Facades\DB::table("kami_paths")->where("status", 200)->count();
     ' -- "$@"
 }
-before=$(paths create)
+before=$(drifted_table create)
 if output=$(docker compose run -T --rm cli php artisan kami:install --no-interaction 2>&1); then
     echo "kami:install passed on a table with no declared type"
     failed=1
@@ -88,7 +89,7 @@ elif ! grep -qF 'kami_type_drifted belongs to no declared type' <<<"$output"; th
 else
     echo "kami:install: refused the drift"
 fi
-after=$(paths drop)
+after=$(drifted_table drop)
 if [ "$before" != "$after" ]; then
     echo "The drift failure changed the 200 rows: $before, then $after"
     failed=1

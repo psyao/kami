@@ -69,7 +69,7 @@ final class ColumnTypes
         }
 
         if ($declared !== 'json') {
-            return DB::connection()->getDriverName() !== 'sqlite';
+            return $reported === 'longtext'; // MariaDB's: no Field declares that type.
         }
 
         return DB::table($table)->whereNotNull($column)->select($column)->cursor()->every(fn (object $row): bool => is_string($row->{$column}) && is_array(json_decode($row->{$column}, true)));

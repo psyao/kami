@@ -6,6 +6,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Number;
@@ -14,6 +15,7 @@ use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Schema\ContentMigrator;
+use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
@@ -227,6 +229,13 @@ it('fails on a Singleton with several Entries, not on clashes', function () {
         ->not->toContain('Change one of the two slugs');
 
     expect(DB::table('kami_paths')->where('status', 200)->count())->toBe(2);
+});
+
+it('fails on a Global Set with several Entries', function () {
+    deployed([Footer::class], [Footer::class]);
+    DB::table('kami_entries')->insert(DB::table('kami_entries')->where('type', 'footer')->get()->map(fn (object $entry): array => [...(array) $entry, 'id' => strtolower((string) Str::ulid())])->all());
+
+    expect(failedInstall())->toContain('The Singleton footer has several Entries');
 });
 
 it('costs the same number of queries at any volume', function () {

@@ -41,7 +41,7 @@ final readonly class ContentModelDrift
 
             if ($type instanceof Singleton && $this->entries($type)->offset(1)->limit(1)->exists()) {
                 $problems[] = $this->error(
-                    "The Singleton {$type->handle()} has several Entries in the " . Site::current()->handle . ' Site, and its one address and page can only answer for one.',
+                    "The Singleton {$type->handle()} has several Entries in the " . Site::current()->handle . ' Site, where its page and reads can only answer for one.',
                     'extend ContentType again, or delete the Entries to lose in a migration.',
                 );
             }
@@ -61,11 +61,11 @@ final readonly class ContentModelDrift
 
         foreach ($this->types->all() as $type) {
             foreach ($type->columnFields() as $field) {
-                $translatable = $type->isTranslatable($field);
                 $query = DB::table(self::TABLE_PREFIX . $type->handle())->whereNotNull($field->handle);
 
-                if (($translatable ? $query->where('locale', '*') : $query->where('locale', '!=', '*'))->exists()) {
-                    $problems[] = $this->stranded($type, $field, $translatable, 'values');
+                // ponytail: every Site's rows, as `ContentMigrator` converts them; V1 multisite takes a Site.
+                if (($type->isTranslatable($field) ? $query->where('locale', '*') : $query->where('locale', '!=', '*'))->exists()) {
+                    $problems[] = $this->stranded($type, $field, 'values');
                 }
             }
 
@@ -81,13 +81,13 @@ final readonly class ContentModelDrift
     private function strandedLinks(ContentType $type): array
     {
         $fields = collect($type->relationFields())->keyBy(fn (Field $field): string => $field->handle);
-        $links = DB::table('kami_references')->join('kami_entries', 'kami_entries.id', '=', 'kami_references.source_entry_id')
-            ->where(['kami_entries.site' => Site::current()->handle, 'kami_entries.type' => $type->handle()])
-            ->select('kami_references.field', DB::raw('case when kami_references.locale is null then 1 else 0 end as shared'))->distinct()->get();
+        // Selected as is, a row per Locale, rather than through a raw `case`, which a table prefix would not reach.
+        $links = $this->entries($type)->join('kami_references', 'kami_references.source_entry_id', '=', 'kami_entries.id')
+            ->select('kami_references.field', 'kami_references.locale')->distinct()->get();
         $problems = [];
 
         foreach ($links as $link) {
-            /** @var object{field: string, shared: int|string} $link */
+            /** @var object{field: string, locale: string|null} $link */
             $field = $fields->get($link->field);
 
             if ($field === null) {
@@ -97,20 +97,22 @@ final readonly class ContentModelDrift
                     "if the Field was renamed, call ContentMigrator::renameField('{$type->handle()}', '{$link->field}', '<handle>') in a migration; otherwise declare it again.",
                     self::GUIDE,
                 );
-            } elseif ($type->isTranslatable($field) === (bool) $link->shared) {
-                $problems[] = $this->stranded($type, $field, $type->isTranslatable($field), 'links');
+            } elseif ($type->isTranslatable($field) === ($link->locale === null)) {
+                $problems[] = $this->stranded($type, $field, 'links');
             }
         }
 
         return array_values(array_unique($problems, SORT_REGULAR));
     }
 
-    private function stranded(ContentType $type, Field $field, bool $translatable, string $what): Problem
+    private function stranded(ContentType $type, Field $field, string $what): Problem
     {
+        $translatable = $type->isTranslatable($field);
+
         return new Problem(
             Severity::Warning,
             "The Field {$field->handle} of the type {$type->handle()} is " . ($translatable ? "translatable, but holds Shared {$what}" : "Shared, but holds {$what} in a Locale") . ': they are kept and no read finds them.',
-            'call ContentMigrator::' . ($translatable ? $this->call('makeTranslatable', $type, $field) : $this->call('makeShared', $type, $field)) . ' in a migration, or revert the declaration.',
+            'call ' . $this->fieldConversion($type, $field, $translatable) . ' in a migration, or revert the declaration.',
             self::GUIDE,
         );
     }
@@ -190,20 +192,21 @@ final readonly class ContentModelDrift
         $fields = array_filter($type->flatFields(), fn (Field $field): bool => $field->isTranslatable());
         $calls = [
             'ContentMigrator::' . ($translatable ? "makeTypeTranslatable('{$handle}', locale: '{$locale}')" : "makeTypeShared('{$handle}', keep: '{$locale}')"),
-            ...array_map(fn (Field $field): string => 'ContentMigrator::' . $this->call($translatable ? 'makeTranslatable' : 'makeShared', $type, $field), array_values($fields)),
+            ...array_map(fn (Field $field): string => $this->fieldConversion($type, $field, $translatable), array_values($fields)),
         ];
 
         return [$this->error(
-            "The type {$handle} is " . ($translatable ? 'translatable, but its Entries hold a Shared Translation' : 'not translatable, but its Entries hold Locale Translations') . ', and would lose their addresses.',
+            "The type {$handle} is " . ($translatable ? 'translatable, but its Entries hold a Shared Translation' : 'not translatable, but its Entries hold Locale Translations') . ($type->isRoutable() ? ', and would lose their addresses.' : ', which no read finds.'),
             'call ' . implode(', ', $calls) . ' in a migration, or revert $translatable.',
         )];
     }
 
-    private function call(string $operation, ContentType $type, Field $field): string
+    /** The call moving a Field's rows to the scope it is declared in. */
+    private function fieldConversion(ContentType $type, Field $field, bool $translatable): string
     {
-        $keep = $operation === 'makeShared' ? ", keep: '" . Site::current()->defaultLocale() . "'" : '';
-
-        return "{$operation}('{$type->handle()}', '{$field->handle}'{$keep})";
+        return $translatable
+            ? "ContentMigrator::makeTranslatable('{$type->handle()}', '{$field->handle}')"
+            : "ContentMigrator::makeShared('{$type->handle()}', '{$field->handle}', keep: '" . Site::current()->defaultLocale() . "')";
     }
 
     /** ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's. */
