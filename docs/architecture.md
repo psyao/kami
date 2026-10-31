@@ -38,7 +38,7 @@ Each line can be accepted or contested on its own. The link gives the reasons.
 30. **MIT for good**, no CLA. ([ADR 0034](adr/0034-mit-licence-held-for-good.md))
 31. **Package migrations append-only** from the first production install, squashed only in a major under an Upgrade floor. ([ADR 0035](adr/0035-package-migrations-append-only-squashed-only-in-a-major.md))
 32. **Host applications may mount Kami pages in their session**, and Kami never shadows a host route. ([ADR 0038](adr/0038-host-applications-may-mount-kami-pages-in-their-session.md))
-33. **Supported platforms.** PHP `^8.5`, Laravel `^13.32`, Filament `^5.10` (the lowest versions the test tooling resolves, so the Lowest job tests the declared floor; 5.10 is the first to put the CSP nonce on its inline scripts, ADR 0018); MariaDB 10.11, MySQL 8.4, PostgreSQL 15, SQLite 3.35. Releases by release-please, one per milestone in 0.x; 1.0 once the three sites run on one 0.x for 30 days without a break. ([Release policy and licence](https://github.com/psyao/kami/issues/30#issuecomment-6426631878))
+33. **Supported platforms.** PHP `^8.5`, Laravel `^13.32`, Filament `^5.10.2` (the lowest versions the test tooling resolves, so the Lowest job tests the declared floor; 5.10 is the first to put the CSP nonce on its inline scripts, ADR 0018, and 5.10.2 the first with the keyboard buttons of a reorderable table, ADR 0023); MariaDB 10.11, MySQL 8.4, PostgreSQL 15, SQLite 3.35. Releases by release-please, one per milestone in 0.x; 1.0 once the three sites run on one 0.x for 30 days without a break. ([Release policy and licence](https://github.com/psyao/kami/issues/30#issuecomment-6426631878))
 
 ## Vision and principles
 
@@ -388,7 +388,7 @@ What Kami and its starter kit require, and what was rejected. Facts about the ca
 | Package | Role | Licence | Maintenance | Rejected alternative | Shared hosting |
 | --- | --- | --- | --- | --- | --- |
 | `laravel/framework` `^13.32` | Framework | MIT | Laravel, active (13.38.0 at research) | none | Yes |
-| `filament/filament` `^5.10` (official `filament/*` only) | Admin panel, through `KamiPlugin` | MIT | Filament, active (5.10.3, 2026-10) | Two majors at once; third-party Filament plugins (ADR 0023) | Yes: precompiled assets, no Node |
+| `filament/filament` `^5.10.2` (official `filament/*` only) | Admin panel, through `KamiPlugin` | MIT | Filament, active (5.10.3, 2026-10) | Two majors at once; third-party Filament plugins (ADR 0023) | Yes: precompiled assets, no Node |
 | `spatie/laravel-package-tools` | Registers config, migrations, views, translations and commands | MIT | Spatie, active; already pulled by Filament | A plain `ServiceProvider`, about 20 more lines ([#10](https://github.com/psyao/kami/issues/10)) | Yes |
 | `ueberdosis/tiptap-php` `^2` | Parses, normalises and renders rich text in the core | MIT | Active (2.2.1, 2026-10); already required by `filament/forms` | HTML plus a sanitiser; Filament's `RichContentRenderer` (ADR 0016) | Yes, except `CodeBlockShiki` (`proc_open` + Node), never registered |
 | `intervention/image` `^4` | Engine behind Laravel 13's `Image` facade, for Conversions | MIT | Active (4.4.0, 2026-10) | `spatie/laravel-medialibrary`, Glide 4, `awcodes/filament-curator` (ADR 0017) | Yes, GD or Imagick |
