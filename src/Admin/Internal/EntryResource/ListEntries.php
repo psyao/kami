@@ -11,10 +11,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Locked;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\ReorderEntries;
-use Psyao\Kami\Sites\Internal\Site;
 
 /** @internal */
 final class ListEntries extends ListRecords
@@ -30,14 +28,7 @@ final class ListEntries extends ListRecords
     {
         parent::mount();
 
-        $parent = request()->query('parent');
-
-        if ($parent === null) {
-            return;
-        }
-
-        abort_unless(EntryResource::type()->isHierarchical() && is_string($parent) && EntryResource::getEloquentQuery()->where('site', Site::current()->handle)->whereKey($parent)->exists(), 404);
-        $this->parent = $parent;
+        $this->parent = EntryResource::requestedParent();
     }
 
     protected function getHeaderActions(): array
@@ -61,15 +52,9 @@ final class ListEntries extends ListRecords
             return parent::getBreadcrumbs();
         }
 
-        $ids = array_reverse(Ancestors::ids($this->parent));
-        $titles = EntryResource::pickerTitles($ids, $this);
-        $breadcrumbs = [EntryResource::getUrl() => EntryResource::getPluralModelLabel()];
+        $breadcrumbs = EntryResource::levelBreadcrumbs($this->parent, $this);
 
-        foreach ($ids as $id) {
-            $breadcrumbs[$id === $this->parent ? 0 : EntryResource::getUrl(parameters: ['parent' => $id])] = $titles[$id] ?? __('kami::admin.fields.untitled');
-        }
-
-        return $breadcrumbs;
+        return [...array_slice($breadcrumbs, 0, -1), ...array_slice(array_values($breadcrumbs), -1)];
     }
 
     /**

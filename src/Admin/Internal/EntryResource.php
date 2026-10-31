@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
@@ -46,6 +47,7 @@ use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
@@ -251,7 +253,7 @@ final class EntryResource extends FilamentResource
         return SelectInput::make('parent')
             ->label(__('kami::admin.fields.parent'))
             ->searchable()
-            ->default(fn (): ?string => is_string($parent = request()->query('parent')) ? $parent : null)
+            ->default(fn (mixed $livewire): ?string => $livewire instanceof CreateEntry ? $livewire->parent : null)
             ->disabled(fn (): bool => ! self::can('reorder'))
             // Itself and its children stay offered: `SaveEntry` refuses them.
             ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matchingIds(self::getEloquentQuery()->where('site', Site::current()->handle), $search), $livewire))
@@ -295,6 +297,55 @@ final class EntryResource extends FilamentResource
                     throw ValidationException::withMessages(['mountedActions.0.data.title' => Arr::flatten($exception->errors())]);
                 }
             });
+    }
+
+    /** The Parent the request's `?parent=` names, or null; 404 when the type or the Site has no such Parent. */
+    public static function requestedParent(): ?string
+    {
+        $parent = request()->query('parent');
+
+        if ($parent === null) {
+            return null;
+        }
+
+        abort_unless(self::type()->isHierarchical() && is_string($parent) && self::getEloquentQuery()->where('site', Site::current()->handle)->whereKey($parent)->exists(), 404);
+
+        return $parent;
+    }
+
+    /**
+     * The way down to a level: the type's list, then each Parent, all linked to their children.
+     *
+     * @return array<string, string>
+     */
+    public static function levelBreadcrumbs(?string $parent, mixed $livewire): array
+    {
+        $breadcrumbs = [self::getUrl() => self::getPluralModelLabel()];
+
+        if ($parent === null) {
+            return $breadcrumbs;
+        }
+
+        $ids = array_reverse(Ancestors::ids($parent));
+        $titles = self::pickerTitles($ids, $livewire);
+
+        foreach ($ids as $id) {
+            $breadcrumbs[self::getUrl(parameters: ['parent' => $id])] = $titles[$id] ?? __('kami::admin.fields.untitled');
+        }
+
+        return $breadcrumbs;
+    }
+
+    /**
+     * On a hierarchical type, Cancel leads to the level, not to the browser's previous page: after a save or a Locale switch, that is not the list.
+     *
+     * @param  Closure(): ?string  $parent
+     */
+    public static function cancelToLevel(Action $cancel, Closure $parent): Action
+    {
+        return self::type()->isHierarchical()
+            ? $cancel->alpineClickHandler(null)->url(fn (): string => self::getUrl(parameters: array_filter(['parent' => $parent()])))
+            : $cancel;
     }
 
     /**
