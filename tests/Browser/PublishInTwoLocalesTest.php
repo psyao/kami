@@ -32,8 +32,8 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
     $entry = Entry::query()->sole();
 
     foreach (['/admin/articles', "/admin/articles/{$entry->id}/edit", "/admin/articles/{$entry->id}/edit/en"] as $url) {
-        visit($url)->inDarkMode()->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
-        visit($url)->on()->mobile()->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        visit($url)->inDarkMode()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        visit($url)->on()->mobile()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
     }
 
     visit('/articles/bonjour')->assertSee('Bonjour')->assertNoAccessibilityIssues(3)->assertNoJavaScriptErrors();

@@ -9,6 +9,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Entries;
+use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\ContentTypes;
@@ -79,6 +80,22 @@ final class WithRequired extends Taxonomy
     public function fields(): array
     {
         return [Text::make('code')->required()];
+    }
+}
+
+final class WithPartialDefault extends Taxonomy
+{
+    public function fields(): array
+    {
+        return [Group::make('place', [Text::make('street')->required(), Text::make('city')])->default(['city' => 'Vevey'])];
+    }
+}
+
+final class WithWholeDefault extends Taxonomy
+{
+    public function fields(): array
+    {
+        return [Group::make('place', [Text::make('street')->required()])->default(['street' => 'Rue du Lac'])];
     }
 }
 
@@ -221,6 +238,10 @@ it('refuses wrong declarations at first read', function (Closure $declare, strin
         config(['kami.types' => [WithRequired::class, Classified::class]]);
         declaredWith(Terms::make('tags')->of(WithRequired::class));
     }, '"code"'],
+    'quick create needing a required sub-Field its Group\'s default leaves out' => [function () {
+        config(['kami.types' => [WithPartialDefault::class, Classified::class]]);
+        declaredWith(Terms::make('places')->of(WithPartialDefault::class));
+    }, '"place"'],
     'quick create of a Singleton' => [function () {
         config(['kami.types' => [Home::class, Classified::class]]);
         declaredWith(Entries::make('home')->of(Home::class)->creatable());
@@ -228,13 +249,14 @@ it('refuses wrong declarations at first read', function (Closure $declare, strin
 ]);
 
 it('accepts what the quick create refusals leave', function () {
-    config(['kami.types' => [Tag::class, Region::class, WithRequired::class, Article::class, Page::class, Classified::class]]);
+    config(['kami.types' => [Tag::class, Region::class, WithRequired::class, WithWholeDefault::class, Article::class, Page::class, Classified::class]]);
     declaredWith(
         Terms::make('tags')->of(Tag::class),
         Terms::make('both')->of(Tag::class, Region::class)->creatable(false),
         Terms::make('coded')->of(WithRequired::class)->creatable(false),
         Entries::make('related')->of(Article::class, Page::class),
         Entries::make('page')->of(Page::class)->creatable(),
+        Terms::make('places')->of(WithWholeDefault::class),
     );
 
     expect(resolve(ContentTypes::class)->all())->toHaveKey(Classified::class);

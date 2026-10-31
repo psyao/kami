@@ -1140,7 +1140,17 @@ describe('quick create', function () {
         config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create']]);
 
         entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->callAction(quickCreate('genres'), ['title' => 'Essai'])->assertHasNoErrors();
-        expect(Entry::query()->ofType(Genre::class)->exists())->toBeTrue();
+        expect(Entry::query()->withUnpublished()->ofType(Genre::class)->exists())->toBeTrue();
+    });
+
+    it('creates a Draft for an editor who may not publish the Taxonomy, leaving no public page', function () {
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create']]);
+        $this->actingAs(userWithRole('picker'));
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->callAction(quickCreate('genres'), ['title' => 'Essai'])->assertHasNoErrors();
+
+        expect(Entry::query()->ofType(Genre::class)->exists())->toBeFalse()
+            ->and(Entry::query()->withUnpublished()->ofType(Genre::class)->sole()->status)->toBe('draft');
     });
 
     it('shows on the title what SaveEntry refuses', function () {

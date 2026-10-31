@@ -232,7 +232,7 @@ A relation can be conditional, and hidden it loses its links in every Locale. Th
 
 Editors search targets by title and see them in pick order, Drafts included. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
 
-With `->creatable()`, editors holding the target type's `create` Permission also create a target from the picker, with a title alone, in the Locale they edit. It goes through `SaveEntry`, as a Draft. The first read of the declarations refuses it when the picker could not do so: several target types, a Singleton, or a target with a `->required()` Field and no default.
+With `->creatable()`, editors holding the target type's `create` Permission also create a target from the picker, with a title alone, in the Locale they edit. It goes through `SaveEntry`, as a Draft. The first read of the declarations refuses it when the picker could not do so: several target types, a Singleton, or a target with a `->required()` Field its default does not fill.
 
 ### Taxonomies
 
@@ -260,9 +260,9 @@ $term->entries()->withUnpublished()->count();
 Term::query()->ofType(Tag::class)->with('entries')->get(); // no N+1
 ```
 
-`entries()` is an Eloquent relation, across every relation Field naming the Term, in the Locale the Term is read in. Eager loaded, it reads in the current Locale: constrain it with `with(['entries' => fn ($query) => $query->inLocale('en')])`.
+`entries()` is an Eloquent relation, across every relation Field naming the Term, in the Locale the Term is read in. Eager loaded, it reads visible Entries in the current Locale, whatever the Term's query says: constrain it with `with(['entries' => fn ($query) => $query->inLocale('en')])`, or `->withUnpublished()` likewise.
 
-`SaveEntry` publishes a new Term when `status` is left out; a Draft is asked for by name. The picker's creation does the same, so a Tag needs no second step, and takes `create` alone: mind who holds it. A Taxonomy's own form keeps its two buttons, Save draft and Publish.
+`SaveEntry` publishes a new Term when `status` is left out; a Draft is asked for by name. The picker's creation does the same, so a Tag needs no second step, for an editor holding the Taxonomy's `publish`; without it, the Term is a Draft, left out of reads until someone publishes it. A Taxonomy's own form keeps its two buttons, Save draft and Publish.
 
 `Terms` is creatable by default. Name several Taxonomies or a Taxonomy with a required Field, and add `->creatable(false)`, as the first read of the declarations will ask.
 

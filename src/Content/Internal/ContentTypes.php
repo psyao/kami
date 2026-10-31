@@ -212,9 +212,9 @@ final class ContentTypes
             throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" links to " . $target::class . ', which holds one Entry, so its picker cannot create another; add ->creatable(false) or remove ->creatable().');
         }
 
-        foreach ($target->flatFields() as $required) {
-            if ($required->defaultValue() === null && $this->requiresValue($required)) {
-                throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" links to " . $target::class . ", whose Field \"{$required->handle}\" is required with no default, and its picker asks for a title alone; give it a ->default() or add ->creatable(false).");
+        foreach ($target->flatFields() as $targetField) {
+            if ($this->lacksValue($targetField, $targetField->defaultValue())) {
+                throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" links to " . $target::class . ", whose Field \"{$targetField->handle}\" is required with no default, and its picker asks for a title alone; give it a ->default() or add ->creatable(false).");
             }
         }
     }
@@ -288,16 +288,17 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" is required; a Global Set is always published and a relation takes no default, so kami:install could not create it. Remove ->required().");
             }
 
-            if ($field->defaultValue() === null && $this->requiresValue($field)) {
+            if ($this->lacksValue($field, $field->defaultValue())) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is required with no default; a Global Set is always published, so kami:install could not create it. Give it a ->default().");
             }
         }
     }
 
-    /** A Group's required sub-Field needs a value as soon as the Group is saved; a Repeater may have no row. */
-    private function requiresValue(Field $field): bool
+    /** Saved with its default alone, it would be refused: a Group's required sub-Field needs a value as soon as the Group is saved; a Repeater may have no row. */
+    private function lacksValue(Field $field, mixed $default): bool
     {
-        return $field->isRequired() || ($field instanceof Group && array_filter($field->fields(), $this->requiresValue(...)) !== []);
+        return ($field->isRequired() && $default === null)
+            || ($field instanceof Group && collect($field->fields())->contains(fn (Field $sub, string $handle): bool => $this->lacksValue($sub, is_array($default) ? $default[$handle] ?? null : null)));
     }
 
     private function validateLayout(string $class, ContentType $type): void

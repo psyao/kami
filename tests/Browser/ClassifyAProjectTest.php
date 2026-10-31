@@ -37,8 +37,8 @@ it('builds a page with a tab, a condition and a Term created from its picker, an
     expect($project->tags->pluck('title')->all())->toBe(['Laravel']);
 
     foreach (['/admin/projects/create', "/admin/projects/{$project->id}/edit"] as $url) {
-        visit($url)->inDarkMode()->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
-        visit($url)->on()->mobile()->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        visit($url)->inDarkMode()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        visit($url)->on()->mobile()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
     }
 
     visit('/project/refonte')->assertSee('Laravel')->assertSee('Vevey')->assertNoJavaScriptErrors();

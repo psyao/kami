@@ -234,26 +234,28 @@ final class EntryResource extends FilamentResource
     }
 
     /**
-     * Creates a target from its title, through `SaveEntry`, in the Locale edited. It takes the target's `create` Permission alone: a Term is published by default, a Draft otherwise (ADR 0002).
+     * Creates a target from its title, through `SaveEntry`, in the Locale edited, under the target's `create` Permission. A Term is published by default (ADR 0002), unless the editor may not publish its type (ADR 0019); anything else is a Draft.
      *
      * @param  class-string<ContentType>  $target
      */
     private static function withQuickCreate(SelectInput $picker, string $target): SelectInput
     {
         $type = resolve(ContentTypes::class)->find($target) ?? throw new LogicException("No Content Type [{$target}] is declared in kami.types.");
-        $allowed = fn (): bool => Gate::forUser(Filament::auth()->user())->allows('create', [Entry::class, $type->handle()]);
+        $allows = fn (string $ability): bool => Gate::forUser(Filament::auth()->user())->allows($ability, [Entry::class, $type->handle()]);
+        $label = __('kami::admin.actions.create_target', ['type' => $type->label()]);
 
         return $picker
             ->createOptionForm([TextInput::make('title')->label(__('kami::admin.fields.title'))->required()])
-            ->createOptionAction(fn (Action $action): Action => $action->authorize($allowed)
+            ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => $allows('create'))
                 // Named, as a form may hold several pickers (WCAG 2.4.6).
-                ->label(__('kami::admin.actions.create_target', ['type' => $type->label()]))
-                ->modalHeading(__('kami::admin.actions.create_target', ['type' => $type->label()])))
-            ->createOptionUsing(function (array $data, mixed $livewire) use ($target): string {
+                ->label($label)
+                ->modalHeading($label))
+            ->createOptionUsing(function (array $data, mixed $livewire) use ($target, $allows): string {
                 try {
-                    return resolve(SaveEntry::class)->handle($target, ['title' => $data['title']], locale: $livewire instanceof EditEntry ? $livewire->locale : null, actor: Filament::auth()->user())->id;
+                    return resolve(SaveEntry::class)->handle($target, ['title' => $data['title'], ...$allows('publish') ? [] : ['status' => Translation::DRAFT]], locale: $livewire instanceof EditEntry ? $livewire->locale : null, actor: Filament::auth()->user())->id;
                 } catch (ValidationException $exception) {
-                    // Whatever `SaveEntry` refuses comes from the title: the slug and the Path derive from it.
+                    // The form holds the title alone, the slug and the Path derive from it, and the declarations refuse a target needing more.
+                    // ponytail: Filament's internal state path of an action opened first; lifted if a picker's action ever opens from another one.
                     throw ValidationException::withMessages(['mountedActions.0.data.title' => Arr::flatten($exception->errors())]);
                 }
             });
@@ -288,8 +290,10 @@ final class EntryResource extends FilamentResource
      */
     public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null, array $state = []): Entry
     {
+        $isNew = $entry?->translations->whereIn('locale', [$locale, '*'])->isEmpty() ?? true;
+
         // Saving a form's new Translation says Draft: only code naming no status gets a Taxonomy's published default, and the form's button takes no `publish`.
-        if (self::type() instanceof Taxonomy && ! $entry?->translations->whereIn('locale', [$locale, '*'])->isNotEmpty()) {
+        if (self::type() instanceof Taxonomy && $isNew) {
             $status ??= Translation::DRAFT;
         }
 
