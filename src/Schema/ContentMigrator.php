@@ -353,7 +353,7 @@ final class ContentMigrator
         return [
             ...array_fill_keys($ids, [$site->defaultLocale()]),
             ...DB::table('kami_translations')->whereIn('entry_id', $ids)->whereIn('locale', $site->locales)->get()->groupBy('entry_id')
-                ->map(fn (Collection $rows): array => array_map(strval(...), $rows->pluck('locale')->all()))->all(),
+                ->map(fn (Collection $rows): array => array_filter($rows->pluck('locale')->all(), is_string(...)))->all(),
         ];
     }
 
