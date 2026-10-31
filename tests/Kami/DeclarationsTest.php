@@ -8,6 +8,7 @@ use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Singleton;
 
 /** A type whose handle and Fields each test declares. */
 final class Declared extends ContentType
@@ -29,6 +30,11 @@ final class Declared extends ContentType
 }
 
 /** A second type, to clash with the first. */
+final class HierarchicalSingleton extends Singleton
+{
+    protected bool $hierarchical = true;
+}
+
 final class Twin extends ContentType
 {
     public function handle(): string
@@ -124,4 +130,8 @@ it('reads an option\'s label from kami-types by key, or humanises the key', func
 
 it('reserves every Translation attribute as a Field handle', function () {
     expect(Field::RESERVED_HANDLES)->toContain(...Translation::ATTRIBUTES);
+});
+
+it('refuses a hierarchical Singleton', function () {
+    expect(fn () => runWithTypes(HierarchicalSingleton::class))->toThrow(InvalidArgumentException::class, 'HierarchicalSingleton: a Singleton has one Entry');
 });

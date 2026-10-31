@@ -6,7 +6,7 @@ namespace Workbench\App\Content;
 
 use Psyao\Kami\Content\Taxonomy;
 
-/** One name for every Locale, no address of its own: what classifies a Project. */
+/** One name for every Locale, no address of its own: what classifies a Project, in a tree. */
 final class Tag extends Taxonomy
 {
     #[\Override]
@@ -14,4 +14,7 @@ final class Tag extends Taxonomy
 
     #[\Override]
     protected bool $routable = false;
+
+    #[\Override]
+    protected bool $hierarchical = true;
 }

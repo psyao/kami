@@ -8,6 +8,9 @@ return [
         'title' => 'Titre',
         'slug' => 'Slug',
         'slug_help' => 'La dernière partie de l’adresse. Laissé vide, il est tiré du titre.',
+        'parent' => 'Parent',
+        'parent_cycle' => 'Une Entry ne peut pas se placer sous elle-même ni sous un de ses enfants.',
+        'untitled' => 'Sans titre',
         'path_taken' => 'Une autre Entry répond déjà au Prefix de ce type : changez le Prefix.',
         'slug_moves' => 'Le modifier déplace l’adresse : l’ancienne ne répond plus.',
         'published_at' => 'Date de publication',
@@ -27,6 +30,7 @@ return [
     ],
 
     'actions' => [
+        'children' => 'Enfants',
         'create_target' => 'Créer : :type',
         'save_draft' => 'Enregistrer le brouillon',
         'publish' => 'Publier',

@@ -11,7 +11,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
- * Rewrites the Positions of an orderable type's Entries in the current Site. It does not authorise, and dispatches no event: no catalogue event covers it (ADR 0029).
+ * Rewrites the Positions of an orderable type's siblings in the current Site. It does not authorise, and dispatches no event: no catalogue event covers it (ADR 0029).
  *
  * @internal
  */
@@ -21,12 +21,13 @@ final class ReorderEntries
      * The given Entries take the places they already held between them, in the given order; the others keep their rank. So a page of the table, or a search, reorders within what it shows. An id that is no sibling is ignored.
      *
      * @param  array<string>  $order
+     * @param  string|null  $parent  The Parent whose children these are; the root's when null.
      */
-    public function handle(ContentType $type, array $order): void
+    public function handle(ContentType $type, array $order, ?string $parent = null): void
     {
-        DB::transaction(function () use ($type, $order): void {
+        DB::transaction(function () use ($type, $order, $parent): void {
             /** @var array<string, int|string> $positions */
-            $positions = self::siblings($type)->ordered()->toBase()->pluck('position', 'id')->all();
+            $positions = self::siblings($type, $parent)->ordered()->toBase()->pluck('position', 'id')->all();
             $moved = array_values(array_intersect(array_unique($order), array_keys($positions)));
             $isMoved = array_flip($moved);
             $movedIndex = 0;
@@ -51,17 +52,17 @@ final class ReorderEntries
         });
     }
 
-    /** The Position of a new last sibling. */
-    public static function next(ContentType $type): int
+    /** The Position of a new last child of the Parent; of the root when null. */
+    public static function next(ContentType $type, ?string $parent = null): int
     {
         /** @var int|string|null $last */
-        $last = self::siblings($type)->toBase()->max('position');
+        $last = self::siblings($type, $parent)->toBase()->max('position');
 
         return (int) $last + 1;
     }
 
-    private static function siblings(ContentType $type): EntryBuilder
+    private static function siblings(ContentType $type, ?string $parent): EntryBuilder
     {
-        return Entry::query()->withUnpublished()->ofType($type->handle())->where('site', Site::current()->handle);
+        return Entry::query()->withUnpublished()->ofType($type->handle())->where('site', Site::current()->handle)->where('parent_id', $parent);
     }
 }

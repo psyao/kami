@@ -154,6 +154,7 @@ final class EntryResource extends FilamentResource
             TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)->visible($hasSlug)
                 // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
+            ...(self::type()->isHierarchical() ? [self::parentInput()] : []),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
             DateTimePicker::make('published_at')->visible($hasPublication)->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
@@ -169,6 +170,12 @@ final class EntryResource extends FilamentResource
                 ->defaultSort(fn (EntryBuilder $query): Builder => $query->ordered());
         }
 
+        $hierarchical = self::type()->isHierarchical();
+
+        if ($hierarchical) {
+            $table->modifyQueryUsing(fn (EntryBuilder $query, ListEntries $livewire): EntryBuilder => $query->where('parent_id', $livewire->parent));
+        }
+
         return $table
             ->columns([
                 TextColumn::make('title')
@@ -182,7 +189,10 @@ final class EntryResource extends FilamentResource
                     ->dateTime()
                     ->timezone(Site::current()->timezone),
             ])
-            ->recordActions([EditAction::make()]);
+            ->recordActions([
+                ...($hierarchical ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))] : []),
+                EditAction::make(),
+            ]);
     }
 
     public static function getPages(): array
@@ -229,14 +239,37 @@ final class EntryResource extends FilamentResource
             ->multiple()
             ->reorderable()
             ->searchable()
-            ->getSearchResultsUsing(function (string $search, mixed $livewire) use ($field): array {
-                $matches = Translation::query()->whereIn('entry_id', $field->linkable()->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
-
-                return self::pickerTitles($matches, $livewire);
-            })
+            ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matches($field->linkable(), $search), $livewire))
             ->getOptionLabelsUsing(fn (array $values, mixed $livewire): array => self::pickerTitles($values, $livewire));
 
         return $field->isCreatable() ? self::withQuickCreate($picker, $field->targets()[0]) : $picker;
+    }
+
+    /** Searched on the server. Moving changes URLs once they follow the tree, so it takes `reorder`; a disabled field is not saved (ADR 0014). On a create page, the Parent whose children the list showed. */
+    private static function parentInput(): SelectInput
+    {
+        return SelectInput::make('parent')
+            ->label(__('kami::admin.fields.parent'))
+            ->searchable()
+            ->default(fn (): mixed => request()->query('parent'))
+            ->disabled(fn (): bool => ! self::can('reorder'))
+            ->getSearchResultsUsing(function (string $search, mixed $livewire): array {
+                $candidates = self::getEloquentQuery()->where('site', Site::current()->handle);
+
+                return self::pickerTitles(self::matches($livewire instanceof EditEntry ? $candidates->whereKeyNot($livewire->getRecord()->id) : $candidates, $search), $livewire);
+            })
+            ->getOptionLabelUsing(fn (string $value, mixed $livewire): string => self::pickerTitles([$value], $livewire)[$value] ?? __('kami::admin.fields.untitled'));
+    }
+
+    /**
+     * The candidates titled with the search, in any Locale.
+     *
+     * @param  Builder<Entry>  $candidates
+     * @return array<mixed>
+     */
+    private static function matches(Builder $candidates, string $search): array
+    {
+        return Translation::query()->whereIn('entry_id', $candidates->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
     }
 
     /**
@@ -273,7 +306,7 @@ final class EntryResource extends FilamentResource
      * @param  array<mixed>  $entries
      * @return array<string, string>
      */
-    private static function pickerTitles(array $entries, mixed $livewire): array
+    public static function pickerTitles(array $entries, mixed $livewire): array
     {
         $default = Site::current()->defaultLocale();
         $edited = $livewire instanceof EditEntry ? $livewire->locale : $default;

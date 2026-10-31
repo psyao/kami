@@ -14,6 +14,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Declare a Content Type or its Fields, tabs, sections and conditions, with its labels, its view and its migration | `vendor/psyao/kami/docs/guide/content-types.md` |
 | Declare a type with no URL (`$routable = false`) or a Singleton (`Home::entry()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-with-no-url` |
 | Let editors order a type by hand (`$orderable = true`, `Entry::query()->ordered()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-ordered-by-hand` |
+| Put a type's Entries in a tree (`$hierarchical = true`, `parent` on `SaveEntry`, `Term::ancestors()`) | `vendor/psyao/kami/docs/guide/content-types.md#hierarchical-types` |
 | Hold values shown across the Site in a Global Set (`Footer::entry()`), or read `SiteSettings` | `vendor/psyao/kami/docs/guide/content-types.md#global-sets` |
 | Write, publish, schedule or unpublish Entries, from the admin or from code | `vendor/psyao/kami/docs/guide/publishing.md` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |

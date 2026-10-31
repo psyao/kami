@@ -92,6 +92,10 @@ final class EditEntry extends EditRecord
             $values[$key] = $value instanceof Collection ? $value->modelKeys() : $value;
         }
 
+        if (EntryResource::type()->isHierarchical()) {
+            $values['parent'] = $entry->parent_id;
+        }
+
         return $values;
     }
 
