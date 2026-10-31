@@ -43,13 +43,14 @@ While no User holds a Role that grants `kami.users.manage`, `kami:install` gives
 
 ## Permissions
 
-Every check targets a Permission, never a Role. Each declared Content Type has four, named after its handle:
+Every check targets a Permission, never a Role. Each declared Content Type has five, named after its handle:
 
 | Permission | Lets a User |
 | --- | --- |
 | `kami.entries.{type}.view` | list and read the type's Entries |
 | `kami.entries.{type}.create` | create an Entry |
 | `kami.entries.{type}.update` | edit a Draft |
+| `kami.entries.{type}.reorder` | reorder the rows of an [orderable type](content-types.md#types-ordered-by-hand) |
 | `kami.entries.{type}.publish` | publish or unpublish a Translation, or edit a Published or Scheduled one |
 
 `kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.

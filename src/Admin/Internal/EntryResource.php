@@ -163,6 +163,12 @@ final class EntryResource extends FilamentResource
 
     public static function table(Table $table): Table
     {
+        if (self::type()->isOrderable()) {
+            // Paginated: a whole type's rows could exceed shared hosting's memory limit; a row moves within its page (ADR 0023).
+            $table->reorderable('position')->paginatedWhileReordering()->authorizeReorder(fn (): bool => self::can('reorder'))
+                ->defaultSort(fn (EntryBuilder $query): Builder => $query->ordered());
+        }
+
         return $table
             ->columns([
                 TextColumn::make('title')

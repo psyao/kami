@@ -75,6 +75,23 @@ final class Project extends ContentType
 
 Its Entries have no Path and no slug, `$entry->url()` is `null`, its form has no slug field, `SaveEntry` refuses a `slug`, and `kami:doctor` asks for no view. A type that had URLs answers 404 from the deploy on, and the next `kami:install` removes its Paths; its slugs stay stored, so setting it back to `true` restores those addresses. An Entry saved with no slug meanwhile has no address until its next save.
 
+### Types ordered by hand
+
+`protected bool $orderable = true` lets editors drag the type's rows, and the front read the same order:
+
+```php
+final class Project extends ContentType
+{
+    protected bool $orderable = true;
+}
+
+Entry::query()->ofType(Project::class)->ordered()->get();
+```
+
+A new Entry goes last. `SaveEntry` also takes a `position`, for seeders and imports; Entries sharing one read in creation order, so a type made orderable later starts in creation order. A type that is not orderable refuses a `position`.
+
+In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move by dragging, or on a keyboard with the move buttons Filament offers to assistive technology, within the page shown: to move a row further, show more rows per page, or set its `position` in code.
+
 ### Singletons
 
 A type with exactly one Entry per Site, such as a home page, extends `Singleton`:

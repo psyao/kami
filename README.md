@@ -9,7 +9,7 @@ Kami is in early development: so far it covers installation, the environment che
 ## Requirements
 
 - PHP 8.5 or later, with the extensions listed in [Installation](docs/guide/installation.md#requirements)
-- Laravel 13.32 or later and Filament 5.10 or later
+- Laravel 13.32 or later and Filament 5.10.2 or later
 - SQLite, MySQL 8.4, MariaDB 10.11 or PostgreSQL 15 or later
 
 ## Install

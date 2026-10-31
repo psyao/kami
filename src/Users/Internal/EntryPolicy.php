@@ -31,6 +31,11 @@ final class EntryPolicy
         return $this->can($user, $type, 'create');
     }
 
+    public function reorder(Authenticatable $user, string $type): bool
+    {
+        return $this->can($user, $type, 'reorder');
+    }
+
     /** The Translation the Entry is read in: changing a Published or Scheduled one changes what visitors see, so it takes `publish` too (ADR 0019). */
     public function update(Authenticatable $user, Entry $entry): bool
     {

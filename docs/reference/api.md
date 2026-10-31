@@ -37,6 +37,7 @@ Creates or updates one Translation of an Entry: the one way content is written, 
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
 - `protected ?string $model = NULL`: The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
+- `protected bool $orderable = false`: `true` lets editors drag the type's rows, and `ordered()` read that order; a new Entry goes last.
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
 - `protected bool $routable = true`: `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages.
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
@@ -60,6 +61,7 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
+- `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too.
 
