@@ -75,7 +75,7 @@ beforeEach(function () {
 });
 
 /** @return array<string, string> */
-function paths(): array
+function pathsByLocale(): array
 {
     return DB::table('kami_paths')->orderBy('locale')->pluck('path', 'locale')->all();
 }
@@ -125,7 +125,7 @@ describe('a Singleton', function () {
         $home = $save->handle(Home::class, ['title' => 'Accueil', 'status' => 'published', 'intro' => 'Bienvenue'], locale: 'fr');
         $save->handle(Home::class, ['title' => 'Home', 'status' => 'published', 'intro' => 'Welcome'], $home, 'en');
 
-        expect(paths())->toBe(['en' => '', 'fr' => ''])
+        expect(pathsByLocale())->toBe(['en' => '', 'fr' => ''])
             ->and($home->fresh()->slug)->toBeNull();
 
         $this->get('/')->assertOk()->assertSee('Bienvenue');
@@ -192,7 +192,7 @@ describe('a Singleton', function () {
         config(['kami.types' => [Legal::class]]);
         $legal = resolve(SaveEntry::class)->handle(Legal::class, ['title' => 'Legal', 'status' => 'published']);
 
-        expect(paths())->toBe(['en' => 'legal', 'fr' => 'legal'])
+        expect(pathsByLocale())->toBe(['en' => 'legal', 'fr' => 'legal'])
             ->and($legal->url('fr'))->toBe('http://localhost/legal')
             ->and($legal->url('en'))->toBe('http://localhost/en/legal')
             ->and(Legal::entry()?->id)->toBe($legal->id);
@@ -214,7 +214,7 @@ describe('a Singleton', function () {
         DB::table('kami_paths')->delete();
 
         expect(resolve(SyncPaths::class)()['created'])->toBe(1)
-            ->and(paths())->toBe(['fr' => '']);
+            ->and(pathsByLocale())->toBe(['fr' => '']);
     });
 
     it('asks the doctor for no plural label', function () {
