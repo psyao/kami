@@ -77,6 +77,7 @@ return [
                 'label' => ['label' => 'Label'],
                 'url' => ['label' => 'Address'],
             ]],
+            'related' => ['label' => 'Related content'],
             'address' => ['label' => 'Address', 'fields' => [
                 'street' => ['label' => 'Street'],
                 'city' => ['label' => 'City'],

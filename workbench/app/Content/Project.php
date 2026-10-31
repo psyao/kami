@@ -7,6 +7,7 @@ namespace Workbench\App\Content;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
+use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Select;
@@ -43,6 +44,7 @@ final class Project extends ContentType
                 Text::make('street'),
                 Text::make('city'),
             ]),
+            Entries::make('related')->of(Article::class, Page::class),
         ];
     }
 }

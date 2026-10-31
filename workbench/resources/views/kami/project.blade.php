@@ -18,6 +18,13 @@
         @if ($entry->address)
             <address>{{ $entry->address['street'] }}, {{ $entry->address['city'] }}</address>
         @endif
+        @if ($entry->related->isNotEmpty())
+            <ul>
+                @foreach ($entry->related as $related)
+                    <li><a href="{{ $related->url() }}">{{ $related->title }}</a></li>
+                @endforeach
+            </ul>
+        @endif
     </main>
 </body>
 </html>

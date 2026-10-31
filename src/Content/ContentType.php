@@ -8,6 +8,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RelationField;
 use Symfony\Component\HttpFoundation\Response;
 
 /** A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007). */
@@ -48,6 +49,28 @@ abstract class ContentType
     final public function flatFields(): array
     {
         return array_values(array_filter($this->flatten($this->fields()), fn (Field | Layout $item): bool => $item instanceof Field));
+    }
+
+    /**
+     * @internal
+     *
+     * The Fields stored in the type's table; with none, it has no table.
+     *
+     * @return list<Field>
+     */
+    final public function columnFields(): array
+    {
+        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => ! $field instanceof RelationField));
+    }
+
+    /**
+     * @internal
+     *
+     * @return list<RelationField>
+     */
+    final public function relationFields(): array
+    {
+        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => $field instanceof RelationField));
     }
 
     /**

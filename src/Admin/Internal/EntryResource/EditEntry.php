@@ -6,6 +6,7 @@ namespace Psyao\Kami\Admin\Internal\EntryResource;
 
 use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Locked;
 use LogicException;
@@ -13,6 +14,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
@@ -78,10 +80,16 @@ final class EditEntry extends EditRecord
     {
         $entry = $this->getRecord();
         $values = [];
+        $relations = EntryResource::type()->relationFields();
+
+        if ($relations !== []) {
+            References::load([$entry], array_column($relations, 'handle'));
+        }
 
         foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->flatFields())] as $key) {
             // A value fallen back from the default Locale is not this Locale's: saved, it would become its own.
-            $values[$key] = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
+            $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
+            $values[$key] = $value instanceof Collection ? $value->modelKeys() : $value;
         }
 
         return $values;

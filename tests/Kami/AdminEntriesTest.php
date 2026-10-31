@@ -954,3 +954,98 @@ it('hides the slug of a type with no URL and saves it without one', function () 
     expect(DB::table('kami_paths')->count())->toBe(0)
         ->and(Entry::query()->findOrFail($entry->id)->quote)->toBe('Soigné.');
 });
+
+/** @return array{0: Entry, 1: Entry, 2: Entry} A Project and two Articles it may link to. */
+function projectAndTargets(): array
+{
+    $save = resolve(SaveEntry::class);
+
+    return [
+        $save->handle(Project::class, ['title' => 'Kami'], locale: 'fr'),
+        $save->handle(Article::class, ['title' => 'Bonjour', 'status' => 'draft'], locale: 'fr'),
+        $save->handle(Article::class, ['title' => 'Salut', 'status' => 'draft'], locale: 'fr'),
+    ];
+}
+
+it('saves picked Entries in the order given, and fills them back so', function () {
+    [$project, $hello, $hi] = projectAndTargets();
+
+    entryPage(EditEntry::class, 'project', ['record' => $project->id])
+        ->set('data.related', [$hi->id, $hello->id])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $page = entryPage(EditEntry::class, 'project', ['record' => $project->id]);
+
+    expect($page->get('data.related'))->toBe([$hi->id, $hello->id]);
+
+    $page->set('data.related', [$hello->id, $hi->id])->call('save')->assertHasNoErrors();
+
+    expect(entryPage(EditEntry::class, 'project', ['record' => $project->id])->get('data.related'))->toBe([$hello->id, $hi->id]);
+});
+
+it('shows a refused target as an error on the picker', function () {
+    [$project] = projectAndTargets();
+
+    entryPage(EditEntry::class, 'project', ['record' => $project->id])
+        ->set('data.related', ['01JAAAAAAAAAAAAAAAAAAAAAAA'])
+        ->call('save')
+        ->assertHasErrors(['data.related.0']);
+});
+
+it('shows a target of the wrong type as an error on the picker', function () {
+    [$project] = projectAndTargets();
+    $other = resolve(SaveEntry::class)->handle(Testimonial::class, ['title' => 'Une cliente'], locale: 'fr');
+
+    entryPage(EditEntry::class, 'project', ['record' => $project->id])
+        ->set('data.related', [$other->id])
+        ->call('save')
+        ->assertHasErrors(['data.related']);
+});
+
+it('searches targets on the server, among the named types and the Site, and labels picks by title', function () {
+    [$project, $hello] = projectAndTargets();
+    $picker = entryPage(EditEntry::class, 'project', ['record' => $project->id])->instance()->getSchema('form')->getComponent('related');
+
+    expect($picker->getSearchResults('bon'))->toBe([$hello->id => 'Bonjour'])
+        ->and($picker->getSearchResults('Kami'))->toBe([])
+        ->and($picker->getOptionLabels())->toBe([]);
+});
+
+it('labels a pick with the Locale edited, or the default one', function () {
+    [$project, $hello, $hi] = projectAndTargets();
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $hello, 'en');
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'slug' => 'kami-en'], $project, 'en');
+    resolve(SaveEntry::class)->handle(Project::class, ['related' => [$hello->id, $hi->id]], $project, 'fr');
+
+    $picker = entryPage(EditEntry::class, 'project', ['record' => $project->id, 'locale' => 'en'])->instance()->getSchema('form')->getComponent('related');
+
+    expect($picker->getOptionLabels())->toEqualCanonicalizing([$hello->id => 'Hello', $hi->id => 'Salut']);
+});
+
+it('finds and labels a target titled only in another Locale, and lists a target once', function () {
+    [$project, $hello] = projectAndTargets();
+    $english = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Only English'], locale: 'en');
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour you'], $hello, 'en');
+
+    $picker = entryPage(EditEntry::class, 'project', ['record' => $project->id])->instance()->getSchema('form')->getComponent('related');
+
+    expect($picker->getSearchResults('Only'))->toBe([$english->id => 'Only English'])
+        ->and($picker->getSearchResults('Bonjour'))->toBe([$hello->id => 'Bonjour']);
+});
+
+it('opens an Entry page in an exact number of queries, with relations', function (int $targets) {
+    [$project] = projectAndTargets();
+    $ids = [];
+
+    for ($i = 1; $i <= $targets; $i++) {
+        $ids[] = resolve(SaveEntry::class)->handle(Article::class, ['title' => "Article {$i}"], locale: 'fr')->id;
+    }
+
+    resolve(SaveEntry::class)->handle(Project::class, ['related' => $ids], $project, 'fr');
+
+    DB::enableQueryLog();
+    $this->get("/admin/projects/{$project->id}/edit")->assertOk();
+
+    expect(DB::getQueryLog())->toHaveCount(9);
+})->with([1, 5]);

@@ -60,7 +60,9 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - `Entries::make()->of(Type::class, ...)` links Entries.
   - `Terms::make()->of(Taxonomy::class)` links Terms: multiple and creatable from the picker by default, and its target must be a `Taxonomy`.
   - `Media::make()` links Media.
-  - `Entries` and `Terms` are both `final`, built on an internal base. All three store in `kami_references` (ADR 0005) and keep the order of selection.
+  - `Entries` and `Terms` are both `final`, on `RelationField`. As with `StructuredField`, it is public because a public class may not extend an internal one (ADR 0010); its internals are `@internal`, and a site does not extend it. All three store in `kami_references` (ADR 0005) and keep the order of selection.
+  - The picker is Filament's reorderable `Select`, which reorders by dragging only: a keyboard removes a target and picks it again. This weighs Accessibility against Simplicity: every order stays reachable by keyboard, at more keystrokes on a long list, and a row per target with buttons would add one component per link and more queries per page. Accessibility still holds its requirement (WCAG 2.1.1); a friction reopens it.
+  - A relation has no column, so no default, index or condition reading it, and it stays out of a Repeater or Group: all boot errors. Its Fallback follows other Fields' (ADR 0013): blank is no row, and targets are checked in the Locale read, whichever Locale's list is read.
 - **Read side.**
   - One `Entry` model exposes Field values as cast attributes (`$project->client`).
   - A type may name its own subclass through `$model` for domain methods. A Taxonomy's default model is `Psyao\Kami\Content\Term extends Entry`, which adds `entries()`, `ancestors()` and its Archive URL.

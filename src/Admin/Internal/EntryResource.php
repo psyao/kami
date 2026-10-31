@@ -40,6 +40,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
@@ -208,6 +209,44 @@ final class EntryResource extends FilamentResource
     public static function locales(): array
     {
         return self::type()->isTranslatable() ? Site::current()->locales : [];
+    }
+
+    /**
+     * A relation Field's input, searched on the server. A keyboard reorders by removing and picking again (ADR 0007).
+     */
+    public static function picker(RelationField $field): SelectInput
+    {
+        return SelectInput::make($field->handle)
+            ->multiple()
+            ->reorderable()
+            ->searchable()
+            ->getSearchResultsUsing(function (string $search, mixed $livewire) use ($field): array {
+                $matches = Translation::query()->whereIn('entry_id', $field->linkable()->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
+
+                return self::pickerTitles($matches, $livewire);
+            })
+            ->getOptionLabelsUsing(fn (array $values, mixed $livewire): array => self::pickerTitles($values, $livewire));
+    }
+
+    /**
+     * Each Entry's title in the Locale edited, or the default one's, or any: a target titled elsewhere stays recognisable.
+     *
+     * @param  array<mixed>  $entries
+     * @return array<string, string>
+     */
+    private static function pickerTitles(array $entries, mixed $livewire): array
+    {
+        $default = Site::current()->defaultLocale();
+        $edited = $livewire instanceof EditEntry ? $livewire->locale : $default;
+
+        /** @var array<string, string> The preferred last, so it wins. */
+        return Translation::query()->whereIn('entry_id', $entries)->whereNotNull('title')->get()
+            ->sortBy(fn (Translation $translation): int => match ($translation->locale) {
+                $edited => 2,
+                $default, '*' => 1,
+                default => 0,
+            })
+            ->pluck('title', 'entry_id')->all();
     }
 
     /**

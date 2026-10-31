@@ -16,4 +16,7 @@ The table is the source of truth for relation fields, such as Terms, Bylines and
 ## Consequences
 
 - Hard deletion cascades: References to or from a deleted Entry or Media item disappear, and the field reads them as absent. The editor is warned before the deletion, through the reverse lookup. A Parent with children cannot be hard-deleted (`RESTRICT`), because silently moving children up would change their URLs. A deleted User sets `created_by` and `updated_by` to null.
+- `target_media_id` has no foreign key until `kami_media` exists: M5 adds it, with its table. Nothing writes the column before then.
+- The table has a ULID `id` beyond the columns above, as every `kami_` table does (ADR 0003), and some hosts set MySQL's `sql_require_primary_key`.
+- References are plain queries inside a request or `SaveEntry`'s transaction, so they behave the same on shared hosting and on a server.
 - A new kind of target needs a new nullable foreign-key column. That is acceptable, because the targets are expected to stay Entries and Media.

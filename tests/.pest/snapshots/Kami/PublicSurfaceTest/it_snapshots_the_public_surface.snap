@@ -52,6 +52,7 @@ class Psyao\Kami\Content\Fields\Date::column() public function column(): string
 class Psyao\Kami\Content\Fields\DateTime final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\DateTime::column() public function column(): string
 class Psyao\Kami\Content\Fields\Email final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Entries final class extends Psyao\Kami\Content\Fields\RelationField
 class Psyao\Kami\Content\Fields\Field abstract class
 class Psyao\Kami\Content\Fields\Field::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Fields\Field::$translatable protected bool $translatable = true
@@ -76,6 +77,8 @@ class Psyao\Kami\Content\Fields\Group::make() public static function make(string
 class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Number::column() public function column(): string
 class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number
+class Psyao\Kami\Content\Fields\RelationField abstract class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\RelationField::of() public function of(string ...$types): static
 class Psyao\Kami\Content\Fields\Repeater final class extends Psyao\Kami\Content\Fields\StructuredField
 class Psyao\Kami\Content\Fields\Repeater::make() public static function make(string $handle, array $fields = []): static
 class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
@@ -136,6 +139,7 @@ permission kami.entries.{type}.view
 permission kami.users.manage
 table kami_entries
 table kami_paths
+table kami_references
 table kami_role_user
 table kami_translations
 table kami_type_site_settings

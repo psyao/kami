@@ -92,6 +92,12 @@ A moment, read as a `CarbonImmutable`, stored in UTC and shown in the Site's tim
 
 An email address.
 
+## `Psyao\Kami\Content\Fields\Entries`
+
+`final class extends Psyao\Kami\Content\Fields\RelationField`
+
+Links to Entries of the types named with `->of()`, read as a Collection in pick order. Shared by default.
+
 ## `Psyao\Kami\Content\Fields\Field`
 
 `abstract class`
@@ -133,6 +139,14 @@ A whole number read as an `int`, or with `->decimal()` a number with two decimal
 
 - `public function column(): string`
 - `public function decimal(): Psyao\Kami\Content\Fields\Number`: A number with up to two decimals, up to 999999.99.
+
+## `Psyao\Kami\Content\Fields\RelationField`
+
+`abstract class extends Psyao\Kami\Content\Fields\Field`
+
+Links to other Entries, in pick order, kept in `kami_references` with no column in the type's table (ADR 0005).
+
+- `public function of(string ...$types): static`: The Content Types it links to.
 
 ## `Psyao\Kami\Content\Fields\Repeater`
 
