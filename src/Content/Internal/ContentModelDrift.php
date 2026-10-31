@@ -81,7 +81,6 @@ final readonly class ContentModelDrift
     private function strandedLinks(ContentType $type): array
     {
         $fields = collect($type->relationFields())->keyBy(fn (Field $field): string => $field->handle);
-        // Selected as is, a row per Locale, rather than through a raw `case`, which a table prefix would not reach.
         $links = $this->entries($type)->join('kami_references', 'kami_references.source_entry_id', '=', 'kami_entries.id')
             ->select('kami_references.field', 'kami_references.locale')->distinct()->get();
         $problems = [];
