@@ -532,3 +532,123 @@ it('goes through more Entries than one batch holds', function () {
     expect(DB::table('kami_type_memo')->where(['locale' => 'fr', 'summary' => 'Partout'])->count())->toBe(501)
         ->and(DB::table('kami_type_memo')->where('locale', '*')->whereNotNull('summary')->count())->toBe(0);
 });
+
+describe('what must not be lost', function () {
+    it('tells json values apart strictly', function (string $kept, string $other) {
+        ($this->declare)(Text::make('summary'));
+        memoRow($entry = memo(), 'fr', ['summary' => $kept]);
+        memoRow($entry, 'en', ['summary' => $other]);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::makeShared('memo', 'summary', keep: 'fr');"))->toThrow(RuntimeException::class, $entry);
+    })->with([
+        'an empty list and text' => ['[]', 'Plain text'],
+        'an empty list and null' => ['[]', 'null'],
+        'a string and a number' => ['{"a":"1"}', '{"a":1}'],
+        'null and false' => ['{"a":null}', '{"a":false}'],
+    ]);
+
+    it('refuses to keep the shared sentinel, or a Locale nothing holds, discarding or not', function (string $operation) {
+        ($this->declare)(Text::make('summary'));
+        translated($entry = memo(), 'fr');
+        memoRow($entry, 'fr', ['summary' => 'Bonjour']);
+
+        foreach (['*', 'xx'] as $keep) {
+            expect(fn () => ($this->inMigration)(sprintf($operation, $keep)))->toThrow(InvalidArgumentException::class, $keep);
+            File::delete(File::glob(database_path('migrations/2100_*')));
+        }
+
+        expect(column($entry, 'summary'))->toBe(['fr' => 'Bonjour'])
+            ->and(DB::table('kami_translations')->where('entry_id', $entry)->value('locale'))->toBe('fr');
+    })->with([
+        "ContentMigrator::makeShared('memo', 'summary', keep: '%s', discardOthers: true);",
+        "ContentMigrator::makeTypeShared('memo', keep: '%s', discardOthers: true);",
+    ]);
+
+    it('keeps a Locale no longer declared, when Entries hold it', function () {
+        ($this->declare)(Text::make('summary'));
+        memoRow($entry = memo(), 'de', ['summary' => 'Hallo']);
+
+        ($this->inMigration)("ContentMigrator::makeShared('memo', 'summary', keep: 'de');");
+
+        expect(column($entry, 'summary'))->toBe(['*' => 'Hallo']);
+    });
+
+    it('counts a shared value makeShared would overwrite, and runs again over what is already shared', function () {
+        ($this->declare)(Text::make('summary'));
+        memoRow($shared = memo(), '*', ['summary' => 'Partout']);
+        memoRow($differs = memo(), '*', ['summary' => 'Partout']);
+        memoRow($differs, 'fr', ['summary' => 'Autre']);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::makeShared('memo', 'summary', keep: 'fr');"))->toThrow(RuntimeException::class, $differs)
+            ->and(column($differs, 'summary'))->toBe(['*' => 'Partout', 'fr' => 'Autre']);
+
+        DB::table('kami_type_memo')->where('entry_id', $differs)->delete();
+        memoRow($other = memo(), 'fr', ['summary' => 'Bonjour']);
+        File::delete(File::glob(database_path('migrations/2100_*')));
+        ($this->inMigration)("ContentMigrator::makeShared('memo', 'summary', keep: 'fr');");
+
+        expect(column($shared, 'summary'))->toBe(['*' => 'Partout'])
+            ->and(column($other, 'summary'))->toBe(['*' => 'Bonjour']);
+    });
+
+    it('counts shared links makeShared would delete', function () {
+        ($one = memo('target')) && ($two = memo('target'));
+        linked($entry = memo(), 'related', null, $one);
+        linked($entry, 'related', 'fr', $two);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::makeShared('memo', 'related', keep: 'fr');"))->toThrow(RuntimeException::class, $entry)
+            ->and(targets($entry, 'related'))->toBe(['*' => [$one], 'fr' => [$two]]);
+    });
+
+    it('replaces a shared Translation holding the same as the kept one', function () {
+        translated($entry = memo(), 'fr');
+        translated($entry, '*', ['title' => 'Title fr', 'slug' => 'slug-fr']);
+
+        ($this->inMigration)("ContentMigrator::makeTypeShared('memo', keep: 'fr');");
+
+        expect(DB::table('kami_translations')->where('entry_id', $entry)->sole()->locale)->toBe('*');
+    });
+
+    it('refuses to overwrite a Locale value with makeTranslatable, before writing anything', function () {
+        ($this->declare)(Text::make('summary'));
+        translated($first = memo(), 'fr');
+        memoRow($first, '*', ['summary' => 'Partout']);
+        translated($second = memo(), 'fr');
+        memoRow($second, '*', ['summary' => 'Partout']);
+        memoRow($second, 'fr', ['summary' => 'Autre']);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'summary');"))->toThrow(RuntimeException::class, $second)
+            ->and(column($first, 'summary'))->toBe(['*' => 'Partout']);
+    });
+
+    it('does not double links makeTranslatable finds already there', function () {
+        $target = memo('target');
+        translated($entry = memo(), 'fr');
+        linked($entry, 'related', null, $target);
+        linked($entry, 'related', 'fr', $target);
+
+        ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'related');");
+
+        expect(targets($entry, 'related'))->toBe(['fr' => [$target]]);
+    });
+
+    it('sends a value to the default Locale when the Entry\'s only Translation is in an undeclared one', function () {
+        ($this->declare)(Text::make('summary'));
+        translated($entry = memo(), 'de');
+        memoRow($entry, '*', ['summary' => 'Partout']);
+
+        ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'summary');");
+
+        expect(column($entry, 'summary'))->toBe(['fr' => 'Partout']);
+    });
+
+    it('refuses renaming a relation Field onto links or a column already there', function (string $to) {
+        ($this->declare)(Text::make('summary'));
+        $target = memo('target');
+        linked($entry = memo(), 'related', null, $target);
+        linked($entry, 'taken', null, $target);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameField('memo', 'related', '{$to}');"))->toThrow(InvalidArgumentException::class, $to)
+            ->and(targets($entry, 'related'))->toBe(['*' => [$target]]);
+    })->with(['taken', 'summary']);
+});

@@ -483,16 +483,16 @@ public function up(): void
 
 | Call | What it does |
 | --- | --- |
-| `renameType('news', 'article')` | Moves the Entries, the table and the index and foreign key names that follow the old handle. An index you named yourself keeps its name. |
+| `renameType('news', 'article')` | Moves the Entries, the table and the index and foreign key names that follow the old handle. An index whose name does not start with the old table's name keeps it. |
 | `renameField('article', 'summary', 'intro')` | Renames the column and its index, or a [relation](#relations)'s links when there is no such column. |
-| `makeTranslatable('article', 'summary')` | Moves a Shared value, or a relation's links, to the Locales where the Entry has a Translation, or to the default Locale when it has none. |
+| `makeTranslatable('article', 'summary')` | Moves a Shared value, or a relation's links, to the declared Locales where the Entry has a Translation, or to the default Locale when it has none. Refuses to overwrite a different value a Locale already holds. |
 | `makeShared('article', 'summary', keep: 'fr')` | Keeps that Locale's value or links as the Shared ones and clears the others. |
 | `makeTypeTranslatable('article', locale: 'fr')` | Moves each `'*'` Translation to that Locale. |
 | `makeTypeShared('article', keep: 'fr')` | Keeps that Locale's Translation as the `'*'` one and deletes the others. |
 | `dropType('news')` | Deletes the table, the Entries, their Translations, Paths and links, including other types' links to them. |
 | `dropLocale('de')` | Deletes the Locale's Translations, Field values, links and Paths. |
 
-`makeShared` and `makeTypeShared` check every Entry first, and throw, naming the Entry, while another Locale holds something else, or the kept Locale nothing; nothing is written then. Pass `discardOthers: true` to lose it. Links compare in pick order, json values whatever the order of their keys.
+`makeShared` and `makeTypeShared` check every Entry first, and throw, naming the Entry, while another Locale holds something else, or the kept Locale nothing; nothing is written then. Pass `discardOthers: true` to lose it. A `keep` of `'*'`, or of a Locale nothing holds, is refused either way. Links compare in pick order, json values whatever the order of their keys.
 
 `dropType` and `dropLocale` are final, and refuse a type or Locale still declared: remove it from `config/kami.php` in the same change. An Entry that `dropLocale` or `discardOthers: true` leaves with no Translation stays, answering nowhere, until one is written.
 
@@ -507,7 +507,7 @@ Back to untranslatable, it is `makeTypeShared('article', keep: 'fr')` and `makeS
 
 The next `kami:install` runs the migration, then moves Paths to follow. A renamed type's default Prefix follows its handle, so its addresses change and the former ones answer 404: keep them with `$prefix`. Rename the type in your `kami-types` labels and `config/kami.php` Roles too, and in views, as nothing in the database holds them.
 
-Each operation works in batches, one transaction each, and runs from the command line, so it can take as long as the Entries need. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone. On MySQL and MariaDB, schema changes do not roll back: a `renameType` that fails partway may need finishing by hand.
+Each operation works in batches and runs from the command line, so it can take as long as the Entries need. A conversion that stops can run again: a batch that moves values is one transaction. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone. On MySQL and MariaDB, schema changes do not roll back: a `renameType` that fails partway may need finishing by hand.
 
 The operations do not reach inside a Repeater or Group: a sub-Field's change is a migration of your own over its json.
 

@@ -22,6 +22,8 @@ use RuntimeException;
  */
 final class ContentMigrator
 {
+    // ponytail: Locales are the `default` Site's, and rows every Site's; V1 multisite takes a Site.
+
     private const int BATCH = 500;
 
     private const string REFERENCES = 'kami_references';
@@ -62,14 +64,20 @@ final class ContentMigrator
             }
         }
 
+        if (Schema::hasColumn($table, $to)) {
+            throw new InvalidArgumentException("{$table}.{$from} cannot become {$to}: that column already exists.");
+        }
+
         if (! Schema::hasColumn($table, $from)) {
+            self::eachBatch($type, function (array $ids) use ($type, $from, $to): void {
+                if (DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $to)->exists()) {
+                    throw new InvalidArgumentException("The relation Field {$from} of {$type} cannot become {$to}: that Field already holds links.");
+                }
+            });
+
             self::eachBatch($type, fn (array $ids) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $from)->update(['field' => $to]));
 
             return;
-        }
-
-        if (Schema::hasColumn($table, $to)) {
-            throw new InvalidArgumentException("{$table}.{$from} cannot become {$to}: that column already exists.");
         }
 
         $index = MakeMigrationCommand::indexName($table, $from);
@@ -105,7 +113,6 @@ final class ContentMigrator
     /** Destroys a Locale: its translations, its rows in every type's table, its references and its paths. The Entries stay. A Locale still declared is refused, as is the Shared `'*'`. */
     public static function dropLocale(string $locale): void
     {
-        // ponytail: the `default` Site's Locales, and every Site's rows; V1 multisite takes a Site.
         if ($locale === self::SHARED || in_array($locale, Site::current()->locales, true)) {
             throw new InvalidArgumentException("The Locale {$locale} is still in use: remove it from kami.sites before dropping it.");
         }
@@ -123,11 +130,23 @@ final class ContentMigrator
         }
     }
 
-    /** Makes a Shared Field translatable: its value, or a relation Field's links, moves to the Locales where the Entry has a translation, to the default Locale when it has none. */
+    /**
+     * Makes a Shared Field translatable: its value, or a relation Field's links, moves to the declared Locales where the Entry has a translation, to the default Locale when it has none.
+     *
+     * @throws RuntimeException While a Locale already holds something else, before anything is written.
+     */
     public static function makeTranslatable(string $type, string $field): void
     {
         $table = self::table($type);
         $column = Schema::hasColumn($table, $field);
+
+        self::eachBatch($type, function (array $ids) use ($type, $table, $field, $column): void {
+            foreach ($column ? self::values($table, $field, $ids) : self::links($field, $ids) as $entry => $held) {
+                if (isset($held[self::SHARED])) {
+                    self::refuseDifference($type, $field, self::SHARED, $entry, $held);
+                }
+            }
+        });
 
         self::eachBatch($type, function (array $ids) use ($table, $field, $column): void {
             $locales = self::localesOf($ids);
@@ -139,7 +158,7 @@ final class ContentMigrator
                     /** @var object{entry_id: string} $row */
                     $entry = $row->entry_id;
 
-                    foreach ($locales[$entry] ?? [Site::current()->defaultLocale()] as $locale) {
+                    foreach ($locales[$entry] as $locale) {
                         $rows[] = ['entry_id' => $row->entry_id, 'locale' => $locale, $field => $row->{$field}];
                     }
                 }
@@ -150,23 +169,26 @@ final class ContentMigrator
                 return;
             }
 
-            $links = DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $field)->whereNull('locale');
+            $links = DB::table(self::REFERENCES)->where('field', $field);
+            $shared = (clone $links)->whereIn('source_entry_id', $ids)->whereNull('locale');
             $rows = [];
 
-            foreach ($links->get() as $link) {
+            foreach ($shared->get() as $link) {
                 /** @var object{source_entry_id: string} $link */
                 $entry = $link->source_entry_id;
 
-                foreach ($locales[$entry] ?? [Site::current()->defaultLocale()] as $locale) {
+                foreach ($locales[$entry] as $locale) {
                     $rows[] = [...(array) $link, 'id' => (string) Str::ulid(), 'locale' => $locale];
                 }
             }
 
+            // What a Locale holds next to shared links was found the same above: the copies replace it, rather than doubling it.
+            (clone $links)->whereIn('source_entry_id', (clone $shared)->pluck('source_entry_id')->all())->whereNotNull('locale')->delete();
+            $shared->delete();
+
             foreach (array_chunk($rows, self::BATCH) as $chunk) {
                 DB::table(self::REFERENCES)->insert($chunk);
             }
-
-            $links->delete();
         });
     }
 
@@ -178,18 +200,20 @@ final class ContentMigrator
     public static function makeShared(string $type, string $field, string $keep, bool $discardOthers = false): void
     {
         $table = self::table($type);
+        $column = Schema::hasColumn($table, $field);
 
-        if (! Schema::hasColumn($table, $field)) {
-            self::makeLinksShared($type, $field, $keep, $discardOthers);
+        self::refuseLoss($type, $field, $keep, $discardOthers, fn (array $ids): array => $column ? self::values($table, $field, $ids) : self::links($field, $ids));
+
+        if (! $column) {
+            self::eachBatch($type, function (array $ids) use ($field, $keep): void {
+                $links = fn (array $entries) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $entries)->where('field', $field);
+
+                $links($links($ids)->where('locale', $keep)->distinct()->pluck('source_entry_id')->all())->whereNull('locale')->delete();
+                $links($ids)->where('locale', $keep)->update(['locale' => null]);
+                $links($ids)->whereNotNull('locale')->delete();
+            });
 
             return;
-        }
-
-        if (! $discardOthers) {
-            self::eachBatch($type, function (array $ids) use ($type, $table, $field, $keep): void {
-                self::refuseLoss($type, $field, $keep, DB::table($table)->whereIn('entry_id', $ids)->where('locale', '!=', self::SHARED)->whereNotNull($field)
-                    ->get()->groupBy('entry_id')->map(fn (Collection $rows): array => $rows->pluck($field, 'locale')->all())->all());
-            });
         }
 
         self::eachBatch($type, function (array $ids) use ($table, $field, $keep): void {
@@ -198,25 +222,6 @@ final class ContentMigrator
 
             DB::table($table)->upsert($rows, ['entry_id', 'locale'], [$field]);
             DB::table($table)->whereIn('entry_id', $ids)->where('locale', '!=', self::SHARED)->update([$field => null]);
-        });
-    }
-
-    private static function makeLinksShared(string $type, string $field, string $keep, bool $discardOthers): void
-    {
-        $links = fn (array $ids) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $field);
-
-        if (! $discardOthers) {
-            self::eachBatch($type, function (array $ids) use ($type, $field, $keep, $links): void {
-                self::refuseLoss($type, $field, $keep, $links($ids)->whereNotNull('locale')->orderBy('position')->get()->groupBy('source_entry_id')->map(
-                    fn (Collection $rows): array => $rows->groupBy('locale')->map(fn (Collection $held): array => $held->map(fn (object $link): mixed => $link->target_entry_id ?? $link->target_media_id)->all())->all(),
-                )->all());
-            });
-        }
-
-        self::eachBatch($type, function (array $ids) use ($keep, $links): void {
-            $links($links($ids)->where('locale', $keep)->distinct()->pluck('source_entry_id')->all())->whereNull('locale')->delete();
-            $links($ids)->where('locale', $keep)->update(['locale' => null]);
-            $links($ids)->whereNotNull('locale')->delete();
         });
     }
 
@@ -237,57 +242,121 @@ final class ContentMigrator
      */
     public static function makeTypeShared(string $type, string $keep, bool $discardOthers = false): void
     {
-        if (! $discardOthers) {
-            self::eachBatch($type, function (array $ids) use ($type, $keep): void {
-                self::refuseLoss($type, 'its Translations', $keep, DB::table('kami_translations')->whereIn('entry_id', $ids)->where('locale', '!=', self::SHARED)->get()->groupBy('entry_id')->map(
-                    fn (Collection $rows): array => $rows->keyBy('locale')->map(fn (object $row): array => Arr::except((array) $row, ['id', 'entry_id', 'locale', 'created_at', 'updated_at']))->all(),
-                )->all());
-            });
-        }
+        self::refuseLoss($type, 'its Translations', $keep, $discardOthers, fn (array $ids): array => DB::table('kami_translations')->whereIn('entry_id', $ids)->get()->groupBy('entry_id')->map(
+            fn (Collection $rows): array => $rows->keyBy('locale')->map(fn (object $row): array => Arr::except((array) $row, ['id', 'entry_id', 'locale', 'created_at', 'updated_at']))->all(),
+        )->all());
 
         self::eachBatch($type, function (array $ids) use ($keep): void {
-            DB::table('kami_translations')->whereIn('entry_id', $ids)->whereNotIn('locale', [$keep, self::SHARED])->delete();
-            DB::table('kami_translations')->whereIn('entry_id', $ids)->where('locale', $keep)->update(['locale' => self::SHARED]);
+            $translations = fn (array $entries) => DB::table('kami_translations')->whereIn('entry_id', $entries);
+
+            $translations($translations($ids)->where('locale', $keep)->pluck('entry_id')->all())->where('locale', self::SHARED)->delete();
+            $translations($ids)->whereNotIn('locale', [$keep, self::SHARED])->delete();
+            $translations($ids)->where('locale', $keep)->update(['locale' => self::SHARED]);
         });
     }
 
-    /** @param  array<array-key, array<array-key, mixed>>  $held  What each Entry holds, by Locale. */
-    private static function refuseLoss(string $type, string $what, string $keep, array $held): void
+    /**
+     * Checks every Entry before a conversion writes. An Entry holding only what is already shared has nothing to lose, so an operation that stopped can run again.
+     *
+     * @param  Closure(array<array-key, string>): array<array-key, array<array-key, mixed>>  $held  What each Entry holds, by Locale.
+     */
+    private static function refuseLoss(string $type, string $what, string $keep, bool $discardOthers, Closure $held): void
     {
-        foreach ($held as $entry => $values) {
-            foreach ($values as $locale => $value) {
-                if (! self::same($value, $values[$keep] ?? null)) {
-                    throw new RuntimeException("The type {$type} cannot share {$what}: Entry {$entry} holds in {$locale} what {$keep} does not, which would be lost. Pass discardOthers: true to lose it.");
+        $unkept = $kept = false;
+
+        self::eachBatch($type, function (array $ids) use ($type, $what, $keep, $discardOthers, $held, &$unkept, &$kept): void {
+            foreach ($held($ids) as $entry => $values) {
+                if (array_keys($values) === [self::SHARED]) {
+                    continue;
                 }
+
+                $unkept = true;
+                $kept = $kept || isset($values[$keep]);
+
+                if (! $discardOthers) {
+                    self::refuseDifference($type, $what, $keep, $entry, $values);
+                }
+            }
+        });
+
+        // Discarding toward a mistyped Locale would keep nothing. A Locale Entries hold passes even undeclared: it may be why the type is converted.
+        if ($keep === self::SHARED || ($unkept && ! $kept)) {
+            throw new InvalidArgumentException("The type {$type} cannot keep {$keep}: no Locale of that name holds {$what}.");
+        }
+    }
+
+    /** @param  array<array-key, mixed>  $values */
+    private static function refuseDifference(string $type, string $what, string $keep, int | string $entry, array $values): void
+    {
+        foreach ($values as $locale => $value) {
+            if (! self::same($value, $values[$keep] ?? null)) {
+                throw new RuntimeException("The type {$type} cannot convert {$what}: Entry {$entry} holds in {$locale} what {$keep} does not, which would be lost. makeShared and makeTypeShared take discardOthers: true to lose it.");
             }
         }
     }
 
-    /** `==` on decoded values leaves out the order of a json object's keys, which MySQL does not keep (ADR 0006). */
+    /** Values compare exactly, json decoded with its keys sorted: MySQL does not keep their order (ADR 0006). */
     private static function same(mixed $a, mixed $b): bool
     {
         if ($a === $b) {
             return true;
         }
 
-        if (is_string($a) && is_string($b)) {
-            [$a, $b] = [json_decode($a, true), json_decode($b, true)];
-
-            return is_array($a) && $a == $b;
+        if (! is_string($a) || ! is_string($b)) {
+            return false;
         }
 
-        return false;
+        [$a, $b] = [json_decode($a, true), json_decode($b, true)];
+
+        return is_array($a) && is_array($b) && self::sorted($a) === self::sorted($b);
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $value
+     * @return array<array-key, mixed>
+     */
+    private static function sorted(array $value): array
+    {
+        ksort($value);
+
+        return array_map(fn (mixed $item): mixed => is_array($item) ? self::sorted($item) : $item, $value);
     }
 
     /**
      * @param  array<array-key, string>  $ids
-     * @return array<array-key, array<array-key, string>> By Entry, the Locales it has a translation in.
+     * @return array<array-key, array<array-key, mixed>> By Entry and Locale, leaving out nulls.
+     */
+    private static function values(string $table, string $field, array $ids): array
+    {
+        return DB::table($table)->whereIn('entry_id', $ids)->whereNotNull($field)->get()->groupBy('entry_id')
+            ->map(fn (Collection $rows): array => $rows->pluck($field, 'locale')->all())->all();
+    }
+
+    /**
+     * @param  array<array-key, string>  $ids
+     * @return array<array-key, array<array-key, mixed>> By Entry and Locale, `'*'` when shared, the targets in pick order.
+     */
+    private static function links(string $field, array $ids): array
+    {
+        return DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $field)->orderBy('position')->get()->groupBy('source_entry_id')->map(
+            fn (Collection $rows): array => $rows->groupBy(fn (object $link): string => is_string($link->locale) ? $link->locale : self::SHARED)
+                ->map(fn (Collection $held): array => $held->map(fn (object $link): mixed => $link->target_entry_id ?? $link->target_media_id)->all())->all(),
+        )->all();
+    }
+
+    /**
+     * @param  array<array-key, string>  $ids
+     * @return array<array-key, array<array-key, string>> By Entry, the declared Locales it has a translation in, or the default one.
      */
     private static function localesOf(array $ids): array
     {
-        /** @var array<array-key, array<array-key, string>> */
-        return DB::table('kami_translations')->whereIn('entry_id', $ids)->where('locale', '!=', self::SHARED)->get()->groupBy('entry_id')
-            ->map(fn (Collection $rows): array => $rows->pluck('locale')->all())->all();
+        $site = Site::current();
+
+        return [
+            ...array_fill_keys($ids, [$site->defaultLocale()]),
+            ...DB::table('kami_translations')->whereIn('entry_id', $ids)->whereIn('locale', $site->locales)->get()->groupBy('entry_id')
+                ->map(fn (Collection $rows): array => $rows->pluck('locale')->all())->all(),
+        ];
     }
 
     /** A delete with a limit does not exist on PostgreSQL. */
