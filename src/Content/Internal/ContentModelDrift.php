@@ -123,7 +123,8 @@ final readonly class ContentModelDrift
         $declared = array_map(fn (ContentType $type): string => $prefix . $type->handle(), array_values($this->types->all()));
         $problems = [];
 
-        foreach (array_unique(Schema::getTableListing(schemaQualified: false)) as $table) {
+        // With no schema named, MySQL, MariaDB and PostgreSQL list what the database user sees in every other database too.
+        foreach (array_unique(Schema::getTableListing(Schema::getCurrentSchemaListing(), schemaQualified: false)) as $table) {
             if (str_starts_with($table, $prefix) && ! in_array($table, $declared, true)) {
                 $handle = substr($table, strlen($prefix));
                 $problems[] = $this->error(

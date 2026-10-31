@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
@@ -19,6 +21,26 @@ use Workbench\App\Content\Tag;
 use Workbench\App\Content\Testimonial;
 
 uses(RefreshDatabase::class);
+
+afterEach(function () {
+    Schema::dropIfExists('kami_type_ghost');
+    Schema::dropIfExists('kami_type_drifted_note');
+});
+
+/** Declared by the test that creates its table, so the Workbench's stay as migrated. */
+final class DriftedNote extends ContentType
+{
+    #[Override]
+    public function handle(): string
+    {
+        return 'drifted_note';
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('subject'), Text::make('colour')];
+    }
+}
 
 beforeEach(function () {
     // Every Workbench table has its type: the suite migrates them all.
@@ -40,21 +62,36 @@ it('reports the same errors as kami:install, and not what the Paths would do', f
 });
 
 it('reports each column and table that disagrees, on this engine', function () {
+    // Tables of their own: MySQL and MariaDB do not roll back a schema change, and the next test would find the Workbench's altered.
+    config(['kami.types' => [...config('kami.types'), DriftedNote::class]]);
     Schema::create('kami_type_ghost', fn (Blueprint $table) => $table->string('locale'));
-    Schema::table('kami_type_page', fn (Blueprint $table) => $table->string('stray')->nullable());
-    Schema::table('kami_type_page', fn (Blueprint $table) => $table->dropColumn('body'));
-    Schema::table('kami_type_label', function (Blueprint $table): void {
-        $table->dropColumn('colour');
+    Schema::create('kami_type_drifted_note', function (Blueprint $table): void {
+        $table->string('entry_id');
+        $table->string('locale');
+        $table->string('stray')->nullable();
+        $table->integer('colour')->nullable();
     });
-    Schema::table('kami_type_label', fn (Blueprint $table) => $table->integer('colour')->nullable());
 
     $this->artisan('kami:doctor')
         ->expectsOutputToContain('The table kami_type_ghost belongs to no declared type')
-        ->expectsOutputToContain('kami_type_page.stray belongs to no Field of the type page')
-        ->expectsOutputToContain('The Field body of the type page has no column')
-        ->expectsOutputToContain('kami_type_label.colour has type integer')
+        ->expectsOutputToContain('kami_type_drifted_note.stray belongs to no Field of the type drifted_note')
+        ->expectsOutputToContain('The Field subject of the type drifted_note has no column')
+        ->expectsOutputToContain('kami_type_drifted_note.colour has type integer')
         ->assertFailed();
 });
+
+it('looks at no table in another database or schema', function () {
+    $other = 'kami_other_' . getmypid();
+    DB::statement("create schema {$other}");
+    DB::statement("create table {$other}.kami_type_elsewhere (locale varchar(20))");
+
+    try {
+        expect(array_column(resolve(ContentModelDrift::class)->problems(), 'message'))->not->toContain('The table kami_type_elsewhere belongs to no declared type.');
+    } finally {
+        DB::statement("drop table {$other}.kami_type_elsewhere");
+        DB::statement("drop schema {$other}");
+    }
+})->skip(fn () => DB::getDriverName() === 'sqlite', 'SQLite has no other schema to create.');
 
 it('runs every check under a table prefix', function () {
     config(['database.connections.prefixed' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => 'app_'], 'database.default' => 'prefixed']);

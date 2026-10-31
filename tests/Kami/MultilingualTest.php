@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Footer;
+use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
+use Workbench\App\Content\Project;
+use Workbench\App\Content\Tag;
+use Workbench\App\Content\Testimonial;
 
 uses(RefreshDatabase::class);
 
@@ -166,18 +170,14 @@ it('warns that Paths lag behind the declarations until the next kami:install', f
 it('warns about content in an undeclared Locale or of an undeclared type, and keeps it', function () {
     $entry = translate('fr', ['title' => 'Bonjour', 'summary' => 'Un article.']);
     translate('en', ['title' => 'Hello', 'summary' => 'An article.'], $entry);
-    translate('*', ['title' => 'Urgent'], type: Label::class);
-    config(['kami.sites.default.locales' => ['fr'], 'kami.types' => [Article::class, Page::class]]);
-    // A table left behind would be drift, which stops the doctor before this report.
-    foreach (Schema::getTableListing(schemaQualified: false) as $table) {
-        if (str_starts_with($table, 'kami_type_') && ! in_array($table, ['kami_type_article', 'kami_type_page', 'kami_type_site_settings'], true)) {
-            Schema::drop($table);
-        }
-    }
+    $gone = translate('*', ['title' => 'Urgent'], type: Label::class);
+    DB::table('kami_entries')->where('id', $gone->id)->update(['type' => 'gone']);
+    // Every Workbench table keeps its type: one left behind would be drift, which stops the doctor before this report.
+    config(['kami.sites.default.locales' => ['fr'], 'kami.types' => [Article::class, Footer::class, Home::class, Label::class, Page::class, Project::class, Tag::class, Testimonial::class]]);
 
     $this->artisan('kami:doctor')
         ->expectsOutputToContain('Rows of kami_translations, kami_type_article are in a Locale the default Site does not declare: en.')
-        ->expectsOutputToContain('Entries are of a type config/kami.php does not declare: label.')
+        ->expectsOutputToContain('Entries are of a type config/kami.php does not declare: gone.')
         ->expectsOutputToContain('docs/guide/multilingual.md#locales')
         ->expectsOutputToContain('docs/guide/content-types.md#declaring-a-type')
         ->doesntExpectOutputToContain('Paths do not follow')
