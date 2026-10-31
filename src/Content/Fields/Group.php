@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Fields;
 
-use Closure;
 use Psyao\Kami\Content\Layout;
 
 /** One set of named sub-Fields, read as an array, `null` when all are blank or off. Shared by default, in one `json` column. */
@@ -28,17 +27,5 @@ final class Group extends StructuredField
         $normalised = parent::normalise($value);
 
         return is_array($normalised) && array_filter($normalised, fn (mixed $sub): bool => $sub !== null && $sub !== false) === [] ? null : $normalised;
-    }
-
-    #[\Override]
-    protected function rowAttribute(string $attribute): string
-    {
-        return $attribute;
-    }
-
-    #[\Override]
-    protected function mapped(array $value, Closure $callback): array
-    {
-        return $this->mappedRow($value, $callback);
     }
 }

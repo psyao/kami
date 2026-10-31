@@ -39,6 +39,6 @@ final class Repeater extends StructuredField
     #[\Override]
     protected function mapped(array $value, Closure $callback): array
     {
-        return array_map(fn (mixed $row): mixed => is_array($row) ? $this->mappedRow($row, $callback) : $row, $value);
+        return array_map(fn (mixed $row): mixed => is_array($row) ? parent::mapped($row, $callback) : $row, $value);
     }
 }

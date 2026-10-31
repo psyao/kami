@@ -111,7 +111,10 @@ abstract class StructuredField extends Field
      *
      * The key under which a sub-Field's rules apply.
      */
-    abstract protected function rowAttribute(string $attribute): string;
+    protected function rowAttribute(string $attribute): string
+    {
+        return $attribute;
+    }
 
     /**
      * @internal
@@ -122,18 +125,9 @@ abstract class StructuredField extends Field
      * @param  Closure(Field, mixed): mixed  $callback
      * @return array<mixed>
      */
-    abstract protected function mapped(array $value, Closure $callback): array;
-
-    /**
-     * @internal
-     *
-     * @param  array<mixed>  $row
-     * @param  Closure(Field, mixed): mixed  $callback
-     * @return array<string, mixed>
-     */
-    final protected function mappedRow(array $row, Closure $callback): array
+    protected function mapped(array $value, Closure $callback): array
     {
-        return array_map(fn (Field $field): mixed => $callback($field, $row[$field->handle] ?? null), $this->fields());
+        return array_map(fn (Field $field): mixed => $callback($field, $value[$field->handle] ?? null), $this->fields());
     }
 
     /** @internal */
