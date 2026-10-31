@@ -52,7 +52,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - A target must be Shared: a Translatable one would answer differently per Locale and through Fallback, so a value given for one Locale could vanish silently while a reader sees the Field apply.
   - A hidden Field is cleared in every Locale, since its target holds for all of them. This weighs Stability (no value lost) against Simplicity (form, import and front agree). Stability's promise covers migrations, not an editor's own change, so it does not outrank here: a value kept would stay readable on the front while no editor can see or edit it, which this ADR refuses. The price is a translation's value, gone with no way back in Kami.
 - **Labels.** Labels, tab titles and help texts never appear in a declaration.
-  - They come from `lang/<locale>/kami-types.php`, by handle.
+  - They come from `lang/<locale>/kami-types.php`, by handle. The package ships those of its own `SiteSettings`, which a site's file overrides.
   - A missing key falls back to the humanised handle.
   - `kami:doctor` lists missing keys.
 - **Reusable fieldsets** are plain PHP, with no Kami concept. A static method returns Fields under a prefix (`...SocialLink::fields('contact_linkedin')`), so columns stay flat, typed and unique.

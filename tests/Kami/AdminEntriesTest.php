@@ -919,6 +919,14 @@ describe('a Global Set in the admin', function () {
         $this->get('/admin/home')->assertOk()->assertDontSee('/admin/footer');
     });
 
+    it('hides its navigation item from a User holding publish without update', function () {
+        config(['kami.roles.publisher' => ['kami.entries.*.view', 'kami.entries.*.publish', 'kami.entries.home.update']]);
+        resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+        $this->actingAs(userWithRole('publisher'));
+
+        $this->get('/admin/home')->assertOk()->assertDontSee('/admin/footer');
+    });
+
     it('has a navigation item for a User holding publish', function () {
         resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
 

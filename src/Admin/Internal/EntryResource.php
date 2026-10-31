@@ -112,10 +112,12 @@ final class EntryResource extends FilamentResource
         return Gate::forUser(Filament::auth()->user())->inspect($ability, $record ?? [Entry::class, self::type()->handle()]);
     }
 
-    /** A Global Set is always published, so its one page takes `publish` (ADR 0019): no navigation item leads to a 403. */
+    /** A Global Set is always published, so its one page takes `update` and `publish` (ADR 0019): no navigation item leads to a 403. */
     public static function canAccess(): bool
     {
-        return parent::canAccess() && (! self::type() instanceof GlobalSet || self::can('publish'));
+        $type = self::type();
+
+        return parent::canAccess() && (! $type instanceof GlobalSet || Gate::forUser(Filament::auth()->user())->check(["kami.entries.{$type->handle()}.update", "kami.entries.{$type->handle()}.publish"]));
     }
 
     public static function getEloquentQuery(): Builder

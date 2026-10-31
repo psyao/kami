@@ -11,13 +11,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Support\Traits\Localizable;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Routing\Internal\SyncPaths;
@@ -39,6 +40,7 @@ use function Laravel\Prompts\text;
 final class InstallCommand extends Command
 {
     use ChecksPrompting;
+    use Localizable;
     use PrintsProblems;
 
     public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types): int
@@ -102,8 +104,16 @@ final class InstallCommand extends Command
                 continue;
             }
 
+            // ponytail: with no value to write, a missing table would seed fine and break every read; the drift check (#182) runs before this step and removes it.
+            if ($type->flatFields() !== [] && ! Schema::hasTable("kami_type_{$type->handle()}")) {
+                $this->components->error("The {$type->handle()} Entry cannot be created: its table does not exist. Run php artisan kami:make:migration {$type->handle()}, then kami:install again.");
+
+                return false;
+            }
+
             try {
-                $save->handle($type->handle(), $type instanceof GlobalSet ? [] : ['title' => $type->label()]);
+                // The Translation is written in the default Locale, whatever `app.locale` says.
+                $save->handle($type->handle(), ['title' => $this->withLocale(Site::current()->defaultLocale(), $type->label(...))]);
             } catch (ValidationException $exception) {
                 $this->components->error("The {$type->handle()} Entry cannot be created: {$exception->getMessage()} Fix its declaration, then run kami:install again.");
 

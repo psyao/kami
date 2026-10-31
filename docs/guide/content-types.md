@@ -117,8 +117,8 @@ final class Footer extends GlobalSet
 ```
 
 - **Reading it.** `Footer::entry()` works in any view and ignores visibility; a blank Translatable value falls back to the default Locale as usual. Each call costs three queries: in a view read several times, keep it in a variable.
-- **Always published.** `kami:install` creates it, and every save publishes it, in each Locale. `SaveEntry` refuses `status` and `published_at`, and fills a blank `title` with the type's label.
-- **No URL.** A `$prefix` is an error, and `$routable` is ignored.
+- **Always published.** `kami:install` creates it in the default Locale, and every save publishes the Locale it writes. `SaveEntry` refuses `status` and `published_at`, and fills a blank `title` with the type's label.
+- **No URL.** A `$prefix` other than its handle is an error, and `$routable` is ignored.
 - **A required Field needs a default.** `kami:install` publishes the Entry before anyone can fill it, so `->required()` with no `->default()`, on a Field or a `Group`'s sub-Field, is an error when the type is first read.
 - **In the admin.** Its form shows its Fields only. Saving changes what visitors see, so its page and navigation item take `publish` as well as `update`.
 
@@ -344,7 +344,7 @@ A User sees a type only with its `view` Permission ([Users and roles](users-and-
 
 ### Labels
 
-Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration. A missing key falls back to the humanised handle: `news_item` reads `News Item`, its plural `News Items`, and a Field with no `help` has no help text:
+Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration; the package ships those of [`SiteSettings`](#site-settings), which a site's file overrides. A missing key falls back to the humanised handle: `news_item` reads `News Item`, its plural `News Items`, and a Field with no `help` has no help text:
 
 ```php
 return [

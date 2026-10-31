@@ -58,7 +58,7 @@ final class SaveEntry
             throw new InvalidArgumentException("No Locale [{$locale}] is declared in Site [{$site->handle}].");
         }
 
-        // ponytail: no database constraint, as the portable partial unique index does not exist; two concurrent first saves can both pass. The admin offers no create page, so only site code can race; lifted if a friction shows it.
+        // ponytail: no database constraint, as the portable partial unique index does not exist; two concurrent first saves can both pass. The admin offers no create page, so only site code or a concurrent `kami:install` can race; lifted if a friction shows it.
         if (! $entry instanceof Entry && $contentType instanceof Singleton && Entry::query()->withUnpublished()->ofType($contentType->handle())->where('site', $site->handle)->exists()) {
             throw ValidationException::withMessages(['type' => __('validation.unique', ['attribute' => $contentType->label()])]);
         }

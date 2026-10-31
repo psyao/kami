@@ -141,6 +141,23 @@ describe('seeding', function () {
             ->and(SiteSettings::entry()?->status)->toBe('published');
     });
 
+    it('titles a Singleton in the default Locale, whatever app.locale says', function () {
+        bootWithSeededTypes($this);
+        config(['app.locale' => 'en', 'kami.sites.default.locales' => ['fr', 'en']]);
+        install()->assertSuccessful();
+
+        expect(SiteSettings::entry()?->title)->toBe('Réglages du site');
+    });
+
+    it('fails, naming the command, on a declared type with no table', function () {
+        $this->bootWithKamiOnAPanel();
+        config(['kami.types' => [Footer::class]]);
+
+        install()
+            ->expectsOutputToContain('kami:make:migration footer')
+            ->assertFailed();
+    });
+
     it('changes no content when run again, and leaves an edited Entry alone', function () {
         bootWithSeededTypes($this);
         install()->assertSuccessful();
