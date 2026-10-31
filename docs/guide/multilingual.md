@@ -26,7 +26,7 @@ Each Locale answers only its own slugs: `/en/articles/bonjour` is a 404. Kami ma
 
 Adding a Locale is one more code in the list. It creates no Translation: nothing answers in that Locale until a Translation is published there, except the Entries of an untranslatable type, which answer there once `kami:install` has run ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
-Removing a Locale deletes nothing: its Translations and Field values are kept, answer nowhere, and come back when the Locale is listed again. `kami:doctor` warns about them.
+Removing a Locale deletes nothing: its Translations and Field values are kept, answer nowhere, and come back when the Locale is listed again. `kami:doctor` warns about them. To delete them, see [Schema changes](content-types.md#schema-changes).
 
 ## Translations
 

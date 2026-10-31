@@ -287,6 +287,21 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 - `public function packageBooted(): void`
 - `public function packageRegistered(): void`
 
+## `Psyao\Kami\Schema\ContentMigrator`
+
+`final class`
+
+What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes in batches through the query builder, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
+
+- `public static function dropLocale(string $locale): void`: Destroys a Locale: its translations, its rows in every type's table, its references and its paths. The Entries stay. A Locale still declared is refused, as is the Shared `'*'`.
+- `public static function dropType(string $type): void`: Destroys a type: its table, its Entries and what cascades from them, such as the links other types hold to them. A type still declared is refused.
+- `public static function makeShared(string $type, string $field, string $keep, bool $discardOthers = false): void`: Makes a translatable Field Shared with one Locale's value, or a relation Field's links.
+- `public static function makeTranslatable(string $type, string $field): void`: Makes a Shared Field translatable: its value, or a relation Field's links, moves to the declared Locales where the Entry has a translation, to the default Locale when it has none.
+- `public static function makeTypeShared(string $type, string $keep, bool $discardOthers = false): void`: Keeps one Locale's translation as the shared one, for a type whose `$translatable` turned false. Field rows stay: `makeShared()` moves them, Field by Field.
+- `public static function makeTypeTranslatable(string $type, string $locale): void`: Moves each shared translation to a Locale, for a type whose `$translatable` turned true. Field rows stay: `makeTranslatable()` moves them, Field by Field.
+- `public static function renameField(string $type, string $from, string $to): void`: Renames a Field: its column and that column's index when it has one, else a relation Field's rows in `kami_references`.
+- `public static function renameType(string $from, string $to): void`: Moves a type's Entries and its table to a new handle, with the index and foreign key names that follow the old one.
+
 ## `Psyao\Kami\Support\SecurityHeaders`
 
 `final class`

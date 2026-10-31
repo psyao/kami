@@ -29,10 +29,10 @@ final class MakeMigrationCommand extends Command
 
     private const string DROP = '-';
 
-    private const string INDEX_PREFIX = 'kami_idx_';
+    public const string INDEX_PREFIX = 'kami_idx_';
 
     /** Not INDEX_PREFIX, which this command's comparison reads as a Field's index: MySQL and MariaDB give a foreign key an index of its name, until the unique pair replaces it. */
-    private const string FOREIGN_KEY_PREFIX = 'kami_fk_';
+    public const string FOREIGN_KEY_PREFIX = 'kami_fk_';
 
     private const array INTERCHANGEABLE_TYPES = ['string', 'text'];
 
@@ -132,10 +132,10 @@ final class MakeMigrationCommand extends Command
             return [
                 'create' => true,
                 'up' => [$this->schema('create', $table, [
-                    "\$table->foreignUlid('entry_id')->constrained('kami_entries', indexName: '{$this->indexName($table, 'entry_id', self::FOREIGN_KEY_PREFIX)}')->cascadeOnDelete();",
+                    "\$table->foreignUlid('entry_id')->constrained('kami_entries', indexName: '" . self::indexName($table, 'entry_id', self::FOREIGN_KEY_PREFIX) . "')->cascadeOnDelete();",
                     "\$table->string('locale', 20);",
                     ...array_map($this->column(...), array_keys($declared), $declared),
-                    "\$table->unique(['entry_id', 'locale'], '{$this->indexName($table, 'entry_id.locale')}');",
+                    "\$table->unique(['entry_id', 'locale'], '" . self::indexName($table, 'entry_id.locale') . "');",
                     ...array_map(fn (string $field): string => $this->index($table, $field), $indexed),
                 ])],
                 'down' => ["Schema::dropIfExists('{$table}');"],
@@ -235,7 +235,7 @@ final class MakeMigrationCommand extends Command
 
         foreach (array_diff($indexed, array_keys($indexes)) as $field) {
             $up[] = $this->index($table, $field);
-            $down[] = "\$table->dropIndex('{$this->indexName($table, $field)}');";
+            $down[] = "\$table->dropIndex('" . self::indexName($table, $field) . "');";
         }
 
         if ($renames === [] && $up === []) {
@@ -327,11 +327,11 @@ final class MakeMigrationCommand extends Command
 
     private function index(string $table, string $field): string
     {
-        return "\$table->index('{$field}', '{$this->indexName($table, $field)}');";
+        return "\$table->index('{$field}', '" . self::indexName($table, $field) . "');";
     }
 
     /** Laravel's own name would reach 97 characters with two 40-character handles, where MySQL stops at 64 and PostgreSQL at 63. */
-    private function indexName(string $table, string $columns, string $prefix = self::INDEX_PREFIX): string
+    public static function indexName(string $table, string $columns, string $prefix = self::INDEX_PREFIX): string
     {
         return $prefix . hash('xxh128', "{$table}.{$columns}");
     }

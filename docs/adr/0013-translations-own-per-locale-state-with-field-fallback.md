@@ -26,7 +26,7 @@ This departs from Velox ADR 0013, where a Translation was an Entry row with an `
 
 ## Consequences
 
-- **Adding a Locale** (German, Italian) means declaring it in `config/kami.php`. It creates no rows and needs no migration. Visitors see nothing in that Locale until Translations are published there, so there is no "hidden Locale" flag. `ContentMigrator::dropLocale` also deletes the Locale's `kami_translations` rows, and `kami:doctor` reports Translations of an undeclared Locale.
+- **Adding a Locale** (German, Italian) means declaring it in `config/kami.php`. It creates no rows and needs no migration. Visitors see nothing in that Locale until Translations are published there, so there is no "hidden Locale" flag. `ContentMigrator::dropLocale` also deletes the Locale's `kami_translations` rows, leaving an Entry with no other Translation in place, answering nowhere, and `kami:doctor` reports Translations of an undeclared Locale.
 - **Changing the default Locale** changes where fallback reads from. Shared values sit in `'*'` and do not move.
 - **No per-Field opt-out of fallback in the MVP.** An optional Field left blank on purpose in one Locale (a note meant only for French readers) shows the default Locale's value. A flag on the Field declaration can be added later without breaking anything.
 - **Media.** A Media item's alt text and caption are per Locale and follow the same fallback. The file, focal point and credit are shared.

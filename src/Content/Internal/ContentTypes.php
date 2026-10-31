@@ -372,7 +372,7 @@ final class ContentTypes
         }
     }
 
-    private function validateHandle(string $class, string $what, string $handle): void
+    public function validateHandle(string $class, string $what, string $handle): void
     {
         if (preg_match('/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/', $handle) !== 1) {
             throw new InvalidArgumentException("{$class}: {$what} \"{$handle}\" is not snake_case: lowercase letters and digits, words joined by single underscores.");
