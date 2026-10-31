@@ -40,7 +40,7 @@ Saving an Entry reserves its Path, a Draft's included. A change in code moves Pa
 
 When a new address is already another Entry's, `kami:install` names both and fails, leaving that Path where it was: change one of the two slugs in the admin, then run it again. Until the next `kami:install`, `kami:doctor` warns that Paths do not follow the declarations.
 
-Kami leaves the Paths of a Locale or a type you removed from `config/kami.php` as they are, with their Entries; `kami:doctor` lists them ([Multilingual](multilingual.md#locales)).
+Kami leaves the Paths of a Locale or a type you removed from `config/kami.php` as they are, with their Entries; `kami:doctor` lists them ([Multilingual](multilingual.md#locales)), until a [migration deletes them](content-types.md#schema-changes).
 
 ## Rendering
 

@@ -468,6 +468,49 @@ Going from `Textarea` to `Text`, a value over 255 characters stops the migration
 
 Run `php artisan migrate` between two runs: while a migration that touches a `kami_type_*` table is pending, the command refuses, since it would write the same change twice.
 
+## Schema changes
+
+Some changes move data, which a column change cannot express. Call `ContentMigrator` from a migration you write, next to the code that changes the declaration:
+
+```php
+use Psyao\Kami\Schema\ContentMigrator;
+
+public function up(): void
+{
+    ContentMigrator::renameField('article', 'summary', 'intro');
+}
+```
+
+| Call | What it does |
+| --- | --- |
+| `renameType('news', 'article')` | Moves the Entries, the table and the index and foreign key names that follow the old handle. An index you named yourself keeps its name. |
+| `renameField('article', 'summary', 'intro')` | Renames the column and its index, or a [relation](#relations)'s links when there is no such column. |
+| `makeTranslatable('article', 'summary')` | Moves a Shared value, or a relation's links, to the Locales where the Entry has a Translation, or to the default Locale when it has none. |
+| `makeShared('article', 'summary', keep: 'fr')` | Keeps that Locale's value or links as the Shared ones and clears the others. |
+| `makeTypeTranslatable('article', locale: 'fr')` | Moves each `'*'` Translation to that Locale. |
+| `makeTypeShared('article', keep: 'fr')` | Keeps that Locale's Translation as the `'*'` one and deletes the others. |
+| `dropType('news')` | Deletes the table, the Entries, their Translations, Paths and links, including other types' links to them. |
+| `dropLocale('de')` | Deletes the Locale's Translations, Field values, links and Paths. |
+
+`makeShared` and `makeTypeShared` check every Entry first, and throw, naming the Entry, while another Locale holds something else, or the kept Locale nothing; nothing is written then. Pass `discardOthers: true` to lose it. Links compare in pick order, json values whatever the order of their keys.
+
+`dropType` and `dropLocale` are final, and refuse a type or Locale still declared: remove it from `config/kami.php` in the same change. An Entry that `dropLocale` or `discardOthers: true` leaves with no Translation stays, answering nowhere, until one is written.
+
+Flipping a type's `$translatable` takes the type-level call and one call per Field whose scope changes. Turning it on, with the Entries' content in French:
+
+```php
+ContentMigrator::makeTypeTranslatable('article', locale: 'fr');
+ContentMigrator::makeTranslatable('article', 'summary'); // Every Text and Textarea, and any Field declared ->translatable().
+```
+
+Back to untranslatable, it is `makeTypeShared('article', keep: 'fr')` and `makeShared('article', 'summary', keep: 'fr')`.
+
+The next `kami:install` runs the migration, then moves Paths to follow. A renamed type's default Prefix follows its handle, so its addresses change and the former ones answer 404: keep them with `$prefix`. Rename the type in your `kami-types` labels and `config/kami.php` Roles too, and in views, as nothing in the database holds them.
+
+Each operation works in batches, one transaction each, and runs from the command line, so it can take as long as the Entries need. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone. On MySQL and MariaDB, schema changes do not roll back: a `renameType` that fails partway may need finishing by hand.
+
+The operations do not reach inside a Repeater or Group: a sub-Field's change is a migration of your own over its json.
+
 ## In the admin
 
 Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`; a [Singleton](#singletons) is at its handle. Its form is generated from the declaration: title, slug unless the type has none, then each Field in its [tab or section](#tabs-and-sections), appearing and disappearing as its [condition](#conditional-fields) changes, `Text` as a single-line input, `Textarea` as a multi-line one, `Url`, `Email` and `Number` as inputs of their kind, `Date` and `DateTime` as pickers, the latter showing the Site's time zone, `Select` as a dropdown, and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).

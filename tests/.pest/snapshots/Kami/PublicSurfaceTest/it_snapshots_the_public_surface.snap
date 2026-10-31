@@ -118,6 +118,15 @@ class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTo
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
 class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
 class Psyao\Kami\KamiServiceProvider::packageRegistered() public function packageRegistered(): void
+class Psyao\Kami\Schema\ContentMigrator final class
+class Psyao\Kami\Schema\ContentMigrator::dropLocale() public static function dropLocale(string $locale): void
+class Psyao\Kami\Schema\ContentMigrator::dropType() public static function dropType(string $type): void
+class Psyao\Kami\Schema\ContentMigrator::makeShared() public static function makeShared(string $type, string $field, string $keep, bool $discardOthers = false): void
+class Psyao\Kami\Schema\ContentMigrator::makeTranslatable() public static function makeTranslatable(string $type, string $field): void
+class Psyao\Kami\Schema\ContentMigrator::makeTypeShared() public static function makeTypeShared(string $type, string $keep, bool $discardOthers = false): void
+class Psyao\Kami\Schema\ContentMigrator::makeTypeTranslatable() public static function makeTypeTranslatable(string $type, string $locale): void
+class Psyao\Kami\Schema\ContentMigrator::renameField() public static function renameField(string $type, string $from, string $to): void
+class Psyao\Kami\Schema\ContentMigrator::renameType() public static function renameType(string $from, string $to): void
 class Psyao\Kami\Support\SecurityHeaders final class
 class Psyao\Kami\Support\SecurityHeaders::handle() public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Users\HasKamiRoles trait
