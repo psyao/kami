@@ -23,6 +23,7 @@ use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
+use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Workbench\App\Content\Article;
@@ -605,6 +606,41 @@ it('keeps the index of a renamed column', function () {
     expect(indexedNoteColumns())->toBe(['genre']);
 
     $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+});
+
+it('renames the index of a renamed column, so a new Field can take the old handle, and undoes it (#211)', function () {
+    declareNote([Text::make('kind')->filterable()]);
+    generateAndMigrate();
+
+    declareNote([Text::make('genre')->filterable()]);
+    $this->artisan('kami:make:migration')->expectsQuestion('kami_type_note.kind is no longer declared. Is it renamed?', 'genre')->assertSuccessful();
+    migrateWritten();
+
+    $names = fn (): array => array_column(Schema::getIndexes('kami_type_note'), 'name');
+    expect($names())->toContain(MakeMigrationCommand::indexName('kami_type_note', 'genre'))
+        ->not->toContain(MakeMigrationCommand::indexName('kami_type_note', 'kind'));
+
+    Artisan::call('migrate:rollback', ['--path' => database_path('migrations'), '--realpath' => true]);
+    expect($names())->toContain(MakeMigrationCommand::indexName('kami_type_note', 'kind'));
+    Artisan::call('migrate', ['--path' => database_path('migrations'), '--realpath' => true]);
+
+    declareNote([Text::make('genre')->filterable(), Text::make('kind')->filterable()]);
+    $this->travel(1)->seconds();
+    $this->artisan('kami:make:migration')->assertSuccessful();
+    migrateWritten();
+
+    expect(indexedNoteColumns())->toBe(['genre', 'kind']);
+});
+
+it('drops under its new name the index of a column renamed and no longer indexed', function () {
+    declareNote([Text::make('kind')->filterable()]);
+    generateAndMigrate();
+
+    declareNote([Text::make('genre')]);
+    $this->artisan('kami:make:migration')->expectsQuestion('kami_type_note.kind is no longer declared. Is it renamed?', 'genre')->assertSuccessful();
+    migrateWritten();
+
+    expect(indexedNoteColumns())->toBe([]);
 });
 
 it('leaves an index the site wrote by hand alone, and does not add a second', function () {

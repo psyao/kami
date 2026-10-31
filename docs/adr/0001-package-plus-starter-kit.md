@@ -30,10 +30,10 @@ Inside a host application, Kami registers nothing global unless the host opts in
 - One command, `kami:install`, serves both first install and every later deploy, and there is no `kami:upgrade`. The command is idempotent and safe in CI. In order, it:
   1. runs the blocking `kami:doctor` checks;
   2. runs `migrate --force`;
-  3. creates, for the `default` Site until V1 multisite, the Entry of each Singleton and Global Set that is missing (no demo content, ever);
-  4. publishes Filament assets;
-  5. fails the deploy, with a non-zero exit code, on content model drift;
-  6. clears Kami's caches;
+  3. fails the deploy, with a non-zero exit code, on content model drift, after `migrate`, which may resolve it, and before anything writes to the tables it checks;
+  4. creates, for the `default` Site until V1 multisite, the Entry of each Singleton and Global Set that is missing (no demo content, ever);
+  5. publishes Filament assets;
+  6. moves Paths to follow the declarations (`SyncPaths`, ADR 0008) and clears Kami's caches;
   7. makes sure at least one User holds `kami.users.manage`. When `--email` names an existing User, that User gets the `administrator` Role and keeps their password. An unknown email creates the User. With no terminal and no `--email`, the command fails and prints `kami:user:grant {email} administrator`. This step never creates a second account in a host application whose staff already exist (kawaiidream.net, "Kami inside a custom application"). So it compares emails case-insensitively on every engine, with `lower(email) = lower(?)` and a PHP check of the rows found; outside ASCII, where SQLite does not fold case, PostgreSQL depends on its locale and MySQL's default collation also ignores accents, an address matches exactly. Several stored spellings of the address refuse with exit code 1, listing them, with no grant and no creation, even when one matches exactly. Kami normalises neither the host's data nor its sign-in: a created User's email is stored as typed, and sign-in stays with the host and Filament, case-sensitive on SQLite and PostgreSQL. This trades Simplicity for Security: a refusal branch and one raw comparison, so the command neither adds an account next to existing staff nor grants on an ambiguous match. `kami:user:grant` (M6) follows the same rule.
 - `kami:install` never writes to host files (Velox friction A7). In an existing application, it prints the lines the host must add and fails until `KamiPlugin` is registered on a panel.
 - First admin credentials (Velox friction I-120):

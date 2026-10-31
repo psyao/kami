@@ -191,11 +191,24 @@ final class MakeMigrationCommand extends Command
             }
         }
 
+        // A kept name would refuse a new Field taking the old handle. A Blueprint of its own: SQLite reads the index's columns when compiling, before a rename in the same Blueprint has run.
+        $reindexes = $unreindexes = [];
+
+        foreach ($renamed as $from => $to) {
+            $name = self::indexName($table, $to);
+
+            if (isset($indexes[$to]) && $indexes[$to]['name'] === self::indexName($table, $from)) {
+                $reindexes[] = "\$table->renameIndex('{$indexes[$to]['name']}', '{$name}');";
+                $unreindexes[] = "\$table->renameIndex('{$name}', '{$indexes[$to]['name']}');";
+                $indexes[$to]['name'] = $name;
+            }
+        }
+
         // A value that does not convert has no portable answer. Only these two need no conversion: a value too long for a string stops the migration, or stays whole on SQLite.
         $refused = array_filter($retyped, fn (string $column, string $field): bool => array_diff([$column, $existing[$field]], self::INTERCHANGEABLE_TYPES) !== [], ARRAY_FILTER_USE_BOTH);
 
         if ($refused !== []) {
-            $up = [$this->schema('table', $table, $renames)];
+            $up = [$this->schema('table', $table, $renames), $this->schema('table', $table, $reindexes)];
 
             foreach ($refused as $field => $column) {
                 $this->components->error("{$table}.{$field} goes from {$existing[$field]} to {$column}, and no cast works on every engine. Write this migration by hand, converting the values where marked.");
@@ -204,7 +217,7 @@ final class MakeMigrationCommand extends Command
             }
 
             $this->components->warn('It holds only this: run the command again once it has run, for any other change.');
-            $this->line($this->migration(array_values(array_filter($up)), array_values(array_filter([...$down, $this->schema('table', $table, $unrenames)]))));
+            $this->line($this->migration(array_values(array_filter($up)), array_values(array_filter([...$down, $this->schema('table', $table, $unreindexes), $this->schema('table', $table, $unrenames)]))));
 
             return false;
         }
@@ -245,8 +258,8 @@ final class MakeMigrationCommand extends Command
         // Laravel runs a Blueprint's change() before its renameColumn(): renames get a Blueprint of their own.
         return [
             'create' => false,
-            'up' => array_values(array_filter([$this->schema('table', $table, $renames), $this->schema('table', $table, $up)])),
-            'down' => array_values(array_filter([$this->schema('table', $table, array_reverse($down)), $this->schema('table', $table, $unrenames)])),
+            'up' => array_values(array_filter([$this->schema('table', $table, $renames), $this->schema('table', $table, $reindexes), $this->schema('table', $table, $up)])),
+            'down' => array_values(array_filter([$this->schema('table', $table, array_reverse($down)), $this->schema('table', $table, $unreindexes), $this->schema('table', $table, $unrenames)])),
         ];
     }
 

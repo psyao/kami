@@ -46,6 +46,11 @@ final class Rendered extends ContentType
     }
 }
 
+// An empty database, whatever the engine: tables another test left on MySQL or MariaDB, which do not roll back, would read as drift. `ContentModelDriftTest` covers the engines.
+beforeEach(function () {
+    config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty']);
+});
+
 function temporaryPath(): string
 {
     return sys_get_temp_dir() . '/kami-doctor-' . uniqid();

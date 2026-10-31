@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Traits\Localizable;
@@ -19,6 +18,7 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Routing\Internal\SyncPaths;
@@ -43,7 +43,7 @@ final class InstallCommand extends Command
     use Localizable;
     use PrintsProblems;
 
-    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types): int
+    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types, ContentModelDrift $drift): int
     {
         // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
         if (($problems = $doctor->blocking()) !== []) {
@@ -65,6 +65,13 @@ final class InstallCommand extends Command
         }
 
         if ($this->call('migrate', ['--force' => true]) !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        // After `migrate`, which may resolve it, and before anything writes to these tables.
+        if (($problems = $drift->problems()) !== []) {
+            $this->printProblems($problems);
+
             return self::FAILURE;
         }
 
@@ -102,13 +109,6 @@ final class InstallCommand extends Command
         foreach ($types->all() as $type) {
             if (! $type instanceof Singleton || Entry::query()->withUnpublished()->ofType($type->handle())->where('site', Site::current()->handle)->exists()) {
                 continue;
-            }
-
-            // ponytail: with no value to write, a missing table would seed fine and break every read; the drift check (#182) runs before this step and removes it.
-            if ($type->columnFields() !== [] && ! Schema::hasTable("kami_type_{$type->handle()}")) {
-                $this->components->error("The {$type->handle()} Entry cannot be created: its table does not exist. Run php artisan kami:make:migration {$type->handle()}, then kami:install again.");
-
-                return false;
             }
 
             try {

@@ -128,7 +128,7 @@ git pull --ff-only &&
 
 When `php -v` prints another version than 8.5, put PHP 8.5 first on the `PATH` beforehand, as in [Prepare the host](#prepare-the-host). `--ff-only` makes the deploy fail rather than merge on the server when its branch has diverged from GitHub's. Copy `public/build/` as in [Front assets](#front-assets) when the front changed. Updating Kami is the same deploy, after `composer update psyao/kami` in the site's repository: there is no separate upgrade command.
 
-`kami:install` also moves Paths to follow the code: a new Prefix or Locale takes effect there ([Routing and rendering](routing-and-rendering.md#after-a-deploy)). It creates the Entry of each new [Singleton and Global Set](content-types.md#singletons) too, and never touches an existing one.
+`kami:install` also moves Paths to follow the code: a new Prefix or Locale takes effect there ([Routing and rendering](routing-and-rendering.md#after-a-deploy)). It creates the Entry of each new [Singleton and Global Set](content-types.md#singletons) too, and never touches an existing one. Before writing any of that, it fails on [content model drift](content-types.md#content-model-drift), right after running your migrations.
 
 When a step fails, `kami:install` included, the deploy stops before `php artisan up` and the site stays in maintenance mode: fix the problem it prints, then run the chained command again, from `git pull`.
 
