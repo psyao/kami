@@ -51,13 +51,18 @@ class DatabaseSeeder extends Seeder
         $about = $save->handle(Page::class, [...$published, 'title' => 'À propos', 'body' => 'Une page à la racine du Site.'], locale: 'fr', actor: $admin);
         $save->handle(Page::class, [...$published, 'title' => 'About', 'body' => 'A page at the root of the Site.'], $about, 'en', $admin);
 
+        // Hierarchical and orderable: two levels under À propos.
+        $team = $save->handle(Page::class, [...$published, 'title' => 'Équipe', 'parent' => $about->id, 'body' => 'Une page sous À propos.'], locale: 'fr', actor: $admin);
+        $save->handle(Page::class, [...$published, 'title' => 'Histoire', 'parent' => $about->id, 'body' => 'Une autre page sous À propos.'], locale: 'fr', actor: $admin);
+        $save->handle(Page::class, ['title' => 'Ada', 'parent' => $team->id], locale: 'fr', actor: $admin);
+
         // Untranslatable.
         $save->handle(Label::class, [...$published, 'title' => 'Urgent', 'colour' => 'red'], actor: $admin);
         $save->handle(Label::class, [...$published, 'title' => 'Archive', 'colour' => 'grey'], actor: $admin);
 
         // A Taxonomy: published when saved, one name for every Locale.
         $laravel = $save->handle(Tag::class, ['title' => 'Laravel'], actor: $admin);
-        $filament = $save->handle(Tag::class, ['title' => 'Filament'], actor: $admin);
+        $filament = $save->handle(Tag::class, ['title' => 'Filament', 'parent' => $laravel->id], actor: $admin);
 
         // Tabs, a section, conditions, a Repeater, a Group, relations.
         $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id], 'tags' => [$filament->id, $laravel->id]], locale: 'fr', actor: $admin);

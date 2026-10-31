@@ -26,6 +26,9 @@ abstract class ContentType
     /** `true` lets editors drag the type's rows, and `ordered()` read that order; a new Entry goes last. */
     protected bool $orderable = false;
 
+    /** `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand. */
+    protected bool $hierarchical = false;
+
     /**
      * The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
      *
@@ -169,6 +172,12 @@ abstract class ContentType
     public function isOrderable(): bool
     {
         return $this->orderable;
+    }
+
+    /** @internal */
+    public function isHierarchical(): bool
+    {
+        return $this->hierarchical;
     }
 
     /** @internal */

@@ -143,6 +143,10 @@ final class ContentTypes
                 $fields[] = $field->handle;
             }
 
+            if ($type instanceof Singleton && $type->isHierarchical()) {
+                throw new InvalidArgumentException("{$class}: a Singleton has one Entry, so it cannot be hierarchical; remove \$hierarchical.");
+            }
+
             if ($type instanceof GlobalSet) {
                 $this->validateGlobalSet($class, $type);
             }

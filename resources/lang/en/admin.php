@@ -8,6 +8,9 @@ return [
         'title' => 'Title',
         'slug' => 'Slug',
         'slug_help' => 'The last part of the address. Left blank, it is made from the title.',
+        'parent' => 'Parent',
+        'parent_cycle' => 'An Entry cannot sit under itself or one of its children.',
+        'untitled' => 'Untitled',
         'path_taken' => "Another Entry already answers at this type's Prefix: change the Prefix.",
         'slug_moves' => 'Changing it moves the address: the old one stops answering.',
         'published_at' => 'Publication date',
@@ -27,6 +30,7 @@ return [
     ],
 
     'actions' => [
+        'children' => 'Children',
         'create_target' => 'Create a :type',
         'save_draft' => 'Save draft',
         'publish' => 'Publish',

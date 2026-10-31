@@ -21,6 +21,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\ReorderEntries;
@@ -40,7 +41,7 @@ final class SaveEntry
 {
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
-     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`, a Taxonomy's default; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set), `position` (last on a new Entry when blank; refused by a type that is not orderable) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
+     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`, a Taxonomy's default; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set), `position` (last on a new Entry when blank; refused by a type that is not orderable; an Entry moved under another Parent goes last there when blank), `parent` (the id of another Entry of the type, `null` for the root; refused by a type that is not hierarchical) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
      * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
@@ -83,7 +84,7 @@ final class SaveEntry
             $contentType->hasSlug() => Translation::ATTRIBUTES,
             default => array_diff(Translation::ATTRIBUTES, ['slug']),
         };
-        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : []), ...($contentType->isOrderable() ? ['position'] : [])]));
+        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : []), ...($contentType->isOrderable() ? ['position'] : []), ...($contentType->isHierarchical() ? ['parent'] : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
@@ -151,6 +152,10 @@ final class SaveEntry
             $rules['position'] = ['nullable', 'integer', 'min:0', 'max:2147483646'];
         }
 
+        if ($contentType->isHierarchical()) {
+            $rules['parent'] = ['nullable', 'string', $this->parentRule($contentType, $site, $entry)];
+        }
+
         foreach ($fields as $handle => $field) {
             $rules = [...$rules, ...$field->rulesAt($handle, $publishing)];
         }
@@ -186,8 +191,12 @@ final class SaveEntry
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()]);
 
-            if ($contentType->isOrderable() && (isset($values['position']) || ! $entry->exists)) {
-                $entry->forceFill(['position' => $values['position'] ?? ReorderEntries::next($contentType)]);
+            if (array_key_exists('parent', $values)) {
+                $entry->forceFill(['parent_id' => $values['parent']]);
+            }
+
+            if ($contentType->isOrderable() && (isset($values['position']) || ! $entry->exists || $entry->isDirty('parent_id'))) {
+                $entry->forceFill(['position' => $values['position'] ?? ReorderEntries::next($contentType, $entry->parent_id)]);
             }
 
             $entry->save();
@@ -276,10 +285,31 @@ final class SaveEntry
         };
     }
 
+    /**
+     * An Entry of the type in the Site, that is neither the Entry nor under it.
+     *
+     * ponytail: read before the transaction, so two concurrent moves can still close a cycle, which `Ancestors` survives; a lock on the type's tree if a friction shows it.
+     */
+    private function parentRule(ContentType $contentType, Site $site, ?Entry $entry): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($contentType, $site, $entry): void {
+            if (! is_string($value)) {
+                return;
+            }
+
+            if (! Entry::query()->withUnpublished()->ofType($contentType->handle())->where('site', $site->handle)->whereKey($value)->exists()) {
+                $fail(__('validation.exists'));
+            } elseif ($entry instanceof Entry && in_array($entry->id, Ancestors::ids($value), true)) {
+                $fail(__('kami::admin.fields.parent_cycle'));
+            }
+        };
+    }
+
     /** The Translation's 200 row, rewritten in place when its slug changes; the `'*'` Translation answers in every Locale of the Site, one row each (ADR 0008). */
     private function reservePath(ContentType $contentType, Site $site, Entry $entry, string $locale, ?string $slug): void
     {
         $locales = $locale === '*' ? $site->locales : [$locale];
+        // ponytail: no ancestor's slug, so a Parent change moves no Path; M10's hierarchical URLs add them.
         $path = Path::of($contentType, $slug);
 
         if ($path === null) {

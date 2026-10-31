@@ -92,6 +92,33 @@ A new Entry goes last. `SaveEntry` also takes a `position`, for seeders and impo
 
 In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move by dragging, or on a keyboard with the move buttons Filament offers to assistive technology, within the page shown: to move a row further, show more rows per page, or set its `position` in code.
 
+### Hierarchical types
+
+`protected bool $hierarchical = true` lets an Entry sit under another of the same type and Site, its Parent:
+
+```php
+final class Page extends ContentType
+{
+    protected bool $hierarchical = true;
+
+    protected bool $orderable = true; // To order each Parent's children by hand.
+}
+
+$child = app(SaveEntry::class)->handle(Page::class, ['title' => 'Team', 'parent' => $about->id]);
+
+Entry::query()->ofType(Page::class)->where('parent_id', $about->id)->ordered()->get();
+```
+
+`SaveEntry` takes the Parent's id as `parent`, or `null` for the root; left out, the Parent stays. It refuses as a validation error a cycle, a Parent of another type or Site, and a `parent` on a type that is not hierarchical. A Singleton cannot be hierarchical. The database refuses the hard deletion of a Parent with children, as moving them up would change the tree silently.
+
+The two flags are separate. Alone, `$hierarchical` gives a tree with no hand order: a `position` is refused. With `$orderable`, Positions count within one Parent: a new Entry goes last among its siblings, and so does an Entry moved under another Parent, unless the same save gives a `position`.
+
+A Path does not follow the tree yet: it holds no ancestor's slug, and changing a Parent moves no Path.
+
+In the admin, the type's table shows one level, searched within that level. **Children** goes down, the breadcrumb comes back, and **Reorder records**, on an orderable type, moves siblings only. The form changes the Parent with a searchable select, and creating from a Parent's children starts under it. Both take the type's `reorder` Permission: a User without it edits Entries where they are, and creates at the root.
+
+A hierarchical Taxonomy's `Term` reads its visible Parents with `$term->ancestors()`, nearest first, at one query per level.
+
 ### Singletons
 
 A type with exactly one Entry per Site, such as a home page, extends `Singleton`:

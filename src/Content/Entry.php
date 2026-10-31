@@ -38,6 +38,7 @@ use Psyao\Kami\Sites\Internal\Site;
  * @property-read string|null $status `draft` or `published`.
  * @property-read CarbonImmutable|null $published_at
  * @property-read int $position Its hand-set place among its siblings, on an orderable type.
+ * @property-read string|null $parent_id Its Parent's id, on a hierarchical type.
  * @property-read int|string|null $created_by The Creator's User key.
  * @property-read int|string|null $updated_by The Last modifier's User key.
  */

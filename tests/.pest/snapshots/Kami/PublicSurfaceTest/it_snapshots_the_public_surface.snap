@@ -9,6 +9,7 @@ class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\
 class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
+class Psyao\Kami\Content\ContentType::$hierarchical protected bool $hierarchical = false
 class Psyao\Kami\Content\ContentType::$model protected ?string $model = NULL
 class Psyao\Kami\Content\ContentType::$orderable protected bool $orderable = false
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
@@ -108,6 +109,7 @@ class Psyao\Kami\Content\Tab final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Content\Taxonomy abstract class extends Psyao\Kami\Content\ContentType
 class Psyao\Kami\Content\Taxonomy::$model protected ?string $model = 'Psyao\\Kami\\Content\\Term'
 class Psyao\Kami\Content\Term class extends Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\Term::ancestors() public function ancestors(): Illuminate\Database\Eloquent\Collection
 class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class

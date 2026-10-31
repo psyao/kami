@@ -36,6 +36,7 @@ Creates or updates one Translation of an Entry: the one way content is written, 
 
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
+- `protected bool $hierarchical = false`: `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand.
 - `protected ?string $model = NULL`: The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
 - `protected bool $orderable = false`: `true` lets editors drag the type's rows, and `ordered()` read that order; a new Entry goes last.
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
@@ -259,6 +260,7 @@ A Content Type classifying others: its Entries are `Term`s, published by default
 
 An Entry of a Taxonomy.
 
+- `public function ancestors(): Illuminate\Database\Eloquent\Collection`: Its Parents, nearest first, on a hierarchical Taxonomy: visible ones in the current Locale. One query per level.
 - `public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany`: The Entries linking it through any relation Field, once each: visible ones in the current Locale, unless the query says `inLocale()` or `withUnpublished()`.
 
 ## `Psyao\Kami\Facades\Kami`
