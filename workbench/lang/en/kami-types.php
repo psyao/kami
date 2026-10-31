@@ -28,6 +28,13 @@ return [
             'body' => ['label' => 'Body'],
         ],
     ],
+    'footer' => [
+        'label' => 'Footer',
+        'fields' => [
+            'tagline' => ['label' => 'Tagline'],
+            'contact' => ['label' => 'Contact'],
+        ],
+    ],
     'home' => [
         'label' => 'Home',
         'fields' => [

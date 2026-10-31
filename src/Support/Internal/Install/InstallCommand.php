@@ -14,7 +14,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\PrintsProblems;
@@ -34,7 +41,7 @@ final class InstallCommand extends Command
     use ChecksPrompting;
     use PrintsProblems;
 
-    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths): int
+    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types): int
     {
         // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
         if (($problems = $doctor->blocking()) !== []) {
@@ -59,6 +66,10 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
+        if (! $this->seed($save, $types)) {
+            return self::FAILURE;
+        }
+
         // Filament's own command, present wherever Kami runs (ADR 0001): it copies the admin's assets to public/, so the server needs no Node.
         if ($this->call('filament:assets') !== self::SUCCESS) {
             return self::FAILURE;
@@ -77,6 +88,32 @@ final class InstallCommand extends Command
         $this->components->info('Kami is installed.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Creates each missing Singleton and Global Set Entry, and never touches an existing one (ADR 0001): a Singleton waits as a Draft for its editor, a Global Set applies at once.
+     *
+     * ponytail: the `default` Site only, as `Site::current()`; V1 multisite seeds every Site.
+     */
+    private function seed(SaveEntry $save, ContentTypes $types): bool
+    {
+        foreach ($types->all() as $type) {
+            if (! $type instanceof Singleton || Entry::query()->withUnpublished()->ofType($type->handle())->where('site', Site::current()->handle)->exists()) {
+                continue;
+            }
+
+            try {
+                $save->handle($type->handle(), $type instanceof GlobalSet ? [] : ['title' => $type->label()]);
+            } catch (ValidationException $exception) {
+                $this->components->error("The {$type->handle()} Entry cannot be created: {$exception->getMessage()} Fix its declaration, then run kami:install again.");
+
+                return false;
+            }
+
+            $this->components->info("Created the {$type->handle()} Entry.");
+        }
+
+        return true;
     }
 
     /** Moves URLs to follow the declarations (ADR 0008); an address another Entry holds fails the deploy, naming both sides. */

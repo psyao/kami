@@ -84,6 +84,8 @@ class Psyao\Kami\Content\Fields\StructuredField abstract class extends Psyao\Kam
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Url final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\GlobalSet abstract class extends Psyao\Kami\Content\Singleton
+class Psyao\Kami\Content\GlobalSet::entry() public static function entry(): ?Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\Layout abstract class
 class Psyao\Kami\Content\Layout::$children public protected(set) readonly array $children
 class Psyao\Kami\Content\Layout::$handle public protected(set) readonly string $handle
@@ -92,6 +94,8 @@ class Psyao\Kami\Content\Layout::make() public static function make(string $hand
 class Psyao\Kami\Content\Section final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Content\Singleton abstract class extends Psyao\Kami\Content\ContentType
 class Psyao\Kami\Content\Singleton::entry() public static function entry(): ?Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\SiteSettings final class extends Psyao\Kami\Content\GlobalSet
+class Psyao\Kami\Content\SiteSettings::fields() public function fields(): array
 class Psyao\Kami\Content\Tab final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class
@@ -134,3 +138,4 @@ table kami_entries
 table kami_paths
 table kami_role_user
 table kami_translations
+table kami_type_site_settings

@@ -342,7 +342,7 @@ final readonly class Doctor
         $problems = [];
 
         foreach ($locales as $locale) {
-            $missing = array_values(array_filter($keys, fn (string $key): bool => ! Lang::hasForLocale("kami-types.{$key}", $locale)));
+            $missing = array_values(array_filter($keys, fn (string $key): bool => ! Lang::hasForLocale("kami-types.{$key}", $locale) && ! Lang::hasForLocale("kami::kami-types.{$key}", $locale)));
 
             if ($missing !== []) {
                 $problems[] = new Problem(

@@ -32,6 +32,7 @@ use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
+use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
@@ -879,6 +880,55 @@ describe('a Singleton in the admin', function () {
         entryPage(EditEntry::class, 'home', ['locale' => 'en'])->fillForm(['title' => 'Home'])->callAction(formAction('publish'))->assertHasNoFormErrors();
 
         $this->get('/en')->assertOk()->assertSee('Home');
+    });
+});
+
+describe('a Global Set in the admin', function () {
+    it('shows no publication controls and no title, and its save applies', function () {
+        resolve(SaveEntry::class)->handle(Footer::class, [], locale: 'fr');
+
+        entryPage(EditEntry::class, 'footer')
+            ->assertFormFieldHidden('title')
+            ->assertFormFieldHidden('slug')
+            ->assertFormFieldHidden('published_at')
+            ->assertActionDoesNotExist(formAction('publish'))
+            ->assertActionDoesNotExist(formAction('unpublish'))
+            ->fillForm(['tagline' => 'Bonjour'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        expect(Footer::entry()?->tagline)->toBe('Bonjour')
+            ->and(Footer::entry()?->status)->toBe('published');
+    });
+
+    it('applies another Locale\'s values on its first save, with no title to type', function () {
+        resolve(SaveEntry::class)->handle(Footer::class, [], locale: 'fr');
+
+        entryPage(EditEntry::class, 'footer', ['locale' => 'en'])->fillForm(['tagline' => 'Hello'])->call('save')->assertHasNoFormErrors();
+
+        expect(onlyEntry('footer')->translations->pluck('status', 'locale')->sortKeys()->all())->toBe(['en' => 'published', 'fr' => 'published']);
+    });
+
+    it('takes publish: a User with update alone neither reaches it nor sees its navigation item', function () {
+        resolve(SaveEntry::class)->handle(Footer::class, [], locale: 'fr');
+        resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+
+        $this->actingAs(userWithRole('editor'));
+
+        $this->get('/admin/footer')->assertForbidden();
+        $this->get('/admin/home')->assertOk()->assertDontSee('/admin/footer');
+    });
+
+    it('has a navigation item for a User holding publish', function () {
+        resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+
+        $this->get('/admin/home')->assertSee('/admin/footer');
+    });
+
+    it('lists SiteSettings on every Site, with the package\'s labels', function () {
+        resolve(SaveEntry::class)->handle('site_settings', [], locale: 'fr');
+
+        $this->get('/admin/site-settings')->assertOk()->assertSee('Site settings')->assertSee('Site name');
     });
 });
 

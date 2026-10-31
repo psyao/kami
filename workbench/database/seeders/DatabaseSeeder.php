@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\SiteSettings;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
@@ -62,6 +64,11 @@ class DatabaseSeeder extends Seeder
 
         // No URL: listed on another page.
         $save->handle(Testimonial::class, [...$published, 'title' => 'Une cliente', 'quote' => 'Un travail soigné.'], locale: 'fr', actor: $admin);
+
+        // Values shown across the Site, always published.
+        $footer = $save->handle(Footer::class, ['tagline' => 'Un site de démonstration.', 'contact' => 'ada@example.test'], locale: 'fr', actor: $admin);
+        $save->handle(Footer::class, ['tagline' => 'A demo Site.'], $footer, 'en', $admin);
+        $save->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr', actor: $admin);
     }
 
     private function user(string $name, string $email, string $role): User

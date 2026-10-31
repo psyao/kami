@@ -42,6 +42,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
@@ -111,6 +112,12 @@ final class EntryResource extends FilamentResource
         return Gate::forUser(Filament::auth()->user())->inspect($ability, $record ?? [Entry::class, self::type()->handle()]);
     }
 
+    /** A Global Set is always published, so its one page takes `publish` (ADR 0019): no navigation item leads to a 403. */
+    public static function canAccess(): bool
+    {
+        return parent::canAccess() && (! self::type() instanceof GlobalSet || self::can('publish'));
+    }
+
     public static function getEloquentQuery(): Builder
     {
         return Entry::query()->withUnpublished()->ofType(self::type()->handle());
@@ -126,9 +133,11 @@ final class EntryResource extends FilamentResource
         // Read from the page, not the schema's record: saving replaces it, and the first save stores a slug. No slug stored, no Path can move.
         $hasStoredSlug = fn (): bool => $livewire instanceof EditEntry && filled($livewire->getRecord()->slug);
         $hasSlug = self::type()->hasSlug();
+        // Its values simply apply: `SaveEntry` publishes it and titles it with its label.
+        $hasPublication = ! self::type() instanceof GlobalSet;
 
         return $schema->columns(1)->components([
-            TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)
+            TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)->visible($hasPublication)
                 ->live(onBlur: true, condition: fn (): bool => $hasSlug && ! $hasStoredSlug())
                 // The hook also runs on a save's deferred update, hence the check. Blank or the previous title's slug: not typed by hand.
                 ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasSlug, $hasStoredSlug, $locale): void {
@@ -141,7 +150,7 @@ final class EntryResource extends FilamentResource
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
-            DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
+            DateTimePicker::make('published_at')->visible($hasPublication)->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record)),
         ]);
     }
@@ -170,7 +179,7 @@ final class EntryResource extends FilamentResource
         $key = Filament::getCurrentResourceConfigurationKey();
         $type = collect(resolve(ContentTypes::class)->declared())->first(fn (ContentType $type): bool => $type->handle() === $key);
 
-        // One page, named `index` as Filament's navigation and links expect; site code creates its Entry.
+        // One page, named `index` as Filament's navigation and links expect; `kami:install` creates its Entry.
         if ($type instanceof Singleton) {
             return ['index' => EditEntry::route('/{locale?}')];
         }

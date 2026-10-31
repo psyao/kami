@@ -19,6 +19,7 @@ use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
@@ -35,7 +36,7 @@ final class SaveEntry
 {
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
-     * @param  array<string, mixed>  $values  `title`, `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`), `published_at` (now when publishing without one) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
+     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
      * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
@@ -73,7 +74,11 @@ final class SaveEntry
             }
         }
 
-        $attributes = $contentType->hasSlug() ? Translation::ATTRIBUTES : array_diff(Translation::ATTRIBUTES, ['slug']);
+        $attributes = match (true) {
+            $contentType instanceof GlobalSet => ['title'],
+            $contentType->hasSlug() => Translation::ATTRIBUTES,
+            default => array_diff(Translation::ATTRIBUTES, ['slug']),
+        };
         $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
@@ -104,6 +109,12 @@ final class SaveEntry
         }
 
         $data = [...$data, ...$values];
+
+        // Always published, with nothing for an editor to fill: its form shows Fields only.
+        if ($writesTranslation && $contentType instanceof GlobalSet) {
+            $data['status'] = Translation::PUBLISHED;
+            $data['title'] ??= $contentType->label();
+        }
 
         if ($writesTranslation && $contentType->hasSlug()) {
             $data['slug'] ??= is_string($data['title'] ?? null) ? Path::slugFrom($data['title'], $locale === '*' ? $site->defaultLocale() : $locale) : null;

@@ -163,11 +163,17 @@ abstract class ContentType
         return $items;
     }
 
-    /** Display strings come from the site's translation files, never from the declaration (ADR 0007). */
+    /** Display strings come from the site's translation files, never from the declaration (ADR 0007); the package's own types have theirs in the package. */
     private function translation(string $key): ?string
     {
         $key = "kami-types.{$this->handle()}.{$key}";
 
-        return Lang::has($key) ? (string) __($key) : null;
+        foreach ([$key, "kami::{$key}"] as $candidate) {
+            if (Lang::has($candidate)) {
+                return (string) __($candidate);
+            }
+        }
+
+        return null;
     }
 }
