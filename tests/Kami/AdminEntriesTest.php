@@ -26,6 +26,8 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field as KamiField;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\Repeater;
+use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
@@ -53,6 +55,23 @@ final class UnregisteredInside extends ContentType
     public function fields(): array
     {
         return [Group::make('place', [Rumour::make('whisper')])];
+    }
+}
+
+/** On Project's handle and table: tests list it in place of Project. */
+final class ProjectWithStructuredOptions extends ContentType
+{
+    public function handle(): string
+    {
+        return 'project';
+    }
+
+    public function fields(): array
+    {
+        return [
+            Group::make('address', [Text::make('street'), Text::make('city')])->default(['city' => 'Vevey']),
+            Repeater::make('links', [Text::make('label')])->translatable(),
+        ];
     }
 }
 
@@ -734,6 +753,30 @@ it('adds, removes and reorders a Repeater\'s rows, and fills its Group', functio
 
     expect($saved->links)->toBe([['label' => 'Two', 'url' => 'https://two.test'], ['label' => 'Three', 'url' => 'https://three.test']])
         ->and($saved->address)->toBe(['street' => 'Rue du Lac', 'city' => 'Montreux']);
+});
+
+it('opens a new Entry with a Group\'s default on its sub-Fields', function () {
+    config(['kami.types' => [ProjectWithStructuredOptions::class]]);
+    $this->actingAs(userWithRole('administrator'));
+
+    $page = entryPage(CreateEntry::class, 'project');
+
+    expect($page->get('data.address.city'))->toBe('Vevey');
+
+    $page->set('data.title', 'Kami')->call('create')->assertHasNoFormErrors();
+
+    expect(Entry::query()->withUnpublished()->sole()->address)->toBe(['street' => null, 'city' => 'Vevey']);
+});
+
+it('fills a translatable Repeater with the Locale edited, and leaves a fallen-back one empty', function () {
+    config(['kami.types' => [ProjectWithStructuredOptions::class]]);
+    $this->actingAs(userWithRole('administrator'));
+    $save = resolve(SaveEntry::class);
+    $entry = $save->handle('project', ['title' => 'Kami', 'slug' => 'kami', 'status' => 'published', 'links' => [['label' => 'Site']]], locale: 'fr');
+    $save->handle('project', ['title' => 'Kami', 'slug' => 'kami-en'], $entry, 'en');
+
+    expect(array_values(entryPage(EditEntry::class, 'project', ['record' => $entry->id])->get('data.links')))->toBe([['label' => 'Site']])
+        ->and(entryPage(EditEntry::class, 'project', ['record' => $entry->id, 'locale' => 'en'])->get('data.links'))->toBeEmpty();
 });
 
 it('opens a new Entry with no row and an empty Group, and stores neither', function () {

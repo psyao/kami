@@ -131,10 +131,8 @@ final class KamiPlugin implements Plugin
     private function requireComponent(Field $field, ContentType $type): void
     {
         if ($field instanceof StructuredField) {
-            foreach ($field->subFields() as $sub) {
-                if ($sub instanceof Field) {
-                    $this->requireComponent($sub, $type);
-                }
+            foreach ($field->fields() as $sub) {
+                $this->requireComponent($sub, $type);
             }
         } elseif (! isset($this->fieldComponents[$field::class])) {
             throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $type::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');

@@ -208,6 +208,19 @@ it('refuses a retype between a filled text column and a json one', function () {
         ->and(writtenMigrations())->toHaveCount(1);
 });
 
+it('refuses a hand-made longText column of prose declared json, on every engine', function () {
+    declareNote([Text::make('title_note')]);
+    generateAndMigrate();
+    Schema::table('kami_type_note', fn (Blueprint $table) => $table->longText('links')->nullable());
+    insertNoteRow(['links' => 'Plain words']);
+
+    declareNote([Text::make('title_note'), Repeater::make('links', [Text::make('label')])]);
+    $this->withoutMockingConsoleOutput();
+
+    expect(Artisan::call('kami:make:migration', ['--no-interaction' => true]))->toBe(1)
+        ->and(writtenMigrations())->toHaveCount(1);
+});
+
 it('refuses a retype away from a json column', function () {
     declareNote([Repeater::make('links', [Text::make('label')])]);
     generateAndMigrate();

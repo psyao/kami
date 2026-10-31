@@ -36,7 +36,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
 
 - **Handles.**
   - A type's handle is the snake_case of its class name; `handle()` is overridden to keep it after a class rename, otherwise the rename goes through `ContentMigrator::renameType` (ADR 0006).
-  - A Field handle is snake_case, at most 40 characters and unique across the whole type, layout included.
+  - A Field handle is snake_case, at most 40 characters and unique across the whole type, layout included. A sub-Field of a `Repeater` or `Group` is unique within its parent: it has no column, only a key in the parent's document.
   - A Field handle never matches a core attribute (`title`, `slug`, `status`, `published_at`, `parent`, `position`, `site`, `type`, `locale`…): a collision is a boot error. The reserved list is public under SemVer, and a new core attribute only arrives in a major version.
   - A Block's handle is explicit and frozen, since every stored node carries it.
 - **Scope.**
@@ -72,5 +72,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
 - **Field types.**
   - `Field` is a public, open abstract class. A site adds its own Field type by declaring its column, cast, rules and default scope, and how a value is prepared for its column (`store()`, which a `DateTime` uses to reach UTC).
   - Its admin component is registered with `KamiPlugin::make()->fieldComponents([...])`, the same mechanism Kami uses for its own Field types. A Field type with no registered component is an error when the panel boots, on its own requests: Artisan keeps working, so the declaration can be fixed.
+  - `Repeater` and `Group` take no registered component: theirs need the parent's label keys and recurse through their sub-Fields, whose own components stay registered. No site has asked to replace them, and an `EntryForm` still can (simplicity, principle 6, against an extension point with no user).
+  - `StructuredField`, their base, is public because a public class may not extend an internal one (ADR 0010). Its members are `@internal`, and a site does not extend it.
 - **No infolist** in the MVP: an Entry is seen through its form or its front preview. `->infolists()` can be added later without breaking anything.
 - **Open classes.** The extension points this adds (`Field`, `Entry`, `Term`, `EntryForm`, `EntryTable`, `fieldComponents`) join the closed list owned by "Extension points: events, registries, overrides".

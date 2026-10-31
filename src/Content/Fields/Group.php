@@ -7,7 +7,7 @@ namespace Psyao\Kami\Content\Fields;
 use Closure;
 use Psyao\Kami\Content\Layout;
 
-/** One set of named sub-Fields, read as an array, `null` when all are blank. Shared by default, in one `json` column. */
+/** One set of named sub-Fields, read as an array, `null` when all are blank or off. Shared by default, in one `json` column. */
 final class Group extends StructuredField
 {
     /** @param  array<Field|Layout>  $fields  Its sub-Fields, each storing under its handle. */
@@ -17,13 +17,17 @@ final class Group extends StructuredField
         return parent::make($handle)->holding($fields);
     }
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * An untouched toggle is `false` in the form and absent from an import: neither fills the Group.
+     */
     #[\Override]
     public function normalise(mixed $value): mixed
     {
         $normalised = parent::normalise($value);
 
-        return is_array($normalised) && array_filter($normalised, fn (mixed $sub): bool => $sub !== null) === [] ? null : $normalised;
+        return is_array($normalised) && array_filter($normalised, fn (mixed $sub): bool => $sub !== null && $sub !== false) === [] ? null : $normalised;
     }
 
     #[\Override]

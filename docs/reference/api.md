@@ -120,7 +120,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 
 `final class extends Psyao\Kami\Content\Fields\StructuredField`
 
-One set of named sub-Fields, read as an array, `null` when all are blank. Shared by default, in one `json` column.
+One set of named sub-Fields, read as an array, `null` when all are blank or off. Shared by default, in one `json` column.
 
 - `public static function make(string $handle, array $fields = []): static`
 

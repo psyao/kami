@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Internal;
 
+use Illuminate\Database\MySqlConnection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,7 +17,7 @@ final class ColumnTypes
     /**
      * `Schema::getColumns()`'s full `type` first: `tinyint(1)` is a boolean on MySQL, MariaDB and SQLite, any other `tinyint` is not;
      * PostgreSQL's `dateTime` is `timestamp(0) without time zone`, while a `timestamp` column on MySQL and MariaDB is not one, since dates are never stored in it (ADR 0004);
-     * MariaDB's `json` is a `longtext`, a type no Field declares otherwise. SQLite's is a `text`: see `holdsJson()`.
+     * MariaDB's `json` is a `longtext` and SQLite's a `text`: see `storesJson()`.
      */
     public const array DECLARED = [
         'varchar' => 'string',
@@ -32,7 +33,6 @@ final class ColumnTypes
         'datetime' => 'dateTime',
         'timestamp(0) without time zone' => 'dateTime',
         'json' => 'json',
-        'longtext' => 'json',
     ];
 
     /**
@@ -46,13 +46,27 @@ final class ColumnTypes
     }
 
     /**
-     * Whether a `text` column may be a declared `json` one, which SQLite also reports as `text`: only there, and only while every value decodes, so a `Textarea` turned `Repeater` is still refused.
+     * Whether a column an engine reports under another type is `json`, for the two that do (ADR 0006).
      *
-     * A `json` column turned `text` stays unseen on SQLite: its values read as text all the same.
+     * Declared `json`, only while every value decodes, so a `Textarea` turned `Repeater` is still refused. Declared otherwise, MariaDB's `longtext` is one, as no Field declares that type, while SQLite's `text` is what it says: a `json` column turned `text` stays unseen there, its values reading as text all the same.
      */
-    public static function holdsJson(string $table, string $column): bool
+    public static function storesJson(string $table, string $column, string $reported, ?string $declared): bool
     {
-        return DB::getDriverName() === 'sqlite'
-            && DB::table($table)->whereNotNull($column)->select($column)->cursor()->every(fn (object $row): bool => is_string($row->{$column}) && is_array(json_decode($row->{$column}, true)));
+        $connection = DB::connection();
+        $maria = $connection instanceof MySqlConnection && $connection->isMaria();
+
+        if ($reported !== match (true) {
+            $maria => 'longtext',
+            $connection->getDriverName() === 'sqlite' => 'text',
+            default => null,
+        }) {
+            return false;
+        }
+
+        if ($declared !== 'json') {
+            return $maria;
+        }
+
+        return DB::table($table)->whereNotNull($column)->select($column)->cursor()->every(fn (object $row): bool => is_string($row->{$column}) && is_array(json_decode($row->{$column}, true)));
     }
 }

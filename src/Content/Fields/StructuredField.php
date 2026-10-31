@@ -43,6 +43,24 @@ abstract class StructuredField extends Field
         return $this->subFields;
     }
 
+    /**
+     * @internal
+     *
+     * @return array<string, Field> Its sub-Fields by handle, once `ContentTypes` has refused a Layout among them.
+     */
+    public function fields(): array
+    {
+        $fields = [];
+
+        foreach ($this->subFields as $field) {
+            if ($field instanceof Field) {
+                $fields[$field->handle] = $field;
+            }
+        }
+
+        return $fields;
+    }
+
     /** @internal */
     #[\Override]
     public function column(): string
@@ -129,7 +147,7 @@ abstract class StructuredField extends Field
     #[\Override]
     protected function store(mixed $value): string
     {
-        return json_encode($this->plain($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        return json_encode($this->document($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 
     /**
@@ -142,27 +160,13 @@ abstract class StructuredField extends Field
     {
         $decoded = $this->decoded($value);
 
-        return $decoded === null ? null : $this->mapped($decoded, fn (Field $field, mixed $sub): mixed => $field instanceof self ? ($sub === null ? null : $field->cast($sub)) : $field->read($sub));
-    }
-
-    /** @return array<string, Field> */
-    private function fields(): array
-    {
-        $fields = [];
-
-        foreach ($this->subFields as $field) {
-            if ($field instanceof Field) {
-                $fields[$field->handle] = $field;
-            }
-        }
-
-        return $fields;
+        return $decoded === null ? null : $this->mapped($decoded, fn (Field $field, mixed $sub): mixed => $field->read($sub));
     }
 
     /** @return array<mixed> */
-    private function plain(mixed $value): array
+    private function document(mixed $value): array
     {
         /** @var array<mixed> $value */
-        return $this->mapped($value, fn (Field $field, mixed $sub): mixed => $field instanceof self ? ($sub === null ? null : $field->plain($sub)) : $field->write($sub));
+        return $this->mapped($value, fn (Field $field, mixed $sub): mixed => $field instanceof self ? ($sub === null ? null : $field->document($sub)) : $field->write($sub));
     }
 }

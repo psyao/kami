@@ -312,10 +312,8 @@ final readonly class Doctor
         }
 
         if ($field instanceof StructuredField) {
-            foreach ($field->subFields() as $sub) {
-                if ($sub instanceof Field) {
-                    array_push($keys, ...$this->labelKeys("{$key}.fields.{$sub->handle}", $sub));
-                }
+            foreach ($field->fields() as $handle => $sub) {
+                array_push($keys, ...$this->labelKeys("{$key}.fields.{$handle}", $sub));
             }
         }
 

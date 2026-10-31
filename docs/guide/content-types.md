@@ -79,7 +79,7 @@ A Field is built with `::make()` and its handle, which names its column:
 | `DateTime` | a moment, read as a `CarbonImmutable` in UTC | `dateTime` |
 | `Select` | one key out of `->options(['news', 'review'])` | `string` |
 | `Repeater` | a list of rows of sub-Fields, read as a list of arrays, `null` with no row | `json` |
-| `Group` | one set of named sub-Fields, read as an array, `null` when all are blank | `json` |
+| `Group` | one set of named sub-Fields, read as an array, `null` when all are blank or off | `json` |
 
 `Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
@@ -117,7 +117,7 @@ $entry->links;   // [['label' => 'Site', 'url' => 'https://example.test'], ...]
 $entry->address; // ['street' => 'Rue du Lac 1', 'city' => 'Vevey']
 ```
 
-Each sub-Field reads through its own type, so a `Date` in a row is a `CarbonImmutable`, and every declared one is present, `null` when blank. Keys that no sub-Field declares are not stored. Editors add, remove and reorder a Repeater's rows.
+Each sub-Field reads through its own type, so a `Date` in a row is a `CarbonImmutable`, and every declared one is present, `null` when blank. Keys that no sub-Field declares are not stored. Editors add, remove and reorder a Repeater's rows. A row added and left blank stays until an editor removes it, so on a translatable Repeater it holds that Locale's value and stops Fallback. A `Group` whose values are all blank or `false` stores `null`, as a toggle left untouched says nothing.
 
 A sub-Field's rules and `->required()` apply to each row, as at the top level: a Draft may leave a required one blank. An error names its row (`links.1.url`), and in the admin it shows on that row's input. A `->required()` inside a `Group` holds to publish even when the Group itself is not required.
 
@@ -256,7 +256,7 @@ Any other change of column type, such as `Text` to `Boolean`, `Number` to `Date`
 
 That migration runs from the command line, like any other (`kami:install`), so a web request's time limit does not apply; it updates one row at a time, which takes longer the more Entries the type has. On MySQL and MariaDB, a value that fails partway leaves the new column behind, since their schema changes do not roll back: drop it before running the migration again.
 
-SQLite stores a `json` column as `text`, so it cannot tell them apart by type: a `text` column declared `json` passes there while every value in it decodes to an array or an object, and is refused otherwise. The other way, `Repeater` to `Textarea` writes nothing on SQLite, and the stored JSON reads as text.
+SQLite stores a `json` column as `text`, so it cannot tell them apart by type: a `text` column declared `json` passes there while every value in it decodes to an array or an object, and is refused otherwise. MariaDB stores it as `longtext`, under the same check. The other way, `Repeater` to `Textarea` writes nothing on SQLite, and the stored JSON reads as text.
 
 Going from `Textarea` to `Text`, a value over 255 characters stops the migration with an error and loses nothing on PostgreSQL, MySQL and MariaDB, while SQLite keeps it whole. MySQL and MariaDB truncate it without the connection's `strict` mode, which Laravel turns on by default.
 

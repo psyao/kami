@@ -274,7 +274,9 @@ abstract class Field
     private function lengthRule(int $max, Closure $length): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($max, $length): void {
-            if (is_string($value) && $length($value) > $max) {
+            if (is_array($value)) {
+                $fail(__('validation.string'));
+            } elseif (is_string($value) && $length($value) > $max) {
                 $fail(__('validation.max.string', ['max' => $max]));
             }
         };

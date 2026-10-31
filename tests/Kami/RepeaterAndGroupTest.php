@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Number;
@@ -86,7 +87,7 @@ it('stores a Repeater and a Group as one Shared json column, read back decoded',
 
     expect($entry->links)->toBe([['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Été', 'url' => 'https://example.test/ete']])
         ->and($entry->address)->toBe(['street' => 'Rue du Lac', 'city' => 'Vevey'])
-        ->and(json_decode((string) storedColumn($entry, 'address'), true))->toBe(['street' => 'Rue du Lac', 'city' => 'Vevey']);
+        ->and(json_decode((string) storedColumn($entry, 'address'), true))->toEqual(['street' => 'Rue du Lac', 'city' => 'Vevey']);
 });
 
 it('keeps a stored value when it is left out, and stores null for a blank one', function () {
@@ -133,6 +134,43 @@ it('refuses a value of the wrong shape, and stores only declared sub-Fields', fu
 
     expect($entry->links)->toBe([['label' => 'x', 'url' => null]])
         ->and($entry->address)->toBe(['street' => null, 'city' => 'Vevey']);
+});
+
+it('refuses an array where a sub-Field or a top-level Field stores text', function () {
+    expect(linkErrors(['links' => [['label' => ['x']]]]))->toHaveKey('links.0.label')
+        ->and(linkErrors(['address' => ['city' => ['x']]]))->toHaveKey('address.city')
+        ->and(linkErrors(['client' => ['x']]))->toHaveKey('client');
+});
+
+it('stores null for a Group whose toggles are off and whose values are blank', function () {
+    Rowed::$declared = [Group::make('place', [Boolean::make('open'), Text::make('city')])];
+    config(['kami.types' => [Rowed::class]]);
+    structuredTable(fn (Blueprint $table) => $table->json('place')->nullable());
+    $save = resolve(SaveEntry::class);
+
+    expect($save->handle(Rowed::class, ['title' => 'x', 'place' => ['open' => false, 'city' => '']], locale: 'fr')->place)->toBeNull()
+        ->and($save->handle(Rowed::class, ['title' => 'y', 'place' => ['open' => false, 'city' => 'Vevey']], locale: 'fr')->place)->toBe(['open' => false, 'city' => 'Vevey']);
+});
+
+it('keeps one value per Locale for a translatable Repeater, and falls back when blank', function () {
+    Rowed::$declared = [Repeater::make('stops', [Text::make('city')])->translatable()];
+    config(['kami.types' => [Rowed::class]]);
+    structuredTable(fn (Blueprint $table) => $table->json('stops')->nullable());
+    $save = resolve(SaveEntry::class);
+
+    $entry = $save->handle(Rowed::class, ['title' => 'x', 'slug' => 'x', 'status' => 'published', 'stops' => [['city' => 'Genève']]], locale: 'fr');
+    $save->handle(Rowed::class, ['title' => 'y', 'slug' => 'y'], $entry, 'en');
+
+    $read = fn (string $locale) => Entry::query()->withUnpublished()->inLocale($locale)->findOrFail($entry->id);
+
+    expect($read('en')->stops)->toBe([['city' => 'Genève']])
+        ->and($read('en')->fallbackLocale('stops'))->toBe('fr');
+
+    $save->handle(Rowed::class, ['stops' => [['city' => 'Geneva']]], $entry, 'en');
+
+    expect($read('en')->stops)->toBe([['city' => 'Geneva']])
+        ->and($read('fr')->stops)->toBe([['city' => 'Genève']])
+        ->and(DB::table('kami_type_rowed')->where('entry_id', $entry->id)->pluck('locale')->sort()->values()->all())->toBe(['en', 'fr']);
 });
 
 it('reads and writes each sub-Field through its own type, nested ones included', function () {

@@ -283,11 +283,7 @@ final class EntryResource extends FilamentResource
     {
         $translatable = ! self::type()->isTranslatable() || self::type()->isTranslatable($field);
         $target = $fields->get($field->conditionTarget() ?? '');
-        $component = self::input($field, $field->handle, $translatable ? $lang : []);
-
-        if ($component instanceof FormField) {
-            $component->default($field->defaultValue());
-        }
+        $component = self::input($field, $field->handle, $translatable ? $lang : [], $field->defaultValue());
 
         // The condition `SaveEntry` reads, on the form's state; a hidden component is not sent, and `SaveEntry` clears its value.
         if ($target instanceof Field) {
@@ -322,8 +318,9 @@ final class EntryResource extends FilamentResource
      *
      * @param  string  $key  Where its labels live under `fields.`.
      * @param  array<string, string>  $lang
+     * @param  mixed  $default  A Group's goes to its sub-Fields: a heading holds no state of its own.
      */
-    private static function input(Field $field, string $key, array $lang): Component
+    private static function input(Field $field, string $key, array $lang, mixed $default = null): Component
     {
         $label = self::type()->fieldLabel($key);
         $help = self::type()->fieldHelp($key);
@@ -331,21 +328,21 @@ final class EntryResource extends FilamentResource
         if ($field instanceof StructuredField) {
             $children = [];
 
-            foreach ($field->subFields() as $sub) {
-                if ($sub instanceof Field) {
-                    $children[] = self::input($sub, "{$key}.fields.{$sub->handle}", $lang);
-                }
+            foreach ($field->fields() as $handle => $sub) {
+                $children[] = self::input($sub, "{$key}.fields.{$handle}", $lang, $field instanceof Group && is_array($default) ? $default[$handle] ?? null : null);
             }
 
             return $field instanceof Group
                 ? FilamentSection::make($label)->description($help)->statePath($field->handle)->schema($children)
                 // Buttons as well as dragging, for a keyboard (WCAG 2.1.1).
-                : RepeaterInput::make($field->handle)->label($label)->helperText($help)->schema($children)->defaultItems(0)->reorderableWithButtons();
+                : RepeaterInput::make($field->handle)->label($label)->helperText($help)->schema($children)->default($default)->defaultItems(0)->reorderableWithButtons();
         }
 
         $plugin = Filament::getPlugin('kami');
         $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
         $component->label($label)->helperText($help);
+
+        $component->default($default);
 
         // A registered Select names its labels by handle alone.
         if ($field instanceof Select && $component instanceof SelectInput && $key !== $field->handle) {
