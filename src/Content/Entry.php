@@ -10,13 +10,16 @@ use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Routing\Internal\Path;
@@ -54,6 +57,9 @@ class Entry extends Model
     /** The Locale it was queried in through `inLocale()`; the current Locale when null. */
     private ?string $locale = null;
 
+    /** Queried through `withUnpublished()`: what it links to is read the same way. */
+    private bool $unpublished = false;
+
     /**
      * @internal
      *
@@ -80,13 +86,48 @@ class Entry extends Model
      */
     public function setFieldRows(array $rows): void
     {
-        $this->fieldRows = $rows;
+        // Over what is there: loading a relation Field again re-reads the columns, and must keep the others' target ids.
+        foreach ($rows as $locale => $row) {
+            $this->fieldRows[$locale] = [...$this->fieldRows[$locale] ?? [], ...$row];
+        }
     }
 
     /** @internal */
     public function readIn(string $locale): void
     {
         $this->locale = $locale;
+    }
+
+    /** @internal */
+    public function readUnpublished(): void
+    {
+        $this->unpublished = true;
+    }
+
+    /** @internal */
+    public function readsUnpublished(): bool
+    {
+        return $this->unpublished;
+    }
+
+    /**
+     * @internal
+     *
+     * @param  array<string, list<string>>  $byLocale  A relation Field's target ids, by Locale; they answer Fallback as a column's value does.
+     * @param  array<string, self>  $targets  What may be read, by id: an absent target is left out.
+     */
+    public function setReferences(string $handle, array $byLocale, array $targets): void
+    {
+        foreach ($byLocale as $locale => $ids) {
+            $this->fieldRows[$locale][$handle] = $ids === [] ? null : $ids;
+        }
+
+        $field = $this->field($handle);
+        $locale = $field instanceof Field && $this->contentType()?->isTranslatable($field) ? $this->storedFallback($handle) ?? $this->readLocale() : '*';
+        /** @var list<string> $ids */
+        $ids = $this->fieldRows[$locale][$handle] ?? [];
+
+        $this->setRelation($handle, $this->newCollection(array_values(array_filter(array_map(fn (string $id): ?self => $targets[$id] ?? null, $ids)))));
     }
 
     /** @internal */
@@ -100,6 +141,10 @@ class Entry extends Model
 
         if (! $field instanceof Field) {
             return parent::getAttribute($key);
+        }
+
+        if ($field instanceof RelationField) {
+            return $this->relationField($field);
         }
 
         if (! $this->contentType()?->isTranslatable($field)) {
@@ -117,6 +162,32 @@ class Entry extends Model
      * It falls back only when the value is blank and the default Locale's Translation is visible (ADR 0013).
      */
     public function fallbackLocale(string $field): ?string
+    {
+        $declared = $this->field($field);
+
+        if ($declared instanceof RelationField) {
+            $this->relationField($declared);
+        }
+
+        return $this->storedFallback($field);
+    }
+
+    /** @return Collection<int, self> */
+    private function relationField(RelationField $field): Collection
+    {
+        if (! $this->relationLoaded($field->handle)) {
+            if ($this->preventsLazyLoading) {
+                $this->handleLazyLoadingViolation($field->handle);
+            }
+
+            References::load([$this], [$field->handle]);
+        }
+
+        /** @var Collection<int, self> */
+        return $this->getRelation($field->handle);
+    }
+
+    private function storedFallback(string $field): ?string
     {
         $default = Site::current()->defaultLocale();
         $declared = $this->field($field);
@@ -151,7 +222,8 @@ class Entry extends Model
         return collect($this->contentType()?->flatFields() ?? [])->firstWhere('handle', $handle);
     }
 
-    private function readLocale(): string
+    /** @internal */
+    public function readLocale(): string
     {
         return $this->locale ?? Site::current()->currentLocale();
     }

@@ -10,6 +10,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
@@ -120,6 +121,10 @@ final class ContentTypes
                     throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" names a method of " . Entry::class . ', which would hide its value; rename the Field.');
                 }
 
+                if ($field instanceof RelationField) {
+                    $this->validateRelation($class, $field, $types);
+                }
+
                 if ($field->isIndexed() && in_array($field->column(), ['text', 'json'], true)) {
                     throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot be filterable or sortable: no engine indexes its {$field->column()} column whole.");
                 }
@@ -139,6 +144,28 @@ final class ContentTypes
 
             $this->validateLayout($class, $type);
             $this->validateConditions($class, $type);
+        }
+    }
+
+    /** @param array<string, ContentType> $types */
+    private function validateRelation(string $class, RelationField $field, array $types): void
+    {
+        if ($field->targets() === []) {
+            throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" links to nothing; name its Content Types with ->of(...).");
+        }
+
+        foreach ($field->targets() as $target) {
+            if (! isset($types[$target])) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" links to {$target}, which is not listed in kami.types.");
+            }
+        }
+
+        if ($field->isIndexed()) {
+            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot be filterable or sortable: it has no column.");
+        }
+
+        if ($field->defaultValue() !== null) {
+            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot take a default: no Entry id is known when the type is declared.");
         }
     }
 
@@ -165,6 +192,10 @@ final class ContentTypes
         foreach ($parent->subFields() as $field) {
             if (! $field instanceof Field) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the layout \"{$field->handle}\": arrange it around the Field instead.");
+            }
+
+            if ($field instanceof RelationField) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the relation \"{$field->handle}\": its rows live in kami_references, which cannot see inside a document.");
             }
 
             $this->validateHandle($class, 'the sub-Field handle', $field->handle);
@@ -203,6 +234,10 @@ final class ContentTypes
         }
 
         foreach ($type->flatFields() as $field) {
+            if ($field instanceof RelationField && $field->isRequired()) {
+                throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" is required; a Global Set is always published and a relation takes no default, so kami:install could not create it. Remove ->required().");
+            }
+
             if ($field->defaultValue() === null && $this->requiresValue($field)) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is required with no default; a Global Set is always published, so kami:install could not create it. Give it a ->default().");
             }
@@ -260,6 +295,10 @@ final class ContentTypes
 
             if ($target instanceof StructuredField) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the Repeater or Group \"{$target->handle}\", whose value a condition cannot read.");
+            }
+
+            if ($target instanceof RelationField) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the relation \"{$target->handle}\", whose value a condition cannot read.");
             }
 
             if ($type->isTranslatable($target)) {

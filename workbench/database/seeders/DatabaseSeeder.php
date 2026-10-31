@@ -55,7 +55,7 @@ class DatabaseSeeder extends Seeder
         $save->handle(Label::class, [...$published, 'title' => 'Archive', 'colour' => 'grey'], actor: $admin);
 
         // Tabs, a section, conditions, a Repeater, a Group.
-        $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey']], locale: 'fr', actor: $admin);
+        $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id]], locale: 'fr', actor: $admin);
         $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
 
         // A Singleton at the root, one page in the admin.

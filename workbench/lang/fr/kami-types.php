@@ -77,6 +77,7 @@ return [
                 'label' => ['label' => 'Libellé'],
                 'url' => ['label' => 'Adresse'],
             ]],
+            'related' => ['label' => 'Contenus liés'],
             'address' => ['label' => 'Adresse', 'fields' => [
                 'street' => ['label' => 'Rue'],
                 'city' => ['label' => 'Ville'],

@@ -14,6 +14,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
 
@@ -93,6 +94,20 @@ it('renders an Entry page in an exact number of queries', function () {
 
     // The Path, the Entry with its visibility, its Translations, its type rows.
     expect(DB::getQueryLog())->toHaveCount(4);
+});
+
+it('renders related Entries in pick order, a Draft left out, in an exact number of queries', function () {
+    $first = saveArticle(['title' => 'First']);
+    $draft = saveArticle(['title' => 'Hidden', 'status' => 'draft']);
+    $last = saveArticle(['title' => 'Last']);
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'status' => 'published', 'related' => [$last->id, $draft->id, $first->id]]);
+
+    DB::enableQueryLog();
+    $response = $this->get('/project/kami')->assertOk()->assertSeeInOrder(['Last', 'First'])->assertDontSee('Hidden');
+
+    // The page's four, the rows, the targets, their Translations, the Articles' rows.
+    expect(DB::getQueryLog())->toHaveCount(8);
+    $response->assertSee('/articles/last');
 });
 
 it('sets no cookie on a front response, even inside the web group', function () {

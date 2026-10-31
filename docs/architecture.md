@@ -11,7 +11,7 @@ Each line can be accepted or contested on its own. The link gives the reasons.
 3. **Everything is an Entry.** Every content item, in all its Locales, has one row in `kami_entries`; Terms, Singletons, Global Sets and the site settings are Entries too. Media are a separate entity. ([ADR 0002](adr/0002-every-content-item-is-an-entry.md))
 4. **ULID keys** on every `kami_` table; Users keep the host's key type. ([ADR 0003](adr/0003-ulid-primary-keys.md))
 5. **Multisite-ready schema, Sites in code.** Sites are declared in `config/kami.php`; site-scoped rows carry a `site` handle. One Site per install in the MVP. ([ADR 0004](adr/0004-sites-declared-in-code.md))
-6. **One References table** with two real foreign keys (Entry, Media), no morph pair. ([ADR 0005](adr/0005-one-references-table-with-real-foreign-keys.md))
+6. **One References table** with two real foreign keys (Entry, Media, from M5 with its table), no morph pair. ([ADR 0005](adr/0005-one-references-table-with-real-foreign-keys.md))
 7. **Typed table per Content Type.** Field values live in `kami_type_<handle>`, one row per scope (`'*'` for Shared fields, one per Locale for Translatable ones), changed through ordinary migrations; drift fails the deploy, and `kami:make:migration` alone scans a `json` column that SQLite or MariaDB reports under another type. ([ADR 0006](adr/0006-field-values-in-a-table-per-content-type.md))
 8. **Content Types are classes.** One `final` class per type with `fields()`, layout and declarative conditions in the core; Filament is reached only through site-owned `EntryForm` / `EntryTable` subclasses. ([ADR 0007](adr/0007-content-types-declared-as-classes-filament-through-site-forms.md))
 9. **One paths table.** Current Paths and Redirects share `kami_paths`, unique per `(site, locale, path)`; resolution is one indexed read and Redirects never chain. ([ADR 0008](adr/0008-one-paths-table-for-urls-and-redirects.md))
@@ -156,6 +156,7 @@ erDiagram
         mixed field_columns "one typed column per stored Field"
     }
     kami_references {
+        bigint id PK
         ulid source_entry_id FK
         string field
         string locale "null = shared"

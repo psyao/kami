@@ -154,6 +154,7 @@ A Field is built with `::make()` and its handle, which names its column:
 | `Select` | one key out of `->options(['news', 'review'])` | `string` |
 | `Repeater` | a list of rows of sub-Fields, read as a list of arrays, `null` with no row | `json` |
 | `Group` | one set of named sub-Fields, read as an array, `null` when all are blank or off | `json` |
+| `Entries` | links to other Entries, read as a Collection in pick order | none: [`kami_references`](#relations) |
 
 `Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
@@ -197,7 +198,39 @@ A sub-Field's rules and `->required()` apply to each row, as at the top level: a
 
 The Field's scope covers the whole value: both are Shared unless you call `->translatable()` on them, and a sub-Field's own scope is ignored. Repeaters and groups may nest. Their sub-Field labels live under the parent's key; see [Labels](#labels).
 
-The value is one document, which SQL never looks into: to filter on a value, make it a top-level Field. So the first read of the declarations refuses, inside either one, a layout object, a sub-Field with `->visibleWhen()`, `->filterable()`, `->sortable()` or `->default()`, and a Repeater or Group with no sub-Field. Neither can be the target of a condition. A custom Field type inside one needs its component, as anywhere.
+The value is one document, which SQL never looks into: to filter on a value, make it a top-level Field. So the first read of the declarations refuses, inside either one, a layout object, a sub-Field with `->visibleWhen()`, `->filterable()`, `->sortable()` or `->default()`, and a Repeater or Group with no sub-Field. Neither can be the target of a condition. A relation cannot sit in one either: its rows live in `kami_references`, which cannot see inside a document. A custom Field type inside one needs its component, as anywhere.
+
+### Relations
+
+`Entries` links an Entry to Entries of the types you name, each listed in `types`:
+
+```php
+Entries::make('related')->of(Article::class, Page::class),
+```
+
+`SaveEntry` takes a list of Entry ids, in the order to keep. Giving the Field replaces its links, a blank list removes them, and leaving it out keeps them. An unknown id, an Entry of another type or another Site, or the same id twice is a validation error on the Field. A Draft may be linked: reads leave it out until it is visible.
+
+```php
+app(SaveEntry::class)->handle(Project::class, ['related' => [$second->id, $first->id]], $project);
+```
+
+```php
+$projects = Entry::query()->ofType(Project::class)->with('related')->get();
+
+foreach ($projects as $project) {
+    $project->related; // Collection<int, Entry>, in pick order
+}
+```
+
+`with()` names the Field and loads every listed Entry's links with one query for the rows, then the targets' usual queries: the Entries, their Translations and one per target type. Several relation Fields share those queries, and `with('related.related')` follows a link further. Unlike an Eloquent relation, it takes no constraint: filter the Collection, or query the type. Read without `with()`, among several Entries, it throws under Laravel's strict mode, as a lazy relation does; a single Entry, as a type's view has, loads it on first read.
+
+Reads leave out a target not visible in the Locale read, and `withUnpublished()` on the query brings them back. Hard-deleting a target removes its links, and hard-deleting an Entry removes the links it holds.
+
+A relation is Shared by default. With `->translatable()`, each Locale has its own list, and a blank one falls back to the default Locale's, while that Translation is visible, as for any Field ([Multilingual](multilingual.md)). A Locale with links whose targets are all hidden is not blank: it reads empty. Fallen-back targets are checked in the Locale read too.
+
+A relation can be conditional, and hidden it loses its links in every Locale. The first read of the declarations refuses one with no `->of()` or a type not in `types`, with `->filterable()`, `->sortable()` or `->default()`, as the target of a condition, `->required()` on a Global Set, and inside a Repeater or Group.
+
+Editors search targets by title and see them in pick order, Drafts included. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
 
 ### Tabs and sections
 
@@ -322,7 +355,7 @@ What it writes:
 - **A Field declared `->filterable()` or `->sortable()`**: an index on its column. **A Field no longer declared so**: that index dropped. An index you wrote by hand on the column counts as its index, and is dropped only with its column.
 - **A down() method** that undoes all of it.
 
-Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A type with no Field gets no table, and a type you remove from `types` keeps its table: the command never drops one.
+Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A [relation](#relations) has no column, so the command ignores it. A type with no column gets no table, and a type you remove from `types` keeps its table: the command never drops one.
 
 Renaming a Field looks like removing one and adding another, and the drop would lose its values. So when a type both loses and gains columns, the command asks in a terminal, for each lost column, whether it is renamed to one of the new ones (`renameColumn`, values kept) or dropped. Without a terminal (a deploy script, `--no-interaction`), it refuses and prints both options rather than guess.
 

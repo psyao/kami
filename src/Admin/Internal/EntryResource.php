@@ -40,6 +40,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
@@ -208,6 +209,31 @@ final class EntryResource extends FilamentResource
     public static function locales(): array
     {
         return self::type()->isTranslatable() ? Site::current()->locales : [];
+    }
+
+    /**
+     * A relation Field's input: search on the server, the rows' labels in the Locale edited, or the default one's. A keyboard reorders by removing and picking again (ADR 0007).
+     */
+    public static function picker(RelationField $field): SelectInput
+    {
+        $translations = fn (mixed $livewire): Builder => Translation::query()->whereNotNull('title')->whereIn('locale', ['*', Site::current()->defaultLocale(), $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()]);
+
+        return SelectInput::make($field->handle)
+            ->multiple()
+            ->reorderable()
+            ->searchable()
+            ->getSearchResultsUsing(function (string $search, mixed $livewire) use ($field, $translations): array {
+                $targets = Entry::query()->withUnpublished()->where('site', Site::current()->handle)->whereIn('type', $field->targetHandles())->select('id')->toBase();
+
+                /** @var array<string, string> */
+                return $translations($livewire)->whereIn('entry_id', $targets)->whereLike('title', "%{$search}%")->limit(50)->pluck('title', 'entry_id')->all();
+            })
+            ->getOptionLabelsUsing(function (array $values, mixed $livewire) use ($translations): array {
+                $locale = $livewire instanceof EditEntry ? $livewire->locale : null;
+
+                /** @var array<string, string> The Locale edited last, so it wins. */
+                return $translations($livewire)->whereIn('entry_id', $values)->get()->sortBy(fn (Translation $translation): bool => $translation->locale === $locale)->pluck('title', 'entry_id')->all();
+            });
     }
 
     /**

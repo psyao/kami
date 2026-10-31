@@ -18,9 +18,11 @@ use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
@@ -86,7 +88,10 @@ final class SaveEntry
 
         $translation = $entry instanceof Entry ? Translation::query()->firstOrNew(['entry_id' => $entry->id, 'locale' => $locale]) : new Translation(['locale' => $locale]);
         // A type with no Field has no table.
-        $stored = $entry instanceof Entry && $contentType->flatFields() !== [] ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
+        $stored = $entry instanceof Entry && $contentType->columnFields() !== [] ? DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->whereIn('locale', [$locale, '*'])->get()->keyBy('locale') : collect();
+
+        $relations = array_filter($contentType->flatFields(), fn (Field $field): bool => $field instanceof RelationField);
+        $references = $entry instanceof Entry && $relations !== [] ? References::stored([$entry->id], array_column($relations, 'handle'))[$entry->id] ?? [] : [];
 
         // A new Translation starts from its Fields' defaults; a Shared Field's only while the Entry has no `'*'` row yet.
         if ($writesTranslation && ! $translation->exists) {
@@ -104,7 +109,15 @@ final class SaveEntry
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
         $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? Translation::DRAFT] : [];
         foreach ($fields as $handle => $field) {
-            $column = $stored->get($contentType->isTranslatable($field) ? $locale : '*')?->{$handle};
+            $scope = $contentType->isTranslatable($field) ? $locale : '*';
+
+            if ($field instanceof RelationField) {
+                $data[$handle] = $references[$scope][$handle] ?? null;
+
+                continue;
+            }
+
+            $column = $stored->get($scope)?->{$handle};
             $data[$handle] = $field instanceof StructuredField ? $field->decoded($column) : $column;
         }
 
@@ -139,7 +152,7 @@ final class SaveEntry
         $conditional = array_filter($contentType->flatFields(), fn (Field $field): bool => $field->conditionTarget() !== null);
         Validator::make($data, Arr::only($rules, array_map(fn (Field $field): ?string => $field->conditionTarget(), $conditional)))->validate();
 
-        $cleared = [];
+        $cleared = $clearedReferences = [];
 
         foreach ($conditional as $field) {
             // A target is Shared, so in scope of every call, and hides its Field in every Locale.
@@ -148,7 +161,12 @@ final class SaveEntry
             if (! $field->isVisibleGiven($target, $data[$target->handle])) {
                 unset($values[$field->handle]);
                 $rules = array_diff_key($rules, $field->rulesAt($field->handle, $publishing));
-                $cleared[$field->handle] = null;
+
+                if ($field instanceof RelationField) {
+                    $clearedReferences[] = $field->handle;
+                } else {
+                    $cleared[$field->handle] = null;
+                }
             }
         }
 
@@ -157,7 +175,7 @@ final class SaveEntry
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
 
-        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared): string {
+        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()])->save();
 
@@ -177,7 +195,15 @@ final class SaveEntry
 
             $rows = [];
             foreach ($fields as $handle => $field) {
-                if (array_key_exists($handle, $values)) {
+                if (! array_key_exists($handle, $values)) {
+                    continue;
+                }
+
+                if ($field instanceof RelationField) {
+                    /** @var list<string>|null $targets */
+                    $targets = $values[$handle];
+                    References::replace($entry->id, $handle, $contentType->isTranslatable($field) ? $locale : null, $targets ?? []);
+                } else {
                     $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $field->write($values[$handle]);
                 }
             }
@@ -188,6 +214,10 @@ final class SaveEntry
 
             if ($cleared !== []) {
                 DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($cleared);
+            }
+
+            foreach ($clearedReferences as $handle) {
+                References::clear($entry->id, $handle);
             }
 
             if ($writesTranslation) {

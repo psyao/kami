@@ -105,7 +105,7 @@ final class InstallCommand extends Command
             }
 
             // ponytail: with no value to write, a missing table would seed fine and break every read; the drift check (#182) runs before this step and removes it.
-            if ($type->flatFields() !== [] && ! Schema::hasTable("kami_type_{$type->handle()}")) {
+            if ($type->columnFields() !== [] && ! Schema::hasTable("kami_type_{$type->handle()}")) {
                 $this->components->error("The {$type->handle()} Entry cannot be created: its table does not exist. Run php artisan kami:make:migration {$type->handle()}, then kami:install again.");
 
                 return false;
