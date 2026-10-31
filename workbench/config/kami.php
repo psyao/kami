@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Testimonial;
 
 // The Workbench Site's declarations: two Sites sharing two Locales, so tests never assume a single one.
 return [
@@ -15,6 +17,8 @@ return [
         Page::class,
         Label::class,
         Project::class,
+        Home::class,
+        Testimonial::class,
     ],
 
     'roles' => [

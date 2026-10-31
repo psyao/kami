@@ -28,6 +28,19 @@ return [
             'body' => ['label' => 'Body'],
         ],
     ],
+    'home' => [
+        'label' => 'Home',
+        'fields' => [
+            'intro' => ['label' => 'Intro'],
+        ],
+    ],
+    'testimonial' => [
+        'label' => 'Testimonial',
+        'plural' => 'Testimonials',
+        'fields' => [
+            'quote' => ['label' => 'Quote'],
+        ],
+    ],
     'label' => [
         'label' => 'Label',
         'plural' => 'Labels',

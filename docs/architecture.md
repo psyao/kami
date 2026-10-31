@@ -257,7 +257,7 @@ erDiagram
 Columns are indicative; the migrations are the truth and the schema is internal (ADR 0010). Rules the diagram cannot show:
 
 - **An Entry is one content item in every Locale.** It is visible in a Locale only through a published Translation there; a Content Type declared untranslatable has one `'*'` Translation (ADR 0013).
-- **Taxonomy, Singleton, Global Set** are Content Type presets, not tables. A Term is an Entry whose type is a Taxonomy, attached through References. A Singleton has one Entry per Site, and a Global Set is a Singleton with no URL. The site settings are the package's `SiteSettings` Global Set (ADRs 0002, 0029).
+- **Taxonomy, Singleton, Global Set** are Content Type presets, not tables. A Term is an Entry whose type is a Taxonomy, attached through References. A Singleton has one Entry per Site, its Path being its Prefix, and a Global Set is a Singleton with no URL. Any type may declare `$routable = false`: no Path, no slug, `url()` null (ADR 0007). The site settings are the package's `SiteSettings` Global Set (ADRs 0002, 0029).
 - **`kami_paths` rows with status 200 are derived** from Translations and declarations and rebuilt by `kami:install`. Redirects are primary data (ADR 0008).
 - **Deletion.** A Parent with children, an Entry with Paths or Menu items, and a Media item in use are `RESTRICT`. The core actions turn Paths into Redirects or 410s and remove Menu items first (ADRs 0005, 0008, 0025).
 - **Media.** One library per Site. Alt text and caption are per Locale and follow the same fallback; the file, Focal point and credit are shared (ADR 0013).

@@ -62,6 +62,39 @@ A handle is snake_case (lowercase letters and digits, words joined by single und
 
 Changing a Prefix moves the type's Entries on the next `kami:install` ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
+### Types with no URL
+
+A collection listed on other pages, with no page of its own, declares `$routable = false`:
+
+```php
+final class Project extends ContentType
+{
+    protected bool $routable = false;
+}
+```
+
+Its Entries have no Path and no slug, `$entry->url()` is `null`, its form has no slug field, `SaveEntry` refuses a `slug`, and `kami:doctor` asks for no view. A type that had URLs answers 404 from the deploy on, and the next `kami:install` removes its Paths; its slugs stay stored, so setting it back to `true` restores those addresses. An Entry saved with no slug meanwhile has no address until its next save.
+
+### Singletons
+
+A type with exactly one Entry per Site, such as a home page, extends `Singleton`:
+
+```php
+use Psyao\Kami\Content\Singleton;
+
+final class Home extends Singleton
+{
+    protected ?string $prefix = '';
+}
+```
+
+- **Its Path is its Prefix.** `Home` answers `/` and, published in `en`, `/en`. A Singleton with no `$prefix` answers at its handle. It has no slug: `SaveEntry` refuses one, and publishing needs none.
+- **One Entry.** `SaveEntry` refuses a second Entry of the type with a validation error on `type`. To write the first, call `SaveEntry` from a seeder; to update it, pass it as usual.
+- **Reading it.** `Home::entry()` returns the Entry when visible in the current Locale, `null` otherwise, from any view.
+- **In the admin.** Its navigation item, in the singular, opens its form directly, at `/admin/home`, with no list, create or delete. Until its Entry exists, the page answers 404. The page is an edit form, so it takes the type's `update` Permission, and `publish` once the Entry is published: a User without them gets a 403 from the navigation item.
+
+A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` route for `Home` to answer.
+
 ## Fields
 
 A Field is built with `::make()` and its handle, which names its column:
@@ -264,7 +297,7 @@ Run `php artisan migrate` between two runs: while a migration that touches a `ka
 
 ## In the admin
 
-Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`. Its form is generated from the declaration: title, slug, then each Field in its [tab or section](#tabs-and-sections), appearing and disappearing as its [condition](#conditional-fields) changes, `Text` as a single-line input, `Textarea` as a multi-line one, `Url`, `Email` and `Number` as inputs of their kind, `Date` and `DateTime` as pickers, the latter showing the Site's time zone, `Select` as a dropdown, and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
+Each declared type gets its own item in the panel's navigation, at the plural of its handle: `article` at `/admin/articles`, `news_item` at `/admin/news-items`; a [Singleton](#singletons) is at its handle. Its form is generated from the declaration: title, slug unless the type has none, then each Field in its [tab or section](#tabs-and-sections), appearing and disappearing as its [condition](#conditional-fields) changes, `Text` as a single-line input, `Textarea` as a multi-line one, `Url`, `Email` and `Number` as inputs of their kind, `Date` and `DateTime` as pickers, the latter showing the Site's time zone, `Select` as a dropdown, and `Boolean` as a toggle, which saves `false` when left off, so a `->translatable()` Boolean saved from the form never falls back. Leaving the title fills the slug, as [Publishing](publishing.md#slugs-and-paths) describes. Publishing from the form is in [Publishing](publishing.md#in-the-admin).
 
 A User sees a type only with its `view` Permission ([Users and roles](users-and-roles.md#permissions)).
 
@@ -305,7 +338,7 @@ $entry = app(SaveEntry::class)->handle(Article::class, [
 ]);
 ```
 
-- `slug` defaults to the slug of the title: `hello-world`.
+- `slug` defaults to the slug of the title: `hello-world`. A [Singleton](#singletons) or a [type with no URL](#types-with-no-url) takes none.
 - `status` is `draft` (the default) or `published`.
 - `published_at` defaults to now when publishing. A date to come makes the Entry Scheduled: it stays hidden until then, with no task to run.
 

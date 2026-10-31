@@ -13,6 +13,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -34,7 +35,12 @@ final class EditEntry extends EditRecord
     /** Set by the Publish and Unpublish actions for the save they start; a plain save keeps the state. */
     private ?string $status = null;
 
-    public function mount(int | string $record, ?string $locale = null): void
+    /**
+     * A Singleton's URL names no record: its one Entry.
+     *
+     * ponytail: 404 until site code creates it, its navigation item included; #176's `kami:install` seed removes the case.
+     */
+    public function mount(int | string | null $record = null, ?string $locale = null): void
     {
         $default = Site::current()->defaultLocale();
 
@@ -42,7 +48,7 @@ final class EditEntry extends EditRecord
         abort_unless($locale === null || ($locale !== $default && in_array($locale, EntryResource::locales(), true)), 404);
         $this->locale = $locale ?? $default;
 
-        parent::mount($record);
+        parent::mount($record ?? EntryResource::getEloquentQuery()->where('site', Site::current()->handle)->firstOrFail()->id);
     }
 
     /** Read in the page's Locale on every call: Livewire reloads the record on each request, which would read it in the default one. */
@@ -56,6 +62,12 @@ final class EditEntry extends EditRecord
         $entry->readIn($this->locale);
 
         return $entry;
+    }
+
+    /** A Singleton has no list to lead back to. */
+    public function getBreadcrumbs(): array
+    {
+        return EntryResource::type() instanceof Singleton ? [] : parent::getBreadcrumbs();
     }
 
     public function getSubheading(): ?string
@@ -90,7 +102,7 @@ final class EditEntry extends EditRecord
             ...array_map(fn (string $locale): Action => Action::make("locale_{$locale}")
                 ->label(__($this->getRecord()->translations->contains('locale', $locale) ? 'kami::admin.actions.edit_locale' : 'kami::admin.actions.add_locale', ['locale' => $locale]))
                 ->color('gray')
-                ->url(EntryResource::getUrl('edit', ['record' => $this->getRecord(), 'locale' => $locale === $default ? null : $locale])), array_values(array_diff(EntryResource::locales(), [$this->locale]))),
+                ->url(EntryResource::editUrl($this->getRecord(), $locale === $default ? null : $locale)), array_values(array_diff(EntryResource::locales(), [$this->locale]))),
             Action::make('view')
                 ->label(__('kami::admin.actions.view'))
                 ->color('gray')

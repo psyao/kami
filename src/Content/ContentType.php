@@ -16,6 +16,9 @@ abstract class ContentType
     /** The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root. */
     protected ?string $prefix = null;
 
+    /** `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages. */
+    protected bool $routable = true;
+
     /** `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013). */
     protected bool $translatable = true;
 
@@ -123,6 +126,22 @@ abstract class ContentType
     public function prefix(): string
     {
         return $this->prefix ?? $this->handle();
+    }
+
+    /** @internal */
+    public function isRoutable(): bool
+    {
+        return $this->routable;
+    }
+
+    /**
+     * @internal
+     *
+     * Whether each Entry's Path ends in a slug of its own.
+     */
+    public function hasSlug(): bool
+    {
+        return $this->routable;
     }
 
     /**

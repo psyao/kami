@@ -28,6 +28,19 @@ return [
             'body' => ['label' => 'Corps'],
         ],
     ],
+    'home' => [
+        'label' => 'Accueil',
+        'fields' => [
+            'intro' => ['label' => 'Introduction'],
+        ],
+    ],
+    'testimonial' => [
+        'label' => 'Témoignage',
+        'plural' => 'Témoignages',
+        'fields' => [
+            'quote' => ['label' => 'Citation'],
+        ],
+    ],
     'label' => [
         'label' => 'Étiquette',
         'plural' => 'Étiquettes',
