@@ -253,11 +253,8 @@ final class EntryResource extends FilamentResource
             ->searchable()
             ->default(fn (): ?string => is_string($parent = request()->query('parent')) ? $parent : null)
             ->disabled(fn (): bool => ! self::can('reorder'))
-            ->getSearchResultsUsing(function (string $search, mixed $livewire): array {
-                $candidates = self::getEloquentQuery()->where('site', Site::current()->handle);
-
-                return self::pickerTitles(self::matchingIds($livewire instanceof EditEntry ? $candidates->whereKeyNot($livewire->getRecord()->id) : $candidates, $search), $livewire);
-            })
+            // Itself and its children stay offered: `SaveEntry` refuses them.
+            ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matchingIds(self::getEloquentQuery()->where('site', Site::current()->handle), $search), $livewire))
             ->getOptionLabelUsing(fn (string $value, mixed $livewire): string => self::pickerTitles([$value], $livewire)[$value] ?? __('kami::admin.fields.untitled'));
     }
 

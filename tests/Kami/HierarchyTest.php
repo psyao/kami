@@ -263,17 +263,15 @@ it('keeps the Parent when the editor may not reorder', function () {
     expect($child->fresh()->parent_id)->toBe($one->id);
 });
 
-it('shows a cycle on the Parent field, and leaves the Entry itself out of the search', function () {
+it('shows a cycle on the Parent field', function () {
     $top = page('Top');
     $child = page('Child', ['parent' => $top->id]);
 
     level('administrator');
-    $form = Livewire::test(EditEntry::class, ['record' => $top->id]);
-
-    $form->fillForm(['parent' => $child->id])->call('save')->assertHasFormErrors(['parent']);
-
-    $search = $form->instance()->form->getComponent('parent')->getSearchResults('T');
-    expect($search)->not->toHaveKey($top->id);
+    Livewire::test(EditEntry::class, ['record' => $top->id])
+        ->fillForm(['parent' => $child->id])
+        ->call('save')
+        ->assertHasFormErrors(['parent']);
 });
 
 it('creates under the Parent shown', function () {

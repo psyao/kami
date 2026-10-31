@@ -66,13 +66,7 @@ final class ListEntries extends ListRecords
         $breadcrumbs = [EntryResource::getUrl() => EntryResource::getPluralModelLabel()];
 
         foreach ($ids as $id) {
-            $title = $titles[$id] ?? __('kami::admin.fields.untitled');
-
-            if ($id === $this->parent) {
-                $breadcrumbs[] = $title;
-            } else {
-                $breadcrumbs[EntryResource::getUrl(parameters: ['parent' => $id])] = $title;
-            }
+            $breadcrumbs[$id === $this->parent ? 0 : EntryResource::getUrl(parameters: ['parent' => $id])] = $titles[$id] ?? __('kami::admin.fields.untitled');
         }
 
         return $breadcrumbs;
