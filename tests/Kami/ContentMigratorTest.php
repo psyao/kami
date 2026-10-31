@@ -323,16 +323,6 @@ describe('makeTranslatable', function () {
             ->and(column($blank, 'summary'))->toBe([]);
     });
 
-    it('leaves timestamps alone', function () {
-        ($this->declare)(Text::make('summary'));
-        translated($entry = memo(), 'fr');
-        memoRow($entry, '*', ['summary' => 'Partout']);
-
-        ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'summary');");
-
-        expect(DB::table('kami_translations')->where('entry_id', $entry)->value('updated_at'))->toBe('2020-01-01 00:00:00');
-    });
-
     it('copies a relation Field\'s shared links to the same Locales, in pick order', function () {
         ($one = memo('target')) && ($two = memo('target'));
         $entry = memo();

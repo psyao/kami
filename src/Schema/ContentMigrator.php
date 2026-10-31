@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Sites\Internal\Site;
@@ -35,16 +36,17 @@ final class ContentMigrator
     {
         resolve(ContentTypes::class)->validateHandle(self::class, 'the handle', $to);
         [$old, $new] = [self::table($from), self::table($to)];
+        $hasTable = Schema::hasTable($old);
 
         if (Schema::hasTable($new) || DB::table('kami_entries')->where('type', $to)->exists()) {
             throw new InvalidArgumentException("The type {$from} cannot become {$to}: {$new} or Entries of {$to} already exist.");
         }
 
-        if (! Schema::hasTable($old) && ! DB::table('kami_entries')->where('type', $from)->exists()) {
+        if (! $hasTable && ! DB::table('kami_entries')->where('type', $from)->exists()) {
             throw new InvalidArgumentException("The type {$from} has neither a table nor Entries.");
         }
 
-        if (Schema::hasTable($old)) {
+        if ($hasTable) {
             Schema::rename($old, $new);
             self::renameConstraints($old, $new);
         }
@@ -58,10 +60,8 @@ final class ContentMigrator
         resolve(ContentTypes::class)->validateHandle(self::class, 'the Field handle', $to);
         $table = self::table($type);
 
-        foreach ([$from, $to] as $handle) {
-            if (in_array($handle, ['entry_id', 'locale'], true)) {
-                throw new InvalidArgumentException("{$table}.{$handle} holds no Field.");
-            }
+        if (array_intersect([$from, $to], ['entry_id', 'locale']) !== []) {
+            throw new InvalidArgumentException("{$table}.entry_id and {$table}.locale hold no Field.");
         }
 
         if (Schema::hasColumn($table, $to)) {
@@ -93,10 +93,8 @@ final class ContentMigrator
     /** Destroys a type: its table, its Entries and what cascades from them, such as the links other types hold to them. A type still declared is refused. */
     public static function dropType(string $type): void
     {
-        foreach (resolve(ContentTypes::class)->declared() as $declared) {
-            if ($declared->handle() === $type) {
-                throw new InvalidArgumentException("The type {$type} is still declared in kami.types: remove it before dropping it.");
-            }
+        if (collect(resolve(ContentTypes::class)->declared())->contains(fn (ContentType $declared): bool => $declared->handle() === $type)) {
+            throw new InvalidArgumentException("The type {$type} is still declared in kami.types: remove it before dropping it.");
         }
 
         Schema::dropIfExists(self::table($type));
@@ -355,7 +353,7 @@ final class ContentMigrator
         return [
             ...array_fill_keys($ids, [$site->defaultLocale()]),
             ...DB::table('kami_translations')->whereIn('entry_id', $ids)->whereIn('locale', $site->locales)->get()->groupBy('entry_id')
-                ->map(fn (Collection $rows): array => $rows->pluck('locale')->all())->all(),
+                ->map(fn (Collection $rows): array => array_map(strval(...), $rows->pluck('locale')->all()))->all(),
         ];
     }
 
