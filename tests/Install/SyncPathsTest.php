@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
@@ -72,9 +73,8 @@ final class LabelUnderLabels extends ContentType
 /** A Site in French and English with Pages and Labels, installed once. */
 function installedSite(array $locales = ['fr', 'en']): void
 {
-    test()->bootWithKamiOnAPanel();
-    resolve('migrator')->path(dirname(__DIR__, 2) . '/workbench/database/migrations');
-    config(['kami.types' => [Page::class, Label::class], 'kami.sites.default.locales' => $locales]);
+    test()->bootWithTypes([Page::class, Label::class]);
+    config(['kami.sites.default.locales' => $locales]);
     install()->assertSuccessful();
 }
 
@@ -150,6 +150,8 @@ it('leaves the rows of an undeclared Locale and of an undeclared type as they ar
     saved(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');
     saved(Label::class, ['title' => 'Urgent']);
     $rows = paths();
+    // A kept table would be drift: the type left with a migration dropping it, and its Entries stayed.
+    Schema::drop('kami_type_label');
     config(['kami.types' => [PageUnderPages::class], 'kami.sites.default.locales' => ['fr']]);
 
     install()->expectsOutputToContain('Paths: 0 created, 0 rewritten, 0 deleted.')->assertSuccessful();

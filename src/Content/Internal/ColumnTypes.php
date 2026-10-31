@@ -45,6 +45,18 @@ final class ColumnTypes
         return self::DECLARED[$column['type']] ?? self::DECLARED[$column['type_name']] ?? $column['type_name'];
     }
 
+    /** Whether an engine reports a `json` column under this type: the content alone tells, which the drift check does not read (ADR 0006). */
+    public static function mayStoreJson(string $reported): bool
+    {
+        $connection = DB::connection();
+
+        return $reported === match (true) {
+            $connection instanceof MySqlConnection && $connection->isMaria() => 'longtext',
+            $connection->getDriverName() === 'sqlite' => 'text',
+            default => null,
+        };
+    }
+
     /**
      * Whether a column an engine reports under another type is `json`, for the two that do (ADR 0006).
      *
@@ -52,19 +64,12 @@ final class ColumnTypes
      */
     public static function storesJson(string $table, string $column, string $reported, ?string $declared): bool
     {
-        $connection = DB::connection();
-        $maria = $connection instanceof MySqlConnection && $connection->isMaria();
-
-        if ($reported !== match (true) {
-            $maria => 'longtext',
-            $connection->getDriverName() === 'sqlite' => 'text',
-            default => null,
-        }) {
+        if (! self::mayStoreJson($reported)) {
             return false;
         }
 
         if ($declared !== 'json') {
-            return $maria;
+            return DB::connection()->getDriverName() !== 'sqlite';
         }
 
         return DB::table($table)->whereNotNull($column)->select($column)->cursor()->every(fn (object $row): bool => is_string($row->{$column}) && is_array(json_decode($row->{$column}, true)));

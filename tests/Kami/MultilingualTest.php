@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
@@ -167,6 +168,12 @@ it('warns about content in an undeclared Locale or of an undeclared type, and ke
     translate('en', ['title' => 'Hello', 'summary' => 'An article.'], $entry);
     translate('*', ['title' => 'Urgent'], type: Label::class);
     config(['kami.sites.default.locales' => ['fr'], 'kami.types' => [Article::class, Page::class]]);
+    // A table left behind would be drift, which stops the doctor before this report.
+    foreach (Schema::getTableListing(schemaQualified: false) as $table) {
+        if (str_starts_with($table, 'kami_type_') && ! in_array($table, ['kami_type_article', 'kami_type_page', 'kami_type_site_settings'], true)) {
+            Schema::drop($table);
+        }
+    }
 
     $this->artisan('kami:doctor')
         ->expectsOutputToContain('Rows of kami_translations, kami_type_article are in a Locale the default Site does not declare: en.')

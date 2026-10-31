@@ -17,8 +17,6 @@ use Psyao\Kami\Tests\Install\InstallTestCase as TestCase;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 
-use function Orchestra\Testbench\workbench_path;
-
 /** A second Singleton on Home's address. */
 final class TakenHome extends Singleton
 {
@@ -118,9 +116,7 @@ it('changes nothing when run again', function () {
 /** A site with a Singleton and a Global Set of its own, their tables migrated by `kami:install`. */
 function bootWithSeededTypes(TestCase $test, array $types = [Home::class, Footer::class]): void
 {
-    $test->bootWithKamiOnAPanel();
-    config(['kami.types' => $types]);
-    app('migrator')->path(workbench_path('database/migrations'));
+    $test->bootWithTypes($types);
 }
 
 describe('seeding', function () {

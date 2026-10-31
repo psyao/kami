@@ -21,6 +21,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
@@ -85,7 +86,7 @@ final readonly class Doctor
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
-            ...($paths ? [...array_filter([$this->pathDrift()]), ...$this->undeclaredContent()] : []),
+            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
         ];
     }
@@ -355,6 +356,19 @@ final readonly class Doctor
         }
 
         return $problems;
+    }
+
+    /**
+     * Drift first: `kami:install` stops there, so what it would do to the Paths does not count yet, and a missing column would stop what comes next.
+     *
+     * @return list<Problem>
+     */
+    private function contentModel(): array
+    {
+        $drift = resolve(ContentModelDrift::class);
+        $problems = $drift->problems();
+
+        return $problems !== [] ? $problems : [...array_filter([$this->pathDrift()]), ...$drift->strandedValues()];
     }
 
     /** A Prefix changed or a Locale added since the last `kami:install`: the 200 rows still hold the old addresses (ADR 0008). */

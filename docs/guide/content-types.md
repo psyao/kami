@@ -454,7 +454,7 @@ What it writes:
 - **A Field declared `->filterable()` or `->sortable()`**: an index on its column. **A Field no longer declared so**: that index dropped. An index you wrote by hand on the column counts as its index, and is dropped only with its column.
 - **A down() method** that undoes all of it.
 
-Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A [relation](#relations) has no column, so the command ignores it. A type with no column gets no table, and a type you remove from `types` keeps its table: the command never drops one.
+Every Field column is nullable, with no database default: a Draft may be incomplete, and a Field's `default()` lives in the code. Each Field type's column is listed under [Fields](#fields). A [relation](#relations) has no column, so the command ignores it. A type with no column gets no table, and a type you remove from `types` keeps its table: the command never drops one, and `kami:install` fails until a migration does ([Content model drift](#content-model-drift)).
 
 Renaming a Field looks like removing one and adding another, and the drop would lose its values. So when a type both loses and gains columns, the command asks in a terminal, for each lost column, whether it is renamed to one of the new ones (`renameColumn`, values kept) or dropped. Without a terminal (a deploy script, `--no-interaction`), it refuses and prints both options rather than guess.
 
@@ -510,6 +510,21 @@ The next `kami:install` runs the migration, then moves Paths to follow. A rename
 Each operation works in batches and runs from the command line, so it can take as long as the Entries need. A conversion that stops can run again: a batch that moves values is one transaction. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone. On MySQL and MariaDB, schema changes do not roll back: a `renameType` that fails partway may need finishing by hand.
 
 The operations do not reach inside a Repeater or Group: a sub-Field's change is a migration of your own over its json.
+
+## Content model drift
+
+`kami:install` compares the declarations with the database right after running your migrations. Where they disagree it fails, before any seed or Path is written, printing the type, the Field and what to write. `php artisan kami:doctor` reports the same, so you can see it before a deploy.
+
+| What it finds | What to write |
+| --- | --- |
+| A declared Field with no column, a column with no Field, a column of the wrong type | `php artisan kami:make:migration <type>` |
+| A `kami_type_*` table with no declared type | Declare it again, or `renameType` or `dropType` in a migration |
+| A type's Translations that do not match its `$translatable` | The [calls for a flipped `$translatable`](#schema-changes), or revert it |
+| A Singleton or Global Set with several Entries in a Site | Extend `ContentType` again, or delete the Entries to lose in a migration |
+
+Removing a Field from code therefore destroys nothing: the deploy stops, and the column and its values stay until a migration drops them or the Field comes back. A flipped `$translatable` stops there too, rather than deleting the type's Paths and answering 404. The check's number of queries depends on your types, not on your Entries. It leaves indexes aside, and on SQLite a `Textarea` turned `Repeater`, which only `kami:make:migration` sees.
+
+`kami:doctor` also warns, without failing a deploy, about what no read finds any more: a value on the row its Field's scope no longer reads, and links under a handle no relation Field declares or in the wrong scope, such as a mistyped `renameField` leaves. They are kept. The warning names the call to write. This check reads whole tables, so `kami:install` does not run it, and `kami:doctor` runs it once there is no drift left.
 
 ## In the admin
 

@@ -376,7 +376,7 @@ Kami's behaviour on Infomaniak shared hosting and on a server. Host facts were m
 | **Mail and Form delivery** | SMTP (Infomaniak, daily quotas per address); `mail()` and `sendmail` are unavailable. Delivery runs through `defer()` after the response, with `kami:forms:deliver` from a Tick as backstop | The same; sendmail possible but not needed |
 | **After-response work** | `defer()` after `fastcgi_finish_request()`. Only CPU time counts against the 60 s limit, and FPM does not kill a finished request; Kami enforces its own budgets and network timeouts. An unanswered request is cut at 120 s | The same, with higher limits |
 | **Sitemap and robots** | Static files in `public/` served by Apache. Rebuilt by the hourly task when stale; built on first request when missing | The same; nginx reproduces the `!-f` fallback |
-| **Schema and installs** | `kami:install` over SSH (CLI, no time limit): doctor, migrate, seeds, Paths sync, drift check, Filament assets | The same |
+| **Schema and installs** | `kami:install` over SSH (CLI, no time limit): doctor, migrate, drift check, seeds, Filament assets, Paths sync, first administrator | The same |
 | **Front assets** | Built in CI by the site (Vite + Tailwind 4), with no Node on the server. Kami's admin assets ship precompiled | The same |
 
 ## Dependencies

@@ -6,10 +6,12 @@ namespace Psyao\Kami\Tests\Install;
 
 use Illuminate\Support\Facades\File;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Psyao\Kami\Content\ContentType;
 use Workbench\App\Models\User;
 use Workbench\App\Providers\AdminPanelProvider;
 
 use function Orchestra\Testbench\default_migration_path;
+use function Orchestra\Testbench\workbench_path;
 
 /**
  * Testbench's bare skeleton, with no panel: an application Kami has not been added to yet.
@@ -31,6 +33,23 @@ abstract class InstallTestCase extends Orchestra
         config(['auth.providers.users.model' => User::class]);
         // A site has its users table: Laravel's migrations run with Kami's when kami:install migrates.
         $this->app->make('migrator')->path(default_migration_path());
+    }
+
+    /**
+     * A site on a panel declaring these types, whose Workbench migrations run with `kami:install`.
+     *
+     * @param  list<class-string<ContentType>>  $types
+     */
+    public function bootWithTypes(array $types): void
+    {
+        $this->bootWithKamiOnAPanel();
+        config(['kami.types' => $types]);
+
+        foreach ($types as $type) {
+            foreach (File::glob(workbench_path("database/migrations/*_create_kami_type_{$this->app->make($type)->handle()}_table.php")) as $migration) {
+                $this->app->make('migrator')->path($migration);
+            }
+        }
     }
 
     protected function getPackageProviders($app): array
