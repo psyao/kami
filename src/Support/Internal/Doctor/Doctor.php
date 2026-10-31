@@ -23,6 +23,7 @@ use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Layout;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
@@ -282,16 +283,15 @@ final readonly class Doctor
     }
 
     /**
-     * A type that keeps `ContentType::render()` renders the view `kami.{handle}` (ADR 0009).
+     * A routable type that keeps `ContentType::render()` renders the view `kami.{handle}` (ADR 0009).
      *
      * @return list<Problem>
      */
     private function missingViews(): array
     {
-        // ponytail: every M2 type is routable; M3's Singletons and Global Sets are not, and skip this check.
         $viewless = array_filter(
             resolve(ContentTypes::class)->all(),
-            fn (ContentType $type): bool => new ReflectionMethod($type, 'render')->getDeclaringClass()->getName() === ContentType::class && ! view()->exists("kami.{$type->handle()}"),
+            fn (ContentType $type): bool => $type->isRoutable() && new ReflectionMethod($type, 'render')->getDeclaringClass()->getName() === ContentType::class && ! view()->exists("kami.{$type->handle()}"),
         );
 
         return array_values(array_map(fn (ContentType $type): Problem => new Problem(
@@ -330,7 +330,7 @@ final readonly class Doctor
         $keys = [];
 
         foreach (resolve(ContentTypes::class)->all() as $type) {
-            array_push($keys, "{$type->handle()}.label", "{$type->handle()}.plural", ...array_map(fn (Layout $layout): string => "{$type->handle()}." . ($layout instanceof Tab ? 'tabs' : 'sections') . ".{$layout->handle}.label", $type->layouts()));
+            array_push($keys, "{$type->handle()}.label", ...($type instanceof Singleton ? [] : ["{$type->handle()}.plural"]), ...array_map(fn (Layout $layout): string => "{$type->handle()}." . ($layout instanceof Tab ? 'tabs' : 'sections') . ".{$layout->handle}.label", $type->layouts()));
 
             foreach ($type->flatFields() as $field) {
                 array_push($keys, ...$this->labelKeys("{$type->handle()}.fields.{$field->handle}", $field));

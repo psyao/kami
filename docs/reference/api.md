@@ -37,6 +37,7 @@ Creates or updates one Translation of an Entry: the one way content is written, 
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
+- `protected bool $routable = true`: `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages.
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
 - `final public function fieldHelp(string $field): ?string`: `kami-types.{handle}.fields.{field}.help`, or none.
 - `final public function fieldLabel(string $field): string`: `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`.
@@ -58,7 +59,7 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
-- `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there.
+- `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too.
 
 ## `Psyao\Kami\Content\Fields\Boolean`
@@ -189,6 +190,14 @@ Arranges Fields in the form and holds no value: columns, validation and reads ig
 `final class extends Psyao\Kami\Content\Layout`
 
 A titled group of Fields in the form, at the top level or inside a Tab; titled from `kami-types.{handle}.sections.{section}.label`.
+
+## `Psyao\Kami\Content\Singleton`
+
+`abstract class extends Psyao\Kami\Content\ContentType`
+
+A Content Type with exactly one Entry per Site, whose Path is its Prefix, such as a home page.
+
+- `public static function entry(): ?Psyao\Kami\Content\Entry`: The Entry when visible in the current Locale; `null` otherwise.
 
 ## `Psyao\Kami\Content\Tab`
 

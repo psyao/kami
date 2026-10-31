@@ -47,6 +47,7 @@ use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Layout;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
@@ -78,10 +79,12 @@ final class EntryResource extends FilamentResource
         return resolve(ContentTypes::class)->find($handle) ?? throw new LogicException("No Content Type [{$handle}] is declared in kami.types.");
     }
 
-    /** `article` at `articles`, `news_item` at `news-items`. */
+    /** `article` at `articles`, `news_item` at `news-items`; a Singleton, being one thing, at `home`. */
     public static function configure(ContentType $type): ResourceConfiguration
     {
-        return self::make($type->handle())->slug(Str::plural(str_replace('_', '-', $type->handle())));
+        $slug = str_replace('_', '-', $type->handle());
+
+        return self::make($type->handle())->slug($type instanceof Singleton ? $slug : Str::plural($slug));
     }
 
     public static function getModelLabel(): string
@@ -97,7 +100,7 @@ final class EntryResource extends FilamentResource
     /** As translated: Filament would title-case it. */
     public static function getNavigationLabel(): string
     {
-        return self::getPluralModelLabel();
+        return self::type() instanceof Singleton ? self::getModelLabel() : self::getPluralModelLabel();
     }
 
     /** The policy hears the type's handle when there is no record, so each type has its own Permissions (ADR 0014). */
@@ -122,17 +125,18 @@ final class EntryResource extends FilamentResource
         $lang = self::locales() === [] ? [] : ['lang' => $locale];
         // Read from the page, not the schema's record: saving replaces it, and the first save stores a slug. No slug stored, no Path can move.
         $hasStoredSlug = fn (): bool => $livewire instanceof EditEntry && filled($livewire->getRecord()->slug);
+        $hasSlug = self::type()->hasSlug();
 
         return $schema->columns(1)->components([
             TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)
-                ->live(onBlur: true, condition: fn (): bool => ! $hasStoredSlug())
+                ->live(onBlur: true, condition: fn (): bool => $hasSlug && ! $hasStoredSlug())
                 // The hook also runs on a save's deferred update, hence the check. Blank or the previous title's slug: not typed by hand.
-                ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasStoredSlug, $locale): void {
-                    if (! $hasStoredSlug() && (blank($get('slug')) || $get('slug') === Path::slugFrom($old ?? '', $locale))) {
+                ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasSlug, $hasStoredSlug, $locale): void {
+                    if ($hasSlug && ! $hasStoredSlug() && (blank($get('slug')) || $get('slug') === Path::slugFrom($old ?? '', $locale))) {
                         $set('slug', Path::slugFrom($state ?? '', $locale));
                     }
                 }),
-            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
+            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)->visible($hasSlug)
                 // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
@@ -162,12 +166,27 @@ final class EntryResource extends FilamentResource
 
     public static function getPages(): array
     {
+        // Filament also asks with no configuration, to register every page class; and while routes register, when a declaration may still be invalid (see `ContentTypes`).
+        $key = Filament::getCurrentResourceConfigurationKey();
+        $type = collect(resolve(ContentTypes::class)->declared())->first(fn (ContentType $type): bool => $type->handle() === $key);
+
+        // One page, named `index` as Filament's navigation and links expect; site code creates its Entry.
+        if ($type instanceof Singleton) {
+            return ['index' => EditEntry::route('/{locale?}')];
+        }
+
         return [
             'index' => ListEntries::route('/'),
             'create' => CreateEntry::route('/create'),
             // The default Locale's at `/edit`, another's at `/edit/en`, as on the front.
             'edit' => EditEntry::route('/{record}/edit/{locale?}'),
         ];
+    }
+
+    /** The edit page of an Entry, in another Locale than the default one when named. */
+    public static function editUrl(Entry $entry, ?string $locale): string
+    {
+        return self::type() instanceof Singleton ? self::getUrl('index', ['locale' => $locale]) : self::getUrl('edit', ['record' => $entry, 'locale' => $locale]);
     }
 
     /**

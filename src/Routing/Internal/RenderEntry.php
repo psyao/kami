@@ -32,9 +32,10 @@ final class RenderEntry
             ->where('status', 200)
             ->value('entry_id');
 
-        // No row, a Translation that is not visible, or an Entry whose type is no longer declared.
+        // No row, a Translation that is not visible, an Entry whose type is no longer declared, or one flipped to no URL whose rows wait for `SyncPaths`.
         $entry = $entryId === null ? null : Entry::query()->whereKey($entryId)->first();
         $type = $entry?->contentType() ?? abort(404);
+        abort_unless($type->isRoutable(), 404);
 
         return app()->call($type->render(...), ['entry' => $entry]);
     }

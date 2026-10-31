@@ -97,13 +97,19 @@ final readonly class SyncPaths
     {
         $rows = [];
 
-        foreach (Translation::query()->whereIn('entry_id', $ids)->whereNotNull('slug')->get() as $translation) {
+        foreach (Translation::query()->whereIn('entry_id', $ids)->get() as $translation) {
+            $path = Path::of($type, $translation->slug);
+
+            if ($path === null) {
+                continue;
+            }
+
             $locales = $type->isTranslatable()
                 ? array_intersect([$translation->locale], $site->locales)
                 : ($translation->locale === '*' ? $site->locales : []);
 
             foreach ($locales as $locale) {
-                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => Path::of($type, (string) $translation->slug)];
+                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => $path];
             }
         }
 

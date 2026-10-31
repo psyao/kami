@@ -8,6 +8,7 @@ return [
         'title' => 'Title',
         'slug' => 'Slug',
         'slug_help' => 'The last part of the address. Left blank, it is made from the title.',
+        'path_taken' => "Another Entry already answers at this type's Prefix: change the Prefix.",
         'slug_moves' => 'Changing it moves the address: the old one stops answering.',
         'published_at' => 'Publication date',
         'published_at_help' => 'In the :timezone time zone. Left blank, publishing sets it to now; a date to come schedules the publication.',

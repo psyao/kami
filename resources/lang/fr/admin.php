@@ -8,6 +8,7 @@ return [
         'title' => 'Titre',
         'slug' => 'Slug',
         'slug_help' => 'La dernière partie de l’adresse. Laissé vide, il est tiré du titre.',
+        'path_taken' => 'Une autre Entry répond déjà au Prefix de ce type : changez le Prefix.',
         'slug_moves' => 'Le modifier déplace l’adresse : l’ancienne ne répond plus.',
         'published_at' => 'Date de publication',
         'published_at_help' => 'Dans le fuseau horaire :timezone. Laissée vide, la publication la fixe à maintenant ; une date à venir programme la publication.',

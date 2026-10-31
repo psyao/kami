@@ -22,6 +22,7 @@ use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -34,7 +35,7 @@ final class SaveEntry
 {
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
-     * @param  array<string, mixed>  $values  `title`, `slug` (from the title when blank), `status` (`draft`, the default, or `published`), `published_at` (now when publishing without one) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
+     * @param  array<string, mixed>  $values  `title`, `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`), `published_at` (now when publishing without one) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
      * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
@@ -56,6 +57,11 @@ final class SaveEntry
             throw new InvalidArgumentException("No Locale [{$locale}] is declared in Site [{$site->handle}].");
         }
 
+        // ponytail: no database constraint, as the portable partial unique index does not exist; two concurrent first saves can both pass. The admin offers no create page, so only site code can race; lifted if a friction shows it.
+        if (! $entry instanceof Entry && $contentType instanceof Singleton && Entry::query()->withUnpublished()->ofType($contentType->handle())->where('site', $site->handle)->exists()) {
+            throw ValidationException::withMessages(['type' => __('validation.unique', ['attribute' => $contentType->label()])]);
+        }
+
         // A translatable type's `'*'` call holds no Translation: only its Shared Fields.
         $writesTranslation = $locale !== '*' || ! $contentType->isTranslatable();
         $values = array_map(fn (mixed $value): mixed => $value === '' || $value === [] ? null : $value, $values);
@@ -67,7 +73,8 @@ final class SaveEntry
             }
         }
 
-        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? Translation::ATTRIBUTES : [])]));
+        $attributes = $contentType->hasSlug() ? Translation::ATTRIBUTES : array_diff(Translation::ATTRIBUTES, ['slug']);
+        $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
         Validator::make(array_fill_keys($outOfScope, true), array_fill_keys($outOfScope, 'prohibited'))->validate();
@@ -98,7 +105,7 @@ final class SaveEntry
 
         $data = [...$data, ...$values];
 
-        if ($writesTranslation) {
+        if ($writesTranslation && $contentType->hasSlug()) {
             $data['slug'] ??= is_string($data['title'] ?? null) ? Path::slugFrom($data['title'], $locale === '*' ? $site->defaultLocale() : $locale) : null;
             $data['slug'] = is_string($data['slug']) ? Path::normalise($data['slug']) : $data['slug'];
             $data['slug'] = $data['slug'] === '' ? null : $data['slug'];
@@ -106,8 +113,9 @@ final class SaveEntry
 
         $publishing = ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
-            'title' => [$publishing ? 'required' : 'nullable', 'string', 'max:255'],
-            'slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->slugRule($contentType, $site, $locale)],
+            // A Singleton's form has no slug: what its Prefix breaks shows on the title.
+            'title' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', ...($contentType->hasSlug() ? [] : [$this->pathRule($contentType, $site, $locale)])],
+            ...($contentType->hasSlug() ? ['slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->pathRule($contentType, $site, $locale)]] : []),
             'status' => ['required', 'in:draft,published'],
             'published_at' => ['nullable', 'date'],
         ] : [];
@@ -193,20 +201,22 @@ final class SaveEntry
     }
 
     /**
-     * Its characters, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
+     * The Path's characters, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
      *
      * ponytail: at save only, so a Locale or Prefix declared later can still hide a stored Path; M7's reserved paths lift it.
      */
-    private function slugRule(ContentType $contentType, Site $site, string $locale): Closure
+    private function pathRule(ContentType $contentType, Site $site, string $locale): Closure
     {
-        return function (string $attribute, mixed $slug, Closure $fail) use ($contentType, $site, $locale): void {
-            if (! is_string($slug)) {
+        return function (string $attribute, mixed $value, Closure $fail) use ($contentType, $site, $locale): void {
+            $path = is_string($value) ? Path::of($contentType, $value) : null;
+
+            if ($path === null) {
                 return;
             }
 
-            if (! Path::isAnswerable($slug)) {
+            if (! Path::isAnswerable($path)) {
                 $fail(__('validation.regex'));
-            } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array(explode('/', Path::of($contentType, $slug))[0], array_slice($site->locales, 1), true)) {
+            } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array(explode('/', $path)[0], array_slice($site->locales, 1), true)) {
                 $fail(__('validation.not_in'));
             }
         };
@@ -216,8 +226,9 @@ final class SaveEntry
     private function reservePath(ContentType $contentType, Site $site, Entry $entry, string $locale, ?string $slug): void
     {
         $locales = $locale === '*' ? $site->locales : [$locale];
+        $path = Path::of($contentType, $slug);
 
-        if ($slug === null) {
+        if ($path === null) {
             Path::query()->where(['site' => $site->handle, 'entry_id' => $entry->id, 'status' => 200])->whereIn('locale', $locales)->delete();
 
             return;
@@ -227,12 +238,12 @@ final class SaveEntry
             foreach ($locales as $pathLocale) {
                 Path::query()->updateOrCreate(
                     ['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200],
-                    ['path' => Path::of($contentType, $slug)],
+                    ['path' => $path],
                 );
             }
         } catch (UniqueConstraintViolationException) {
             // Caught from the unique index, so two concurrent saves cannot both pass a prior lookup.
-            throw ValidationException::withMessages(['slug' => __('validation.unique', ['attribute' => 'slug'])]);
+            throw ValidationException::withMessages($contentType->hasSlug() ? ['slug' => __('validation.unique', ['attribute' => 'slug'])] : ['title' => __('kami::admin.fields.path_taken')]);
         }
     }
 }

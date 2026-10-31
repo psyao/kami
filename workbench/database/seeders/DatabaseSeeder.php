@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Testimonial;
 use Workbench\App\Models\User;
 
 /** What `composer serve` shows: known accounts and one Entry per state worth looking at. */
@@ -53,6 +55,13 @@ class DatabaseSeeder extends Seeder
         // Tabs, a section, conditions, a Repeater, a Group.
         $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey']], locale: 'fr', actor: $admin);
         $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
+
+        // A Singleton at the root, one page in the admin.
+        $home = $save->handle(Home::class, [...$published, 'title' => 'Accueil', 'intro' => 'Bienvenue sur le Site de démonstration.'], locale: 'fr', actor: $admin);
+        $save->handle(Home::class, [...$published, 'title' => 'Home', 'intro' => 'Welcome to the demo Site.'], $home, 'en', $admin);
+
+        // No URL: listed on another page.
+        $save->handle(Testimonial::class, [...$published, 'title' => 'Une cliente', 'quote' => 'Un travail soigné.'], locale: 'fr', actor: $admin);
     }
 
     private function user(string $name, string $email, string $role): User

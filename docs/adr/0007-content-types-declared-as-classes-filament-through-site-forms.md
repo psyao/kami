@@ -1,6 +1,6 @@
 # Content Types are classes declaring core Fields; Filament is reached through site-owned forms
 
-A developer declares each Content Type as one `final` class extending `ContentType`, `Singleton`, `GlobalSet` or `Taxonomy`, listed in `config/kami.php` under `types`. Behaviour flags are protected properties (`$prefix`, `$hierarchical`, `$orderable`, `$translatable`, `$model`), and hooks with logic stay methods. `fields(): array` returns Field objects from `Psyao\Kami\Content\Fields`, optionally wrapped in `Tab` and `Section` layout objects:
+A developer declares each Content Type as one `final` class extending `ContentType`, `Singleton`, `GlobalSet` or `Taxonomy`, listed in `config/kami.php` under `types`. Behaviour flags are protected properties (`$prefix`, `$routable`, `$hierarchical`, `$orderable`, `$translatable`, `$model`), and hooks with logic stay methods. `fields(): array` returns Field objects from `Psyao\Kami\Content\Fields`, optionally wrapped in `Tab` and `Section` layout objects:
 
 ```php
 final class Project extends ContentType
@@ -39,6 +39,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - A Field handle is snake_case, at most 40 characters and unique across the whole type, layout included. A sub-Field of a `Repeater` or `Group` is unique within its parent: it has no column, only a key in the parent's document.
   - A Field handle never matches a core attribute (`title`, `slug`, `status`, `published_at`, `parent`, `position`, `site`, `type`, `locale`…): a collision is a boot error. The reserved list is public under SemVer, and a new core attribute only arrives in a major version.
   - A Block's handle is explicit and frozen, since every stored node carries it.
+- **URLs.** `protected bool $routable = true`; `false` gives a type no URL: no `kami_paths` row, no slug, `url()` null. Collections listed on another page, such as aguet.dev's Projects and Tags, need it. A `$prefix = null` cannot say it, as the prototype had it, since it has meant the handle since M2 (ADR 0008). A type flipped to `false` answers 404 at once and loses its 200 rows at the next `SyncPaths`, on purpose; its stored slugs stay, so flipping back restores those addresses; an Entry saved with no slug meanwhile has none until its next save. A `Singleton`'s Path is its Prefix: it takes no slug.
 - **Scope.**
   - A Field's default scope follows its type: Text, Textarea and RichText are Translatable; every other Field type is Shared. `->shared()` and `->translatable()` override it.
   - A type declared `$translatable = false` makes all its Fields Shared ("Multilingual content and fallback").

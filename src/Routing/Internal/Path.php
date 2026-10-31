@@ -32,10 +32,18 @@ final class Path extends Model
 {
     use HasUlids;
 
-    /** The Path of a Translation: its type's Prefix, then its slug. */
-    public static function of(ContentType $type, string $slug): string
+    /** The Path of a Translation: its type's Prefix, then its slug; a Singleton's is its Prefix; none with no URL or no slug yet. */
+    public static function of(ContentType $type, ?string $slug): ?string
     {
-        return self::normalise("{$type->prefix()}/{$slug}");
+        if (! $type->isRoutable()) {
+            return null;
+        }
+
+        if (! $type->hasSlug()) {
+            return self::normalise($type->prefix());
+        }
+
+        return $slug === null ? null : self::normalise("{$type->prefix()}/{$slug}");
     }
 
     /** The slug a title gives in a Locale, the same in the admin form and on save. */

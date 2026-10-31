@@ -10,6 +10,7 @@ class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
+class Psyao\Kami\Content\ContentType::$routable protected bool $routable = true
 class Psyao\Kami\Content\ContentType::$translatable protected bool $translatable = true
 class Psyao\Kami\Content\ContentType::fieldHelp() final public function fieldHelp(string $field): ?string
 class Psyao\Kami\Content\ContentType::fieldLabel() final public function fieldLabel(string $field): string
@@ -89,6 +90,8 @@ class Psyao\Kami\Content\Layout::$handle public protected(set) readonly string $
 class Psyao\Kami\Content\Layout::__construct() final public function __construct(string $handle, array $children)
 class Psyao\Kami\Content\Layout::make() public static function make(string $handle, array $children): static
 class Psyao\Kami\Content\Section final class extends Psyao\Kami\Content\Layout
+class Psyao\Kami\Content\Singleton abstract class extends Psyao\Kami\Content\ContentType
+class Psyao\Kami\Content\Singleton::entry() public static function entry(): ?Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\Tab final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class

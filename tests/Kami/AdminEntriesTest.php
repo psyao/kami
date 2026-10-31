@@ -32,8 +32,10 @@ use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
+use Workbench\App\Content\Home;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Testimonial;
 use Workbench\App\Models\User;
 
 // A User committed here would outlive the test on MySQL, MariaDB and PostgreSQL and clash with the next one's.
@@ -811,4 +813,86 @@ it('stops the panel on a sub-Field type with no component', function () {
     config(['kami.types' => [UnregisteredInside::class]]);
 
     expect(fn () => Filament::getPanel('admin')->getPlugin('kami')->boot(Filament::getPanel('admin')))->toThrow(LogicException::class, Rumour::class);
+});
+
+describe('a Singleton in the admin', function () {
+    it('opens on its one Entry, under its own name, in each Locale', function () {
+        $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'intro' => 'Bienvenue'], locale: 'fr');
+        $this->actingAs(userWithRole('administrator'));
+
+        $this->get('/admin/home')->assertOk()->assertSee('Bienvenue')->assertDontSee('Homes')->assertSee('/admin/home/en');
+        $this->get('/admin/home/en')->assertOk()->assertDontSee('Bienvenue');
+        $this->get("/admin/home/{$home->id}/edit")->assertNotFound();
+    });
+
+    it('has no list, create or delete', function () {
+        resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+        $this->actingAs(userWithRole('administrator'));
+
+        $this->get('/admin/homes')->assertNotFound();
+        $this->get('/admin/home/create')->assertNotFound();
+        entryPage(EditEntry::class, 'home')->assertActionDoesNotExist('delete');
+    });
+
+    it('answers 404 before its Entry exists', function () {
+        $this->actingAs(userWithRole('administrator'));
+
+        $this->get('/admin/home')->assertNotFound();
+    });
+
+    it('still takes its Permissions', function () {
+        resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+        $this->actingAs(userWithRole('ghost'));
+
+        $this->get('/admin/home')->assertForbidden();
+    });
+
+    it('is an edit form: a User who may not edit its published Entry gets a 403', function () {
+        $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+        $this->actingAs(userWithRole('editor'));
+        $this->get('/admin/home')->assertOk();
+
+        resolve(SaveEntry::class)->handle(Home::class, ['status' => 'published'], $home, 'fr');
+        $this->get('/admin/home')->assertForbidden();
+    });
+
+    it('saves and publishes with no slug field', function () {
+        $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+        $this->actingAs(userWithRole('administrator'));
+
+        entryPage(EditEntry::class, 'home')
+            ->assertFormFieldHidden('slug')
+            ->fillForm(['title' => 'Bienvenue', 'intro' => 'Bonjour'])
+            ->callAction(formAction('publish'))
+            ->assertHasNoFormErrors();
+
+        expect(Home::entry()?->id)->toBe($home->id)
+            ->and(Home::entry()?->title)->toBe('Bienvenue')
+            ->and(Home::entry()?->slug)->toBeNull();
+        $this->get('/')->assertOk()->assertSee('Bonjour');
+    });
+
+    it('creates another Locale\'s Translation from its page', function () {
+        resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil'], locale: 'fr');
+        $this->actingAs(userWithRole('administrator'));
+
+        entryPage(EditEntry::class, 'home', ['locale' => 'en'])->fillForm(['title' => 'Home'])->callAction(formAction('publish'))->assertHasNoFormErrors();
+
+        $this->get('/en')->assertOk()->assertSee('Home');
+    });
+});
+
+it('hides the slug of a type with no URL and saves it without one', function () {
+    $entry = resolve(SaveEntry::class)->handle(Testimonial::class, ['title' => 'Une cliente'], locale: 'fr');
+    $this->actingAs(userWithRole('administrator'));
+
+    entryPage(EditEntry::class, 'testimonial', ['record' => $entry->id])
+        ->assertFormFieldHidden('slug')
+        ->assertActionHidden('view')
+        ->fillForm(['title' => 'Une autre', 'quote' => 'Soigné.'])
+        ->callAction(formAction('publish'))
+        ->assertHasNoFormErrors();
+
+    expect(DB::table('kami_paths')->count())->toBe(0)
+        ->and(Entry::query()->findOrFail($entry->id)->quote)->toBe('Soigné.');
 });

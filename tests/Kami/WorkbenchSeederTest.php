@@ -29,6 +29,9 @@ it('seeds an Entry in each state, answering only where it is visible', function 
     $this->get('/a-propos')->assertOk();
     $this->get('/en/about')->assertOk();
     $this->get('/project/refonte')->assertOk();
+    $this->get('/')->assertOk()->assertSee('Bienvenue');
+    $this->get('/en')->assertOk()->assertSee('Welcome');
+    $this->get('/testimonial/une-cliente')->assertNotFound();
 });
 
 it('seeds an administrator and an editor who may update but not publish', function () {

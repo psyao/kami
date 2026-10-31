@@ -24,6 +24,8 @@ Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-worl
 
 The default Locale's Paths start at the root; another Locale's sit under its code, as `/en/articles/hello-world`. See [Multilingual](multilingual.md).
 
+A [Singleton](content-types.md#singletons)'s Path is its Prefix, and a [type with no URL](content-types.md#types-with-no-url) has none.
+
 An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404.
 
 ## After a deploy

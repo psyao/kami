@@ -129,7 +129,7 @@ class Entry extends Model
         return Visibility::isVisible($this->translations->firstWhere('locale', $default)) ? $default : null;
     }
 
-    /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there. */
+    /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL. */
     public function url(?string $locale = null): ?string
     {
         $site = Site::current();
@@ -137,11 +137,13 @@ class Entry extends Model
         $translation = $this->translation($locale);
         $type = $this->contentType();
 
-        if (! in_array($locale, $site->locales, true) || ! $type instanceof ContentType || ! $translation instanceof Translation || ! Visibility::isVisible($translation) || $translation->slug === null) {
+        if (! in_array($locale, $site->locales, true) || ! $type instanceof ContentType || ! $translation instanceof Translation || ! Visibility::isVisible($translation)) {
             return null;
         }
 
-        return $site->url($locale, Path::of($type, $translation->slug));
+        $path = Path::of($type, $translation->slug);
+
+        return $path === null ? null : $site->url($locale, $path);
     }
 
     private function field(string $handle): ?Field
