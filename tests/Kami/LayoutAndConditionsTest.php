@@ -59,7 +59,7 @@ beforeEach(function () {
 
 it('reads the Fields inside tabs and sections as if they were flat', function () {
     expect(array_map(fn (Field $field): string => $field->handle, (new Project)->flatFields()))
-        ->toBe(['client', 'featured', 'featured_note', 'kind', 'source', 'story', 'launched_on', 'links', 'address', 'related']);
+        ->toBe(['client', 'featured', 'featured_note', 'kind', 'source', 'story', 'launched_on', 'links', 'address', 'related', 'tags']);
 
     $entry = saveProject(['title' => 'Kami', 'client' => 'Ada', 'launched_on' => '2026-10-30']);
 

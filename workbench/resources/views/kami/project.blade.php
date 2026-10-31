@@ -25,6 +25,13 @@
                 @endforeach
             </ul>
         @endif
+        @if ($entry->tags->isNotEmpty())
+            <ul>
+                @foreach ($entry->tags as $tag)
+                    <li>{{ $tag->title }}</li>
+                @endforeach
+            </ul>
+        @endif
     </main>
 </body>
 </html>

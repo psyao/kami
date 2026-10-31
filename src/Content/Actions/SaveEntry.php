@@ -26,6 +26,7 @@ use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
+use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -38,7 +39,7 @@ final class SaveEntry
 {
     /**
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
-     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
+     * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`, a Taxonomy's default; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
      * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
@@ -107,7 +108,7 @@ final class SaveEntry
         }
 
         // The Translation as it will be once saved, stored values under the given ones, validated whole.
-        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? Translation::DRAFT] : [];
+        $data = $writesTranslation ? [...Arr::only($translation->getAttributes(), Translation::ATTRIBUTES), 'status' => $translation->status ?? ($contentType instanceof Taxonomy ? Translation::PUBLISHED : Translation::DRAFT)] : [];
         foreach ($fields as $handle => $field) {
             $scope = $contentType->isTranslatable($field) ? $locale : '*';
 

@@ -8,6 +8,7 @@ use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Tag;
 use Workbench\App\Content\Testimonial;
 
 // The Workbench Site's declarations: two Sites sharing two Locales, so tests never assume a single one.
@@ -17,6 +18,7 @@ return [
         Article::class,
         Page::class,
         Label::class,
+        Tag::class,
         Project::class,
         Home::class,
         Testimonial::class,

@@ -36,6 +36,7 @@ Creates or updates one Translation of an Entry: the one way content is written, 
 
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
+- `protected ?string $model = NULL`: The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
 - `protected bool $routable = true`: `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages.
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
@@ -146,6 +147,7 @@ A whole number read as an `int`, or with `->decimal()` a number with two decimal
 
 Links to other Entries, in pick order, kept in `kami_references` with no column in the type's table (ADR 0005).
 
+- `public function creatable(bool $creatable = true): static`: Whether editors may create a target from the picker, with its title alone.
 - `public function of(string ...$types): static`: The Content Types it links to.
 
 ## `Psyao\Kami\Content\Fields\Repeater`
@@ -169,6 +171,12 @@ One option out of a list of keys; labels come from `kami-types.php`, by key.
 `abstract class extends Psyao\Kami\Content\Fields\Field`
 
 Sub-Fields kept in one `json` column, an opaque document no SQL looks into, always handled decoded (ADR 0006).
+
+## `Psyao\Kami\Content\Fields\Terms`
+
+`final class extends Psyao\Kami\Content\Fields\RelationField`
+
+Links to Terms of the Taxonomies named with `->of()`, read as a Collection in pick order, creatable from the picker. Shared by default.
 
 ## `Psyao\Kami\Content\Fields\Text`
 
@@ -234,6 +242,22 @@ The Site's own editable settings, always registered: read with `SiteSettings::en
 `final class extends Psyao\Kami\Content\Layout`
 
 One tab of the form, titled from `kami-types.{handle}.tabs.{tab}.label`; adjacent Tabs form one set.
+
+## `Psyao\Kami\Content\Taxonomy`
+
+`abstract class extends Psyao\Kami\Content\ContentType`
+
+A Content Type classifying others: its Entries are `Term`s, published by default, linked with the `Terms` Field (ADR 0002).
+
+- `protected ?string $model = 'Psyao\\Kami\\Content\\Term'`
+
+## `Psyao\Kami\Content\Term`
+
+`class extends Psyao\Kami\Content\Entry`
+
+An Entry of a Taxonomy.
+
+- `public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany`: The Entries linking it through any relation Field, once each: visible ones, unless `withUnpublished()`.
 
 ## `Psyao\Kami\Facades\Kami`
 

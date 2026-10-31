@@ -55,6 +55,10 @@ return [
             'colour' => ['label' => 'Colour'],
         ],
     ],
+    'tag' => [
+        'label' => 'Tag',
+        'plural' => 'Tags',
+    ],
     'project' => [
         'label' => 'Project',
         'plural' => 'Projects',
@@ -78,6 +82,7 @@ return [
                 'url' => ['label' => 'Address'],
             ]],
             'related' => ['label' => 'Related content'],
+            'tags' => ['label' => 'Tags'],
             'address' => ['label' => 'Address', 'fields' => [
                 'street' => ['label' => 'Street'],
                 'city' => ['label' => 'City'],

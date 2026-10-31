@@ -105,8 +105,8 @@ it('renders related Entries in pick order, a Draft left out, in an exact number 
     DB::enableQueryLog();
     $response = $this->get('/project/kami')->assertOk()->assertSeeInOrder(['Last', 'First'])->assertDontSee('Hidden');
 
-    // The page's four, the rows, the targets, their Translations, the Articles' rows.
-    expect(DB::getQueryLog())->toHaveCount(8);
+    // The page's four, the rows, the targets, their Translations, the Articles' rows, the view's `tags` rows.
+    expect(DB::getQueryLog())->toHaveCount(9);
     $response->assertSee('/articles/last');
 });
 

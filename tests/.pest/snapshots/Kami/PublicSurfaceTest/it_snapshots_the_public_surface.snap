@@ -9,6 +9,7 @@ class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\
 class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
+class Psyao\Kami\Content\ContentType::$model protected ?string $model = NULL
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
 class Psyao\Kami\Content\ContentType::$routable protected bool $routable = true
 class Psyao\Kami\Content\ContentType::$translatable protected bool $translatable = true
@@ -78,12 +79,14 @@ class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fi
 class Psyao\Kami\Content\Fields\Number::column() public function column(): string
 class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number
 class Psyao\Kami\Content\Fields\RelationField abstract class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\RelationField::creatable() public function creatable(bool $creatable = true): static
 class Psyao\Kami\Content\Fields\RelationField::of() public function of(string ...$types): static
 class Psyao\Kami\Content\Fields\Repeater final class extends Psyao\Kami\Content\Fields\StructuredField
 class Psyao\Kami\Content\Fields\Repeater::make() public static function make(string $handle, array $fields = []): static
 class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Select::options() public function options(array $options): Psyao\Kami\Content\Fields\Select
 class Psyao\Kami\Content\Fields\StructuredField abstract class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Terms final class extends Psyao\Kami\Content\Fields\RelationField
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Url final class extends Psyao\Kami\Content\Fields\Field
@@ -100,6 +103,10 @@ class Psyao\Kami\Content\Singleton::entry() public static function entry(): ?Psy
 class Psyao\Kami\Content\SiteSettings final class extends Psyao\Kami\Content\GlobalSet
 class Psyao\Kami\Content\SiteSettings::fields() public function fields(): array
 class Psyao\Kami\Content\Tab final class extends Psyao\Kami\Content\Layout
+class Psyao\Kami\Content\Taxonomy abstract class extends Psyao\Kami\Content\ContentType
+class Psyao\Kami\Content\Taxonomy::$model protected ?string $model = 'Psyao\\Kami\\Content\\Term'
+class Psyao\Kami\Content\Term class extends Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::routes() public function routes(): void

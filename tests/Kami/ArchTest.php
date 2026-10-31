@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Term;
 use Symfony\Component\Console\Command\Command;
 
 // The closed list of open classes (ADR 0029): a class outside `Internal` is final or abstract unless it is named here.
 // Adding to this list opens a class to sites for good, so it is a reviewed change to the public API.
 const OPEN_CLASSES = [
     Entry::class, // a type's `$model` extends it (ADR 0007)
+    Term::class, // a Taxonomy's `$model` extends it (ADR 0007)
 ];
 
 /**

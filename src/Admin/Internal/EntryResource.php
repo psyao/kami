@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
@@ -26,6 +27,7 @@ use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -51,6 +53,7 @@ use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
+use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
@@ -216,7 +219,7 @@ final class EntryResource extends FilamentResource
      */
     public static function picker(RelationField $field): SelectInput
     {
-        return SelectInput::make($field->handle)
+        $picker = SelectInput::make($field->handle)
             ->multiple()
             ->reorderable()
             ->searchable()
@@ -226,6 +229,34 @@ final class EntryResource extends FilamentResource
                 return self::pickerTitles($matches, $livewire);
             })
             ->getOptionLabelsUsing(fn (array $values, mixed $livewire): array => self::pickerTitles($values, $livewire));
+
+        return $field->isCreatable() ? self::withQuickCreate($picker, $field->targets()[0]) : $picker;
+    }
+
+    /**
+     * Creates a target from its title, through `SaveEntry`, in the Locale edited. It takes the target's `create` Permission alone: a Term is published by default, a Draft otherwise (ADR 0002).
+     *
+     * @param  class-string<ContentType>  $target
+     */
+    private static function withQuickCreate(SelectInput $picker, string $target): SelectInput
+    {
+        $type = resolve(ContentTypes::class)->find($target) ?? throw new LogicException("No Content Type [{$target}] is declared in kami.types.");
+        $allowed = fn (): bool => Gate::forUser(Filament::auth()->user())->allows('create', [Entry::class, $type->handle()]);
+
+        return $picker
+            ->createOptionForm([TextInput::make('title')->label(__('kami::admin.fields.title'))->required()])
+            ->createOptionAction(fn (Action $action): Action => $action->authorize($allowed)
+                // Named, as a form may hold several pickers (WCAG 2.4.6).
+                ->label(__('kami::admin.actions.create_target', ['type' => $type->label()]))
+                ->modalHeading(__('kami::admin.actions.create_target', ['type' => $type->label()])))
+            ->createOptionUsing(function (array $data, mixed $livewire) use ($target): string {
+                try {
+                    return resolve(SaveEntry::class)->handle($target, ['title' => $data['title']], locale: $livewire instanceof EditEntry ? $livewire->locale : null, actor: Filament::auth()->user())->id;
+                } catch (ValidationException $exception) {
+                    // Whatever `SaveEntry` refuses comes from the title: the slug and the Path derive from it.
+                    throw ValidationException::withMessages(['mountedActions.0.data.title' => Arr::flatten($exception->errors())]);
+                }
+            });
     }
 
     /**
@@ -257,6 +288,11 @@ final class EntryResource extends FilamentResource
      */
     public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null, array $state = []): Entry
     {
+        // Saving a form's new Translation says Draft: only code naming no status gets a Taxonomy's published default, and the form's button takes no `publish`.
+        if (self::type() instanceof Taxonomy && ! $entry?->translations->whereIn('locale', [$locale, '*'])->isNotEmpty()) {
+            $status ??= Translation::DRAFT;
+        }
+
         try {
             return resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user());
         } catch (ValidationException $exception) {
