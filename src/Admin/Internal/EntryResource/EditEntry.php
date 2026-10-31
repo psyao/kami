@@ -88,12 +88,8 @@ final class EditEntry extends EditRecord
 
         foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->flatFields())] as $key) {
             // A value fallen back from the default Locale is not this Locale's: saved, it would become its own.
-            $values[$key] = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
-        }
-
-        foreach ($relations as $field) {
-            $targets = $values[$field->handle];
-            $values[$field->handle] = $targets instanceof Collection ? $targets->modelKeys() : null;
+            $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
+            $values[$key] = $value instanceof Collection ? $value->modelKeys() : $value;
         }
 
         return $values;
