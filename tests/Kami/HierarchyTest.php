@@ -367,6 +367,8 @@ describe('the Edit and Create pages of a level', function () {
         expect(array_values($page->instance()->getBreadcrumbs()))->toBe(['Articles', 'Article', 'Edit'])
             ->and(cancelHref($page))->toBeNull();
         $page->assertSeeHtml('window.history.back()');
+
+        Livewire::withQueryParams(['parent' => $article->id])->test(CreateEntry::class)->assertOk();
     });
 });
 

@@ -54,6 +54,7 @@ final class ListEntries extends ListRecords
 
         $breadcrumbs = EntryResource::levelBreadcrumbs($this->parent, $this);
 
+        // The last one loses its URL for a numeric key: the level shown takes no link.
         return [...array_slice($breadcrumbs, 0, -1), ...array_slice(array_values($breadcrumbs), -1)];
     }
 

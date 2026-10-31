@@ -30,8 +30,10 @@ final class CreateEntry extends CreateRecord
 
     public function mount(): void
     {
-        $parent = EntryResource::requestedParent();
-        $this->parent = EntryResource::can('reorder') ? $parent : null;
+        if (EntryResource::type()->isHierarchical()) {
+            $parent = EntryResource::requestedParent();
+            $this->parent = EntryResource::can('reorder') ? $parent : null;
+        }
 
         parent::mount();
     }
