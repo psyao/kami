@@ -10,6 +10,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Section;
 use Psyao\Kami\Content\Tab;
 
@@ -119,12 +120,10 @@ final class ContentTypes
                     throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot be filterable or sortable: no engine indexes its {$field->column()} column whole.");
                 }
 
-                if ($field instanceof Select && $field->optionKeys() === []) {
-                    throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" has no options; declare them with ->options([...]).");
-                }
+                $this->validateSelect($class, $field);
 
-                if ($field instanceof Select && ! array_is_list($field->optionKeys())) {
-                    throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" takes a list of option keys; its labels live in kami-types.php.");
+                if ($field instanceof StructuredField) {
+                    $this->validateSubFields($class, $field);
                 }
 
                 $fields[] = $field->handle;
@@ -132,6 +131,59 @@ final class ContentTypes
 
             $this->validateLayout($class, $type);
             $this->validateConditions($class, $type);
+        }
+    }
+
+    private function validateSelect(string $class, Field $field): void
+    {
+        if ($field instanceof Select && $field->optionKeys() === []) {
+            throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" has no options; declare them with ->options([...]).");
+        }
+
+        if ($field instanceof Select && ! array_is_list($field->optionKeys())) {
+            throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" takes a list of option keys; its labels live in kami-types.php.");
+        }
+    }
+
+    /** A condition, an index or a default has no meaning inside a document: nothing would honour it. */
+    private function validateSubFields(string $class, StructuredField $parent): void
+    {
+        if ($parent->subFields() === []) {
+            throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" has no sub-Field; declare them as the second argument of make().");
+        }
+
+        $handles = [];
+
+        foreach ($parent->subFields() as $field) {
+            if (! $field instanceof Field) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the layout \"{$field->handle}\": arrange it around the Field instead.");
+            }
+
+            $this->validateHandle($class, 'the sub-Field handle', $field->handle);
+
+            if (in_array($field->handle, $handles, true)) {
+                throw new InvalidArgumentException("{$class}: the sub-Field handle \"{$field->handle}\" appears twice in \"{$parent->handle}\".");
+            }
+
+            if ($field->conditionTarget() !== null) {
+                throw new InvalidArgumentException("{$class}: the sub-Field \"{$parent->handle}.{$field->handle}\" cannot take a condition.");
+            }
+
+            if ($field->isIndexed()) {
+                throw new InvalidArgumentException("{$class}: the sub-Field \"{$parent->handle}.{$field->handle}\" cannot be filterable or sortable: its value is inside a json column.");
+            }
+
+            if ($field->defaultValue() !== null) {
+                throw new InvalidArgumentException("{$class}: the sub-Field \"{$parent->handle}.{$field->handle}\" cannot take a default; give the default to \"{$parent->handle}\".");
+            }
+
+            $this->validateSelect($class, $field);
+
+            if ($field instanceof StructuredField) {
+                $this->validateSubFields($class, $field);
+            }
+
+            $handles[] = $field->handle;
         }
     }
 
@@ -176,6 +228,10 @@ final class ContentTypes
 
             if ($target->conditionTarget() !== null) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to \"{$target->handle}\", which is itself conditional.");
+            }
+
+            if ($target instanceof StructuredField) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the Repeater or Group \"{$target->handle}\", whose value a condition cannot read.");
             }
 
             if ($type->isTranslatable($target)) {

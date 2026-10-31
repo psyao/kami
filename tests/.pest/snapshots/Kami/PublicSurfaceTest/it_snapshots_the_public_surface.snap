@@ -70,11 +70,16 @@ class Psyao\Kami\Content\Fields\Field::store() protected function store(mixed $v
 class Psyao\Kami\Content\Fields\Field::translatable() public function translatable(): static
 class Psyao\Kami\Content\Fields\Field::visibleWhen() public function visibleWhen(string $field, mixed $value): static
 class Psyao\Kami\Content\Fields\Field::visibleWhenFilled() public function visibleWhenFilled(string $field): static
+class Psyao\Kami\Content\Fields\Group final class extends Psyao\Kami\Content\Fields\StructuredField
+class Psyao\Kami\Content\Fields\Group::make() public static function make(string $handle, array $fields = []): static
 class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Number::column() public function column(): string
 class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number
+class Psyao\Kami\Content\Fields\Repeater final class extends Psyao\Kami\Content\Fields\StructuredField
+class Psyao\Kami\Content\Fields\Repeater::make() public static function make(string $handle, array $fields = []): static
 class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Select::options() public function options(array $options): Psyao\Kami\Content\Fields\Select
+class Psyao\Kami\Content\Fields\StructuredField abstract class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Url final class extends Psyao\Kami\Content\Fields\Field

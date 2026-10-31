@@ -53,6 +53,14 @@ return [
             'source' => ['label' => 'Source'],
             'story' => ['label' => 'Récit'],
             'launched_on' => ['label' => 'Lancé le'],
+            'links' => ['label' => 'Liens', 'fields' => [
+                'label' => ['label' => 'Libellé'],
+                'url' => ['label' => 'Adresse'],
+            ]],
+            'address' => ['label' => 'Adresse', 'fields' => [
+                'street' => ['label' => 'Rue'],
+                'city' => ['label' => 'Ville'],
+            ]],
         ],
     ],
 ];

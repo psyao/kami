@@ -195,6 +195,28 @@ abstract class Field
         return [...$this->columnRules(), ...$this->baseRules(), ...$this->rules];
     }
 
+    /**
+     * @internal
+     *
+     * The rules of a value at this attribute, by attribute: one Field holding others validates each of them.
+     *
+     * @return array<string, array<mixed>>
+     */
+    public function rulesAt(string $attribute, bool $publishing): array
+    {
+        return [$attribute => [$publishing && $this->required ? 'required' : 'nullable', ...$this->validationRules()]];
+    }
+
+    /**
+     * @internal
+     *
+     * A given value as `SaveEntry` validates it: `''` and `[]` are blank.
+     */
+    public function normalise(mixed $value): mixed
+    {
+        return $value === '' || $value === [] ? null : $value;
+    }
+
     /** @internal */
     public function read(mixed $stored): mixed
     {
@@ -207,7 +229,7 @@ abstract class Field
         return $value === null ? null : $this->store($value);
     }
 
-    /** The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date` or `dateTime` (ADR 0006). */
+    /** The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date`, `dateTime` or `json` (ADR 0006). */
     public function column(): string
     {
         return 'string';
@@ -252,7 +274,9 @@ abstract class Field
     private function lengthRule(int $max, Closure $length): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($max, $length): void {
-            if (is_string($value) && $length($value) > $max) {
+            if (is_array($value)) {
+                $fail(__('validation.string'));
+            } elseif (is_string($value) && $length($value) > $max) {
                 $fail(__('validation.max.string', ['max' => $max]));
             }
         };

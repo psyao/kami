@@ -78,6 +78,8 @@ A Field is built with `::make()` and its handle, which names its column:
 | `Date` | a calendar day, read as a `CarbonImmutable` at midnight UTC | `date` |
 | `DateTime` | a moment, read as a `CarbonImmutable` in UTC | `dateTime` |
 | `Select` | one key out of `->options(['news', 'review'])` | `string` |
+| `Repeater` | a list of rows of sub-Fields, read as a list of arrays, `null` with no row | `json` |
+| `Group` | one set of named sub-Fields, read as an array, `null` when all are blank or off | `json` |
 
 `Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
@@ -94,6 +96,34 @@ A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Si
 ```php
 Text::make('author')->shared()->default('The newsroom'),
 ```
+
+### Repeaters and groups
+
+A `Repeater` holds a variable list, and a `Group` one set of values that belong together. Each takes its sub-Fields as the second argument of `make()`:
+
+```php
+Repeater::make('links', [
+    Text::make('label'),
+    Url::make('url')->required(),
+]),
+Group::make('address', [
+    Text::make('street'),
+    Text::make('city'),
+]),
+```
+
+```php
+$entry->links;   // [['label' => 'Site', 'url' => 'https://example.test'], ...]
+$entry->address; // ['street' => 'Rue du Lac 1', 'city' => 'Vevey']
+```
+
+Each sub-Field reads through its own type, so a `Date` in a row is a `CarbonImmutable`, and every declared one is present, `null` when blank. Keys that no sub-Field declares are not stored. Editors add, remove and reorder a Repeater's rows. A row added and left blank stays until an editor removes it, so on a translatable Repeater it holds that Locale's value and stops Fallback. A `Group` whose values are all blank or `false` stores `null`, as a toggle left untouched says nothing.
+
+A sub-Field's rules and `->required()` apply to each row, as at the top level: a Draft may leave a required one blank. An error names its row (`links.1.url`), and in the admin it shows on that row's input. A `->required()` inside a `Group` holds to publish even when the Group itself is not required.
+
+The Field's scope covers the whole value: both are Shared unless you call `->translatable()` on them, and a sub-Field's own scope is ignored. Repeaters and groups may nest. Their sub-Field labels live under the parent's key; see [Labels](#labels).
+
+The value is one document, which SQL never looks into: to filter on a value, make it a top-level Field. So the first read of the declarations refuses, inside either one, a layout object, a sub-Field with `->visibleWhen()`, `->filterable()`, `->sortable()` or `->default()`, and a Repeater or Group with no sub-Field. Neither can be the target of a condition. A custom Field type inside one needs its component, as anywhere.
 
 ### Tabs and sections
 
@@ -222,9 +252,11 @@ Every Field column is nullable, with no database default: a Draft may be incompl
 
 Renaming a Field looks like removing one and adding another, and the drop would lose its values. So when a type both loses and gains columns, the command asks in a terminal, for each lost column, whether it is renamed to one of the new ones (`renameColumn`, values kept) or dropped. Without a terminal (a deploy script, `--no-interaction`), it refuses and prints both options rather than guess.
 
-Any other change of column type, such as `Text` to `Boolean` or `Number` to `Date`, is refused, on every engine: a value that does not convert has no answer that holds on all of them, so the conversion is yours to write. The command writes no file and prints the migration to start from. It adds a column of the new type, copies each row's value to it, drops the old column and renames the new one, keeping any index the new type can hold. Convert the value where the comment says. It holds only these changes and the renames they rely on, so run the command again once it has run, for the type's other changes and for other types.
+Any other change of column type, such as `Text` to `Boolean`, `Number` to `Date` or `Textarea` to `Repeater`, is refused, on every engine: a value that does not convert has no answer that holds on all of them, so the conversion is yours to write. The command writes no file and prints the migration to start from. It adds a column of the new type, copies each row's value to it, drops the old column and renames the new one, keeping any index the new type can hold. Convert the value where the comment says. It holds only these changes and the renames they rely on, so run the command again once it has run, for the type's other changes and for other types.
 
 That migration runs from the command line, like any other (`kami:install`), so a web request's time limit does not apply; it updates one row at a time, which takes longer the more Entries the type has. On MySQL and MariaDB, a value that fails partway leaves the new column behind, since their schema changes do not roll back: drop it before running the migration again.
+
+SQLite stores a `json` column as `text`, so it cannot tell them apart by type: a `text` column declared `json` passes there while every value in it decodes to an array or an object, and is refused otherwise. MariaDB stores it as `longtext`, under the same check. The other way, `Repeater` to `Textarea` writes nothing on SQLite, and the stored JSON reads as text.
 
 Going from `Textarea` to `Text`, a value over 255 characters stops the migration with an error and loses nothing on PostgreSQL, MySQL and MariaDB, while SQLite keeps it whole. MySQL and MariaDB truncate it without the connection's `strict` mode, which Laravel turns on by default.
 
@@ -250,12 +282,13 @@ return [
         'fields' => [
             'summary' => ['label' => 'Summary', 'help' => 'Two sentences at most.'],
             'kind' => ['label' => 'Kind', 'options' => ['news' => 'News', 'review' => 'Review']],
+            'links' => ['label' => 'Links', 'fields' => ['url' => ['label' => 'Address']]],
         ],
     ],
 ];
 ```
 
-The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')`, `optionLabel('kind', 'news')`, `tabLabel('details')` and `sectionLabel('highlight')`. `kami:doctor` warns about each missing `label`, `plural`, Field `label`, `Select` option key and tab or section `label`, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
+The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')`, `optionLabel('kind', 'news')`, with `links.fields.url` for a sub-Field, `tabLabel('details')` and `sectionLabel('highlight')`. `kami:doctor` warns about each missing `label`, `plural`, Field or sub-Field `label`, `Select` option key and tab or section `label`, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 
 ## Writing Entries
 

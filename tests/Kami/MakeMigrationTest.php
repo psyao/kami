@@ -16,7 +16,9 @@ use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\DateTime;
 use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
@@ -182,6 +184,53 @@ it('refuses to guess a rename without a terminal, printing both options', functi
         ->and(Artisan::output())->toContain('kami_type_note loses summary and gains lede', 'renaming it to one of lede', 'dropping it')
         ->and(writtenMigrations())->toHaveCount(1);
 });
+
+it('writes a json column and finds nothing to do afterwards, on every engine', function () {
+    declareNote([Repeater::make('links', [Text::make('label')]), Group::make('address', [Text::make('city')])]);
+    generateAndMigrate();
+    insertNoteRow(['links' => '[{"label":"Site"}]']);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+
+    expect(File::get(writtenMigrations()[0]))->toContain("\$table->json('links')->nullable();", "\$table->json('address')->nullable();");
+});
+
+it('refuses a retype between a filled text column and a json one', function () {
+    declareNote([Textarea::make('links')]);
+    generateAndMigrate();
+    insertNoteRow(['links' => 'Plain words']);
+
+    declareNote([Repeater::make('links', [Text::make('label')])]);
+    $this->withoutMockingConsoleOutput();
+
+    expect(Artisan::call('kami:make:migration', ['--no-interaction' => true]))->toBe(1)
+        ->and(Artisan::output())->toContain('no cast works on every engine')
+        ->and(writtenMigrations())->toHaveCount(1);
+});
+
+it('refuses a hand-made longText column of prose declared json, on every engine', function () {
+    declareNote([Text::make('title_note')]);
+    generateAndMigrate();
+    Schema::table('kami_type_note', fn (Blueprint $table) => $table->longText('links')->nullable());
+    insertNoteRow(['links' => 'Plain words']);
+
+    declareNote([Text::make('title_note'), Repeater::make('links', [Text::make('label')])]);
+    $this->withoutMockingConsoleOutput();
+
+    expect(Artisan::call('kami:make:migration', ['--no-interaction' => true]))->toBe(1)
+        ->and(writtenMigrations())->toHaveCount(1);
+});
+
+it('refuses a retype away from a json column', function () {
+    declareNote([Repeater::make('links', [Text::make('label')])]);
+    generateAndMigrate();
+
+    declareNote([Text::make('links')]);
+    $this->withoutMockingConsoleOutput();
+
+    expect(Artisan::call('kami:make:migration', ['--no-interaction' => true]))->toBe(1)
+        ->and(Artisan::output())->toContain('no cast works on every engine');
+})->skip(fn (): bool => DB::getDriverName() === 'sqlite', 'SQLite reports a json column as text, which a string column may change to.');
 
 it('says there is nothing to do when the tables match, and writes nothing', function () {
     declareNote([Text::make('summary')]);

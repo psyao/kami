@@ -8,6 +8,8 @@ use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field as FormField;
+use Filament\Forms\Components\Repeater as RepeaterInput;
+use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource as FilamentResource;
@@ -24,7 +26,6 @@ use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -38,6 +39,9 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
@@ -180,14 +184,38 @@ final class EntryResource extends FilamentResource
      * Saves through `SaveEntry`, the one way content is written (ADR 0011), with its errors on the form's fields.
      *
      * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $state  The form's raw state, whose rows the errors must name.
      */
-    public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null): Entry
+    public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null, array $state = []): Entry
     {
         try {
             return resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user());
         } catch (ValidationException $exception) {
-            throw ValidationException::withMessages(Arr::prependKeysWith($exception->errors(), 'data.'));
+            $errors = [];
+
+            foreach ($exception->errors() as $key => $messages) {
+                $errors['data.' . self::statePath($key, $state)] = $messages;
+            }
+
+            throw ValidationException::withMessages($errors);
         }
+    }
+
+    /** `SaveEntry` numbers a Repeater's rows, the form keys them by UUID: `links.0.url` is `links.<uuid>.url`. */
+    private static function statePath(string $key, mixed $state): string
+    {
+        $path = [];
+
+        foreach (explode('.', $key) as $segment) {
+            if (is_array($state) && ctype_digit($segment)) {
+                $segment = array_keys($state)[(int) $segment] ?? $segment;
+            }
+
+            $path[] = $segment;
+            $state = is_array($state) ? $state[$segment] ?? null : null;
+        }
+
+        return implode('.', $path);
     }
 
     /** One Locale's state, or the `'*'` Translation's as `state` for an untranslatable type. */
@@ -251,16 +279,11 @@ final class EntryResource extends FilamentResource
      * @param  array<string, string>  $lang
      * @param  Collection<string, Field>  $fields
      */
-    private static function component(Field $field, array $lang, Collection $fields): FormField
+    private static function component(Field $field, array $lang, Collection $fields): Component
     {
-        $plugin = Filament::getPlugin('kami');
-        $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
+        $translatable = ! self::type()->isTranslatable() || self::type()->isTranslatable($field);
         $target = $fields->get($field->conditionTarget() ?? '');
-
-        $component
-            ->label(self::type()->fieldLabel($field->handle))
-            ->helperText(self::type()->fieldHelp($field->handle))
-            ->default($field->defaultValue());
+        $component = self::input($field, $field->handle, $translatable ? $lang : [], $field->defaultValue());
 
         // The condition `SaveEntry` reads, on the form's state; a hidden component is not sent, and `SaveEntry` clears its value.
         if ($target instanceof Field) {
@@ -272,19 +295,65 @@ final class EntryResource extends FilamentResource
             $component->live(onBlur: $component instanceof TextInput || $component instanceof Textarea);
         }
 
-        if (! self::type()->isTranslatable() || self::type()->isTranslatable($field)) {
-            // A toggle or a site's component may type no text, so may have no input to mark.
-            if (method_exists($component, 'extraInputAttributes')) {
-                $component->extraInputAttributes($lang);
-            }
-
+        if ($translatable) {
             return $component;
+        }
+
+        $shared = __('kami::admin.fields.shared');
+
+        if ($component instanceof FilamentSection) {
+            $component->description(trim($shared . ' ' . self::type()->fieldHelp($field->handle)));
+        } elseif ($component instanceof FormField) {
+            $component->hint($shared);
         }
 
         // One value for every Locale: changing it changes Published and Scheduled Translations too, which takes `publish` (ADR 0019).
         return $component
-            ->hint(__('kami::admin.fields.shared'))
             ->disabled(fn (?Entry $record): bool => $record instanceof Entry && ! self::can('publish', $record)
                 && $record->translations->contains(fn (Translation $translation): bool => $translation->status === Translation::PUBLISHED));
+    }
+
+    /**
+     * A Field's input, its sub-Fields' inside it; a Group is a heading over its values, under its own state path.
+     *
+     * @param  string  $key  Where its labels live under `fields.`.
+     * @param  array<string, string>  $lang
+     * @param  mixed  $default  A Group's goes to its sub-Fields: a heading holds no state of its own.
+     */
+    private static function input(Field $field, string $key, array $lang, mixed $default = null): Component
+    {
+        $label = self::type()->fieldLabel($key);
+        $help = self::type()->fieldHelp($key);
+
+        if ($field instanceof StructuredField) {
+            $children = [];
+
+            foreach ($field->fields() as $handle => $sub) {
+                $children[] = self::input($sub, "{$key}.fields.{$handle}", $lang, $field instanceof Group && is_array($default) ? $default[$handle] ?? null : null);
+            }
+
+            return $field instanceof Group
+                ? FilamentSection::make($label)->description($help)->statePath($field->handle)->schema($children)
+                // Buttons as well as dragging, for a keyboard (WCAG 2.1.1).
+                : RepeaterInput::make($field->handle)->label($label)->helperText($help)->schema($children)->default($default)->defaultItems(0)->reorderableWithButtons();
+        }
+
+        $plugin = Filament::getPlugin('kami');
+        $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
+        $component->label($label)->helperText($help);
+
+        $component->default($default);
+
+        // A registered Select names its labels by handle alone.
+        if ($field instanceof Select && $component instanceof SelectInput && $key !== $field->handle) {
+            $component->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => self::type()->optionLabel($key, $option), $field->optionKeys())));
+        }
+
+        // A toggle or a site's component may type no text, so may have no input to mark.
+        if (method_exists($component, 'extraInputAttributes')) {
+            $component->extraInputAttributes($lang);
+        }
+
+        return $component;
     }
 }
