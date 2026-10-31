@@ -293,6 +293,85 @@ it('offers an editor who may not reorder no create button under a Parent', funct
     level('editor', $parent)->assertActionHidden('create');
 });
 
+/** Where the page's Cancel button links to, or null when it is not a link. */
+function cancelHref(Testable $page): ?string
+{
+    return preg_match('~<a\b[^>]*href="([^"]*)"[^>]*>(?:(?!</a>).)*?Cancel~s', $page->html(), $matches) === 1 ? html_entity_decode($matches[1]) : null;
+}
+
+describe('the Edit and Create pages of a level', function () {
+    beforeEach(function () {
+        level('administrator');
+        $this->top = page('Top');
+        $this->middle = page('Middle', ['parent' => $this->top->id]);
+        $this->bottom = page('Bottom', ['parent' => $this->middle->id]);
+        $this->topUrl = EntryResource::getUrl(parameters: ['parent' => $this->top->id]);
+        $this->middleUrl = EntryResource::getUrl(parameters: ['parent' => $this->middle->id]);
+    });
+
+    it('goes through the Parents of the Entry edited', function () {
+        $page = Livewire::test(EditEntry::class, ['record' => $this->bottom->id]);
+        $breadcrumbs = $page->instance()->getBreadcrumbs();
+
+        expect(array_values($breadcrumbs))->toBe(['Pages', 'Top', 'Middle', 'Bottom', 'Edit'])
+            ->and(array_keys($breadcrumbs))->toBe([EntryResource::getUrl(), $this->topUrl, $this->middleUrl, EntryResource::getUrl('edit', ['record' => $this->bottom]), 0])
+            ->and(cancelHref($page))->toBe($this->middleUrl);
+    });
+
+    it('goes through the Parents of the Entry created', function () {
+        $page = Livewire::withQueryParams(['parent' => $this->middle->id])->test(CreateEntry::class);
+        $breadcrumbs = $page->instance()->getBreadcrumbs();
+
+        expect(array_values($breadcrumbs))->toBe(['Pages', 'Top', 'Middle', 'Create'])
+            ->and(array_keys($breadcrumbs))->toBe([EntryResource::getUrl(), $this->topUrl, $this->middleUrl, 0])
+            ->and(cancelHref($page))->toBe($this->middleUrl);
+    });
+
+    it('cancels to the root from an Entry at the root', function () {
+        expect(cancelHref(Livewire::test(EditEntry::class, ['record' => $this->top->id])))->toBe(EntryResource::getUrl())
+            ->and(cancelHref(Livewire::test(CreateEntry::class)))->toBe(EntryResource::getUrl());
+    });
+
+    it('follows a saved move, not the select', function () {
+        $page = Livewire::test(EditEntry::class, ['record' => $this->bottom->id])->fillForm(['parent' => $this->top->id]);
+
+        expect(cancelHref($page))->toBe($this->middleUrl);
+
+        $page->call('save')->assertHasNoFormErrors();
+
+        expect(cancelHref($page))->toBe($this->topUrl)
+            ->and(array_values($page->instance()->getBreadcrumbs()))->toBe(['Pages', 'Top', 'Bottom', 'Edit']);
+    });
+
+    it('answers 404 when creating under a Parent outside the type or the Site', function () {
+        $article = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Article'], locale: 'fr');
+        DB::table('kami_entries')->where('id', $this->top->id)->update(['site' => 'other']);
+
+        Livewire::withQueryParams(['parent' => $article->id])->test(CreateEntry::class)->assertNotFound();
+        Livewire::withQueryParams(['parent' => $this->top->id])->test(CreateEntry::class)->assertNotFound();
+    });
+
+    it('shows the root to an editor who may not reorder, who creates there', function () {
+        level('editor');
+        $page = Livewire::withQueryParams(['parent' => $this->middle->id])->test(CreateEntry::class);
+
+        expect(array_values($page->instance()->getBreadcrumbs()))->toBe(['Pages', 'Create'])
+            ->and(cancelHref($page))->toBe(EntryResource::getUrl());
+    });
+
+    it('changes nothing on a type that is not hierarchical', function () {
+        $article = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Article'], locale: 'fr');
+        level('administrator', type: 'article');
+        $page = Livewire::test(EditEntry::class, ['record' => $article->id]);
+
+        expect(array_values($page->instance()->getBreadcrumbs()))->toBe(['Articles', 'Article', 'Edit'])
+            ->and(cancelHref($page))->toBeNull();
+        $page->assertSeeHtml('window.history.back()');
+
+        Livewire::withQueryParams(['parent' => $article->id])->test(CreateEntry::class)->assertOk();
+    });
+});
+
 it('reads the table in an exact number of queries, whatever the rows', function () {
     $parent = page('Parent');
     page('A', ['parent' => $parent->id]);
@@ -324,10 +403,10 @@ it('reads one list on a type no longer hierarchical, whatever Parents its rows k
         ->and(ReorderEntries::next(new Project))->toBe(3);
 });
 
-it('ignores a Parent that is not a string on the create page', function () {
+it('answers 404 for a Parent that is not a string on the create page', function () {
     level('administrator');
 
-    Livewire::withQueryParams(['parent' => ['x']])->test(CreateEntry::class)->assertSchemaStateSet(['parent' => null], 'form');
+    Livewire::withQueryParams(['parent' => ['x']])->test(CreateEntry::class)->assertNotFound();
 });
 
 it('stops at a cycle concurrent moves could close', function () {

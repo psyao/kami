@@ -65,10 +65,19 @@ final class EditEntry extends EditRecord
         return $entry;
     }
 
-    /** A Singleton has no list to lead back to. */
+    /** A Singleton has no list to lead back to; an Entry under a Parent goes through its Parents. */
     public function getBreadcrumbs(): array
     {
-        return EntryResource::type() instanceof Singleton ? [] : parent::getBreadcrumbs();
+        if (EntryResource::type() instanceof Singleton) {
+            return [];
+        }
+
+        return [...EntryResource::levelBreadcrumbs($this->getRecord()->parent_id, $this), ...array_slice(parent::getBreadcrumbs(), 1, preserve_keys: true)];
+    }
+
+    protected function getCancelFormAction(): Action
+    {
+        return EntryResource::cancelToLevel(parent::getCancelFormAction(), fn (): ?string => $this->getRecord()->parent_id);
     }
 
     public function getSubheading(): ?string

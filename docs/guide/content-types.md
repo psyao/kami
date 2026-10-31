@@ -115,7 +115,7 @@ The two flags are separate. Alone, `$hierarchical` gives a tree with no hand ord
 
 A Path does not follow the tree yet: it holds no ancestor's slug, and changing a Parent moves no Path.
 
-In the admin, the type's table shows one level, searched within that level. **Children** goes down, the breadcrumb comes back, and **Reorder records**, on an orderable type, moves siblings only. The form changes the Parent with a searchable select, and creating from a Parent's children starts under it. Both take the type's `reorder` Permission: a User without it edits Entries where they are, and creates at the root.
+In the admin, the type's table shows one level, searched within that level. **Children** goes down, the breadcrumb comes back, on the Edit and Create pages too, whose Cancel returns to the level, and **Reorder records**, on an orderable type, moves siblings only. The form changes the Parent with a searchable select, and creating from a Parent's children starts under it. Both take the type's `reorder` Permission: a User without it edits Entries where they are, and creates at the root.
 
 A hierarchical Taxonomy's `Term` reads its visible Parents with `$term->ancestors()`, nearest first, at one query per level.
 
