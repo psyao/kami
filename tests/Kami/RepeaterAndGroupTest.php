@@ -206,6 +206,18 @@ it('requires a Group\'s sub-Field to publish, and validates its nested rows', fu
         ->and(fn () => $save->handle(Rowed::class, ['title' => 'x', 'place' => ['stops' => [['url' => 'nope']]]], locale: 'fr'))->toThrow(ValidationException::class, 'place.stops.0.url');
 });
 
+it('leaves a Draft free with an optional Shared Repeater holding a required sub-Field, another Translation published', function () {
+    Rowed::$declared = [Repeater::make('stops', [Text::make('city')->required(), Text::make('note')])];
+    config(['kami.types' => [Rowed::class]]);
+    structuredTable(fn (Blueprint $table) => $table->json('stops')->nullable());
+    $save = resolve(SaveEntry::class);
+    $entry = $save->handle(Rowed::class, ['title' => 'Un', 'status' => 'published', 'stops' => [['city' => 'Sion']]], locale: 'fr');
+
+    $saved = $save->handle(Rowed::class, ['title' => 'One', 'stops' => [['city' => 'Sion'], ['city' => '', 'note' => 'To fill']]], $entry, 'en');
+
+    expect($saved->exists)->toBeTrue();
+});
+
 it('clears a hidden Repeater and drops its rows\' rules', function () {
     Rowed::$declared = [Text::make('kind')->shared(), Repeater::make('stops', [Url::make('url')])->visibleWhen('kind', 'tour')];
     config(['kami.types' => [Rowed::class]]);

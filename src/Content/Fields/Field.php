@@ -62,7 +62,7 @@ abstract class Field
         return $this;
     }
 
-    /** Required to publish; a Draft may leave it blank. */
+    /** Required to publish; a Draft may leave it blank, but may not blank a Shared value another Translation publishes. */
     public function required(): static
     {
         $this->required = true;

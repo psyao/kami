@@ -44,12 +44,14 @@ final class ContentMigrator
         $hasNew = Schema::hasTable($new);
         $resuming = ! $hasTable && $hasNew && self::holdsNamesOf($old, $new);
 
-        if (! $resuming && ($hasNew || DB::table('kami_entries')->where('type', $to)->exists())) {
-            throw new InvalidArgumentException("The type {$from} cannot become {$to}: {$new} or Entries of {$to} already exist.");
-        }
+        if (! $resuming) {
+            if ($hasNew || DB::table('kami_entries')->where('type', $to)->exists()) {
+                throw new InvalidArgumentException("The type {$from} cannot become {$to}: {$new} or Entries of {$to} already exist.");
+            }
 
-        if (! $resuming && ! $hasTable && ! DB::table('kami_entries')->where('type', $from)->exists()) {
-            throw new InvalidArgumentException("The type {$from} has neither a table nor Entries.");
+            if (! $hasTable && ! DB::table('kami_entries')->where('type', $from)->exists()) {
+                throw new InvalidArgumentException("The type {$from} has neither a table nor Entries.");
+            }
         }
 
         if ($hasTable) {
@@ -58,7 +60,7 @@ final class ContentMigrator
 
         DB::table('kami_entries')->where('type', $from)->update(['type' => $to]);
 
-        if ($hasTable || $resuming) {
+        if ($hasTable || $hasNew) {
             self::renameConstraints($old, $new);
         }
     }
@@ -409,21 +411,39 @@ final class ContentMigrator
         });
     }
 
+    /** Whether a table holds a name only the old table's own generated or Laravel-given constraint has: a name merely starting with the old table's may be another type's, as `kami_type_memo_archive_…` is not `kami_type_memo`'s. */
     private static function holdsNamesOf(string $old, string $new): bool
     {
         foreach (Schema::getForeignKeys($new) as $key) {
-            if ($key['name'] !== null && self::follows($key['name'], $old, implode('.', $key['columns']), MakeMigrationCommand::FOREIGN_KEY_PREFIX)) {
+            if (in_array($key['name'], self::ownNames($old, $key['columns'], MakeMigrationCommand::FOREIGN_KEY_PREFIX, 'foreign'), true)) {
                 return true;
             }
         }
 
         foreach (Schema::getIndexes($new) as $index) {
-            if (! $index['primary'] && self::follows($index['name'], $old, implode('.', $index['columns']), MakeMigrationCommand::INDEX_PREFIX)) {
+            if (! $index['primary'] && in_array($index['name'], self::ownNames($old, $index['columns'], MakeMigrationCommand::INDEX_PREFIX, 'unique', 'index'), true)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * @param  list<string>  $columns
+     * @return list<string> The hashed name `kami:make:migration` gives, and Laravel's for each type, with and without the connection's prefix.
+     */
+    private static function ownNames(string $old, array $columns, string $prefix, string ...$types): array
+    {
+        $names = [MakeMigrationCommand::indexName($old, implode('.', $columns), $prefix)];
+
+        foreach ([$old, Schema::getConnection()->getTablePrefix() . $old] as $table) {
+            foreach ($types as $type) {
+                $names[] = strtolower("{$table}_" . implode('_', $columns) . "_{$type}");
+            }
+        }
+
+        return $names;
     }
 
     private static function follows(string $name, string $old, string $columns, string $prefix): bool

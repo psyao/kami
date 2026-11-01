@@ -158,11 +158,11 @@ final class SaveEntry
         }
 
         // A Shared value is read by every Translation: a save may not blank what another one publishes. One already blank holds nothing back, as a Field may turn required after publication.
-        $publishedElsewhere = $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
+        $held = array_filter($fields, fn (Field $field): bool => $field->isRequired() && ! $contentType->isTranslatable($field) && array_key_exists($field->handle, $values) && $before[$field->handle] !== null);
+        $publishedElsewhere = $held !== [] && $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
 
         foreach ($fields as $handle => $field) {
-            $held = $publishedElsewhere && ! $contentType->isTranslatable($field) && array_key_exists($handle, $values) && $before[$handle] !== null;
-            $rules = [...$rules, ...$field->rulesAt($handle, $publishing || $held)];
+            $rules = [...$rules, ...$field->rulesAt($handle, $publishing || ($publishedElsewhere && isset($held[$handle])))];
         }
 
         // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.

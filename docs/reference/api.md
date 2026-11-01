@@ -141,7 +141,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created.
 - `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
-- `public function required(): static`: Required to publish; a Draft may leave it blank.
+- `public function required(): static`: Required to publish; a Draft may leave it blank, but may not blank a Shared value another Translation publishes.
 - `public function rules(array $rules): static`: Laravel validation rules, applied on every save, Drafts included; a blank value passes them unless the rule is implicit.
 - `public function shared(): static`: One value for the whole Entry, whatever the Locale.
 - `public function sortable(): static`: A listing sorts on this Field: `kami:make:migration` indexes its column.

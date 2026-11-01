@@ -269,6 +269,21 @@ describe('renameType', function () {
             ->and(DB::table('kami_entries')->where('type', 'memo')->count())->toBe(1);
     });
 
+    it('takes no table for its own when its names merely start with the old table\'s', function () {
+        Schema::create('kami_type_memo_archive', function ($table) {
+            $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
+            $table->string('locale', 20);
+            $table->unique(['entry_id', 'locale']);
+        });
+        memo();
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameType('memo', 'memo_archive');"))->toThrow(Exception::class, 'kami_type_memo_archive')
+            ->and(DB::table('kami_entries')->where('type', 'memo')->count())->toBe(1);
+
+        // Its foreign key would stop the rollback dropping `kami_entries`.
+        Schema::drop('kami_type_memo_archive');
+    });
+
     it('refuses a target that is taken, or that is no handle', function (string $to, string $message) {
         Schema::create('kami_type_taken', fn ($table) => $table->string('locale'));
         memo('held');

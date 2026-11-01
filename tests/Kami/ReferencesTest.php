@@ -272,6 +272,14 @@ it('removes References when a target or a source is hard-deleted', function () {
     expect(DB::table('kami_references')->count())->toBe(0);
 });
 
+it('refuses blanking a required relation another Translation publishes', function () {
+    Linked::$declared = [Entries::make('related')->of(Article::class)->required()];
+    $save = resolve(SaveEntry::class);
+    $source = $save->handle(Linked::class, ['title' => 'Bonjour', 'status' => 'published', 'related' => [linkTarget('One')->id]], locale: 'fr');
+
+    expect(fn () => $save->handle(Linked::class, ['title' => 'Hello', 'related' => []], $source, 'en'))->toThrow(ValidationException::class);
+});
+
 it('requires a required relation to publish, stored rows included', function () {
     Linked::$declared = [Entries::make('related')->of(Article::class)->required()];
     $one = linkTarget('One');
