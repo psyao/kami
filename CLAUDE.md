@@ -48,7 +48,7 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 - Ask blocking questions one at a time, each with a default recommendation. Stop after every deliverable that needs validation.
 - Be concrete: class, table and Artisan command names.
 - Velox is evidence, not a default: cite it as evidence (question, evidence, alternatives); a decision that departs from it on a structural point says so in one sentence with the reason.
-- For implementation work, load the `ponytail:ponytail` skill and keep it active. Before opening a ticket's pull request, run `/ponytail:ponytail-review` on the branch diff and apply what holds; the milestone ritual runs `/ponytail:ponytail-debt` on `main`.
+- For implementation work, load the `ponytail:ponytail` skill and keep it active. Before opening a ticket's pull request, run `/ponytail:ponytail-review` on the branch diff and apply what holds; the milestone ritual runs `/ponytail:ponytail-debt` and `/ponytail:ponytail-audit` on `main`.
 
 ## Code conventions
 
