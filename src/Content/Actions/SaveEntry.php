@@ -170,11 +170,16 @@ final class SaveEntry
         $names = [];
 
         foreach (array_keys($rules) as $attribute) {
-            // Lowered as Filament lowers the same label for the rules its form checks first.
-            $names[$attribute] = Str::lcfirst(match ($attribute) {
-                'title', 'slug' => __("kami::admin.fields.{$attribute}"),
-                default => $contentType->fieldLabel(str_replace(['.*', '.'], ['', '.fields.'], $attribute)),
-            });
+            $label = match (true) {
+                isset($fields[Str::before($attribute, '.')]) => $contentType->fieldLabel(str_replace(['.*', '.'], ['', '.fields.'], $attribute)),
+                in_array($attribute, ['title', 'slug', 'published_at', 'parent'], true) => (string) __("kami::admin.fields.{$attribute}"),
+                default => null,
+            };
+
+            if ($label !== null) {
+                // Lowered as Filament lowers the same label for the rules its form checks first, short of an acronym.
+                $names[$attribute] = preg_match('/^\p{Lu}\p{Lu}/u', $label) === 1 ? $label : Str::lcfirst($label);
+            }
         }
 
         // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.

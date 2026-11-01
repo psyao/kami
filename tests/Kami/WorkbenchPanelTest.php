@@ -21,7 +21,8 @@ it('adds Kami to the host panel', function () {
 
     $this->get('/admin/login')
         ->assertOk()
-        ->assertSee('/css/psyao/kami/kami.css', escape: false);
+        ->assertSee('/css/psyao/kami/kami.css', escape: false)
+        ->assertSee('/js/psyao/kami/kami.js', escape: false);
 });
 
 it('draws the User avatar inline, with no remote URL in the panel markup', function () {

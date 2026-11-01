@@ -56,6 +56,18 @@ function linkErrors(array $values, ?Entry $entry = null): array
     return [];
 }
 
+/** @return array<string, list<string>> */
+function errorsOf(Closure $save): array
+{
+    try {
+        $save();
+    } catch (ValidationException $exception) {
+        return $exception->errors();
+    }
+
+    return [];
+}
+
 function storedColumn(Entry $entry, string $column): mixed
 {
     return DB::table('kami_type_project')->where(['entry_id' => $entry->id, 'locale' => '*'])->value($column);
@@ -127,6 +139,16 @@ it('names a sub-Field by its label in a row\'s error, in the language of the req
     app()->setLocale('fr');
 
     expect($errors()['links.1.url'])->toBe(['The adresse field is required.']);
+});
+
+it('keeps an acronym whole and names Kami\'s own attributes in an error', function () {
+    Rowed::$declared = [Url::make('homepage')->required()];
+    config(['kami.types' => [Rowed::class]]);
+    structuredTable(fn (Blueprint $table) => $table->string('homepage')->nullable());
+    app('translator')->addLines(['kami-types.rowed.fields.homepage.label' => 'URL'], 'en');
+
+    expect(errorsOf(fn () => resolve(SaveEntry::class)->handle(Rowed::class, ['title' => 'x', 'status' => 'published', 'published_at' => 'nope'], locale: 'fr')))
+        ->toBe(['published_at' => ['The publication date field must be a valid date.'], 'homepage' => ['The URL field is required.']]);
 });
 
 it('validates a stored value decoded when publishing leaves it out', function () {
@@ -203,8 +225,8 @@ it('reads and writes each sub-Field through its own type, nested ones included',
         ->and($entry->stops[0]['place'])->toBe(['city' => 'Vevey'])
         ->and($entry->stops[0]['notes'])->toBe([['text' => 'a']]);
 
-    expect(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published', 'stops' => [['place' => ['city' => '']]]], locale: 'fr'))
-        ->toThrow(ValidationException::class, 'city');
+    expect(errorsOf(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published', 'stops' => [['place' => ['city' => '']]]], locale: 'fr')))
+        ->toHaveKey('stops.0.place.city');
 });
 
 it('requires a Group\'s sub-Field to publish, and validates its nested rows', function () {
@@ -213,8 +235,8 @@ it('requires a Group\'s sub-Field to publish, and validates its nested rows', fu
     structuredTable(fn (Blueprint $table) => $table->json('place')->nullable());
     $save = resolve(SaveEntry::class);
 
-    expect(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published'], locale: 'fr'))->toThrow(ValidationException::class, 'city')
-        ->and(fn () => $save->handle(Rowed::class, ['title' => 'x', 'place' => ['stops' => [['url' => 'nope']]]], locale: 'fr'))->toThrow(ValidationException::class, 'url');
+    expect(errorsOf(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published'], locale: 'fr')))->toHaveKey('place.city')
+        ->and(errorsOf(fn () => $save->handle(Rowed::class, ['title' => 'x', 'place' => ['stops' => [['url' => 'nope']]]], locale: 'fr')))->toHaveKey('place.stops.0.url');
 });
 
 it('leaves a Draft free with an optional Shared Repeater holding a required sub-Field, another Translation published', function () {

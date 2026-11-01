@@ -1,5 +1,5 @@
 // A keyboard move re-renders the rows and drops focus to the body (WCAG 2.4.3): bring it back to the moved row's control, or its other one where the row reached the end.
-// ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; goes when Filament holds focus itself.
+// ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; #238 removes it once Filament holds focus itself.
 document.addEventListener('livewire:init', () => {
     let moved = null
 
@@ -11,17 +11,17 @@ document.addEventListener('livewire:init', () => {
         }
     }, true)
 
-    Livewire.hook('morphed', () => {
-        const { key, direction } = moved ?? {}
-        moved = null
+    Livewire.hook('morphed', ({ el }) => {
+        const row = moved && el.querySelector(`[x-sortable-item="${CSS.escape(moved.key)}"]`)
 
-        if (! key) {
+        // Another component may answer first: the table's own morph takes it.
+        if (! row) {
             return
         }
 
-        const row = document.querySelector(`[x-sortable-item="${CSS.escape(key)}"]`)
-        const buttons = [...(row?.querySelectorAll('[data-table-reorder-direction]') ?? [])].filter((button) => ! button.disabled)
+        const buttons = [...row.querySelectorAll('[data-table-reorder-direction]')].filter((button) => ! button.disabled)
 
-        ;(buttons.find((button) => button.dataset.tableReorderDirection === direction) ?? buttons[0])?.focus()
+        ;(buttons.find((button) => button.dataset.tableReorderDirection === moved.direction) ?? buttons[0])?.focus()
+        moved = null
     })
 })

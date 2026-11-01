@@ -146,7 +146,7 @@ final class Home extends Singleton
 - **Reading it.** `Home::entry()` returns the Entry when visible in the current Locale, `null` otherwise, from any view.
 - **In the admin.** Its navigation item, in the singular, opens its form directly, at `/admin/home`, with no list, create or delete. Where `kami:install` has not run since the type was declared, the page answers 404. The page is an edit form, so it takes the type's `update` Permission, and `publish` once the Entry is published: a User without them gets a 403 from the navigation item.
 
-A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` route for `Home` to answer.
+A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` route for `Home` to answer. A test of that page needs Kami's tables: see [Testing your site](existing-application.md#testing-your-site).
 
 ### Global Sets
 
@@ -720,7 +720,7 @@ Field values load with the Entries, in one query per type, so a list costs the s
 
 ### Listing on a Field
 
-A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank', 7)` or `orderBy('rank')` on an Entry query does not reach it: SQLite takes the name for a string and returns nothing with no error, and the other engines refuse the column. Join the type's table: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
+A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank', 7)` or `orderBy('rank')` on an Entry query does not reach it: SQLite takes the name for a string with no error, so a filter finds nothing and a sort does nothing, and the other engines refuse the column. Join the type's table: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
 
 ```php
 use Illuminate\Database\Query\JoinClause;

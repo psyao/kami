@@ -44,6 +44,7 @@ it('installs Kami on SQLite without a terminal', function () {
 
     expect(Schema::hasTable('migrations'))->toBeTrue()
         ->and(public_path('css/psyao/kami/kami.css'))->toBeFile()
+        ->and(public_path('js/psyao/kami/kami.js'))->toBeFile()
         ->and(public_path('js/filament/filament/app.js'))->toBeFile();
 });
 
