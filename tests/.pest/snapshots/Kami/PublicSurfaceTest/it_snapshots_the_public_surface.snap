@@ -103,12 +103,18 @@ class Psyao\Kami\Content\Fields\RichText::headings() public function headings(ar
 class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Select::options() public function options(array $options): Psyao\Kami\Content\Fields\Select
 class Psyao\Kami\Content\Fields\StructuredField abstract class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\TakesInlineMarkdown trait
+class Psyao\Kami\Content\Fields\TakesInlineMarkdown::inlineMarkdown() public function inlineMarkdown(): static
 class Psyao\Kami\Content\Fields\Terms final class extends Psyao\Kami\Content\Fields\RelationField
 class Psyao\Kami\Content\Fields\Text final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Textarea final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Url final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\GlobalSet abstract class extends Psyao\Kami\Content\Singleton
 class Psyao\Kami\Content\GlobalSet::entry() public static function entry(): ?Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\InlineMarkdown final readonly class implements Illuminate\Contracts\Support\Htmlable
+class Psyao\Kami\Content\InlineMarkdown::isEmpty() public function isEmpty(): bool
+class Psyao\Kami\Content\InlineMarkdown::text() public function text(): string
+class Psyao\Kami\Content\InlineMarkdown::toHtml() public function toHtml(): string
 class Psyao\Kami\Content\Layout abstract class
 class Psyao\Kami\Content\Layout::$children public protected(set) readonly array $children
 class Psyao\Kami\Content\Layout::$handle public protected(set) readonly string $handle

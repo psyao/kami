@@ -261,6 +261,10 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the RichText \"{$field->handle}\": no normalisation reaches inside a document yet.");
             }
 
+            if ($field->isInlineMarkdown()) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the inline Markdown \"{$field->handle}\": a document's values are read as stored.");
+            }
+
             $this->validateHandle($class, 'the sub-Field handle', $field->handle);
 
             if (in_array($field->handle, $handles, true)) {
@@ -363,6 +367,10 @@ final class ContentTypes
 
             if ($target instanceof RichText) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the RichText \"{$target->handle}\", whose value a condition cannot read.");
+            }
+
+            if ($target->isInlineMarkdown()) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the inline Markdown \"{$target->handle}\", whose value a condition cannot read.");
             }
 
             if ($target instanceof RelationField) {

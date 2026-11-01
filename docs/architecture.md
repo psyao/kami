@@ -393,7 +393,7 @@ What Kami and its starter kit require, and what was rejected. Facts about the ca
 | `ueberdosis/tiptap-php` `^2` | Parses, normalises and renders rich text in the core | MIT | Active (2.2.1, 2026-10); already required by `filament/forms` | HTML plus a sanitiser; Filament's `RichContentRenderer` (ADR 0016) | Yes, except `CodeBlockShiki` (`proc_open` + Node), never registered |
 | `intervention/image` `^4` | Engine behind Laravel 13's `Image` facade, for Conversions | MIT | Active (4.4.0, 2026-10) | `spatie/laravel-medialibrary`, Glide 4, `awcodes/filament-curator` (ADR 0017) | Yes, GD or Imagick |
 
-Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-expression` (the Tick's overdue rule) and `league/commonmark` (`Str::inlineMarkdown`).
+Kami also calls one of Laravel's own dependencies directly: `dragonmantank/cron-expression` (the Tick's overdue rule). It requires another, at Laravel's own constraint, as it codes against its extension API: `league/commonmark` (BSD-3-Clause, active, pure PHP), for inline Markdown, since `Str::inlineMarkdown` adds GitHub's tables and strikethrough (ADR 0016).
 
 ### Development and starter kit
 

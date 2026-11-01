@@ -181,7 +181,7 @@ class Entry extends Model
         $fallback = $this->fallbackLocale($key);
         $value = $field->read($this->fieldRows[$fallback ?? $this->readLocale()][$key] ?? null);
 
-        return $fallback !== null && $value instanceof Document ? $value->inLanguage($fallback) : $value;
+        return $fallback !== null && ($value instanceof Document || $value instanceof InlineMarkdown) ? $value->inLanguage($fallback) : $value;
     }
 
     /**

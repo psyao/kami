@@ -16,6 +16,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\InlineMarkdown;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\RichText\Document;
@@ -104,6 +105,7 @@ final class EditEntry extends EditRecord
             $values[$key] = match (true) {
                 $value instanceof Collection => $value->modelKeys(),
                 $value instanceof Document => RichTextInput::fill($value),
+                $value instanceof InlineMarkdown => $value->raw(),
                 default => $value,
             };
         }
