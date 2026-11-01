@@ -426,7 +426,7 @@ describe('EntryTable', function () {
 
         projectPage(ListEntries::class)
             ->assertTableColumnExists('client')
-            ->assertTableColumnDoesNotExist('published_at')
+            ->assertTableColumnDoesNotExist('state_fr')
             ->assertTableFilterExists('recent')
             ->assertActionExists(TestAction::make('archive')->table($entry))
             ->assertActionDoesNotExist(TestAction::make('edit')->table($entry))
@@ -585,10 +585,4 @@ describe('what a Permission keeps from a User, whatever the form', function () {
 
         expect(Entry::query()->withUnpublished()->ofType('page')->whereNotNull('parent_id')->count())->toBe(0);
     });
-});
-
-it('makes no link of a Draft row\'s empty date', function () {
-    $entry = resolve(SaveEntry::class)->handle(Commission::class, ['title' => 'Refonte'], locale: 'fr');
-
-    projectPage(ListEntries::class)->assertTableColumnExists('published_at', fn (TextColumn $column): bool => $column->isClickDisabled(), $entry);
 });

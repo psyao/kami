@@ -20,6 +20,8 @@ return [
 
     'locale' => 'Translation: :LOCALE',
 
+    'locale_state' => ':LOCALE · :state',
+
     'state' => [
         'label' => 'State',
         'label_in' => 'State (:LOCALE)',
@@ -27,6 +29,7 @@ return [
         'scheduled' => 'Scheduled',
         'published' => 'Published',
         'missing' => 'Missing',
+        'no_translation' => 'No translation yet',
     ],
 
     'actions' => [
@@ -35,8 +38,6 @@ return [
         'save_draft' => 'Save draft',
         'publish' => 'Publish',
         'unpublish' => 'Unpublish',
-        'edit_locale' => 'Edit :LOCALE',
-        'add_locale' => 'Add :LOCALE',
         'view' => 'View on the site',
     ],
 

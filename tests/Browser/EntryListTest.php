@@ -11,8 +11,9 @@ use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
 
-it('names every link of a list holding a Draft', function () {
+it('names every link of a list holding a Draft and a Scheduled date', function () {
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Brouillon', 'author' => 'Ada'], locale: 'fr');
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'À paraître', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()], locale: 'fr');
 
     signIn()
         ->navigate('/admin/articles')

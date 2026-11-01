@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Psyao\Kami\Admin\Internal\EntryResource;
 
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Locked;
@@ -110,6 +112,17 @@ final class EditEntry extends EditRecord
             };
         }
 
+        // What saving a new Translation would write, as `SaveEntry` does when a value is left out; a Shared Field keeps its stored value.
+        if ($entry->translations->whereIn('locale', [$this->locale, '*'])->isEmpty()) {
+            foreach (EntryResource::type()->flatFields() as $field) {
+                $default = $field->defaultValue();
+
+                if (EntryResource::type()->isTranslatable($field) && $default !== null) {
+                    $values[$field->handle] = $field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default) : $default;
+                }
+            }
+        }
+
         if (EntryResource::type()->isHierarchical()) {
             $values['parent'] = $entry->parent_id;
         }
@@ -131,14 +144,8 @@ final class EditEntry extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        $default = Site::current()->defaultLocale();
-
         return [
-            // ponytail: one link per other Locale; M4's Locale switcher with status badges replaces them.
-            ...array_map(fn (string $locale): Action => Action::make("locale_{$locale}")
-                ->label(__($this->getRecord()->translations->contains('locale', $locale) ? 'kami::admin.actions.edit_locale' : 'kami::admin.actions.add_locale', ['locale' => $locale]))
-                ->color('gray')
-                ->url(EntryResource::editUrl($this->getRecord(), $locale === $default ? null : $locale)), array_values(array_diff(EntryResource::locales(), [$this->locale]))),
+            ...(count(EntryResource::locales()) > 1 ? [$this->localeSwitcher()] : []),
             Action::make('view')
                 ->label(__('kami::admin.actions.view'))
                 ->color('gray')
@@ -146,6 +153,31 @@ final class EditEntry extends EditRecord
                 ->visible(fn (): bool => $this->getRecord()->url() !== null),
             ...EntryResource::plugin()->entryForm(EntryResource::type(), $this)->actions(),
         ];
+    }
+
+    /** Every Locale with its state, labelled through closures: a save on this page changes them. Each other Locale is a link, keeping M2's URLs. */
+    private function localeSwitcher(): ActionGroup
+    {
+        $default = Site::current()->defaultLocale();
+
+        return ActionGroup::make(array_map(function (string $locale) use ($default): Action {
+            $action = Action::make("locale_{$locale}")->label(fn (): string => $this->localeLabel($locale))->color('gray');
+
+            return $locale === $this->locale
+                ? $action->icon(Heroicon::Check)->disabled()->extraAttributes(['aria-current' => 'true'])
+                : $action->url(fn (): string => EntryResource::editUrl($this->getRecord(), $locale === $default ? null : $locale));
+        }, EntryResource::locales()))
+            ->label(fn (): string => $this->localeLabel($this->locale))
+            ->icon(Heroicon::Language)
+            ->color('gray')
+            ->button();
+    }
+
+    private function localeLabel(string $locale): string
+    {
+        $state = EntryResource::state($this->getRecord()->translations->firstWhere('locale', $locale));
+
+        return (string) __('kami::admin.locale_state', ['locale' => $locale, 'state' => __($state === 'missing' ? 'kami::admin.state.no_translation' : "kami::admin.state.{$state}")]);
     }
 
     protected function getFormActions(): array

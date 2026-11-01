@@ -20,6 +20,8 @@ return [
 
     'locale' => 'Traduction : :LOCALE',
 
+    'locale_state' => ':LOCALE · :state',
+
     'state' => [
         'label' => 'État',
         'label_in' => 'État (:LOCALE)',
@@ -27,6 +29,7 @@ return [
         'scheduled' => 'Programmé',
         'published' => 'Publié',
         'missing' => 'Absente',
+        'no_translation' => 'Pas encore traduit',
     ],
 
     'actions' => [
@@ -35,8 +38,6 @@ return [
         'save_draft' => 'Enregistrer le brouillon',
         'publish' => 'Publier',
         'unpublish' => 'Dépublier',
-        'edit_locale' => 'Modifier :LOCALE',
-        'add_locale' => 'Ajouter :LOCALE',
         'view' => 'Voir sur le site',
     ],
 

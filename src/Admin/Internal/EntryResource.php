@@ -247,7 +247,7 @@ final class EntryResource extends FilamentResource
     public static function table(Table $table): Table
     {
         // A title lives on its Translation, out of reach of Filament's `recordTitleAttribute`: reorder buttons and modals would all read the type's label.
-        $table->recordTitle(fn (Entry $record): string => $record->title ?? __('kami::admin.fields.untitled'));
+        $table->recordTitle(fn (Entry $record): string => self::firstTitle($record) ?? __('kami::admin.fields.untitled'));
 
         if (self::type()->isOrderable()) {
             // Paginated: a whole type's rows could exceed shared hosting's memory limit; a row moves within its page (ADR 0023).
@@ -275,18 +275,21 @@ final class EntryResource extends FilamentResource
             TextColumn::make('title')
                 ->label(__('kami::admin.fields.title'))
                 // Every cell links to the record: an empty one would be a link with no name (WCAG 2.4.4). Not `placeholder()`, whose grey fails contrast (WCAG 1.4.3).
+                ->state(fn (Entry $record): ?string => self::firstTitle($record))
                 ->default(__('kami::admin.fields.untitled'))
+                // Any Locale's: a row may show a title from any of them.
                 ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
-                    ->whereIn('locale', [Site::current()->defaultLocale(), '*'])
                     ->whereLike('title', "%{$search}%"))),
             ...array_map(self::stateColumn(...), self::locales() ?: ['*']),
-            TextColumn::make('published_at')
-                ->label(__('kami::admin.fields.published_at'))
-                // A Draft has no date, so no link either: an empty one would have no name (WCAG 2.4.4).
-                ->disabledClick()
-                ->dateTime()
-                ->timezone(Site::current()->timezone),
         ];
+    }
+
+    /** The first title in the Site's Locale order, the default Locale's first; a Locale no longer declared comes last. */
+    private static function firstTitle(Entry $entry): ?string
+    {
+        $order = array_flip(Site::current()->locales);
+
+        return $entry->translations->whereNotNull('title')->sortBy(fn (Translation $translation): int => $order[$translation->locale] ?? count($order))->first()?->title;
     }
 
     /** @return list<Action> */
@@ -555,11 +558,18 @@ final class EntryResource extends FilamentResource
         return TextColumn::make($locale === '*' ? 'state' : "state_{$locale}")
             ->label($locale === '*' ? __('kami::admin.state.label') : __('kami::admin.state.label_in', ['locale' => $locale]))
             ->badge()
-            ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record->translations->firstWhere('locale', $locale))));
+            ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record->translations->firstWhere('locale', $locale))))
+            ->description(function (Entry $record, TextColumn $column) use ($locale): ?string {
+                $translation = $record->translations->firstWhere('locale', $locale);
+
+                return self::state($translation) === 'scheduled'
+                    ? $translation?->published_at?->setTimezone(Site::current()->timezone)->translatedFormat($column->getTable()->getDefaultDateTimeDisplayFormat())
+                    : null;
+            });
     }
 
     /** Draft, Scheduled or Published, as visitors see the Translation now (ADR 0019), or missing. */
-    private static function state(?Translation $translation): string
+    public static function state(?Translation $translation): string
     {
         return match (true) {
             ! $translation instanceof Translation => 'missing',
