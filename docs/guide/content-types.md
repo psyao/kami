@@ -99,7 +99,7 @@ Entry::query()->ofType(Project::class)->ordered()->get();
 
 A new Entry goes last. `SaveEntry` also takes a `position`, for seeders and imports; Entries sharing one read in creation order, so a type made orderable later starts in creation order. A type that is not orderable refuses a `position`.
 
-In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move by dragging, or on a keyboard with the move buttons Filament offers to assistive technology, within the page shown: to move a row further, show more rows per page, or set its `position` in code.
+In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move by dragging, or with the move buttons Filament offers to assistive technology, within the page shown; focus stays on the moved row. Filament keeps those buttons out of the Tab order, so a keyboard alone does not reach them yet. To move a row further, show more rows per page, or set its `position` in code.
 
 ### Hierarchical types
 
@@ -146,7 +146,7 @@ final class Home extends Singleton
 - **Reading it.** `Home::entry()` returns the Entry when visible in the current Locale, `null` otherwise, from any view.
 - **In the admin.** Its navigation item, in the singular, opens its form directly, at `/admin/home`, with no list, create or delete. Where `kami:install` has not run since the type was declared, the page answers 404. The page is an edit form, so it takes the type's `update` Permission, and `publish` once the Entry is published: a User without them gets a 403 from the navigation item.
 
-A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` route for `Home` to answer.
+A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` route for `Home` to answer. A test of that page needs Kami's tables: see [Testing your site](existing-application.md#testing-your-site).
 
 ### Global Sets
 
@@ -211,13 +211,13 @@ A Field is built with `::make()` and its handle, which names its column:
 
 `Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
-`->required()` makes a Field required to publish, while a Draft may leave it blank, short of [blanking a Shared value another Translation publishes](publishing.md#validation); `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
+`->required()` makes a Field required to publish, while a Draft may leave it blank, short of [blanking a Shared value another Translation publishes](publishing.md#validation), so the form shows no mark on its input; `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
 
 Each type refuses what it cannot hold, with no rule of yours: `Url::make('website')` refuses a non-URL on every save.
 
 A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Site's time zone in the admin, as `published_at` is. A `Date` has no time, so no zone converts it: the day given is the day stored, in the admin and in code.
 
-`->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it. A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
+`->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it: see [Listing on a Field](#listing-on-a-field). A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
 
 `->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. An Entry first written by a `'*'` call takes none either. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`: a `->required()` Shared Field left blank stops a Locale from publishing until someone fills it. An update never applies a default, and a value given as `null` stays `null`:
 
@@ -230,6 +230,11 @@ Text::make('author')->shared()->default('The newsroom'),
 A `Repeater` holds a variable list, and a `Group` one set of values that belong together. Each takes its sub-Fields as the second argument of `make()`:
 
 ```php
+use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\Repeater;
+use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Url;
+
 Repeater::make('links', [
     Text::make('label'),
     Url::make('url')->required(),
@@ -247,7 +252,7 @@ $entry->address; // ['street' => 'Rue du Lac 1', 'city' => 'Vevey']
 
 Each sub-Field reads through its own type, so a `Date` in a row is a `CarbonImmutable`, and every declared one is present, `null` when blank. Keys that no sub-Field declares are not stored. Editors add, remove and reorder a Repeater's rows. A row added and left blank stays until an editor removes it, so on a translatable Repeater it holds that Locale's value and stops Fallback. A `Group` whose values are all blank or `false` stores `null`, as a toggle left untouched says nothing.
 
-A sub-Field's rules and `->required()` apply to each row, as at the top level: a Draft may leave a required one blank. An error names its row (`links.1.url`), and in the admin it shows on that row's input. A `->required()` inside a `Group` holds to publish even when the Group itself is not required.
+A sub-Field's rules and `->required()` apply to each row, as at the top level: a Draft may leave a required one blank. An error's key names its row (`links.1.url`), for code; its message names the sub-Field by its label (`The address field is required.`), and in the admin it shows on that row's input. The label follows [Labels](#labels) in the language in use, and the sentence around it is your application's: add `lang/fr/validation.php` for a French one, as neither Kami nor Filament ships it. A `->required()` inside a `Group` holds to publish even when the Group itself is not required.
 
 The Field's scope covers the whole value: both are Shared unless you call `->translatable()` on them, and a sub-Field's own scope is ignored. Repeaters and groups may nest. Their sub-Field labels live under the parent's key; see [Labels](#labels).
 
@@ -258,6 +263,8 @@ The value is one document, which SQL never looks into: to filter on a value, mak
 `Entries` links an Entry to Entries of the types you name, each listed in `types`:
 
 ```php
+use Psyao\Kami\Content\Fields\Entries;
+
 Entries::make('related')->of(Article::class, Page::class),
 ```
 
@@ -292,6 +299,8 @@ With `->creatable()`, editors holding the target type's `create` Permission also
 A Taxonomy classifies other Entries. Its Entries are Terms, and everything an Entry has, a Term has: Fields, Translations, a Path.
 
 ```php
+use Psyao\Kami\Content\Taxonomy;
+
 final class Tag extends Taxonomy
 {
     protected bool $translatable = false; // one name for every Locale
@@ -302,10 +311,14 @@ final class Tag extends Taxonomy
 `Terms` links them, like `Entries`, and refuses a target that is no Taxonomy:
 
 ```php
+use Psyao\Kami\Content\Fields\Terms;
+
 Terms::make('tags')->of(Tag::class),
 ```
 
 ```php
+use Psyao\Kami\Content\Term;
+
 $project->tags;       // Collection<int, Term>, in pick order
 $term->entries;       // Collection<int, Entry>, the visible Entries linking it, once each
 $term->entries()->withUnpublished()->count();
@@ -316,6 +329,8 @@ Term::query()->ofType(Tag::class)->with('entries')->get(); // no N+1
 `entries()` is an Eloquent relation, across every relation Field naming the Term, reading visible Entries in the current Locale, whatever the Term's own query says: ask for more on the relation, with `$term->entries()->inLocale('en')` or `with(['entries' => fn ($query) => $query->withUnpublished()])`.
 
 `SaveEntry` publishes a new Term when `status` is left out; a Draft is asked for by name. The picker's creation does the same, so a Tag needs no second step, for an editor holding the Taxonomy's `publish`; without it, the Term is a Draft, left out of reads until someone publishes it. A Taxonomy's own form keeps its two buttons, Save draft and Publish.
+
+A Term created from a picker on one Locale's screen has a Translation in that Locale only. The form shows it on every Locale, while the front leaves it out where it has none: translate it, or set `$translatable = false` on the Taxonomy, as above.
 
 `Terms` is creatable by default. Name several Taxonomies or a Taxonomy with a required Field, and add `->creatable(false)`, as the first read of the declarations will ask.
 
@@ -372,6 +387,11 @@ Adjacent Tabs form one set of tabs. A `Section` sits at the top level or in a `T
 A Field can show only when it applies, according to another Field of the same type, wherever each is arranged:
 
 ```php
+use Psyao\Kami\Content\Fields\Boolean;
+use Psyao\Kami\Content\Fields\Select;
+use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Textarea;
+
 Boolean::make('featured'),
 Text::make('featured_note')->visibleWhen('featured', true),
 Select::make('kind')->options(['news', 'review', 'essay']),
@@ -675,6 +695,10 @@ app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello again'], $entry
 
 The write is saved in the site's default Locale; other Locales are in [Multilingual](multilingual.md). `SaveEntry` does not check who is calling: authorise before calling it from a request ([Publishing](publishing.md#saveentry-does-not-authorise)).
 
+## Deleting Entries
+
+Kami has no deletion yet. The admin offers no delete action, and `$entry->delete()` on an Entry with a Path fails with a raw foreign key error from `kami_paths`. Unpublish an Entry to take it off the site. What [Relations](#relations) and [Hierarchical types](#hierarchical-types) say of hard deletion is what the database does once a row goes.
+
 ## Reading Entries
 
 `Psyao\Kami\Content\Entry` is an Eloquent model. Its title, slug, status, publication date and Field values read as attributes:
@@ -693,3 +717,23 @@ Entry::query()->ofType('article')->withUnpublished()->get();       // every Arti
 ```
 
 Field values load with the Entries, in one query per type, so a list costs the same few queries whatever its length. Lazy loading throws. For large sets use `lazy()` or `chunk()`: `cursor()` throws, as it would load no Field value.
+
+### Listing on a Field
+
+A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank', 7)` or `orderBy('rank')` on an Entry query does not reach it: SQLite takes the name for a string with no error, so a filter finds nothing and a sort does nothing, and the other engines refuse the column. Join the type's table: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
+
+```php
+use Illuminate\Database\Query\JoinClause;
+
+Entry::query()->ofType(Product::class)
+    ->select('kami_entries.*')
+    ->join('kami_type_product as translated', fn (JoinClause $join) => $join->on('translated.entry_id', '=', 'kami_entries.id')->where('translated.locale', app()->getLocale()))
+    ->join('kami_type_product as shared', fn (JoinClause $join) => $join->on('shared.entry_id', '=', 'kami_entries.id')->where('shared.locale', '*'))
+    ->where('translated.rank', 7)   // Translatable, ->filterable()
+    ->orderBy('shared.stock')       // Shared, ->sortable()
+    ->get();
+```
+
+Keep only the join you need. The Entries read as usual, visibility included. Fallback does not apply: an Entry with no row in the Locale is left out, and a blank value does not read the default Locale's.
+
+With 6,000 Entries, the filter used the Field's index on all four engines. The sort used its index on SQLite and PostgreSQL; MySQL and MariaDB sorted without it.

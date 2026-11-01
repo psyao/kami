@@ -245,6 +245,9 @@ final class EntryResource extends FilamentResource
 
     public static function table(Table $table): Table
     {
+        // A title lives on its Translation, out of reach of Filament's `recordTitleAttribute`: reorder buttons and modals would all read the type's label.
+        $table->recordTitle(fn (Entry $record): string => $record->title ?? __('kami::admin.fields.untitled'));
+
         if (self::type()->isOrderable()) {
             // Paginated: a whole type's rows could exceed shared hosting's memory limit; a row moves within its page (ADR 0023).
             $table->reorderable('position')->paginatedWhileReordering()->authorizeReorder(fn (): bool => self::can('reorder'))

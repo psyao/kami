@@ -10,6 +10,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Psyao\Kami\Content\ContentType;
@@ -165,9 +166,25 @@ final class SaveEntry
             $rules = [...$rules, ...$field->rulesAt($handle, $publishing || ($publishedElsewhere && isset($held[$handle])))];
         }
 
+        // `links.*.url` reads the label at `links.fields.url`; the keys stay as they are, naming the row for code.
+        $names = [];
+
+        foreach (array_keys($rules) as $attribute) {
+            $label = match (true) {
+                isset($fields[Str::before($attribute, '.')]) => $contentType->fieldLabel(str_replace(['.*', '.'], ['', '.fields.'], $attribute)),
+                in_array($attribute, ['title', 'slug', 'published_at', 'parent'], true) => (string) __("kami::admin.fields.{$attribute}"),
+                default => null,
+            };
+
+            if ($label !== null) {
+                // Lowered as Filament lowers the same label for the rules its form checks first, short of an acronym.
+                $names[$attribute] = preg_match('/^\p{Lu}\p{Lu}/u', $label) === 1 ? $label : Str::lcfirst($label);
+            }
+        }
+
         // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.
         $conditional = array_filter($contentType->flatFields(), fn (Field $field): bool => $field->conditionTarget() !== null);
-        Validator::make($data, Arr::only($rules, array_map(fn (Field $field): ?string => $field->conditionTarget(), $conditional)))->validate();
+        Validator::make($data, Arr::only($rules, array_map(fn (Field $field): ?string => $field->conditionTarget(), $conditional)), [], $names)->validate();
 
         $cleared = $clearedReferences = [];
 
@@ -192,7 +209,7 @@ final class SaveEntry
             }
         }
 
-        Validator::make($data, $rules)->validate();
+        Validator::make($data, $rules, [], $names)->validate();
 
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
