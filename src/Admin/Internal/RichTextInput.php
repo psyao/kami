@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\RichEditor;
+use Filament\Forms\Components\RichEditor\Actions\LinkAction;
+use Filament\Forms\Components\TextInput;
 use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\RichText\Document;
 
 /**
  * Filament's editor for a `RichText` Field, and the translation between Kami's document and its state (ADR 0016).
@@ -19,6 +23,11 @@ final class RichTextInput
         return RichEditor::make($field->handle)
             ->json()
             ->fileAttachments(false)
+            // Filament's link form without its new-tab box, as `target` is never stored; its action still reads that value.
+            ->registerActions([LinkAction::make()->schema([
+                TextInput::make('url')->label(__('filament-forms::components.rich_editor.actions.link.modal.form.url.label'))->inputMode('url'),
+                Hidden::make('shouldOpenInNewTab')->default(false),
+            ])])
             // Beyond what the toolbar offers, TipTap would blank these hrefs in the editor.
             ->linkProtocols(['http', 'https', 'mailto', 'tel', 'kami'])
             ->toolbarButtons(array_values(array_filter([
@@ -30,6 +39,16 @@ final class RichTextInput
             // After Filament's state cast, which removes a label.
             ->afterStateHydrated(fn (RichEditor $component, mixed $state): RichEditor => $component->rawState(is_array($state) ? self::labelled($state) : $state))
             ->dehydrateStateUsing(fn (mixed $state): mixed => is_array($state) ? self::fromEditor($state) : $state);
+    }
+
+    /**
+     * The state a stored document fills the form with.
+     *
+     * @return array<mixed>|null
+     */
+    public static function fill(Document $document): ?array
+    {
+        return $document->isEmpty() ? null : self::toEditor($document->content() ?? []);
     }
 
     /**

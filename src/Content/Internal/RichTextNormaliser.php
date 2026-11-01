@@ -24,13 +24,13 @@ final readonly class RichTextNormaliser
      */
     public function document(array $document): array
     {
-        return ['type' => 'doc', 'content' => $this->blocks($document['content'] ?? [])];
+        return ['type' => 'doc', 'content' => $this->nodes($document['content'] ?? [])];
     }
 
     /** @return list<array<mixed>> */
-    private function blocks(mixed $content): array
+    private function nodes(mixed $content): array
     {
-        $blocks = $inline = [];
+        $nodes = $inline = [];
 
         foreach (is_array($content) ? $content : [] as $node) {
             if (! is_array($node)) {
@@ -43,11 +43,11 @@ final readonly class RichTextNormaliser
                 continue;
             }
 
-            array_push($blocks, ...$this->wrapped($inline), ...$this->block($node));
+            array_push($nodes, ...$this->wrapped($inline), ...$this->node($node));
             $inline = [];
         }
 
-        return [...$blocks, ...$this->wrapped($inline)];
+        return [...$nodes, ...$this->wrapped($inline)];
     }
 
     /**
@@ -69,20 +69,38 @@ final readonly class RichTextNormaliser
      * @param  array<mixed>  $node
      * @return list<array<mixed>>
      */
-    private function block(array $node): array
+    private function node(array $node): array
     {
         $content = $node['content'] ?? [];
 
         return match ($node['type'] ?? null) {
-            'paragraph' => [$this->withContent(['type' => 'paragraph'], $this->inline($content))],
-            'heading' => [$this->withContent(['type' => 'heading', 'attrs' => ['level' => $this->level(data_get($node, 'attrs.level'))]], $this->inline($content))],
+            'paragraph' => [$this->withContent(['type' => 'paragraph'], $this->inline($content)), ...$this->liftedBlocks($content)],
+            'heading' => [$this->withContent(['type' => 'heading', 'attrs' => ['level' => $this->level(data_get($node, 'attrs.level'))]], $this->inline($content)), ...$this->liftedBlocks($content)],
             'bulletList', 'orderedList' => $this->listOf((string) $node['type'], $content),
-            'blockquote' => ($quoted = $this->blocks($content)) === [] ? [] : [['type' => 'blockquote', 'content' => $quoted]],
+            'blockquote' => ($quoted = $this->nodes($content)) === [] ? [] : [['type' => 'blockquote', 'content' => $quoted]],
             'horizontalRule' => [['type' => 'horizontalRule']],
             'codeBlock' => $this->codeBlock($node),
             'block' => $this->blockNode($node),
-            default => $this->blocks($content),
+            default => $this->nodes($content),
         };
+    }
+
+    /**
+     * A Block inside text moves after it: inline, it would be lost (ADR 0016).
+     *
+     * @return list<array<mixed>>
+     */
+    private function liftedBlocks(mixed $content): array
+    {
+        $blocks = [];
+
+        foreach (is_array($content) ? $content : [] as $node) {
+            if (is_array($node)) {
+                array_push($blocks, ...(($node['type'] ?? null) === 'block' ? $this->blockNode($node) : $this->liftedBlocks($node['content'] ?? [])));
+            }
+        }
+
+        return $blocks;
     }
 
     /**
@@ -118,7 +136,7 @@ final readonly class RichTextNormaliser
         foreach (is_array($content) ? $content : [] as $child) {
             if (is_array($child)) {
                 $held = ($child['type'] ?? null) === 'listItem' ? $child['content'] ?? [] : [$child];
-                $items[] = ['type' => 'listItem', 'content' => $this->blocks($held) ?: [['type' => 'paragraph']]];
+                $items[] = ['type' => 'listItem', 'content' => $this->nodes($held) ?: [['type' => 'paragraph']]];
             }
         }
 
@@ -151,14 +169,20 @@ final readonly class RichTextNormaliser
         $text = '';
 
         foreach (is_array($nodes) ? $nodes : [] as $node) {
-            $text .= is_array($node) ? (($node['type'] ?? null) === 'text' && is_string($node['text'] ?? null) ? $node['text'] : $this->plainText($node['content'] ?? [])) : '';
+            if (is_array($node)) {
+                $text .= match (true) {
+                    ($node['type'] ?? null) === 'hardBreak' => "\n",
+                    ($node['type'] ?? null) === 'text' && is_string($node['text'] ?? null) => $node['text'],
+                    default => $this->plainText($node['content'] ?? []),
+                };
+            }
         }
 
         return $text;
     }
 
     /**
-     * Kept as it is, whatever Block its handle names (ADR 0016); M10 validates its Fields.
+     * ponytail: any handle and data pass, kept as they are (ADR 0016); M10 validates a Block's Fields.
      *
      * @param  array<mixed>  $node
      * @return list<array<mixed>>
@@ -228,8 +252,10 @@ final readonly class RichTextNormaliser
             if ($type === 'link') {
                 $href = data_get($mark, 'attrs.href');
 
-                if (is_string($href) && $this->isSafeHref($href)) {
-                    $kept['link'] = ['type' => 'link', 'attrs' => ['href' => $href]];
+                $safe = is_string($href) ? $this->safeHref($href) : null;
+
+                if ($safe !== null) {
+                    $kept['link'] = ['type' => 'link', 'attrs' => ['href' => $safe]];
                 }
             } elseif ($type === 'bold' || $type === 'italic' || ($type === 'code' && $this->code)) {
                 $kept[$type] = ['type' => $type];
@@ -239,19 +265,23 @@ final readonly class RichTextNormaliser
         return array_values(array_filter(['bold' => $kept['bold'] ?? null, 'italic' => $kept['italic'] ?? null, 'code' => $kept['code'] ?? null, 'link' => $kept['link'] ?? null]));
     }
 
-    /** Read as a browser reads it: spaces and control characters inside a scheme are ignored. */
-    private function isSafeHref(string $href): bool
+    /** Read as a browser reads it: spaces and control characters inside a scheme are ignored. A `kami://` link leaves in one spelling, the one its readers look for. */
+    private function safeHref(string $href): ?string
     {
         $clean = (string) preg_replace('/[\x00-\x20\x{00A0}\x{1680}\x{180E}\x{2000}-\x{2029}\x{205F}\x{3000}]/u', '', $href);
 
         if ($clean === '') {
-            return false;
+            return null;
         }
 
         if (preg_match('/^([a-z][a-z0-9+.-]*):/i', $clean, $scheme) !== 1) {
-            return true;
+            return $href;
         }
 
-        return in_array(strtolower($scheme[1]), self::LINK_SCHEMES, true) || str_starts_with(strtolower($clean), 'kami://');
+        if (stripos($clean, 'kami://') === 0) {
+            return 'kami://' . substr($clean, 7);
+        }
+
+        return in_array(strtolower($scheme[1]), self::LINK_SCHEMES, true) ? $href : null;
     }
 }

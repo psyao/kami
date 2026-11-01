@@ -137,7 +137,7 @@ final class ContentTypes
 
                 $this->validateSelect($class, $field);
 
-                if ($field instanceof RichText && ($field->headingLevels() === [] || array_diff($field->headingLevels(), [2, 3, 4]) !== [])) {
+                if ($field instanceof RichText && ! $field->hasValidHeadings()) {
                     throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" takes heading levels 2, 3 and 4 only: the title is the page's H1.");
                 }
 

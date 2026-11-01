@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Filament\Schemas\Schema as FilamentSchema;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
@@ -13,6 +15,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -24,6 +27,7 @@ use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\RichText\Document;
+use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
 use Workbench\App\Models\User;
 
@@ -38,6 +42,23 @@ final class Prose extends ContentType
     public function fields(): array
     {
         return self::$declared; // @phpstan-ignore return.type
+    }
+}
+
+/** On Article's handle and table, as `ArticleWithDefaults` is. */
+final class BodyWithBlockDefault extends ContentType
+{
+    #[Override]
+    protected ?string $prefix = 'articles';
+
+    public function handle(): string
+    {
+        return 'article';
+    }
+
+    public function fields(): array
+    {
+        return [RichText::make('body')->default(doc(aBlock()))];
     }
 }
 
@@ -106,7 +127,7 @@ function editorPage(array $parameters): Testable
 }
 
 it('normalises a document against the allowed set', function (array $given, ?array $stored) {
-    expect(saveProse($given, RichText::make('body')))->toBe($stored);
+    expect(saveProse($given, RichText::make('body')))->toEqual($stored);
 })->with([
     'an allowed document, unchanged' => [
         doc(
@@ -180,6 +201,10 @@ it('normalises a document against the allowed set', function (array $given, ?arr
     ],
     'a Block kept untouched' => [doc(para('a'), aBlock()), doc(para('a'), aBlock())],
     'a Block with a bad shape goes' => [doc(para('a'), ['type' => 'block', 'attrs' => ['handle' => ['x']]]), doc(para('a'))],
+    'a Block inside text moved after it' => [
+        doc(['type' => 'paragraph', 'content' => [txt('a'), aBlock(), txt('b')]]),
+        doc(para('ab'), aBlock()),
+    ],
     'a Block alone is content' => [doc(aBlock()), doc(aBlock())],
     'an empty document is null' => [doc(), null],
     'empty paragraphs are null' => [doc(['type' => 'paragraph'], ['type' => 'paragraph', 'content' => []]), null],
@@ -190,7 +215,7 @@ it('normalises a document against the allowed set', function (array $given, ?arr
 ]);
 
 it('keeps a safe link and reduces any other to its text', function (string $href, bool $kept) {
-    expect(saveProse(doc(linkedPara($href)), RichText::make('body')))->toBe(doc($kept ? linkedPara($href) : para('link')));
+    expect(saveProse(doc(linkedPara($href)), RichText::make('body')))->toEqual(doc($kept ? linkedPara($href) : para('link')));
 })->with([
     ['https://a.test/x', true],
     ['http://a.test', true],
@@ -214,10 +239,17 @@ it('keeps a safe link and reduces any other to its text', function (string $href
     ['', false],
 ]);
 
+it('stores a kami:// link in one spelling, which renders as text', function (string $href) {
+    $entry = savedArticle(['body' => doc(linkedPara($href))]);
+
+    expect(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][0]['content'][0]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC')
+        ->and($entry->body->toHtml())->toBe('<p>link</p>');
+})->with(['KAMI://entry/01JABC', ' kami://entry/01JABC', "ka\tmi://entry/01JABC"]);
+
 it('reduces a link whose href is no string to its text', function () {
     $given = doc(['type' => 'paragraph', 'content' => [txt('a', ['type' => 'link', 'attrs' => ['href' => ['x']]]), txt('b', ['type' => 'link'])]]);
 
-    expect(saveProse($given, RichText::make('body')))->toBe(doc(para('ab')));
+    expect(saveProse($given, RichText::make('body')))->toEqual(doc(para('ab')));
 });
 
 it('allows code with ->code()', function () {
@@ -227,26 +259,26 @@ it('allows code with ->code()', function () {
         ['type' => 'codeBlock', 'content' => [txt('plain')]],
     );
 
-    expect(saveProse($document, RichText::make('body')->code()))->toBe($document);
+    expect(saveProse($document, RichText::make('body')->code()))->toEqual($document);
 });
 
 it('cleans a code block', function () {
     $given = doc(['type' => 'codeBlock', 'attrs' => ['language' => '"><script>'], 'content' => [txt('a', ['type' => 'bold']), ['type' => 'hardBreak'], txt('b')]]);
 
-    expect(saveProse($given, RichText::make('body')->code()))->toBe(doc(['type' => 'codeBlock', 'content' => [txt('ab')]]));
+    expect(saveProse($given, RichText::make('body')->code()))->toEqual(doc(['type' => 'codeBlock', 'content' => [txt("a\nb")]]));
 });
 
 it('narrows the heading levels with ->headings()', function () {
     $given = doc(['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [txt('a')]], ['type' => 'heading', 'attrs' => ['level' => 4], 'content' => [txt('b')]]);
 
-    expect(saveProse($given, RichText::make('body')->headings([3, 4])))->toBe(doc(['type' => 'heading', 'attrs' => ['level' => 3], 'content' => [txt('a')]], ['type' => 'heading', 'attrs' => ['level' => 4], 'content' => [txt('b')]]));
+    expect(saveProse($given, RichText::make('body')->headings([3, 4])))->toEqual(doc(['type' => 'heading', 'attrs' => ['level' => 3], 'content' => [txt('a')]], ['type' => 'heading', 'attrs' => ['level' => 4], 'content' => [txt('b')]]));
 });
 
 it('stores a normalised document unchanged when normalised again', function () {
     $forged = doc(['type' => 'table', 'content' => [para('a')]], ['type' => 'blockquote', 'content' => [txt('b', ['type' => 'underline']), txt('c')]]);
     $once = saveProse($forged, RichText::make('body'));
 
-    expect(saveProse($once, RichText::make('body')))->toBe($once);
+    expect(saveProse($once, RichText::make('body')))->toEqual($once);
 });
 
 it('refuses a value that is no document', function () {
@@ -369,6 +401,7 @@ it('refuses a declaration at first read', function (array $fields, string $messa
     'in a Group' => [[Group::make('address', [RichText::make('body')])], 'cannot hold the RichText "body"'],
     'an H1' => [[RichText::make('body')->headings([1, 2])], 'levels 2, 3 and 4'],
     'an H5' => [[RichText::make('body')->headings([5])], 'levels 2, 3 and 4'],
+    'a level as a string' => [[RichText::make('body')->headings(['3'])], 'levels 2, 3 and 4'],
     'no level' => [[RichText::make('body')->headings([])], 'levels 2, 3 and 4'],
     'as a condition\'s target' => [[RichText::make('body')->shared(), Text::make('note')->visibleWhenFilled('body')], 'whose value a condition cannot read'],
 ]);
@@ -384,7 +417,7 @@ it('reloads a saved document unchanged after a save through the form', function 
 
     editorPage(['record' => $entry->id])->call('save')->assertHasNoFormErrors();
 
-    expect(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true))->toBe($document);
+    expect(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true))->toEqual($document);
 })->with([
     'prose' => [doc(
         ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [txt('Title')]],
@@ -418,6 +451,33 @@ it('normalises forged form state', function () {
         ->assertHasNoFormErrors();
 
     expect($entry->fresh()->body->toHtml())->toBe('<p>link</p><p>b</p>');
+});
+
+it('shows what was stored once saved', function () {
+    $entry = savedArticle(['body' => doc(para('a'))]);
+
+    $page = editorPage(['record' => $entry->id])
+        ->set('data.body', doc(['type' => 'paragraph', 'content' => [txt('b', ['type' => 'underline'])]], ['type' => 'table', 'content' => [para('c')]]))
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(array_column($page->get('data.body')['content'], 'type'))->toBe(['paragraph', 'paragraph'])
+        ->and($page->get('data.body')['content'][0]['content'][0])->not->toHaveKey('marks');
+});
+
+it('gives the create form a default holding a Block as a customBlock', function () {
+    config(['app.env' => 'local', 'kami.types' => [BodyWithBlockDefault::class]]);
+    test()->actingAs(tap(User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']), fn (User $user) => DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator'])));
+    Filament::setCurrentPanel('admin');
+    Filament::setCurrentResourceConfigurationKey('article');
+
+    expect(Livewire::test(CreateEntry::class)->get('data.body')['content'][0]['type'])->toBe('customBlock');
+});
+
+it('runs the link form without its new-tab box', function () {
+    editorPage(['record' => savedArticle(['body' => doc(para('a'))])->id])
+        ->callAction(TestAction::make('link')->schemaComponent('body'), ['url' => 'https://a.test'], ['editorSelection' => ['head' => 1, 'anchor' => 2]])
+        ->assertHasNoFormComponentActionErrors();
 });
 
 it('stores a blank form as null', function () {
@@ -456,4 +516,16 @@ it('renders no tool outside the allowed set', function () {
         ->assertDontSeeHtml('toggleSubscript()')
         ->assertDontSeeHtml('toggleSuperscript()')
         ->assertDontSeeHtml('level: 1 ');
+});
+
+it('renders on the front within an exact query count, under strict mode', function () {
+    Model::shouldBeStrict();
+    Kami::routes();
+    savedArticle(['body' => doc(para('Du <b>texte</b>'), aBlock())]);
+
+    DB::enableQueryLog();
+    $this->get('/articles/bonjour')->assertOk()->assertSee('<p>Du &lt;b&gt;texte&lt;/b&gt;</p>', escape: false);
+
+    // The page's Path, Entry, Translations and type rows.
+    expect(DB::getQueryLog())->toHaveCount(4);
 });

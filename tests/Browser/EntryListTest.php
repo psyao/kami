@@ -74,11 +74,20 @@ it('writes in the rich text editor, and keeps a document holding a Block whole',
         ->assertNoAccessibilityIssues()
         ->assertNoJavaScriptErrors();
 
+    visit("/admin/articles/{$entry->id}/edit")->inDarkMode()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+    visit("/admin/articles/{$entry->id}/edit")->on()->mobile()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+
+    $page->click('internal:role=button[name="Link"i]');
+    $page->assertSee('URL')->assertDontSee('Open in new tab');
+    $page->click('internal:role=button[name="Cancel"i] >> nth=-1');
+
     $page->click('[data-testid="rich-editor-content"] >> text=Avant');
     $page->keys('[data-testid="rich-editor-content"]', str_split('Encore'));
     $page->wait(1);
     $page->click('internal:role=button[name="Save changes"i]');
     $page->wait(2);
+
+    $page->assertSee('AvantEncore')->assertSee('Block unavailable for now: gallery')->assertNoJavaScriptErrors();
 
     $saved = Entry::query()->withUnpublished()->findOrFail($entry->id)->body;
 

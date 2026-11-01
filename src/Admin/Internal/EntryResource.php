@@ -48,6 +48,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\RelationField;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
@@ -668,7 +669,7 @@ final class EntryResource extends FilamentResource
         $component = self::plugin()->component($field);
         $component->label($label)->helperText($help);
 
-        $component->default($default);
+        $component->default($field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default) : $default);
 
         // A registered Select names its labels by handle alone.
         if ($field instanceof Select && $component instanceof SelectInput && $key !== $field->handle) {

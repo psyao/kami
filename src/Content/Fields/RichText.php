@@ -10,10 +10,12 @@ use Psyao\Kami\Content\RichText\Document;
 /** Formatted text and links, in one `json` column, read as a `Document` even when blank. `SaveEntry` normalises it against what this Field allows (ADR 0016). */
 final class RichText extends Field
 {
+    private const array HEADING_LEVELS = [2, 3, 4];
+
     private bool $code = false;
 
-    /** @var list<int> */
-    private array $headings = [2, 3, 4];
+    /** @var array<mixed> As declared: `ContentTypes` refuses any other level. */
+    private array $headings = self::HEADING_LEVELS;
 
     /** Adds inline code and a code block with an optional `language`, with no server highlighting. */
     public function code(): static
@@ -26,7 +28,7 @@ final class RichText extends Field
     /**
      * Narrows the heading levels, among 2, 3 and 4: the title is the page's H1.
      *
-     * @param  list<int>  $levels
+     * @param  array<mixed>  $levels
      */
     public function headings(array $levels): static
     {
@@ -48,7 +50,13 @@ final class RichText extends Field
      */
     public function headingLevels(): array
     {
-        return $this->headings;
+        return array_values(array_filter($this->headings, is_int(...)));
+    }
+
+    /** @internal */
+    public function hasValidHeadings(): bool
+    {
+        return $this->headings !== [] && array_filter($this->headings, fn (mixed $level): bool => ! in_array($level, self::HEADING_LEVELS, true)) === [];
     }
 
     /** @internal */
@@ -70,7 +78,7 @@ final class RichText extends Field
             return parent::normalise($value);
         }
 
-        $document = new RichTextNormaliser($this->code, $this->headings)->document($value);
+        $document = new RichTextNormaliser($this->code, $this->headingLevels())->document($value);
 
         return new Document($document)->isEmpty() ? null : $document;
     }

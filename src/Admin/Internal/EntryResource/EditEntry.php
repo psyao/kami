@@ -14,6 +14,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
@@ -102,7 +103,7 @@ final class EditEntry extends EditRecord
             $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
             $values[$key] = match (true) {
                 $value instanceof Collection => $value->modelKeys(),
-                $value instanceof Document => $value->isEmpty() ? null : RichTextInput::toEditor($value->content() ?? []),
+                $value instanceof Document => RichTextInput::fill($value),
                 default => $value,
             };
         }
@@ -116,7 +117,14 @@ final class EditEntry extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Entry
     {
-        return $this->record = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? []);
+        $this->record = $entry = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? []);
+
+        // The editor shows what was stored, not what it held: `SaveEntry` normalised it.
+        if (array_filter(EntryResource::type()->flatFields(), fn (Field $field): bool => $field instanceof RichText) !== []) {
+            $this->fillForm();
+        }
+
+        return $entry;
     }
 
     protected function getHeaderActions(): array
