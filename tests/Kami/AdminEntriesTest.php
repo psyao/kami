@@ -390,7 +390,7 @@ it('lists the type\'s Entries with their state and publication date in the Site\
         ->assertTableColumnStateSet('state_fr', 'Scheduled', $scheduled)
         ->assertTableColumnStateSet('state_fr', 'Published', $published)
         ->assertTableColumnFormattedStateSet('published_at', 'Oct 29, 2026 09:00:00', $scheduled)
-        ->searchTable('Progr')
+        ->searchTable('progr')
         ->assertCanSeeTableRecords([$scheduled])
         ->assertCanNotSeeTableRecords([$draft, $published]);
 });

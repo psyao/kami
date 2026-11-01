@@ -141,7 +141,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created.
 - `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
-- `public function required(): static`: Required to publish; a Draft may leave it blank.
+- `public function required(): static`: Required to publish; a Draft may leave it blank, but may not blank a Shared value another Translation publishes.
 - `public function rules(array $rules): static`: Laravel validation rules, applied on every save, Drafts included; a blank value passes them unless the rule is implicit.
 - `public function shared(): static`: One value for the whole Entry, whatever the Locale.
 - `public function sortable(): static`: A listing sorts on this Field: `kami:make:migration` indexes its column.
@@ -314,7 +314,7 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 
 `final class`
 
-What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes in batches through the query builder, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
+What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes through the query builder, in batches but for `renameType`'s one update, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
 
 - `public static function dropLocale(string $locale): void`: Destroys a Locale: its translations, its rows in every type's table, its references and its paths. The Entries stay. A Locale still declared is refused, as is the Shared `'*'`.
 - `public static function dropType(string $type): void`: Destroys a type: its table, its Entries and what cascades from them, such as the links other types hold to them. A type still declared is refused.

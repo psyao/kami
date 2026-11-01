@@ -325,7 +325,7 @@ What follows from the declaration:
 
 Each paragraph summarises; the ADR or resolution has the full decision.
 
-**Content storage and schema changes.** Field changes go through generated migrations; data moves (`renameField`, `makeTranslatable`, `makeTypeShared`, `dropLocale`…) through `ContentMigrator`, in batches, without model events. `kami:install` fails on drift in either direction, so removing a Field from code destroys nothing ([ADR 0006](adr/0006-field-values-in-a-table-per-content-type.md)).
+**Content storage and schema changes.** Field changes go through generated migrations; data moves (`renameField`, `makeTranslatable`, `makeTypeShared`, `dropLocale`…) through `ContentMigrator`, in batches (`renameType` in one update), without model events. `kami:install` fails on drift in either direction, so removing a Field from code destroys nothing ([ADR 0006](adr/0006-field-values-in-a-table-per-content-type.md)).
 
 **Multilingual.** The default Locale is unprefixed, the others sit under `/{code}`. Adding a Locale is a config line and creates no rows. Fallback is one hop, values only, never title or slug, and Kami's components add `lang` on fallback values ([ADR 0013](adr/0013-translations-own-per-locale-state-with-field-fallback.md)).
 

@@ -12,6 +12,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 
 // Each test migrates for real, and DDL commits on MySQL: a transaction could not undo it.
 uses(DatabaseMigrations::class);
@@ -60,6 +61,20 @@ beforeEach(function () {
             };
             PHP);
 
+        Artisan::call('migrate', ['--force' => true]);
+    };
+
+    /** The same database behind a table prefix, as Laravel's own config names indexes. The core's explicit index names would collide with an unprefixed copy. */
+    $this->underPrefix = function (): void {
+        $connection = DB::getDefaultConnection();
+        Schema::dropAllTables();
+        // The next test's `migrate:fresh` wipes only tables under its own prefix. `DatabaseMigrations`' rollback runs after this and reads the migrations table.
+        $this->beforeApplicationDestroyed(function (): void {
+            Schema::dropAllTables();
+            Artisan::call('migrate:install');
+        });
+        config(["database.connections.{$connection}.prefix" => 'p_', "database.connections.{$connection}.prefix_indexes" => true]);
+        DB::purge($connection);
         Artisan::call('migrate', ['--force' => true]);
     };
 
@@ -167,6 +182,106 @@ describe('renameType', function () {
 
         expect($names)->toContain('by_hand')
             ->and(array_filter($names, fn (string $name): bool => str_contains($name, 'memo')))->toBe([]);
+    });
+
+    it('renames under a connection\'s table prefix, the foreign key still cascading', function () {
+        ($this->underPrefix)();
+        ($this->declare)(Text::make('summary')->filterable());
+        memoRow($entry = memo(), 'fr', ['summary' => 'Bonjour']);
+
+        ($this->inMigration)("ContentMigrator::renameType('memo', 'note');");
+
+        $names = fn (string $table): array => [
+            ...array_column(Schema::getIndexes($table), 'name'),
+            ...array_filter(array_column(Schema::getForeignKeys($table), 'name')),
+        ];
+
+        expect(DB::table('kami_entries')->where('id', $entry)->value('type'))->toBe('note')
+            ->and(column($entry, 'summary', 'kami_type_note'))->toBe(['fr' => 'Bonjour'])
+            ->and($names('kami_type_note'))->not->toContain(MakeMigrationCommand::indexName('kami_type_memo', 'entry_id', MakeMigrationCommand::FOREIGN_KEY_PREFIX), MakeMigrationCommand::indexName('kami_type_memo', 'entry_id.locale'));
+
+        DB::table('kami_entries')->where('id', $entry)->delete();
+
+        expect(DB::table('kami_type_note')->count())->toBe(0);
+    });
+
+    it('renames the names Laravel gave an older table under a table prefix', function () {
+        ($this->underPrefix)();
+        Schema::create('kami_type_memo', function ($table) {
+            $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
+            $table->string('locale', 20);
+            $table->unique(['entry_id', 'locale']);
+        });
+
+        ($this->inMigration)("ContentMigrator::renameType('memo', 'note');");
+
+        expect(array_filter(array_column(Schema::getIndexes('kami_type_note'), 'name'), fn (string $name): bool => str_contains($name, 'memo')))->toBe([]);
+    });
+
+    it('finishes when it runs again after stopping once the table moved', function () {
+        ($this->declare)(Text::make('summary')->filterable());
+        memoRow($entry = memo(), 'fr', ['summary' => 'Bonjour']);
+        Schema::rename('kami_type_memo', 'kami_type_note');
+
+        ($this->inMigration)("ContentMigrator::renameType('memo', 'note');");
+
+        expect(DB::table('kami_entries')->where('id', $entry)->value('type'))->toBe('note')
+            ->and(array_column(Schema::getIndexes('kami_type_note'), 'name'))->not->toContain(MakeMigrationCommand::indexName('kami_type_memo', 'entry_id.locale'));
+
+        ($this->declare)(Text::make('summary')->filterable());
+
+        expect(Schema::hasTable('kami_type_memo'))->toBeTrue();
+    });
+
+    it('finishes when it runs again after stopping once the Entries moved', function () {
+        ($this->declare)(Text::make('summary'));
+        memoRow($entry = memo(), 'fr', ['summary' => 'Bonjour']);
+        Schema::rename('kami_type_memo', 'kami_type_note');
+        DB::table('kami_entries')->update(['type' => 'note']);
+
+        ($this->inMigration)("ContentMigrator::renameType('memo', 'note');");
+
+        expect(array_column(Schema::getIndexes('kami_type_note'), 'name'))->not->toContain(MakeMigrationCommand::indexName('kami_type_memo', 'entry_id.locale'))
+            ->and(DB::table('kami_entries')->where('id', $entry)->value('type'))->toBe('note');
+    });
+
+    it('finishes when it runs again after stopping between the two foreign keys', function () {
+        ($this->declare)(Text::make('summary'));
+        memoRow($entry = memo(), 'fr', ['summary' => 'Bonjour']);
+        Schema::rename('kami_type_memo', 'kami_type_note');
+        Schema::table('kami_type_note', fn ($table) => $table->foreign('entry_id', MakeMigrationCommand::indexName('kami_type_note', 'entry_id', MakeMigrationCommand::FOREIGN_KEY_PREFIX))->references('id')->on('kami_entries')->cascadeOnDelete());
+
+        ($this->inMigration)("ContentMigrator::renameType('memo', 'note');");
+
+        expect(array_column(Schema::getForeignKeys('kami_type_note'), 'name'))->toBe([MakeMigrationCommand::indexName('kami_type_note', 'entry_id', MakeMigrationCommand::FOREIGN_KEY_PREFIX)]);
+
+        DB::table('kami_entries')->where('id', $entry)->delete();
+
+        expect(DB::table('kami_type_note')->count())->toBe(0);
+    })->skip(fn (): bool => DB::getDriverName() === 'sqlite', 'SQLite names no foreign key and adds none to a table.');
+
+    it('still refuses a type with no table becoming another type with its own', function () {
+        Memo::$name = 'note';
+        ($this->declare)(Text::make('summary'));
+        memo();
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameType('memo', 'note');"))->toThrow(Exception::class, 'kami_type_note')
+            ->and(DB::table('kami_entries')->where('type', 'memo')->count())->toBe(1);
+    });
+
+    it('takes no table for its own when its names merely start with the old table\'s', function () {
+        Schema::create('kami_type_memo_archive', function ($table) {
+            $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
+            $table->string('locale', 20);
+            $table->unique(['entry_id', 'locale']);
+        });
+        memo();
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameType('memo', 'memo_archive');"))->toThrow(Exception::class, 'kami_type_memo_archive')
+            ->and(DB::table('kami_entries')->where('type', 'memo')->count())->toBe(1);
+
+        // Its foreign key would stop the rollback dropping `kami_entries`.
+        Schema::drop('kami_type_memo_archive');
     });
 
     it('refuses a target that is taken, or that is no handle', function (string $to, string $message) {

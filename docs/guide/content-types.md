@@ -211,7 +211,7 @@ A Field is built with `::make()` and its handle, which names its column:
 
 `Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
-`->required()` makes a Field required to publish, while a Draft may leave it blank; `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
+`->required()` makes a Field required to publish, while a Draft may leave it blank, short of [blanking a Shared value another Translation publishes](publishing.md#validation); `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
 
 Each type refuses what it cannot hold, with no rule of yours: `Url::make('website')` refuses a non-URL on every save.
 
@@ -492,7 +492,7 @@ public function up(): void
 
 | Call | What it does |
 | --- | --- |
-| `renameType('news', 'article')` | Moves the Entries, the table and the index and foreign key names that follow the old handle. An index whose name does not start with the old table's name keeps it. |
+| `renameType('news', 'article')` | Moves the Entries, the table and the index and foreign key names that follow the old handle. An index whose name does not start with the old table's name keeps it. Works under a connection's table `prefix`. The Entries move in one update. |
 | `renameField('article', 'summary', 'intro')` | Renames the column and its index, or a [relation](#relations)'s links when there is no such column. |
 | `makeTranslatable('article', 'summary')` | Moves a Shared value, or a relation's links, to the declared Locales where the Entry has a Translation, or to the default Locale when it has none. Refuses to overwrite a different value a Locale already holds. |
 | `makeShared('article', 'summary', keep: 'fr')` | Keeps that Locale's value or links as the Shared ones and clears the others. |
@@ -516,7 +516,7 @@ Back to untranslatable, it is `makeTypeShared('article', keep: 'fr')` and `makeS
 
 The next `kami:install` runs the migration, then moves Paths to follow. A renamed type's default Prefix follows its handle, so its addresses change and the former ones answer 404: keep them with `$prefix`. Rename the type in your `kami-types` labels and `config/kami.php` Roles too, and in views, as nothing in the database holds them.
 
-Each operation works in batches and runs from the command line, so it can take as long as the Entries need. A conversion that stops can run again: a batch that moves values is one transaction. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone. On MySQL and MariaDB, schema changes do not roll back: a `renameType` that fails partway may need finishing by hand.
+Each operation works in batches, but for `renameType`'s one update, and runs from the command line, so it can take as long as the Entries need. An operation that stops can run again: a batch that moves values is one transaction, and a second `renameType` finishes what the first left, while two unrelated types still clash. It knows its own table by the constraint names still following the old handle, so a hand-written table with none stays refused, and so does a `renameType` that finished but whose migration was not recorded: take the call out of `up()`. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone.
 
 The operations do not reach inside a Repeater or Group: a sub-Field's change is a migration of your own over its json.
 
