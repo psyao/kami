@@ -12,8 +12,8 @@ jobs:
   mariadb:
     name: Volume (MariaDB 10.11)
     runs-on: ubuntu-latest
-    # ponytail: generous ceiling while the suite is empty; tighten once the 30k and 1M datasets have a measured duration.
-    timeout-minutes: 60
+    # The suite takes about a minute at 30,000 Entries (#162); it reports its numbers in this job's log.
+    timeout-minutes: 10
     services:
       mariadb:
         image: mariadb:10.11
@@ -37,6 +37,5 @@ jobs:
 
       - uses: ./.github/actions/setup
 
-      # ponytail: the suite is empty until the dataset generator lands; drop the flag with its first test.
       - name: Volume suite
-        run: vendor/bin/pest --testsuite=Volume --ci --do-not-fail-on-empty-test-suite
+        run: vendor/bin/pest --testsuite=Volume --ci

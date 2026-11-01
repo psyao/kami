@@ -30,7 +30,7 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | `Kami` | `tests/Kami/` | Testbench with the Workbench | `composer test`, pre-push, every CI job but Browser and Smoke |
 | `Install` | `tests/Install/` | Testbench without the Workbench, so no panel carries Kami until a test adds it | `composer test`, pre-push, the coverage step |
 | `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says |
-| `Volume` | `tests/Volume/` | The Workbench on a large generated dataset | Nightly (`volume.yml`) |
+| `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Nightly (`volume.yml`) |
 
 `tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`.
 
@@ -54,7 +54,7 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | Browser | SQLite | `Browser` suite in Chromium |
 | Smoke | MariaDB 10.11 | The [shared-hosting smoke](#shared-hosting-smoke) |
 
-Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite nightly on MariaDB, and `release.yml` runs [release-please](#releases) on every push to `main`.
+Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite nightly on MariaDB, in about a minute, printing each measure's duration and peak memory in its log, and `release.yml` runs [release-please](#releases) on every push to `main`.
 
 ### Licences
 

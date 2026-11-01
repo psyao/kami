@@ -41,7 +41,6 @@ final class ReorderEntries
                 }
             }
 
-            // ponytail: every row changes on the first reorder of a type whose Positions tie, and every id is read each time; #185's Volume suite measures it and bounds it if it exceeds a shared host's limits.
             foreach (array_chunk($changes, 500, true) as $chunk) {
                 // The ids come from the query above; a binding could not sit in the update's expression.
                 $cases = implode(' ', array_map(fn (string $id, int $position): string => 'when id = ' . DB::escape($id) . " then {$position}", array_keys($chunk), $chunk));
