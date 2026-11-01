@@ -43,6 +43,7 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 - Process follows Matt Pocock's skills (see Agent skills below). User-invoked skills (`/wayfinder`, `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/mattpocock-skills:implement`, `/setup-matt-pocock-skills`): name the command for Steve to run. Name every skill in full (`/mattpocock-skills:retro`): gstack installs a `/retro` of its own.
 - The design path and current phase are in `docs/prompt-claude-code.md`.
 - Starting or running a ticket's session: `docs/agents/ticket-session.md`.
+- Cutting a milestone into tickets, or closing one: `docs/agents/milestone-ritual.md`.
 - Project state lives in the repo and the tracker (research notes, map, ADRs, glossary, roadmap), so any session can resume after a long pause.
 - Ask blocking questions one at a time, each with a default recommendation. Stop after every deliverable that needs validation.
 - Be concrete: class, table and Artisan command names.
