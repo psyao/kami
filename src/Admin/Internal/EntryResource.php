@@ -190,7 +190,7 @@ final class EntryResource extends FilamentResource
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help'))] : []),
             ...(self::type()->isHierarchical() ? [self::parentInput()] : []),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
-            // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
+            // The date decides when a published Translation goes live, so it takes `publish` (ADR 0019); `save()` holds the rule, this shows it.
             ...($hasPublication ? [DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record))] : []),
         ];
@@ -489,7 +489,7 @@ final class EntryResource extends FilamentResource
         }
 
         try {
-            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user());
+            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...array_diff_key($data, array_flip(self::keptFromUser($entry))), ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user());
         } catch (ValidationException $exception) {
             $errors = [];
 
@@ -499,6 +499,27 @@ final class EntryResource extends FilamentResource
 
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * What the User's Permissions leave out of a save, as a disabled input would: a site's form can lose that `disabled`, so the rule holds here (ADR 0019).
+     *
+     * @return list<string>
+     */
+    private static function keptFromUser(?Entry $entry): array
+    {
+        return [
+            ...(self::can('publish', $entry) ? [] : ['published_at']),
+            ...(self::can('reorder') ? [] : ['parent']),
+            ...(self::sharedFieldsLocked($entry) ? array_map(fn (Field $field): string => $field->handle, array_filter(self::type()->flatFields(), fn (Field $field): bool => ! self::type()->isTranslatable($field))) : []),
+        ];
+    }
+
+    /** One value for every Locale: changing it changes Published and Scheduled Translations too, which takes `publish` (ADR 0019). */
+    private static function sharedFieldsLocked(?Entry $entry): bool
+    {
+        return $entry instanceof Entry && ! self::can('publish', $entry)
+            && $entry->translations->contains(fn (Translation $translation): bool => $translation->status === Translation::PUBLISHED);
     }
 
     /** `SaveEntry` numbers a Repeater's rows, the form keys them by UUID: `links.0.url` is `links.<uuid>.url`. */
@@ -607,10 +628,7 @@ final class EntryResource extends FilamentResource
             $component->hint($shared);
         }
 
-        // One value for every Locale: changing it changes Published and Scheduled Translations too, which takes `publish` (ADR 0019).
-        return $component
-            ->disabled(fn (?Entry $record): bool => $record instanceof Entry && ! self::can('publish', $record)
-                && $record->translations->contains(fn (Translation $translation): bool => $translation->status === Translation::PUBLISHED));
+        return $component->disabled(fn (?Entry $record): bool => self::sharedFieldsLocked($record));
     }
 
     /**
