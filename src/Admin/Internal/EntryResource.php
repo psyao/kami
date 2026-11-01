@@ -390,7 +390,7 @@ final class EntryResource extends FilamentResource
                     return resolve(SaveEntry::class)->handle($target, ['title' => $data['title'], ...$allows('publish') ? [] : ['status' => Translation::DRAFT]], locale: $livewire instanceof EditEntry ? $livewire->locale : null, actor: Filament::auth()->user())->id;
                 } catch (ValidationException $exception) {
                     // The form holds the title alone, the slug and the Path derive from it, and the declarations refuse a target needing more.
-                    // ponytail: Filament's internal state path of an action opened first; lifted if a picker's action ever opens from another one.
+                    // ponytail: Filament's internal state path of an action opened first; V1 lifts it if a picker's action ever opens from another one.
                     throw ValidationException::withMessages(['mountedActions.0.data.title' => Arr::flatten($exception->errors())]);
                 }
             });

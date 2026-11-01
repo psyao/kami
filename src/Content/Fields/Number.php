@@ -15,7 +15,7 @@ final class Number extends Field
     /** A number with up to two decimals, up to 999999.99. */
     public function decimal(): self
     {
-        // ponytail: Laravel's default `decimal(8,2)`, ceiling 999999.99; a precision argument on a friction issue asking for more.
+        // ponytail: Laravel's default `decimal(8,2)`, ceiling 999999.99; V1 adds a precision argument if a friction issue asks for more.
         $this->decimal = true;
 
         return $this;
