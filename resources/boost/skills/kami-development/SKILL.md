@@ -12,10 +12,16 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Create a new site from the starter kit | `vendor/psyao/kami/docs/guide/installation.md#creating-a-site` |
 | Add Kami to an existing application or to its Filament panel | `vendor/psyao/kami/docs/guide/existing-application.md` |
 | Declare a Content Type or its Fields, tabs, sections and conditions, with its labels, its view and its migration | `vendor/psyao/kami/docs/guide/content-types.md` |
+| Start a type (`kami:make:type Name`, `--singleton`, `--global-set`, `--taxonomy`) | `vendor/psyao/kami/docs/guide/content-types.md#declaring-a-type` |
 | Declare a type with no URL (`$routable = false`) or a Singleton (`Home::entry()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-with-no-url` |
 | Let editors order a type by hand (`$orderable = true`, `Entry::query()->ordered()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-ordered-by-hand` |
 | Put a type's Entries in a tree (`$hierarchical = true`, `parent` on `SaveEntry`, `Term::ancestors()`) | `vendor/psyao/kami/docs/guide/content-types.md#hierarchical-types` |
 | Hold values shown across the Site in a Global Set (`Footer::entry()`), or read `SiteSettings` | `vendor/psyao/kami/docs/guide/content-types.md#global-sets` |
+| Link Entries with `Entries`, or classify them with a Taxonomy and `Terms` | `vendor/psyao/kami/docs/guide/content-types.md#relations` |
+| Hold repeated or grouped values in one Field (`Repeater`, `Group`) | `vendor/psyao/kami/docs/guide/content-types.md#repeaters-and-groups` |
+| Change a declared model: rename or drop a Field or type, flip `$translatable` (`ContentMigrator`), or fix content model drift | `vendor/psyao/kami/docs/guide/content-types.md#schema-changes` |
+| Replace a type's admin form or table (`EntryForm`, `EntryTable`), or add a Field type or an admin page | `vendor/psyao/kami/docs/guide/content-types.md#in-the-admin` |
+| Seed content from code | `vendor/psyao/kami/docs/guide/content-types.md#writing-entries` |
 | Write, publish, schedule or unpublish Entries, from the admin or from code | `vendor/psyao/kami/docs/guide/publishing.md` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |

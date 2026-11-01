@@ -16,6 +16,9 @@ docker compose up --build --detach --wait php mariadb
 docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
 docker compose run -T --rm node
 
+# The starter kit's demo first: it does nothing once a Page exists. It publishes a Singleton and a Page with a relation.
+docker compose run -T --rm cli php artisan db:seed --class=DemoSeeder --force --no-interaction
+
 # An editor's first Page, published in both Locales from the command line, as an import would.
 docker compose run -T --rm cli php <<'PHP'
 <?php
@@ -65,6 +68,9 @@ expect_page() {
 expect 200 /admin/login
 expect_page /smoke Bonjour
 expect_page /en/smoke Hello
+expect_page / Bienvenue
+expect_page /en Welcome
+expect_page /about '<li>Kami</li>'
 
 # Drift fails the deploy with a non-zero exit code and takes no Path away, on the host's PHP and MariaDB.
 # Creates or drops the table with no declared type, and prints the 200 rows' count.

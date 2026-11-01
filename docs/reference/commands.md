@@ -20,3 +20,12 @@ Install Kami, or bring it up to date after a deploy
 Write a migration bringing the kami_type_* tables in line with the declared Content Types
 
 - `[<type>]`: A Content Type's handle or class, every declared type when left out
+
+## `kami:make:type`
+
+Start a Content Type: write its class into app/Content and print the lines to add elsewhere
+
+- `[--global-set]`: One Entry with no URL, holding values shown across the Site
+- `[--singleton]`: One Entry per Site, such as a home page
+- `[--taxonomy]`: Terms classifying other types
+- `<name>`: The class name, such as NewsItem

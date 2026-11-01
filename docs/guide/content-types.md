@@ -35,6 +35,15 @@ List it in `config/kami.php`:
 
 Every Entry has a title, a slug, a status and a publication date of its own: they are not Fields. The type adds the rest.
 
+`kami:make:type` starts one. It writes the class into `app/Content`, refuses to overwrite a file, and prints what to add elsewhere: the `config/kami.php` line, the `kami:make:migration` to run once its Fields are declared, its labels and, when it has a URL, its view. `--singleton`, `--global-set` and `--taxonomy` choose [its base](#singletons), one at most; `$routable`, `$orderable` and `$hierarchical` are yours to add:
+
+```bash
+php artisan kami:make:type Article
+php artisan kami:make:type Footer --global-set
+```
+
+The class declares no Field, so it has no table and passes `kami:install` until you add one.
+
 Removing a type from the list deletes nothing: its Entries are kept and answer 404 until it is listed again. `kami:doctor` warns about them.
 
 ### Handle

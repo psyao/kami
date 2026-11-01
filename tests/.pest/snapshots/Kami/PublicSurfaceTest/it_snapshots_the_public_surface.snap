@@ -151,6 +151,11 @@ command kami:install --email [--email [EMAIL]]
 command kami:install --name [--name [NAME]]
 command kami:make:migration
 command kami:make:migration type [<type>]
+command kami:make:type
+command kami:make:type --global-set [--global-set]
+command kami:make:type --singleton [--singleton]
+command kami:make:type --taxonomy [--taxonomy]
+command kami:make:type name <name>
 config kami.resources.entry
 config kami.roles.administrator
 config kami.security.csp
