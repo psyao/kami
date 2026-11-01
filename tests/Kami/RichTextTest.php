@@ -114,14 +114,19 @@ beforeEach(function () {
     });
 });
 
-/** @param  array<string, mixed>  $parameters */
-function editorPage(array $parameters): Testable
+function signInToPanel(): void
 {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
     test()->actingAs(tap(User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']), fn (User $user) => DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator'])));
     Filament::setCurrentPanel('admin');
     Filament::setCurrentResourceConfigurationKey('article');
+}
+
+/** @param  array<string, mixed>  $parameters */
+function editorPage(array $parameters): Testable
+{
+    signInToPanel();
 
     return Livewire::test(EditEntry::class, $parameters);
 }
@@ -466,10 +471,8 @@ it('shows what was stored once saved', function () {
 });
 
 it('gives the create form a default holding a Block as a customBlock', function () {
-    config(['app.env' => 'local', 'kami.types' => [BodyWithBlockDefault::class]]);
-    test()->actingAs(tap(User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']), fn (User $user) => DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator'])));
-    Filament::setCurrentPanel('admin');
-    Filament::setCurrentResourceConfigurationKey('article');
+    config(['kami.types' => [BodyWithBlockDefault::class]]);
+    signInToPanel();
 
     expect(Livewire::test(CreateEntry::class)->get('data.body')['content'][0]['type'])->toBe('customBlock');
 });

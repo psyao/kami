@@ -116,14 +116,10 @@ final readonly class RichTextNormaliser
     /** The nearest allowed level, the highest one when it names none. */
     private function level(mixed $level): int
     {
+        $wanted = is_int($level) ? $level : 0;
         $levels = $this->levels;
         sort($levels);
-
-        if (! is_int($level)) {
-            return $levels[0];
-        }
-
-        usort($levels, fn (int $a, int $b): int => abs($a - $level) <=> abs($b - $level));
+        usort($levels, fn (int $a, int $b): int => abs($a - $wanted) <=> abs($b - $wanted));
 
         return $levels[0];
     }
