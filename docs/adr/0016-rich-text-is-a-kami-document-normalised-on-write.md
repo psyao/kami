@@ -25,6 +25,9 @@ Security comes from structure, not from a purifier. A schema decides what can ex
   - Attributes go through an allow-list.
   - A link keeps its `href` only when the scheme is `http`, `https`, `mailto` or `tel`, or when it is relative, an anchor or `kami://`. Otherwise the link is removed and its text stays.
   - Normalisation also wraps bare text in list items and quotes, as tiptap-php's parser leaves it inline (Velox P4).
+  - A heading at a level the Field does not allow takes the nearest allowed one, so a pasted H1 stays a heading.
+  - A document with no text and no Block is stored as `null`, so `required()` and the Fallback read it as blank. A horizontal rule alone counts as blank.
+  - A stored document is rendered as stored: narrowing a Field reaches it at its next save.
 - **Internal links** are ordinary `link` marks with `href = kami://entry/<ulid>` or `kami://media/<ulid>`.
   - The scheme is `kami://<kind>/<id>`, and a new kind is additive. A Term is an Entry, so it needs no kind of its own.
   - A link renders to the target's URL in the page's Locale. A target with no published Translation in that Locale, or in the Trash, renders as plain text, never as a broken link.
@@ -41,6 +44,9 @@ Security comes from structure, not from a purifier. A schema decides what can ex
   - The Admin shows it as an unavailable Block, read-only, which the editor may only delete.
   - `kami:doctor` reports such Blocks by scanning documents from the CLI, in batches.
   - `ContentMigrator` gains `renameBlock`, `renameBlockField` and `dropBlock`.
+- **Not inside a document, for now.** A `RichText` in a `Repeater` or a `Group` is a boot error, since `SaveEntry` normalises top-level Fields only. It is added when a site needs it.
+- **Until M10.** M4 keeps Block nodes and `kami://` hrefs in stored documents, and offers neither `Block` classes, the link picker nor `kami_references` indexing. A `kami://` link renders as its plain text and a Block renders nothing.
+- **A Block in the editor.** TipTap replaces a whole document it cannot read with an empty one, and a save would then erase it. So the Admin hands a Block to Filament's `RichEditor` as a `customBlock`, the one non-text node its schema always holds, with the Block's `{handle, data}` in `id` and no `config`. Filament then offers delete and no edit, and `SaveEntry` receives the `block` node back. The editor shows it as unavailable until M10 gives it a label and a summary.
 - **Admin preview.** A Block's front view is never shown in the Admin, since the front's CSS is not loaded there. The preview shows the Block's label and its optional `summary(array $data): string`. The `Image` Block adds a thumbnail Conversion. Kami builds and escapes that HTML, since Filament trusts it.
 - **Kami's Blocks**, each opt-in:
   - `Image`: a Media and a caption. Alt text comes from the Media (ADR 0017).

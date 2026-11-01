@@ -11,11 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Locked;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -98,7 +100,11 @@ final class EditEntry extends EditRecord
         foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->flatFields())] as $key) {
             // A value fallen back from the default Locale is not this Locale's: saved, it would become its own.
             $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
-            $values[$key] = $value instanceof Collection ? $value->modelKeys() : $value;
+            $values[$key] = match (true) {
+                $value instanceof Collection => $value->modelKeys(),
+                $value instanceof Document => $value->isEmpty() ? null : RichTextInput::toEditor($value->content() ?? []),
+                default => $value,
+            };
         }
 
         if (EntryResource::type()->isHierarchical()) {

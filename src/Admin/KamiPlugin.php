@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Config;
 use Livewire\Component as LivewireComponent;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
@@ -33,6 +34,7 @@ use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Fields\Terms;
@@ -65,6 +67,7 @@ final class KamiPlugin implements Plugin
             Email::class => fn (Email $field): TextInput => TextInput::make($field->handle)->email(),
             Number::class => fn (Number $field): TextInput => TextInput::make($field->handle)->numeric()->step($field->column() === 'decimal' ? 0.01 : 1),
             Select::class => fn (Select $field): SelectInput => SelectInput::make($field->handle)->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => EntryResource::type()->optionLabel($field->handle, $option), $field->optionKeys()))),
+            RichText::class => RichTextInput::make(...),
             Terms::class => EntryResource::picker(...),
             Text::class => fn (Text $field): TextInput => TextInput::make($field->handle),
             Textarea::class => fn (Textarea $field): TextareaInput => TextareaInput::make($field->handle),

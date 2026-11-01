@@ -10,6 +10,7 @@ use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\DateTime;
 use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Url;
@@ -25,6 +26,7 @@ final class Article extends ContentType
     {
         return [
             Text::make('summary')->rules(['max:200']),
+            RichText::make('body')->code(),
             Text::make('author')->shared()->required(),
             Boolean::make('featured'),
             Colour::make('accent'),

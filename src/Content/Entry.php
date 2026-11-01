@@ -22,6 +22,7 @@ use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -177,9 +178,10 @@ class Entry extends Model
             return $field->read($this->fieldRows['*'][$key] ?? null);
         }
 
-        $locale = $this->fallbackLocale($key) ?? $this->readLocale();
+        $fallback = $this->fallbackLocale($key);
+        $value = $field->read($this->fieldRows[$fallback ?? $this->readLocale()][$key] ?? null);
 
-        return $field->read($this->fieldRows[$locale][$key] ?? null);
+        return $fallback !== null && $value instanceof Document ? $value->inLanguage($fallback) : $value;
     }
 
     /**

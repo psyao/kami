@@ -14,6 +14,7 @@ return new class extends Migration
             $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
             $table->string('locale', 20);
             $table->string('summary')->nullable();
+            $table->json('body')->nullable();
             $table->string('author')->nullable();
             $table->boolean('featured')->nullable();
             $table->string('accent')->nullable();

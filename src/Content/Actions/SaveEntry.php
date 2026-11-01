@@ -20,6 +20,7 @@ use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RelationField;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\Ancestors;
@@ -122,7 +123,7 @@ final class SaveEntry
             }
 
             $column = $stored->get($scope)?->{$handle};
-            $data[$handle] = $field instanceof StructuredField ? $field->decoded($column) : $column;
+            $data[$handle] = $field instanceof StructuredField || $field instanceof RichText ? $field->decoded($column) : $column;
         }
 
         $before = $data;
