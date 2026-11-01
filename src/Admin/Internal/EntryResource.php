@@ -143,8 +143,8 @@ final class EntryResource extends FilamentResource
 
         // The generated form is the list of what is stored, so a site's form neither adds a value with no column nor hides one (ADR 0007).
         if ($form::class !== EntryForm::class) {
-            $expected = array_keys(array_filter(self::inputs(self::generatedForm($livewire), $livewire), fn (Component $input): bool => $input instanceof FormField));
-            $built = array_keys(array_filter(self::inputs($components, $livewire), fn (Component $input): bool => $input instanceof FormField));
+            $expected = self::formFieldPaths(self::generatedForm($livewire), $livewire);
+            $built = self::formFieldPaths($components, $livewire);
 
             if (($added = array_diff($built, $expected)) !== []) {
                 throw new LogicException($form::class . ' adds [' . implode(', ', $added) . '], which ' . self::type()::class . ' does not declare.');
@@ -204,7 +204,17 @@ final class EntryResource extends FilamentResource
      */
     public static function inputs(array $components, HasSchemas & LivewireComponent $livewire): array
     {
-        return self::inputsOf(Schema::make($livewire)->components($components));
+        // With the page's record, as the form has it: a site's closure may read it.
+        return self::inputsOf(Schema::make($livewire)->record($livewire instanceof EditEntry ? $livewire->getRecord() : null)->components($components));
+    }
+
+    /**
+     * @param  array<Component|Action|ActionGroup>  $components
+     * @return list<string>
+     */
+    private static function formFieldPaths(array $components, HasSchemas & LivewireComponent $livewire): array
+    {
+        return array_keys(array_filter(self::inputs($components, $livewire), fn (Component $input): bool => $input instanceof FormField));
     }
 
     /** @return array<string, Component> */
@@ -245,13 +255,13 @@ final class EntryResource extends FilamentResource
             $table->modifyQueryUsing(fn (EntryBuilder $query, ListEntries $livewire): EntryBuilder => $query->where('parent_id', $livewire->parent));
         }
 
-        $custom = self::plugin()->entryTable(self::type());
+        $entryTable = self::plugin()->entryTable(self::type());
 
         return $table
-            ->columns($custom->columns())
-            ->filters($custom->filters())
-            ->recordActions($custom->recordActions())
-            ->toolbarActions($custom->toolbarActions());
+            ->columns($entryTable->columns())
+            ->filters($entryTable->filters())
+            ->recordActions($entryTable->recordActions())
+            ->toolbarActions($entryTable->toolbarActions());
     }
 
     /** @return list<TextColumn> */

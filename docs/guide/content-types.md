@@ -571,7 +571,7 @@ final class ProjectForm extends EntryForm
         return [
             Section::make('Essentials')->schema([$this->field('title'), $this->field('slug')]),
             Text::make('Ask the client first.'),
-            $this->field('client')->helperText('As on the contract.'),
+            $this->field('client')->columnSpanFull(),
             // Every other input the generated form has.
         ];
     }
@@ -589,7 +589,7 @@ final class ProjectForm extends EntryForm
 
 `field()` hands you a generated component by its handle: a Field, `address.city` inside a Group, or `title`, `slug`, `parent` and `published_at` where the type's form has them. It is the very component `parent::components()` holds, so to change one input and leave the rest in place, chain on it and return `parent::components()`. Layout, `Actions` and text are free. `actions()` adds header actions to the Edit page; one that writes calls a core action such as `SaveEntry`.
 
-Storage still follows the declaration. A form holding a field component the generated form does not have, or lacking one it has, stops the page with an error naming it, when the form is built. To keep an input out of sight, say so with `->hidden()`: the check sees that a component is there, not whether it shows. A hidden input is not sent. The rows inside a Repeater are not checked.
+Storage still follows the declaration. A form holding a field component the generated form does not have, or lacking one it has, stops the page with an error naming it, when the form is built. To keep an input out of sight, say so with `->hidden()`: the check sees that a component is there, not whether it shows. A hidden input is not sent. The rows inside a Repeater are not checked. Keep the component `field()` gives you rather than writing one under the same name: the generated one carries the type's rules, such as `published_at` taking the `publish` Permission.
 
 Filament's components are not covered by semantic versioning: the names and signatures of `EntryForm`'s methods are, what `parent::components()` returns is not.
 

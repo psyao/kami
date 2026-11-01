@@ -29,6 +29,8 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\SiteSettings;
+use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Page;
 use Workbench\App\Models\User;
@@ -107,6 +109,64 @@ final class FormLeavingOutTheSlug extends EntryForm
     }
 }
 
+final class FormReadingItsRecord extends EntryForm
+{
+    public function components(): array
+    {
+        return [
+            Section::make('Main')->schema(fn (?Entry $record): array => $record instanceof Entry ? [$this->field('title'), $this->field('slug')] : [TextInput::make('invented')]),
+            $this->field('client'),
+            $this->field('address'),
+            $this->field('links'),
+            $this->field('published_at'),
+        ];
+    }
+}
+
+final class FormHidingAField extends EntryForm
+{
+    public function components(): array
+    {
+        $this->field('client')->hidden();
+
+        return parent::components();
+    }
+}
+
+final class TabbedCommission extends ContentType
+{
+    public function handle(): string
+    {
+        return 'project';
+    }
+
+    public function fields(): array
+    {
+        return [Tab::make('details', [Text::make('client')]), Tab::make('more', [Text::make('source')])];
+    }
+}
+
+final class FormLeavingOutATab extends EntryForm
+{
+    public function components(): array
+    {
+        return [$this->field('title'), $this->field('slug'), $this->field('client'), $this->field('published_at')];
+    }
+}
+
+final class SettingsForm extends EntryForm
+{
+    public function components(): array
+    {
+        return [$this->field('site_name')];
+    }
+
+    public function actions(): array
+    {
+        return [Action::make('purge')];
+    }
+}
+
 final class FormNamingNoSuchField extends EntryForm
 {
     public function components(): array
@@ -141,7 +201,7 @@ final class PageTable extends EntryTable
     }
 }
 
-function customPage(string $page, array $parameters = []): Testable
+function projectPage(string $page, array $parameters = []): Testable
 {
     Filament::setCurrentPanel('admin');
     Filament::setCurrentResourceConfigurationKey('project');
@@ -169,7 +229,7 @@ describe('EntryForm', function () {
     it('rearranges the generated components, adds what holds no value, and stores through the declaration', function () {
         kamiPlugin()->forms([Commission::class => RearrangedCommissionForm::class]);
 
-        customPage(CreateEntry::class)
+        projectPage(CreateEntry::class)
             ->assertSee('Ask the client first.')
             ->assertSee('Chained by the site')
             ->set('data.title', 'Refonte')
@@ -187,37 +247,70 @@ describe('EntryForm', function () {
         kamiPlugin()->forms([Commission::class => RearrangedCommissionForm::class]);
         $entry = resolve(SaveEntry::class)->handle(Commission::class, ['title' => 'Refonte'], locale: 'fr');
 
-        customPage(EditEntry::class, ['record' => $entry->id])->assertActionExists('archive');
+        projectPage(EditEntry::class, ['record' => $entry->id])->assertActionExists('archive');
     });
 
     it('chains a call onto a generated component left in place, a sub-Field included', function () {
         kamiPlugin()->forms([Commission::class => ChainedCommissionForm::class]);
 
-        customPage(CreateEntry::class)->assertSee('Chained in place');
+        projectPage(CreateEntry::class)->assertSee('Chained in place');
+    });
+
+    it('builds a form whose closure reads the record of the page', function () {
+        kamiPlugin()->forms([Commission::class => FormReadingItsRecord::class]);
+        $entry = resolve(SaveEntry::class)->handle(Commission::class, ['title' => 'Refonte'], locale: 'fr');
+
+        projectPage(EditEntry::class, ['record' => $entry->id])->assertFormFieldExists('title');
+    });
+
+    it('keeps the stored value of a Field a form hides', function () {
+        kamiPlugin()->forms([Commission::class => FormHidingAField::class]);
+        $entry = resolve(SaveEntry::class)->handle(Commission::class, ['title' => 'Refonte', 'client' => 'Acme'], locale: 'fr');
+
+        projectPage(EditEntry::class, ['record' => $entry->id])->assertFormFieldHidden('client')->call('save')->assertHasNoFormErrors();
+
+        expect(Entry::query()->withUnpublished()->findOrFail($entry->id)->client)->toBe('Acme');
+    });
+
+    it('finds a Field left out of a Tab', function () {
+        config(['kami.types' => [TabbedCommission::class]]);
+        kamiPlugin()->forms([TabbedCommission::class => FormLeavingOutATab::class]);
+
+        projectPage(CreateEntry::class);
+    })->throws('FormLeavingOutATab leaves out [source]');
+
+    it('gives a Global Set its own form, with no title to require', function () {
+        config(['kami.types' => [SiteSettings::class]]);
+        kamiPlugin()->forms([SiteSettings::class => SettingsForm::class]);
+        resolve(SaveEntry::class)->handle(SiteSettings::class, [], locale: 'fr');
+        Filament::setCurrentPanel('admin');
+        Filament::setCurrentResourceConfigurationKey('site_settings');
+
+        Livewire::test(EditEntry::class)->assertFormFieldExists('site_name')->assertActionExists('purge');
     });
 
     it('refuses a field component with no declared Field', function () {
         kamiPlugin()->forms([Commission::class => FormInventingAField::class]);
 
-        customPage(CreateEntry::class);
+        projectPage(CreateEntry::class);
     })->throws('FormInventingAField adds [invented]');
 
     it('refuses a declared Field left out', function () {
         kamiPlugin()->forms([Commission::class => FormLeavingOutAField::class]);
 
-        customPage(CreateEntry::class);
+        projectPage(CreateEntry::class);
     })->throws('FormLeavingOutAField leaves out [client]');
 
     it('refuses a generated input left out, as a Field', function () {
         kamiPlugin()->forms([Commission::class => FormLeavingOutTheSlug::class]);
 
-        customPage(CreateEntry::class);
+        projectPage(CreateEntry::class);
     })->throws('FormLeavingOutTheSlug leaves out [slug]');
 
     it('refuses a handle the generated form does not have', function () {
         kamiPlugin()->forms([Commission::class => FormNamingNoSuchField::class]);
 
-        customPage(CreateEntry::class);
+        projectPage(CreateEntry::class);
     })->throws('[nope]');
 });
 
@@ -225,14 +318,14 @@ describe('EntryTable', function () {
     it('chooses its columns, filters and row actions, and keeps the generated ones by default', function () {
         $entry = resolve(SaveEntry::class)->handle(Commission::class, ['title' => 'Refonte', 'client' => 'Acme'], locale: 'fr');
 
-        customPage(ListEntries::class)
+        projectPage(ListEntries::class)
             ->assertTableColumnExists('title')
             ->assertTableColumnDoesNotExist('client')
             ->assertActionExists(TestAction::make('edit')->table($entry));
 
         kamiPlugin()->tables([Commission::class => CommissionTable::class]);
 
-        customPage(ListEntries::class)
+        projectPage(ListEntries::class)
             ->assertTableColumnExists('client')
             ->assertTableColumnDoesNotExist('published_at')
             ->assertTableFilterExists('recent')
@@ -263,5 +356,5 @@ describe('EntryTable', function () {
 it('makes no link of a Draft row\'s empty date', function () {
     $entry = resolve(SaveEntry::class)->handle(Commission::class, ['title' => 'Refonte'], locale: 'fr');
 
-    customPage(ListEntries::class)->assertTableColumnExists('published_at', fn (TextColumn $column): bool => $column->isClickDisabled(), $entry);
+    projectPage(ListEntries::class)->assertTableColumnExists('published_at', fn (TextColumn $column): bool => $column->isClickDisabled(), $entry);
 });

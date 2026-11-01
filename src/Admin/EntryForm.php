@@ -30,7 +30,7 @@ class EntryForm
      */
     public function components(): array
     {
-        return $this->generated ??= EntryResource::generatedForm($this->livewire);
+        return $this->generated();
     }
 
     /**
@@ -46,9 +46,13 @@ class EntryForm
     /** A generated component by its handle: `client`, `title`, or `address.city` inside a Group. The same one `parent::components()` holds. */
     final protected function field(string $handle): Component
     {
-        $this->generated ??= EntryResource::generatedForm($this->livewire);
-
-        return EntryResource::inputs($this->generated, $this->livewire)[$handle]
+        return EntryResource::inputs($this->generated(), $this->livewire)[$handle]
             ?? throw new LogicException(static::class . " names [{$handle}], which the generated form does not have.");
+    }
+
+    /** @return list<Component> */
+    private function generated(): array
+    {
+        return $this->generated ??= EntryResource::generatedForm($this->livewire);
     }
 }
