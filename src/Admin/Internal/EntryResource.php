@@ -344,7 +344,7 @@ final class EntryResource extends FilamentResource
         return $field->isCreatable() ? self::withQuickCreate($picker, $field->targets()[0]) : $picker;
     }
 
-    /** Searched on the server. Moving changes URLs once they follow the tree, so it takes `reorder`; a disabled field is not saved (ADR 0014). On a create page, the Parent whose children the list showed. */
+    /** Searched on the server. Moving changes URLs once they follow the tree, so it takes `reorder` (ADR 0014); `save()` holds the rule, this shows it. On a create page, the Parent whose children the list showed. */
     private static function parentInput(): SelectInput
     {
         return SelectInput::make('parent')
@@ -511,8 +511,14 @@ final class EntryResource extends FilamentResource
         return [
             ...(self::can('publish', $entry) ? [] : ['published_at']),
             ...(self::can('reorder') ? [] : ['parent']),
-            ...(self::sharedFieldsLocked($entry) ? array_map(fn (Field $field): string => $field->handle, array_filter(self::type()->flatFields(), fn (Field $field): bool => ! self::type()->isTranslatable($field))) : []),
+            ...(self::sharedFieldsLocked($entry) ? array_map(fn (Field $field): string => $field->handle, array_filter(self::type()->flatFields(), self::isShared(...))) : []),
         ];
+    }
+
+    /** On an untranslatable type every Field has its one value, with no other Locale to share it with. */
+    private static function isShared(Field $field): bool
+    {
+        return self::type()->isTranslatable() && ! self::type()->isTranslatable($field);
     }
 
     /** One value for every Locale: changing it changes Published and Scheduled Translations too, which takes `publish` (ADR 0019). */
@@ -602,7 +608,7 @@ final class EntryResource extends FilamentResource
      */
     private static function component(Field $field, array $lang, Collection $fields): Component
     {
-        $translatable = ! self::type()->isTranslatable() || self::type()->isTranslatable($field);
+        $translatable = ! self::isShared($field);
         $target = $fields->get($field->conditionTarget() ?? '');
         $component = self::input($field, $field->handle, $translatable ? $lang : [], $field->defaultValue());
 

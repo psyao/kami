@@ -227,10 +227,7 @@ final class PageTable extends EntryTable
 
 function projectPage(string $page, array $parameters = []): Testable
 {
-    Filament::setCurrentPanel('admin');
-    Filament::setCurrentResourceConfigurationKey('project');
-
-    return Livewire::test($page, $parameters);
+    return typePage('project', $page, $parameters);
 }
 
 function asWriter(): void
@@ -392,6 +389,8 @@ describe('EntryTable', function () {
     });
 });
 
+dataset('date inputs', ['generated' => [null], 'own input' => [OwnDateInputForm::class], 'reopened' => [ReopenedForm::class]]);
+
 describe('what a Permission keeps from a User, whatever the form', function () {
     beforeEach(function () {
         config(['kami.types' => [Article::class, Page::class], 'kami.roles.writer' => [
@@ -413,7 +412,7 @@ describe('what a Permission keeps from a User, whatever the form', function () {
         $saved = Entry::query()->withUnpublished()->findOrFail($draft->id);
 
         expect($saved->title)->toBe('Salut')->and($saved->published_at)->toBeNull();
-    })->with(['generated' => [null], 'own input' => [OwnDateInputForm::class], 'reopened' => [ReopenedForm::class]]);
+    })->with('date inputs');
 
     it('keeps the date of an Entry being created from a User without publish', function (?string $form) {
         kamiPlugin()->forms(array_filter([Article::class => $form]));
@@ -426,7 +425,7 @@ describe('what a Permission keeps from a User, whatever the form', function () {
             ->assertHasNoFormErrors();
 
         expect(Entry::query()->withUnpublished()->ofType('article')->sole()->published_at)->toBeNull();
-    })->with(['generated' => [null], 'own input' => [OwnDateInputForm::class], 'reopened' => [ReopenedForm::class]]);
+    })->with('date inputs');
 
     it('saves the date of a User holding publish, through a site\'s own input', function () {
         kamiPlugin()->forms([Article::class => OwnDateInputForm::class]);
@@ -438,6 +437,21 @@ describe('what a Permission keeps from a User, whatever the form', function () {
             ->assertHasNoFormErrors();
 
         expect(Entry::query()->withUnpublished()->findOrFail($draft->id)->published_at?->toDateTimeString())->toBe('2020-01-01 09:00:00');
+    });
+
+    it('publishes now a Draft whose date a User without publish tried to set', function () {
+        kamiPlugin()->forms([Article::class => OwnDateInputForm::class]);
+        $draft = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+        $publisher = auth()->user();
+        asWriter();
+        typePage('article', EditEntry::class, ['record' => $draft->id])->set('data.published_at', '2099-01-01 09:00:00')->call('save')->assertHasNoFormErrors();
+
+        $this->actingAs($publisher);
+        typePage('article', EditEntry::class, ['record' => $draft->id])
+            ->callAction(TestAction::make('publish')->schemaComponent('form-actions', schema: 'content'))
+            ->assertHasNoFormErrors();
+
+        expect(Entry::query()->findOrFail($draft->id)->published_at->timestamp)->toBeGreaterThanOrEqual(now()->subMinute()->timestamp)->toBeLessThanOrEqual(now()->timestamp);
     });
 
     it('keeps a Translation published while the page is open from a User without publish', function () {

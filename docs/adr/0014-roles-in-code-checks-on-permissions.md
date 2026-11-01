@@ -36,7 +36,7 @@ The starter kit declares two Roles: `administrator` (`kami.*`) and `editor`. The
   - plus `kami.menus.manage`, `kami.redirects.manage`, `kami.form-submissions.view` and `kami.users.manage`.
 
   Global Sets and Singletons are Entries, so they need no separate settings Permission. The tickets for Menus, Forms and Drafts may refine the Permissions outside Content Types.
-- `reorder` covers both Position and Parent, form included, because moving an Entry changes URLs. `publish` is kept apart from `update` and `force-delete` apart from `delete`, so editing, going live and losing data are separate rights.
+- `reorder` covers both Position and Parent, form included, because moving an Entry changes URLs. The admin holds it on the server, whatever the form (ADR 0019). `publish` is kept apart from `update` and `force-delete` apart from `delete`, so editing, going live and losing data are separate rights.
 - Kami's Policies implement every method Filament may call:
   - `viewAny`/`view` → `view`;
   - `create`/`replicate` → `create`;
