@@ -612,7 +612,7 @@ final class EntryResource extends FilamentResource
         $target = $fields->get($field->conditionTarget() ?? '');
         $component = self::input($field, $field->handle, $translatable ? $lang : [], $field->defaultValue());
 
-        // The condition `SaveEntry` reads, on the form's state; a hidden component is not sent, and `SaveEntry` clears its value.
+        // The condition `SaveEntry` reads, on the form's state; a hidden component is not sent, and `SaveEntry` clears its value when the save gives the target.
         if ($target instanceof Field) {
             $component->visible(fn (Get $get): bool => $field->isVisibleGiven($target, $get($target->handle)));
         }

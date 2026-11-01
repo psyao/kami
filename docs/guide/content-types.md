@@ -210,7 +210,7 @@ A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Si
 
 `->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it. A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
 
-`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`. An update never applies a default, and a value given as `null` stays `null`:
+`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. An Entry first written by a `'*'` call takes none either. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`: a `->required()` Shared Field left blank stops a Locale from publishing until someone fills it. An update never applies a default, and a value given as `null` stays `null`:
 
 ```php
 Text::make('author')->shared()->default('The newsroom'),
@@ -272,7 +272,7 @@ Reads leave out a target not visible in the Locale read, and `withUnpublished()`
 
 A relation is Shared by default. With `->translatable()`, each Locale has its own list, and a blank one falls back to the default Locale's, while that Translation is visible, as for any Field ([Multilingual](multilingual.md)). A Locale with links whose targets are all hidden is not blank: it reads empty. Fallen-back targets are checked in the Locale read too.
 
-A relation can be conditional, and hidden it loses its links in every Locale. The first read of the declarations refuses one with no `->of()` or a type not in `types`, with `->filterable()`, `->sortable()` or `->default()`, as the target of a condition, `->required()` on a Global Set, and inside a Repeater or Group.
+A relation can be conditional, and a save that gives its target and hides it removes its links in every Locale. The first read of the declarations refuses one with no `->of()` or a type not in `types`, with `->filterable()`, `->sortable()` or `->default()`, as the target of a condition, `->required()` on a Global Set, and inside a Repeater or Group.
 
 Editors search targets by title and see them in pick order, Drafts included. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
 

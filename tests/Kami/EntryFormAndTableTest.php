@@ -243,7 +243,7 @@ final class ArticleWithoutCondition extends ContentType
     }
 }
 
-/** The same, once declared: the Entry's Fields are all hidden. */
+/** The same, once declared: the Entry's conditional Fields are all hidden. */
 final class ArticleWithConditionDeclaredLater extends ContentType
 {
     public function handle(): string
