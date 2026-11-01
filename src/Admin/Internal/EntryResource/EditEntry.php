@@ -160,13 +160,13 @@ final class EditEntry extends EditRecord
     {
         $default = Site::current()->defaultLocale();
 
-        return ActionGroup::make(array_map(fn (string $locale): Action => Action::make("locale_{$locale}")
-            ->label(fn (): string => $this->localeLabel($locale))
-            ->color('gray')
-            ->icon($locale === $this->locale ? Heroicon::Check : null)
-            ->disabled($locale === $this->locale)
-            ->extraAttributes($locale === $this->locale ? ['aria-current' => 'true'] : [])
-            ->url(fn (): ?string => $locale === $this->locale ? null : EntryResource::editUrl($this->getRecord(), $locale === $default ? null : $locale)), EntryResource::locales()))
+        return ActionGroup::make(array_map(function (string $locale) use ($default): Action {
+            $action = Action::make("locale_{$locale}")->label(fn (): string => $this->localeLabel($locale))->color('gray');
+
+            return $locale === $this->locale
+                ? $action->icon(Heroicon::Check)->disabled()->extraAttributes(['aria-current' => 'true'])
+                : $action->url(fn (): string => EntryResource::editUrl($this->getRecord(), $locale === $default ? null : $locale));
+        }, EntryResource::locales()))
             ->label(fn (): string => $this->localeLabel($this->locale))
             ->icon(Heroicon::Language)
             ->color('gray')

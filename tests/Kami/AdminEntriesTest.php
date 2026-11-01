@@ -11,6 +11,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Tables\Columns\TextColumn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use Override;
 use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
@@ -30,7 +32,10 @@ use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Textarea;
+use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Content\Term;
 use Psyao\Kami\Facades\Kami;
@@ -110,6 +115,71 @@ final class ProjectWithStructuredOptions extends ContentType
             Group::make('address', [Text::make('street'), Text::make('city')])->default(['city' => 'Vevey']),
             Repeater::make('links', [Text::make('label')])->translatable(),
         ];
+    }
+}
+
+/** On Project's handle and table, with structured defaults each Locale has its own of. */
+final class ProjectWithTranslatableDefaults extends ContentType
+{
+    public function handle(): string
+    {
+        return 'project';
+    }
+
+    public function fields(): array
+    {
+        return [
+            Group::make('address', [Text::make('street'), Text::make('city')])->translatable()->default(['city' => 'Vevey']),
+            Repeater::make('links', [Text::make('label')])->translatable()->default([['label' => 'Site']]),
+        ];
+    }
+}
+
+/** On Label's handle and table. */
+final class LabelWithDefault extends ContentType
+{
+    #[Override]
+    protected bool $translatable = false;
+
+    public function handle(): string
+    {
+        return 'label';
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('colour')->default('red')];
+    }
+}
+
+/** On Home's handle and table. */
+final class HomeWithDefault extends Singleton
+{
+    #[Override]
+    protected ?string $prefix = '';
+
+    public function handle(): string
+    {
+        return 'home';
+    }
+
+    public function fields(): array
+    {
+        return [Textarea::make('intro')->default('Welcome.')];
+    }
+}
+
+/** On Footer's handle and table. */
+final class FooterWithDefault extends GlobalSet
+{
+    public function handle(): string
+    {
+        return 'footer';
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('tagline')->default('Made here.')];
     }
 }
 
@@ -394,6 +464,19 @@ it('titles a row with the default Locale\'s title, or the first Translation havi
         ->assertCanNotSeeTableRecords([$foreign, $untitled]);
 });
 
+it('titles a row from a Locale no longer declared only when no other has a title', function () {
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    $save = resolve(SaveEntry::class);
+    $entry = $save->handle(Article::class, ['title' => 'Hallo'], locale: 'de');
+    $save->handle(Article::class, ['title' => 'Salut'], $entry, 'en');
+    $only = $save->handle(Article::class, ['title' => 'Nur Deutsch'], locale: 'de');
+    config(['kami.sites.default.locales' => ['fr', 'en']]);
+
+    entryPage(ListEntries::class)
+        ->assertTableColumnStateSet('title', 'Salut', $entry)
+        ->assertTableColumnStateSet('title', 'Nur Deutsch', $only);
+});
+
 it('lists the type\'s Entries with their state, a Scheduled one\'s date in the Site\'s time zone beside it, searchable by title', function () {
     $this->travelTo('2026-10-28 10:00:00');
     $save = fn (array $values) => resolve(SaveEntry::class)->handle(Article::class, [...$values, 'author' => 'Ada Lovelace']);
@@ -409,7 +492,8 @@ it('lists the type\'s Entries with their state, a Scheduled one\'s date in the S
         ->assertTableColumnStateSet('state_fr', 'Scheduled', $scheduled)
         ->assertTableColumnStateSet('state_fr', 'Published', $published)
         ->assertTableColumnHasDescription('state_fr', 'Oct 29, 2026 09:00:00', $scheduled)
-        ->assertTableColumnDoesNotHaveDescription('state_fr', 'Oct 29, 2026 09:00:00', $published)
+        ->assertTableColumnExists('state_fr', fn (TextColumn $column): bool => $column->getDescriptionBelow() === null, $published)
+        ->assertTableColumnExists('state_fr', fn (TextColumn $column): bool => $column->getDescriptionBelow() === null, $draft)
         ->assertTableColumnDoesNotExist('published_at')
         ->searchTable('progr')
         ->assertCanSeeTableRecords([$scheduled])
@@ -550,6 +634,38 @@ it('leaves a Translatable Field blanked on an existing Translation blank, whatev
     resolve(SaveEntry::class)->handle(ArticleWithDefaults::class, ['title' => 'Hello', 'summary' => null], $entry, 'en');
 
     entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])->assertSchemaStateSet(['summary' => null]);
+});
+
+it('opens a new Locale with a Group\'s and a Repeater\'s defaults, which saving stores', function () {
+    config(['kami.types' => [ProjectWithTranslatableDefaults::class]]);
+    $entry = resolve(SaveEntry::class)->handle(ProjectWithTranslatableDefaults::class, ['title' => 'Bonjour', 'address' => ['city' => 'Lausanne'], 'links' => [['label' => 'Lien']]]);
+
+    $page = entryPage(EditEntry::class, 'project', ['record' => $entry->id, 'locale' => 'en']);
+
+    expect($page->get('data.address.city'))->toBe('Vevey');
+
+    $page->set('data.title', 'Hello')->call('save')->assertHasNoFormErrors();
+
+    $saved = Entry::query()->inLocale('en')->withUnpublished()->sole();
+
+    expect($saved->address['city'])->toBe('Vevey')->and($saved->links)->toBe([['label' => 'Site']]);
+});
+
+it('opens a Singleton\'s and a Global Set\'s new Locale with their defaults', function (string $class, string $type, string $field, string $default) {
+    config(['kami.types' => [$class]]);
+    resolve(SaveEntry::class)->handle($class, [$field => 'Stored'], locale: 'fr');
+
+    entryPage(EditEntry::class, $type, ['locale' => 'en'])->assertSchemaStateSet([$field => $default]);
+})->with([
+    'Singleton' => [HomeWithDefault::class, 'home', 'intro', 'Welcome.'],
+    'Global Set' => [FooterWithDefault::class, 'footer', 'tagline', 'Made here.'],
+]);
+
+it('gives an untranslatable type\'s one Translation no default once it exists', function () {
+    config(['kami.types' => [LabelWithDefault::class]]);
+    $label = resolve(SaveEntry::class)->handle(LabelWithDefault::class, ['title' => 'Rouge', 'colour' => null]);
+
+    entryPage(EditEntry::class, 'label', ['record' => $label->id])->assertSchemaStateSet(['colour' => null]);
 });
 
 it('marks a Shared Field as shared across languages, and leaves a Translatable one unmarked', function () {
