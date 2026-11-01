@@ -256,6 +256,32 @@ The first read of the declarations refuses a heading level other than 2, 3 or 4 
 
 Block nodes and `kami://` links survive a save, though nothing writes them from the admin before M10. Until then, a `kami://` link renders as its text and a Block renders nothing. The editor shows a Block as unavailable: an editor can only delete it.
 
+### Inline Markdown
+
+`->inlineMarkdown()` on a `Text` or a `Textarea` lets editors write a few marks in plain text, such as a hero title inside an `<h1>`:
+
+```php
+use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Textarea;
+
+Text::make('subtitle')->inlineMarkdown();
+Textarea::make('summary')->inlineMarkdown();   // A newline becomes <br>.
+```
+
+The column and the form hold the raw text. `$entry->summary` is always an `InlineMarkdown`, even blank:
+
+```blade
+<h1>{{ $entry->summary }}</h1>
+
+<meta name="description" content="{{ $entry->summary->text() }}">
+```
+
+`text()` returns its words without the syntax, and `isEmpty()` says whether there are any. A value fallen back from the default Locale renders inside a `span` carrying `lang`.
+
+Only `*emphasis*`, `**strong**`, `` `inline code` `` and links to `http`, `https` or `mailto` are kept. Raw HTML goes. An image, a strikethrough and any other link, relative ones and `tel` included, are reduced to their text: a link to a page of the site belongs in a `RichText`.
+
+The method exists on these two types only. The first read of the declarations refuses such a Field inside a Repeater or a Group, whose values are read as stored, and as a condition's target.
+
 ### Repeaters and groups
 
 A `Repeater` holds a variable list, and a `Group` one set of values that belong together. Each takes its sub-Fields as the second argument of `make()`:

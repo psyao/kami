@@ -92,6 +92,8 @@ class Psyao\Kami\Content\Fields\Group::make() public static function make(string
 class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Number::column() public function column(): string
 class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number
+class Psyao\Kami\Content\Fields\ReadsInlineMarkdown trait
+class Psyao\Kami\Content\Fields\ReadsInlineMarkdown::inlineMarkdown() public function inlineMarkdown(): static
 class Psyao\Kami\Content\Fields\RelationField abstract class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\RelationField::creatable() public function creatable(bool $creatable = true): static
 class Psyao\Kami\Content\Fields\RelationField::of() public function of(string ...$types): static
@@ -120,6 +122,10 @@ class Psyao\Kami\Content\RichText\Document::excerpt() public function excerpt(in
 class Psyao\Kami\Content\RichText\Document::isEmpty() public function isEmpty(): bool
 class Psyao\Kami\Content\RichText\Document::text() public function text(): string
 class Psyao\Kami\Content\RichText\Document::toHtml() public function toHtml(): string
+class Psyao\Kami\Content\RichText\InlineMarkdown final readonly class implements Illuminate\Contracts\Support\Htmlable
+class Psyao\Kami\Content\RichText\InlineMarkdown::isEmpty() public function isEmpty(): bool
+class Psyao\Kami\Content\RichText\InlineMarkdown::text() public function text(): string
+class Psyao\Kami\Content\RichText\InlineMarkdown::toHtml() public function toHtml(): string
 class Psyao\Kami\Content\Section final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Content\Singleton abstract class extends Psyao\Kami\Content\ContentType
 class Psyao\Kami\Content\Singleton::entry() public static function entry(): ?Psyao\Kami\Content\Entry

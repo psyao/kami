@@ -167,6 +167,14 @@ A whole number read as an `int`, or with `->decimal()` a number with two decimal
 - `public function column(): string`
 - `public function decimal(): Psyao\Kami\Content\Fields\Number`: A number with up to two decimals, up to 999999.99.
 
+## `Psyao\Kami\Content\Fields\ReadsInlineMarkdown`
+
+`trait`
+
+What `Text` and `Textarea` share, public only because they are: on another Field type, `->inlineMarkdown()` is an undefined method.
+
+- `public function inlineMarkdown(): static`: Stored raw and edited raw, read as an `InlineMarkdown`, even when blank: emphasis, strong, inline code and `http`, `https` or `mailto` links.
+
 ## `Psyao\Kami\Content\Fields\RelationField`
 
 `abstract class extends Psyao\Kami\Content\Fields\Field`
@@ -261,6 +269,16 @@ A `RichText` Field's value, rendered at read time. `{{ $entry->body }}` outputs 
 - `public function isEmpty(): bool`: Whether it holds no text and no Block.
 - `public function text(): string`: Its words, from text nodes only: Blocks are skipped.
 - `public function toHtml(): string`: The HTML, in an element carrying `lang` when the value fell back from another Locale.
+
+## `Psyao\Kami\Content\RichText\InlineMarkdown`
+
+`final readonly class implements Illuminate\Contracts\Support\Htmlable`
+
+The value of a `Text` or `Textarea` Field taking `->inlineMarkdown()`, rendered at read time. `{{ $entry->summary }}` outputs its HTML.
+
+- `public function isEmpty(): bool`: Whether it holds no text.
+- `public function text(): string`: Its words, without the syntax.
+- `public function toHtml(): string`: The HTML, phrasing content only, in a `span` carrying `lang` when the value fell back from another Locale.
 
 ## `Psyao\Kami\Content\Section`
 

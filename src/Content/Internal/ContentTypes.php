@@ -16,6 +16,7 @@ use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\RichText\InlineMarkdown;
 use Psyao\Kami\Content\Section;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\SiteSettings;
@@ -261,6 +262,10 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the RichText \"{$field->handle}\": no normalisation reaches inside a document yet.");
             }
 
+            if ($field->read(null) instanceof InlineMarkdown) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the inline Markdown \"{$field->handle}\": a document's values are read as stored.");
+            }
+
             $this->validateHandle($class, 'the sub-Field handle', $field->handle);
 
             if (in_array($field->handle, $handles, true)) {
@@ -363,6 +368,10 @@ final class ContentTypes
 
             if ($target instanceof RichText) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the RichText \"{$target->handle}\", whose value a condition cannot read.");
+            }
+
+            if ($target->read(null) instanceof InlineMarkdown) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the inline Markdown \"{$target->handle}\", whose value a condition cannot read.");
             }
 
             if ($target instanceof RelationField) {
