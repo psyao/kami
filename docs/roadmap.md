@@ -220,6 +220,8 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **MVP features.** None.
 
+**Also.** `kami:types`: Larastan stubs for Field values, generated from the declarations (ADR 0007), once every Field type exists.
+
 **Acceptance.** The three sites run in production on one 0.x release; 30 days pass without a breaking release; the public surface snapshot is reviewed; 1.0.0 is tagged (ADR 0035).
 
 ## Deferred to V1

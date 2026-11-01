@@ -92,7 +92,7 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        // ponytail: Kami keeps no cache in M1; clearing them (the Content version bump, ADR 0021) lands here in M7.
+        // ponytail: Kami keeps no cache until M7; clearing them (the Content version bump, ADR 0021) lands here in M7.
 
         $this->components->info('Kami is installed.');
 

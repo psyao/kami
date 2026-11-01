@@ -72,7 +72,7 @@ final readonly class SyncPaths
                 });
         }
 
-        // ponytail: one more pass settles a row that waited for an address a later row freed; a swap between two Entries stays a clash.
+        // ponytail: one more pass settles a row that waited for an address a later row freed; a swap between two Entries stays a clash, reported; V1 settles swaps if a site meets one.
         $clashes = [];
 
         foreach ($pending as ['row' => $row, 'current' => $current]) {

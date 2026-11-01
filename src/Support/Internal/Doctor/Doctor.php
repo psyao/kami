@@ -453,7 +453,7 @@ final readonly class Doctor
                 continue;
             }
 
-            // ponytail: one canAccessPanel() per User with no Role, read in chunks; a host with many customers waits, a SQL rule would need the host's.
+            // ponytail: one canAccessPanel() per User with no Role, read in chunks; a host with many customers waits; V1's host Role source (ADR 0014) lifts it.
             $count = $model::query()->whereNotIn((new $model)->getKeyName(), DB::table('kami_role_user')->select('user_id'))->lazyById()
                 ->filter(fn (Model $user): bool => $user instanceof Authenticatable && ($panel['admits'])($user))
                 ->count();
