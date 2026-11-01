@@ -131,6 +131,13 @@ function editorPage(array $parameters): Testable
     return Livewire::test(EditEntry::class, $parameters);
 }
 
+it('opens a new Locale with a RichText default as the editor reads it', function () {
+    config(['kami.types' => [BodyWithBlockDefault::class]]);
+    $entry = resolve(SaveEntry::class)->handle(BodyWithBlockDefault::class, ['title' => 'Bonjour']);
+
+    expect(editorPage(['record' => $entry->id, 'locale' => 'en'])->get('data.body')['content'][0]['type'])->toBe('customBlock');
+});
+
 it('normalises a document against the allowed set', function (array $given, ?array $stored) {
     expect(saveProse($given, RichText::make('body')))->toEqual($stored);
 })->with([

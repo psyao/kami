@@ -375,7 +375,26 @@ it('pre-fills the create form with the Fields\' defaults, which the Entry stores
     expect([onlyEntry()->summary, onlyEntry()->author])->toBe(['To be written.', 'The newsroom']);
 });
 
-it('lists the type\'s Entries with their state and publication date in the Site\'s time zone, searchable by title', function () {
+it('titles a row with the default Locale\'s title, or the first Translation having one, in the Site\'s Locale order, and finds it by any', function () {
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    $save = resolve(SaveEntry::class);
+    $both = $save->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+    $save->handle(Article::class, ['title' => 'Hello'], $both, 'en');
+    // German written first: the Site's order decides, not the order of writing.
+    $foreign = $save->handle(Article::class, ['title' => 'Hallo'], locale: 'de');
+    $save->handle(Article::class, ['title' => 'Salut'], $foreign, 'en');
+    $untitled = $save->handle(Article::class, ['author' => 'Ada Lovelace']);
+
+    entryPage(ListEntries::class)
+        ->assertTableColumnStateSet('title', 'Bonjour', $both)
+        ->assertTableColumnStateSet('title', 'Salut', $foreign)
+        ->assertTableColumnStateSet('title', 'Untitled', $untitled)
+        ->searchTable('Hello')
+        ->assertCanSeeTableRecords([$both])
+        ->assertCanNotSeeTableRecords([$foreign, $untitled]);
+});
+
+it('lists the type\'s Entries with their state, a Scheduled one\'s date in the Site\'s time zone beside it, searchable by title', function () {
     $this->travelTo('2026-10-28 10:00:00');
     $save = fn (array $values) => resolve(SaveEntry::class)->handle(Article::class, [...$values, 'author' => 'Ada Lovelace']);
     $draft = $save(['title' => 'Brouillon']);
@@ -389,7 +408,9 @@ it('lists the type\'s Entries with their state and publication date in the Site\
         ->assertTableColumnStateSet('state_fr', 'Draft', $draft)
         ->assertTableColumnStateSet('state_fr', 'Scheduled', $scheduled)
         ->assertTableColumnStateSet('state_fr', 'Published', $published)
-        ->assertTableColumnFormattedStateSet('published_at', 'Oct 29, 2026 09:00:00', $scheduled)
+        ->assertTableColumnHasDescription('state_fr', 'Oct 29, 2026 09:00:00', $scheduled)
+        ->assertTableColumnDoesNotHaveDescription('state_fr', 'Oct 29, 2026 09:00:00', $published)
+        ->assertTableColumnDoesNotExist('published_at')
         ->searchTable('progr')
         ->assertCanSeeTableRecords([$scheduled])
         ->assertCanNotSeeTableRecords([$draft, $published]);
@@ -471,13 +492,10 @@ it('adds English from the French screen, each Locale publishing on its own', fun
     entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour', 'author' => 'Ada Lovelace'])->callAction(formAction('publish'));
 
     entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id])
-        ->assertActionHasLabel('locale_en', 'Add EN')
         ->assertActionHasUrl('locale_en', url('/admin/articles/' . onlyEntry()->id . '/edit/en'));
 
     entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])
         ->assertSchemaStateSet(['title' => null, 'author' => 'Ada Lovelace'])
-        ->assertActionHasLabel('locale_fr', 'Edit FR')
-        ->assertActionHasUrl('locale_fr', url('/admin/articles/' . onlyEntry()->id . '/edit'))
         ->fillForm(['title' => 'Hello'])
         ->call('save')
         ->assertHasNoFormErrors();
@@ -511,6 +529,71 @@ it('saves a Shared Field once, whichever Locale\'s screen changes it', function 
     entryPage(EditEntry::class, parameters: ['record' => $entry->id])
         ->assertSchemaStateSet(['title' => 'Bonjour', 'author' => 'Grace Hopper']);
     expect(DB::table('kami_type_article')->where('entry_id', $entry->id)->whereNotNull('author')->pluck('locale')->all())->toBe(['*']);
+});
+
+it('opens a new Locale with its Translatable Fields\' defaults and the stored Shared values, which saving writes', function () {
+    config(['kami.types' => [ArticleWithDefaults::class]]);
+    $entry = resolve(SaveEntry::class)->handle(ArticleWithDefaults::class, ['title' => 'Bonjour', 'summary' => 'Un résumé.', 'author' => 'Ada Lovelace']);
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertSchemaStateSet(['title' => null, 'summary' => 'To be written.', 'author' => 'Ada Lovelace'])
+        ->fillForm(['title' => 'Hello'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect(Entry::query()->inLocale('en')->withUnpublished()->sole()->summary)->toBe('To be written.');
+});
+
+it('leaves a Translatable Field blanked on an existing Translation blank, whatever its default', function () {
+    config(['kami.types' => [ArticleWithDefaults::class]]);
+    $entry = resolve(SaveEntry::class)->handle(ArticleWithDefaults::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+    resolve(SaveEntry::class)->handle(ArticleWithDefaults::class, ['title' => 'Hello', 'summary' => null], $entry, 'en');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])->assertSchemaStateSet(['summary' => null]);
+});
+
+it('marks a Shared Field as shared across languages, and leaves a Translatable one unmarked', function () {
+    $shared = 'Shared by every language: changing it here changes it everywhere.';
+
+    entryPage(CreateEntry::class)
+        ->assertFormFieldExists('author', fn (Field $field): bool => $field->getHint() === $shared)
+        ->assertFormFieldExists('summary', fn (Field $field): bool => $field->getHint() === null);
+});
+
+it('lists every Locale in one menu with its state, the edited one unlinked', function () {
+    $this->travelTo('2026-10-28 10:00:00');
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello', 'status' => 'published', 'published_at' => '2026-10-29 08:00:00'], $entry, 'en');
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        ->assertActionHasLabel('locale_fr', 'FR · Draft')
+        ->assertActionDisabled('locale_fr')
+        ->assertActionHasLabel('locale_en', 'EN · Scheduled')
+        ->assertActionHasUrl('locale_en', url("/admin/articles/{$entry->id}/edit/en"))
+        ->assertActionHasLabel('locale_de', 'DE · No translation yet')
+        ->assertActionHasUrl('locale_de', url("/admin/articles/{$entry->id}/edit/de"));
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])
+        ->assertActionHasUrl('locale_fr', url("/admin/articles/{$entry->id}/edit"))
+        ->assertActionDisabled('locale_en')
+        ->assertSee('EN · Scheduled');
+});
+
+it('shows the new state in the menu after publishing from the page', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        ->assertSee('FR · Draft')
+        ->callAction(formAction('publish'))
+        ->assertSee('FR · Published');
+});
+
+it('offers no menu on a Site with one Locale', function () {
+    config(['kami.sites.default.locales' => ['fr']]);
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])->assertActionDoesNotExist('locale_fr');
 });
 
 it('leaves a blank Translatable Field blank on its screen, not filled with the default Locale\'s value', function () {

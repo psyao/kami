@@ -102,10 +102,10 @@ $entry->url('en'); // 'https://example.com/en/articles/hello', or null
 
 ## In the admin
 
-The edit page works on one Translation, named by its URL: `/admin/articles/{id}/edit` for the default Locale, `/admin/articles/{id}/edit/en` for English, as on the front. Its header links to each other Locale: **Edit EN** when that Translation exists, **Add EN** when it does not yet, and saving that page creates it. Each Translation is then published, scheduled or unpublished on its own screen.
+The edit page works on one Translation, named by its URL: `/admin/articles/{id}/edit` for the default Locale, `/admin/articles/{id}/edit/en` for English, as on the front. A menu in its header shows the Locale edited with its state, and lists every Locale with Draft, Scheduled or Published, or **No translation yet**. Choosing one opens its screen; saving a screen with no Translation yet creates it, and that screen opens with the Translatable Fields' defaults, as saving writes them. Each Translation is then published, scheduled or unpublished on its own screen. A Site with one Locale has no menu.
 
 Shared Fields are marked as such on every screen and saved once, whichever screen changes them: the English screen's change shows on the French one. A User without the type's `publish` Permission cannot change them while any Translation of the Entry is visible, since visitors would see the change. A Translatable Field left blank shows blank on its screen, not the default Locale's value it falls back to on the front.
 
 An untranslatable type has a single screen, at the default Locale's URL, with no other Locale to reach.
 
-The list shows one state column per Locale: Draft, Scheduled, Published, or Missing when the Entry has no Translation there.
+The list shows one state column per Locale: Draft, Scheduled with its date in the Site's time zone, Published, or Missing when the Entry has no Translation there. A row's title is the default Locale's, or the first Translation having one in the order of the Site's Locales, and the search reads every Locale's title.
