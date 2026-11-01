@@ -406,7 +406,7 @@ Kami also calls two of Laravel's own dependencies directly: `dragonmantank/cron-
 | `evilmartians/lefthook` | Package and starter dev | Git hooks from Composer, no Node | MIT | Not deployed |
 | gitleaks, zizmor, `composer audit`, pcov | CI; gitleaks also in the pre-commit hook (Homebrew) | Secrets, workflow audit, advisories, coverage | MIT / PHP License | Not deployed |
 | `googleapis/release-please-action` | CI | Releases from Conventional Commits | Apache-2.0 | Not deployed |
-| `laravel/boost` | Starter dev | Agent guidelines; Kami ships its guideline and skill under `resources/boost/` | MIT | Not deployed |
+| `laravel/boost` | Package and starter dev; out of package discovery in the package | Agent guidelines and Laravel skills; Kami ships its guideline and skill under `resources/boost/` | MIT | Not deployed |
 | `laravel-lang/common` | Starter dev | Generates the French validation lines the site commits | MIT | Not deployed |
 | Vite, Tailwind 4 | Starter, npm | Front build, run in CI | MIT | Built before deploy |
 

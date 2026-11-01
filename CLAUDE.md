@@ -56,6 +56,7 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 - Database-agnostic: SQLite, MySQL/MariaDB, PostgreSQL. Engine-specific SQL sits behind an abstraction.
 - Core (domain, content, front rendering) independent of Filament; Filament serves the admin only.
 - Before writing or changing Filament code (resources, pages, schemas, tables, actions, panel config) or its tests, load the `filament-development` skill.
+- Before writing or changing Laravel code, load the `laravel-best-practices` skill; before writing or changing tests, `testing-best-practices`. The conventions of this repo and its ADRs win over both.
 - Narrow public API: internals marked `@internal`, kept apart from public classes.
 - A deliberate shortcut carries a `ponytail:` comment naming its ceiling and the ticket, milestone or V1 that lifts it; that ticket removes it.
 - Every third-party package justified: need, alternatives, licence, maintenance, shared-hosting compatibility.

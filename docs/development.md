@@ -6,7 +6,7 @@ Working on Kami itself. `composer.json` scripts and `lefthook.yml` hold the ever
 
 Kami is tested inside [Testbench](https://packages.tools/testbench): a Laravel skeleton in `vendor/orchestra/`, booted with Kami's provider through package discovery, as on a real site. The Workbench (`workbench/`, wired by `testbench.yaml`) adds what a site would: an `AdminPanelProvider` carrying `KamiPlugin`, and a `config/kami.php` with two Sites and two Locales, so no test assumes a single one. Tests run with the host's time zone set to `Europe/Zurich`, as on Infomaniak, and Eloquent in strict mode.
 
-`composer install` also links every Boost skill found in `vendor/` and Kami's own (`resources/boost/skills/`) into `.claude/skills/`, git-ignored, for a coding agent working on Kami.
+`composer install` also links every Boost skill found in `vendor/` and Kami's own (`resources/boost/skills/`) into `.claude/skills/`, git-ignored, for a coding agent working on Kami. It also renders `laravel/boost`'s `laravel-best-practices` and `testing-best-practices` there. Boost is a development dependency for those skills alone, kept out of package discovery so that it adds nothing to Workbench's pages.
 
 ## Workbench Site
 
