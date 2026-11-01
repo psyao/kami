@@ -45,7 +45,7 @@ This keeps Velox ADR 0003 (a Field abstraction of Kami's own, mapped to Filament
   - A Field's default scope follows its type: Text, Textarea and RichText are Translatable; every other Field type is Shared. `->shared()` and `->translatable()` override it.
   - A type declared `$translatable = false` makes all its Fields Shared ("Multilingual content and fallback").
 - **Validation.**
-  - `->required()` is checked at publication, never on a draft (ADR 0006).
+  - `->required()` is checked at publication, never on a draft (ADR 0006), except that a draft may not blank a Shared value another Translation publishes.
   - `->rules()` takes any Laravel rule.
 - **Conditions** are declarative and limited to a Field of the same type: `->visibleWhen('field', value)` (equality or membership) and `->visibleWhenFilled('field')`. A hidden Field is neither validated nor stored. A save that gives the target clears its value, so an import or the local API behaves like the form. Anything richer goes through the escape hatch.
   - A condition's target may not be conditional itself: the form keeps a hidden component's state, so a chain would show there what `SaveEntry` hides.

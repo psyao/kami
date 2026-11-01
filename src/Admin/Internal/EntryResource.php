@@ -274,7 +274,7 @@ final class EntryResource extends FilamentResource
                 ->default(__('kami::admin.fields.untitled'))
                 ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
                     ->whereIn('locale', [Site::current()->defaultLocale(), '*'])
-                    ->where('title', 'like', "%{$search}%"))),
+                    ->whereLike('title', "%{$search}%"))),
             ...array_map(self::stateColumn(...), self::locales() ?: ['*']),
             TextColumn::make('published_at')
                 ->label(__('kami::admin.fields.published_at'))

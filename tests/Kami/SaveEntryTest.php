@@ -382,3 +382,38 @@ it('refuses another Locale\'s code for an untranslatable root type, which answer
 
     expect(failures(fn () => resolve(SaveEntry::class)->handle(RootLabel::class, ['title' => 'Hello', 'slug' => 'en'])))->toBe(['slug']);
 });
+
+describe('a required Shared Field another Translation publishes', function () {
+    it('refuses blanking it from a Draft of another Locale, or a \'*\' call', function () {
+        $entry = save(['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published'], locale: 'fr');
+
+        expect(failures(fn () => save(['title' => 'Hello', 'author' => ''], $entry, 'en')))->toBe(['author'])
+            ->and(failures(fn () => save(['author' => ''], $entry, '*')))->toBe(['author'])
+            ->and($entry->fresh()->author)->toBe('Ada');
+    });
+
+    it('counts a Scheduled Translation as Published', function () {
+        $entry = save(['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()], locale: 'fr');
+
+        expect(failures(fn () => save(['author' => ''], $entry, '*')))->toBe(['author']);
+    });
+
+    it('lets a Draft of another Locale through when it leaves the Field out or it was already blank', function () {
+        $entry = save(['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published'], locale: 'fr');
+
+        expect(failures(fn () => save(['title' => 'Hello'], $entry, 'en')))->toBe([]);
+
+        // A Field declared required after the Entry was published: nothing it blanks, so a Draft is not held back.
+        DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => '*'])->update(['author' => null]);
+
+        expect(failures(fn () => save(['title' => 'Hello', 'author' => ''], $entry, 'en')))->toBe([]);
+    });
+
+    it('lets the only Published Translation go to Draft while blanking it, and a Draft-only Entry blank it', function () {
+        $published = save(['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published'], locale: 'fr');
+        $draft = save(['title' => 'Brouillon', 'author' => 'Ada'], locale: 'fr');
+
+        expect(failures(fn () => save(['status' => 'draft', 'author' => ''], $published, 'fr')))->toBe([])
+            ->and(failures(fn () => save(['title' => 'Draft', 'author' => ''], $draft, 'en')))->toBe([]);
+    });
+});

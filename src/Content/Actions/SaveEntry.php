@@ -124,6 +124,7 @@ final class SaveEntry
             $data[$handle] = $field instanceof StructuredField ? $field->decoded($column) : $column;
         }
 
+        $before = $data;
         $data = [...$data, ...$values];
 
         // Always published, with nothing for an editor to fill: its form shows Fields only.
@@ -156,8 +157,12 @@ final class SaveEntry
             $rules['parent'] = ['nullable', 'string', $this->parentRule($contentType, $site, $entry)];
         }
 
+        // A Shared value is read by every Translation: a save may not blank what another one publishes. One already blank holds nothing back, as a Field may turn required after publication.
+        $publishedElsewhere = $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
+
         foreach ($fields as $handle => $field) {
-            $rules = [...$rules, ...$field->rulesAt($handle, $publishing)];
+            $held = $publishedElsewhere && ! $contentType->isTranslatable($field) && array_key_exists($handle, $values) && $before[$handle] !== null;
+            $rules = [...$rules, ...$field->rulesAt($handle, $publishing || $held)];
         }
 
         // Conditions read their targets through a cast, which an invalid value could break: the targets pass first.

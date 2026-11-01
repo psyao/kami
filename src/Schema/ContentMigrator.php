@@ -19,7 +19,7 @@ use Psyao\Kami\Sites\Internal\Site;
 use RuntimeException;
 
 /**
- * What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes in batches through the query builder, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
+ * What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes through the query builder, in batches but for `renameType`'s one update, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
  */
 final class ContentMigrator
 {
@@ -31,27 +31,36 @@ final class ContentMigrator
 
     private const string SHARED = '*';
 
-    /** Moves a type's Entries and its table to a new handle, with the index and foreign key names that follow the old one. */
+    /**
+     * Moves a type's Entries and its table to a new handle, with the index and foreign key names that follow the old one.
+     *
+     * One that stopped runs again: the table moves first, the Entries in one update, and the names last, so a table still holding the old names is this rename's. A batched move would leave two types' Entries that nothing tells from two unrelated types.
+     */
     public static function renameType(string $from, string $to): void
     {
         resolve(ContentTypes::class)->validateHandle(self::class, 'the handle', $to);
         [$old, $new] = [self::table($from), self::table($to)];
         $hasTable = Schema::hasTable($old);
+        $hasNew = Schema::hasTable($new);
+        $resuming = ! $hasTable && $hasNew && self::holdsNamesOf($old, $new);
 
-        if (Schema::hasTable($new) || DB::table('kami_entries')->where('type', $to)->exists()) {
+        if (! $resuming && ($hasNew || DB::table('kami_entries')->where('type', $to)->exists())) {
             throw new InvalidArgumentException("The type {$from} cannot become {$to}: {$new} or Entries of {$to} already exist.");
         }
 
-        if (! $hasTable && ! DB::table('kami_entries')->where('type', $from)->exists()) {
+        if (! $resuming && ! $hasTable && ! DB::table('kami_entries')->where('type', $from)->exists()) {
             throw new InvalidArgumentException("The type {$from} has neither a table nor Entries.");
         }
 
         if ($hasTable) {
             Schema::rename($old, $new);
-            self::renameConstraints($old, $new);
         }
 
-        self::eachBatch($from, fn (array $ids) => DB::table('kami_entries')->whereIn('id', $ids)->update(['type' => $to]));
+        DB::table('kami_entries')->where('type', $from)->update(['type' => $to]);
+
+        if ($hasTable || $resuming) {
+            self::renameConstraints($old, $new);
+        }
     }
 
     /** Renames a Field: its column and that column's index when it has one, else a relation Field's rows in `kami_references`. */
@@ -366,32 +375,63 @@ final class ContentMigrator
         } while ($keys !== []);
     }
 
-    /** A name kept from the old handle would refuse a new type taking that handle (#194). SQLite reports no foreign key name, and holds none to collide. */
+    /** A name kept from the old handle would refuse a new type taking that handle (#194). SQLite reports no foreign key name, and holds none to collide. Each foreign key is written again before its old one goes, so one that stops loses none. */
     private static function renameConstraints(string $old, string $new): void
     {
-        $follows = fn (string $name, string $columns, string $prefix): bool => $name === MakeMigrationCommand::indexName($old, $columns, $prefix) || str_starts_with($name, "{$old}_");
+        Schema::table($new, function (Blueprint $table) use ($old, $new): void {
+            $keys = Schema::getForeignKeys($new);
+            $tablePrefix = Schema::getConnection()->getTablePrefix();
 
-        Schema::table($new, function (Blueprint $table) use ($new, $follows): void {
-            foreach (Schema::getForeignKeys($new) as $key) {
+            foreach ($keys as $key) {
                 $columns = implode('.', $key['columns']);
+                $name = MakeMigrationCommand::indexName($new, $columns, MakeMigrationCommand::FOREIGN_KEY_PREFIX);
 
-                if ($key['name'] !== null && $follows($key['name'], $columns, MakeMigrationCommand::FOREIGN_KEY_PREFIX)) {
+                if ($key['name'] !== null && self::follows($key['name'], $old, $columns, MakeMigrationCommand::FOREIGN_KEY_PREFIX)) {
+                    if (! in_array($name, array_column($keys, 'name'), true)) {
+                        // The schema reports the table with the connection's prefix, which the blueprint adds again.
+                        $table->foreign($key['columns'], $name)
+                            ->references($key['foreign_columns'])->on(Str::chopStart($key['foreign_table'], $tablePrefix))->onDelete((string) $key['on_delete']);
+                    }
+
                     $table->dropForeign($key['name']);
-                    $table->foreign($key['columns'], MakeMigrationCommand::indexName($new, $columns, MakeMigrationCommand::FOREIGN_KEY_PREFIX))
-                        ->references($key['foreign_columns'])->on($key['foreign_table'])->onDelete((string) $key['on_delete']);
                 }
             }
         });
 
-        Schema::table($new, function (Blueprint $table) use ($new, $follows): void {
+        Schema::table($new, function (Blueprint $table) use ($old, $new): void {
             foreach (Schema::getIndexes($new) as $index) {
                 $columns = implode('.', $index['columns']);
 
-                if (! $index['primary'] && $follows($index['name'], $columns, MakeMigrationCommand::INDEX_PREFIX)) {
+                if (! $index['primary'] && self::follows($index['name'], $old, $columns, MakeMigrationCommand::INDEX_PREFIX)) {
                     $table->renameIndex($index['name'], MakeMigrationCommand::indexName($new, $columns));
                 }
             }
         });
+    }
+
+    private static function holdsNamesOf(string $old, string $new): bool
+    {
+        foreach (Schema::getForeignKeys($new) as $key) {
+            if ($key['name'] !== null && self::follows($key['name'], $old, implode('.', $key['columns']), MakeMigrationCommand::FOREIGN_KEY_PREFIX)) {
+                return true;
+            }
+        }
+
+        foreach (Schema::getIndexes($new) as $index) {
+            if (! $index['primary'] && self::follows($index['name'], $old, implode('.', $index['columns']), MakeMigrationCommand::INDEX_PREFIX)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function follows(string $name, string $old, string $columns, string $prefix): bool
+    {
+        $tablePrefix = Schema::getConnection()->getTablePrefix();
+
+        // Laravel's own names start with the connection's prefix under `prefix_indexes`.
+        return $name === MakeMigrationCommand::indexName($old, $columns, $prefix) || str_starts_with($name, "{$old}_") || str_starts_with($name, "{$tablePrefix}{$old}_");
     }
 
     private static function table(string $type): string

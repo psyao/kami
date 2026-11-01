@@ -314,7 +314,7 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 
 `final class`
 
-What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes in batches through the query builder, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
+What a migration calls to move data a schema change cannot express (ADR 0006). Each operation goes through the query builder, in batches but for `renameType`'s one update, with no JSON function, no model event and no `updated_at` change. None has a `down()`: going back is a new migration with the inverse operation.
 
 - `public static function dropLocale(string $locale): void`: Destroys a Locale: its translations, its rows in every type's table, its references and its paths. The Entries stay. A Locale still declared is refused, as is the Shared `'*'`.
 - `public static function dropType(string $type): void`: Destroys a type: its table, its Entries and what cascades from them, such as the links other types hold to them. A type still declared is refused.
