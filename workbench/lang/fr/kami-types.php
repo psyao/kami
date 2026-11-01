@@ -9,6 +9,7 @@ return [
         'plural' => 'Articles',
         'fields' => [
             'summary' => ['label' => 'Résumé', 'help' => 'Deux phrases au plus.'],
+            'body' => ['label' => 'Corps'],
             'author' => ['label' => 'Auteur'],
             'featured' => ['label' => 'À la une'],
             'accent' => ['label' => 'Accent'],

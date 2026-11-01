@@ -95,20 +95,6 @@ abstract class StructuredField extends Field
     /**
      * @internal
      *
-     * The document a column holds, as arrays and scalars.
-     *
-     * @return array<mixed>|null
-     */
-    final public function decoded(mixed $stored): ?array
-    {
-        $decoded = is_string($stored) ? json_decode($stored, true) : $stored;
-
-        return is_array($decoded) ? $decoded : null;
-    }
-
-    /**
-     * @internal
-     *
      * The key under which a sub-Field's rules apply.
      */
     protected function rowAttribute(string $attribute): string

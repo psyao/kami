@@ -40,4 +40,7 @@ return [
         'view' => 'Voir sur le site',
     ],
 
+    'rich_text' => [
+        'unavailable_block' => 'Bloc indisponible pour le moment : :handle',
+    ],
 ];

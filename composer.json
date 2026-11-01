@@ -23,7 +23,8 @@
         "php": "^8.5",
         "filament/filament": "^5.10.2",
         "laravel/framework": "^13.32",
-        "spatie/laravel-package-tools": "^1.93"
+        "spatie/laravel-package-tools": "^1.93",
+        "ueberdosis/tiptap-php": "^2.2"
     },
     "require-dev": {
         "driftingly/rector-laravel": "^2.7",

@@ -205,11 +205,12 @@ A Field is built with `::make()` and its handle, which names its column:
 | `Date` | a calendar day, read as a `CarbonImmutable` at midnight UTC | `date` |
 | `DateTime` | a moment, read as a `CarbonImmutable` in UTC | `dateTime` |
 | `Select` | one key out of `->options(['news', 'review'])` | `string` |
+| `RichText` | formatted text and links, read as a `Document` even when blank | `json` |
 | `Repeater` | a list of rows of sub-Fields, read as a list of arrays, `null` with no row | `json` |
 | `Group` | one set of named sub-Fields, read as an array, `null` when all are blank or off | `json` |
 | `Entries` | links to other Entries, read as a Collection in pick order | none: [`kami_references`](#relations) |
 
-`Text` and `Textarea` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
+`Text`, `Textarea` and `RichText` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
 `->required()` makes a Field required to publish, while a Draft may leave it blank, short of [blanking a Shared value another Translation publishes](publishing.md#validation), so the form shows no mark on its input; `->rules([...])` takes any Laravel validation rule, checked on every save. See [Publishing](publishing.md#validation).
 
@@ -224,6 +225,36 @@ A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Si
 ```php
 Text::make('author')->shared()->default('The newsroom'),
 ```
+
+### Rich text
+
+A `RichText` Field gives editors a WYSIWYG editor whose toolbar shows only what the Field allows:
+
+```php
+use Psyao\Kami\Content\Fields\RichText;
+
+RichText::make('body');                     // Paragraphs, H2 to H4, bold, italic, links, lists, quotes, rules, hard breaks.
+RichText::make('body')->code();             // Adds inline code and a code block with an optional language, not highlighted.
+RichText::make('body')->headings([3, 4]);   // Narrows the levels.
+```
+
+`$entry->body` is always a `Document`, even blank, so a view never tests for null:
+
+```blade
+{{ $entry->body }}
+
+@unless ($entry->body->isEmpty())
+    <meta name="description" content="{{ $entry->body->excerpt(160) }}">
+@endunless
+```
+
+`text()` returns its words and `excerpt($chars = 160)` their start, cut at a word boundary. `blocks($handle = null)` returns its Blocks as `{handle, data}` arrays. A value fallen back from the default Locale renders inside an element carrying `lang`.
+
+`SaveEntry` rebuilds every document against the Field, whoever calls it, so forged form state, an import and your own code end in the same clean document. An unknown node is unwrapped and its text kept. An unknown mark or attribute goes. A heading at another level takes the nearest allowed one. A link keeps its `href` only when it is `http`, `https`, `mailto`, `tel`, relative, an anchor or `kami://`, otherwise it becomes its text. A value that is not an array is refused. A document with no text and no Block is stored as `null`, so `required()` and Fallback read it as blank. A narrowed Field reaches stored documents at their next save.
+
+The first read of the declarations refuses a heading level other than 2, 3 or 4 and a `RichText` inside a Repeater or a Group, as nothing normalises a document there yet.
+
+Block nodes and `kami://` links survive a save, though nothing writes them from the admin before M10. Until then, a `kami://` link renders as its text and a Block renders nothing. The editor shows a Block as unavailable: an editor can only delete it.
 
 ### Repeaters and groups
 
@@ -408,7 +439,7 @@ A hidden Field is neither validated nor stored, not even required to publish, an
 
 A Boolean with no value reads as `false`, as an untouched toggle does.
 
-At the first read of the declarations, it is an error for a condition to name a Field the type does not declare, one that is itself conditional, or a Translatable one: a target holds for every Locale, so it must be Shared, the default of every type but `Text` and `Textarea`. So is `visibleWhenFilled()` on a Boolean, which always holds a value, and a `visibleWhen()` value that is not an option of its `Select`. Anything richer belongs in code of your own, in front of `SaveEntry`.
+At the first read of the declarations, it is an error for a condition to name a Field the type does not declare, one that is itself conditional, or a Translatable one: a target holds for every Locale, so it must be Shared, the default of every type but `Text`, `Textarea` and `RichText`. A `RichText` cannot be a target at all, as a condition cannot read its value. So is `visibleWhenFilled()` on a Boolean, which always holds a value, and a `visibleWhen()` value that is not an option of its `Select`. Anything richer belongs in code of your own, in front of `SaveEntry`.
 
 ### Your own Field type
 

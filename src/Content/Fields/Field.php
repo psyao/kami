@@ -217,6 +217,20 @@ abstract class Field
         return $value === '' || $value === [] ? null : $value;
     }
 
+    /**
+     * @internal
+     *
+     * The document a column holds, as arrays and scalars.
+     *
+     * @return array<mixed>|null
+     */
+    final public function decoded(mixed $stored): ?array
+    {
+        $decoded = is_string($stored) ? json_decode($stored, true) : $stored;
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
     /** @internal */
     public function read(mixed $stored): mixed
     {

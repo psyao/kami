@@ -11,11 +11,14 @@ use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Locked;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -98,7 +101,11 @@ final class EditEntry extends EditRecord
         foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->flatFields())] as $key) {
             // A value fallen back from the default Locale is not this Locale's: saved, it would become its own.
             $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
-            $values[$key] = $value instanceof Collection ? $value->modelKeys() : $value;
+            $values[$key] = match (true) {
+                $value instanceof Collection => $value->modelKeys(),
+                $value instanceof Document => RichTextInput::fill($value),
+                default => $value,
+            };
         }
 
         if (EntryResource::type()->isHierarchical()) {
@@ -110,7 +117,14 @@ final class EditEntry extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Entry
     {
-        return $this->record = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? []);
+        $this->record = $entry = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? []);
+
+        // The editor shows what was stored, not what it held: `SaveEntry` normalised it.
+        if (array_filter(EntryResource::type()->flatFields(), fn (Field $field): bool => $field instanceof RichText) !== []) {
+            $this->fillForm();
+        }
+
+        return $entry;
     }
 
     protected function getHeaderActions(): array

@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Entry;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Project;
 
@@ -55,4 +57,41 @@ it('keeps focus on the moved row\'s control after a keyboard move, and names the
     $page->wait(1);
     $page->assertScript($focused, 'Move Third down');
     $page->assertNoJavaScriptErrors();
+});
+
+it('writes in the rich text editor, and keeps a document holding a Block whole', function () {
+    $body = ['type' => 'doc', 'content' => [
+        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Avant']]],
+        ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => ['items' => ['01J']]]],
+        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'target', 'marks' => [['type' => 'link', 'attrs' => ['href' => 'kami://entry/01JABC']]]]]],
+    ]];
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'body' => $body], locale: 'fr');
+
+    $page = signIn()
+        ->navigate("/admin/articles/{$entry->id}/edit")
+        ->assertSee('Avant')
+        ->assertSee('Block unavailable for now: gallery')
+        ->assertNoAccessibilityIssues()
+        ->assertNoJavaScriptErrors();
+
+    visit("/admin/articles/{$entry->id}/edit")->inDarkMode()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+    visit("/admin/articles/{$entry->id}/edit")->on()->mobile()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+
+    $page->click('internal:role=button[name="Link"i]');
+    $page->assertSee('URL')->assertDontSee('Open in new tab');
+    $page->click('internal:role=button[name="Cancel"i] >> nth=-1');
+
+    $page->click('[data-testid="rich-editor-content"] >> text=Avant');
+    $page->keys('[data-testid="rich-editor-content"]', str_split('Encore'));
+    $page->wait(1);
+    $page->click('internal:role=button[name="Save changes"i]');
+    $page->wait(2);
+
+    $page->assertSee('AvantEncore')->assertSee('Block unavailable for now: gallery')->assertNoJavaScriptErrors();
+
+    $saved = Entry::query()->withUnpublished()->findOrFail($entry->id)->body;
+
+    expect($saved->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]]])
+        ->and($saved->text())->toContain('Encore')->toContain('Avant')->toContain('target')
+        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][2]['content'][0]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC');
 });

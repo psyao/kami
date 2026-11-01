@@ -11,6 +11,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\RelationField;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Fields\Terms;
@@ -136,6 +137,10 @@ final class ContentTypes
 
                 $this->validateSelect($class, $field);
 
+                if ($field instanceof RichText && ! $field->hasValidHeadings()) {
+                    throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" takes heading levels 2, 3 and 4 only: the title is the page's H1.");
+                }
+
                 if ($field instanceof StructuredField) {
                     $this->validateSubFields($class, $field);
                 }
@@ -252,6 +257,10 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the relation \"{$field->handle}\": its rows live in kami_references, which cannot see inside a document.");
             }
 
+            if ($field instanceof RichText) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the RichText \"{$field->handle}\": no normalisation reaches inside a document yet.");
+            }
+
             $this->validateHandle($class, 'the sub-Field handle', $field->handle);
 
             if (in_array($field->handle, $handles, true)) {
@@ -350,6 +359,10 @@ final class ContentTypes
 
             if ($target instanceof StructuredField) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the Repeater or Group \"{$target->handle}\", whose value a condition cannot read.");
+            }
+
+            if ($target instanceof RichText) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the RichText \"{$target->handle}\", whose value a condition cannot read.");
             }
 
             if ($target instanceof RelationField) {

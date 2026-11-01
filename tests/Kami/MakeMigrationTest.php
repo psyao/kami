@@ -19,6 +19,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Number;
 use Psyao\Kami\Content\Fields\Repeater;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
@@ -194,6 +195,16 @@ it('writes a json column and finds nothing to do afterwards, on every engine', f
     $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
 
     expect(File::get(writtenMigrations()[0]))->toContain("\$table->json('links')->nullable();", "\$table->json('address')->nullable();");
+});
+
+it('writes a RichText\'s json column and finds nothing to do afterwards, on every engine', function () {
+    declareNote([RichText::make('body')]);
+    generateAndMigrate();
+    insertNoteRow(['body' => '{"type":"doc","content":[]}']);
+
+    $this->artisan('kami:make:migration')->expectsOutputToContain('Nothing to do')->assertSuccessful();
+
+    expect(File::get(writtenMigrations()[0]))->toContain("\$table->json('body')->nullable();");
 });
 
 it('refuses a retype between a filled text column and a json one', function () {

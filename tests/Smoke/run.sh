@@ -72,6 +72,22 @@ expect_page / Bienvenue
 expect_page /en Welcome
 expect_page /about '<li>Kami</li>'
 
+# Rich text renders in pure PHP, on the host's PHP and its extensions: the starter kit declares no RichText yet.
+rich_text=$(docker compose run -T --rm cli php -r '
+    require "vendor/autoload.php";
+    $app = require "bootstrap/app.php";
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    $field = Psyao\Kami\Content\Fields\RichText::make("body");
+    $document = $field->normalise(["type" => "doc", "content" => [["type" => "paragraph", "content" => [["type" => "text", "text" => "Bonjour", "marks" => [["type" => "bold"], ["type" => "underline"]]]]]]]);
+    echo $field->read($document)->toHtml();
+' || true)
+if [ "$rich_text" = '<p><strong>Bonjour</strong></p>' ]; then
+    echo "RichText: rendered"
+else
+    echo "RichText: $rich_text"
+    failed=1
+fi
+
 # Drift fails the deploy with a non-zero exit code and takes no Path away, on the host's PHP and MariaDB.
 # Creates or drops the table with no declared type, and prints the 200 rows' count.
 drifted_table() {

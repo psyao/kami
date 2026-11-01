@@ -184,6 +184,15 @@ A variable list of rows of sub-Fields, read as a list of arrays, `null` with no 
 
 - `public static function make(string $handle, array $fields = []): static`
 
+## `Psyao\Kami\Content\Fields\RichText`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+Formatted text and links, in one `json` column, read as a `Document` even when blank. `SaveEntry` normalises it against what this Field allows (ADR 0016).
+
+- `public function code(): static`: Adds inline code and a code block with an optional `language`, with no server highlighting.
+- `public function headings(array $levels): static`: Narrows the heading levels, among 2, 3 and 4: the title is the page's H1.
+
 ## `Psyao\Kami\Content\Fields\Select`
 
 `final class extends Psyao\Kami\Content\Fields\Field`
@@ -240,6 +249,18 @@ Arranges Fields in the form and holds no value: columns, validation and reads ig
 - `public protected(set) readonly string $handle`
 - `final public function __construct(string $handle, array $children)`
 - `public static function make(string $handle, array $children): static`
+
+## `Psyao\Kami\Content\RichText\Document`
+
+`final readonly class implements Illuminate\Contracts\Support\Htmlable`
+
+A `RichText` Field's value, rendered at read time. `{{ $entry->body }}` outputs its HTML.
+
+- `public function blocks(?string $handle = NULL): array`: Its Blocks in order, or those of one handle.
+- `public function excerpt(int $chars = 160): string`: The start of its text, cut at a word boundary.
+- `public function isEmpty(): bool`: Whether it holds no text and no Block.
+- `public function text(): string`: Its words, from text nodes only: Blocks are skipped.
+- `public function toHtml(): string`: The HTML, in an element carrying `lang` when the value fell back from another Locale.
 
 ## `Psyao\Kami\Content\Section`
 

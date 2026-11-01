@@ -97,6 +97,9 @@ class Psyao\Kami\Content\Fields\RelationField::creatable() public function creat
 class Psyao\Kami\Content\Fields\RelationField::of() public function of(string ...$types): static
 class Psyao\Kami\Content\Fields\Repeater final class extends Psyao\Kami\Content\Fields\StructuredField
 class Psyao\Kami\Content\Fields\Repeater::make() public static function make(string $handle, array $fields = []): static
+class Psyao\Kami\Content\Fields\RichText final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\RichText::code() public function code(): static
+class Psyao\Kami\Content\Fields\RichText::headings() public function headings(array $levels): static
 class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Select::options() public function options(array $options): Psyao\Kami\Content\Fields\Select
 class Psyao\Kami\Content\Fields\StructuredField abstract class extends Psyao\Kami\Content\Fields\Field
@@ -111,6 +114,12 @@ class Psyao\Kami\Content\Layout::$children public protected(set) readonly array 
 class Psyao\Kami\Content\Layout::$handle public protected(set) readonly string $handle
 class Psyao\Kami\Content\Layout::__construct() final public function __construct(string $handle, array $children)
 class Psyao\Kami\Content\Layout::make() public static function make(string $handle, array $children): static
+class Psyao\Kami\Content\RichText\Document final readonly class implements Illuminate\Contracts\Support\Htmlable
+class Psyao\Kami\Content\RichText\Document::blocks() public function blocks(?string $handle = NULL): array
+class Psyao\Kami\Content\RichText\Document::excerpt() public function excerpt(int $chars = 160): string
+class Psyao\Kami\Content\RichText\Document::isEmpty() public function isEmpty(): bool
+class Psyao\Kami\Content\RichText\Document::text() public function text(): string
+class Psyao\Kami\Content\RichText\Document::toHtml() public function toHtml(): string
 class Psyao\Kami\Content\Section final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Content\Singleton abstract class extends Psyao\Kami\Content\ContentType
 class Psyao\Kami\Content\Singleton::entry() public static function entry(): ?Psyao\Kami\Content\Entry
