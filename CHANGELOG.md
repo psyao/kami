@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.1](https://github.com/psyao/kami/compare/v0.3.0...v0.3.1) (2026-11-01)
+
+
+### Features
+
+* add inline Markdown to Text and Textarea ([#263](https://github.com/psyao/kami/issues/263)) ([32678a9](https://github.com/psyao/kami/commit/32678a91ad61f37f393dfb13e2fc1d20914df794))
+* add the Locale switcher and per-Locale table state ([#265](https://github.com/psyao/kami/issues/265)) ([664a7f4](https://github.com/psyao/kami/commit/664a7f47d2825f9cb0d9fc7fd4c1b7bda80eb13a))
+* add the RichText Field and its Document ([#260](https://github.com/psyao/kami/issues/260)) ([af497c9](https://github.com/psyao/kami/commit/af497c9de200c22e054578fa4ddc379f78eb9c5b)), closes [#242](https://github.com/psyao/kami/issues/242)
+
+
+### Miscellaneous Chores
+
+* give coding agents Boost's Laravel and testing skills ([#261](https://github.com/psyao/kami/issues/261)) ([5f9318c](https://github.com/psyao/kami/commit/5f9318c49d7e3c256ec706ae83621a8af31772ed))
+* keep hand-overs on tickets, write the milestone ritual, check ponytail markers ([#257](https://github.com/psyao/kami/issues/257)) ([6d6189d](https://github.com/psyao/kami/commit/6d6189d84aa8310cb0d0e78b427d9f0bd5e61151))
+
 ## [0.3.0](https://github.com/psyao/kami/compare/v0.2.1...v0.3.0) (2026-11-01)
 
 
