@@ -18,7 +18,7 @@ use Workbench\App\Content\Project;
 use Workbench\App\Models\User;
 
 /** The query count of the page at the small size, measured before the dataset grows. */
-function smallPage(?int $set = null): ?int
+function smallDatasetPageQueries(?int $set = null): ?int
 {
     static $count = null;
 
@@ -59,11 +59,11 @@ function plan(Builder $query): string
 beforeEach(function () {
     Kami::routes();
 
-    if (smallPage() === null) {
+    if (smallDatasetPageQueries() === null) {
         Artisan::call('migrate:fresh');
         $dataset = new Dataset;
         $dataset->fill(120);
-        smallPage(pageQueries());
+        smallDatasetPageQueries(pageQueries());
         measure('Generate 30,000 Entries', fn () => $dataset->fill(Dataset::ENTRIES));
 
         // MySQL and MariaDB keep their statistics up to date; PostgreSQL's arrive with autovacuum, some time later.
@@ -80,7 +80,7 @@ it('holds Entries in two Locales, with relations', function () {
 });
 
 it('answers a page in the same number of queries as the small dataset', function () {
-    expect(measure('Page', fn () => pageQueries()))->toBe(smallPage());
+    expect(measure('Page', fn () => pageQueries()))->toBe(smallDatasetPageQueries());
 });
 
 it('walks a listing in its index, sorting nothing', function () {
@@ -99,7 +99,7 @@ it('checks drift and reports stranded values', function () {
     expect(measure('ContentModelDrift::problems()', fn () => $drift->problems()))->toBe([])
         ->and(measure('ContentModelDrift::strandedValues()', fn () => $drift->strandedValues()))->toBe([]);
 
-    measure('kami:doctor', fn () => Artisan::call('kami:doctor'));
+    expect(measure('kami:doctor', fn () => Artisan::call('kami:doctor')))->toBe(0);
 });
 
 it('completes SyncPaths, with nothing to do and with every row to write', function () {
@@ -128,15 +128,19 @@ it('reorders a type whose Positions tie within a shared host\'s limits', functio
     $start = microtime(true);
 
     DB::beginTransaction();
-    measure('First reorder of tied Positions', fn () => resolve(ReorderEntries::class)->handle($type, array_reverse($ids)));
 
-    // Half of Infomaniak's web `max_execution_time` and `memory_limit`: a runner is no shared host.
-    expect(microtime(true) - $start)->toBeLessThan(30)
-        ->and(memory_get_peak_usage(true))->toBeLessThan(320 * 1024 * 1024)
-        ->and(Entry::query()->withUnpublished()->ofType(Project::class)->ordered()->limit(50)->pluck('id')->all())->toBe(array_reverse($ids));
+    try {
+        measure('First reorder of tied Positions', fn () => resolve(ReorderEntries::class)->handle($type, array_reverse($ids)));
 
-    measure('Next reorder', fn () => resolve(ReorderEntries::class)->handle($type, $ids));
-    DB::rollBack();
+        // Half of Infomaniak's web `max_execution_time` and `memory_limit`: a runner is no shared host.
+        expect(microtime(true) - $start)->toBeLessThan(30)
+            ->and(memory_get_peak_usage(true))->toBeLessThan(320 * 1024 * 1024)
+            ->and(Entry::query()->withUnpublished()->ofType(Project::class)->ordered()->limit(50)->pluck('id')->all())->toBe(array_reverse($ids));
+
+        measure('Next reorder', fn () => resolve(ReorderEntries::class)->handle($type, $ids));
+    } finally {
+        DB::rollBack();
+    }
 });
 
 it('opens the admin table', function () {

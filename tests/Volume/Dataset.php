@@ -21,7 +21,7 @@ final class Dataset
     private const array LOCALES = ['fr', 'en'];
 
     /** @var array<string, int> */
-    private array $counts = ['tag' => 0, 'article' => 0, 'project' => 0];
+    private array $filled = ['tag' => 0, 'article' => 0, 'project' => 0];
 
     /** @var list<string> */
     private array $tags = [];
@@ -39,8 +39,8 @@ final class Dataset
 
     private function add(string $type, int $upTo): void
     {
-        foreach (array_chunk($upTo > $this->counts[$type] ? range($this->counts[$type] + 1, $upTo) : [], self::BATCH) as $numbers) {
-            $tables = ['kami_entries' => [], 'kami_translations' => [], 'kami_paths' => [], "kami_type_{$type}" => [], 'kami_references' => []];
+        foreach (array_chunk($upTo > $this->filled[$type] ? range($this->filled[$type] + 1, $upTo) : [], self::BATCH) as $numbers) {
+            $tables = [];
 
             foreach ($numbers as $number) {
                 $this->entry($type, $number, $tables);
@@ -53,10 +53,10 @@ final class Dataset
             }
         }
 
-        $this->counts[$type] = $upTo;
+        $this->filled[$type] = $upTo;
     }
 
-    /** @param array<string, list<array<string, mixed>>> $tables */
+    /** @param array<string, list<array<string, mixed>>> $tables By table, in insert order: the Entries first. */
     private function entry(string $type, int $number, array &$tables): void
     {
         $id = (string) Str::ulid();
@@ -67,7 +67,6 @@ final class Dataset
         if ($type === 'tag') {
             $this->tags[] = $id;
             $tables['kami_translations'][] = [...$translation, 'id' => (string) Str::ulid(), 'locale' => '*', 'title' => "Tag {$number}", 'slug' => null];
-            unset($tables['kami_type_tag']);
 
             return;
         }

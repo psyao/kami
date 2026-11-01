@@ -135,6 +135,7 @@ it('declares aguet.dev, and its Home lists Projects by hand with Tags in pick or
 
         $this->get('/')->assertOk()->assertSeeInOrder(['Bonjour', 'CVCI', 'Vue', 'PHP', 'Laravel', 'Animalia', 'Laravel']);
         $this->get('/project/cvci')->assertNotFound();
+        expect(Entry::query()->ofType(SkillGroup::class)->sole()->tags->pluck('title')->all())->toBe(['PHP']);
     } finally {
         File::deleteDirectory($site);
     }
