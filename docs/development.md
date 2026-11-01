@@ -105,7 +105,7 @@ The CI's Smoke job installs a site from [`psyao/kami-starter`](https://github.co
 tests/Smoke/run.sh
 ```
 
-After the install it builds the front assets, as you would on your machine before copying `public/build/`, and publishes a Page in both Locales through `SaveEntry` from the command line. It then requests the admin's sign-in page, and `/smoke` and `/en/smoke` after `php artisan optimize`: each must answer 200 with its Locale's text and `Content-Security-Policy`, and without `Set-Cookie`. It fails when a check does not answer as expected or when the PHP error log or `storage/logs/` holds anything. The site stays up at <http://localhost:8080> afterwards (`SMOKE_PORT` picks another port); stop it with:
+After the install it builds the front assets, as you would on your machine before copying `public/build/`, runs the starter kit's `DemoSeeder`, and publishes a Page in both Locales through `SaveEntry` from the command line. It then requests the admin's sign-in page, `/smoke` and `/en/smoke`, the demo's Singleton at `/` and `/en`, and its Page's relation at `/about`, after `php artisan optimize`: each must answer 200 with its Locale's text and `Content-Security-Policy`, and without `Set-Cookie`. It fails when a check does not answer as expected or when the PHP error log or `storage/logs/` holds anything. The site stays up at <http://localhost:8080> afterwards (`SMOKE_PORT` picks another port); stop it with:
 
 ```bash
 docker compose -f tests/Smoke/compose.yaml down -v
@@ -120,7 +120,7 @@ The setup lives in `tests/Smoke/`:
 | `fpm.conf` | The host's web-only settings on top of `tests/infomaniak.ini`: 60 s `max_execution_time`, OPcache off, `display_errors` on, the 120 s wall-clock kill |
 | `httpd.conf` | Apache in front of FPM, honouring the site's `.htaccess` |
 | `install.sh` | Creates the site with the checkout as a `path` repository, then runs `kami:install` |
-| `run.sh` | Starts the stack, runs `install.sh`, builds the assets, publishes the Page, then runs the HTTP checks and the log check |
+| `run.sh` | Starts the stack, runs `install.sh`, builds the assets, seeds the starter kit's demo, publishes the Page, then runs the HTTP checks and the log check |
 
 Each milestone adds its subsystem's checks to `run.sh`.
 

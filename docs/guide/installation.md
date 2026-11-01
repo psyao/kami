@@ -34,7 +34,8 @@ php artisan kami:install
 `kami:install` asks for the first administrator ([The first User](#the-first-user)). The site then has:
 
 - an admin at `/admin`, whose panel carries `KamiPlugin`, the local avatar provider and Kami's admin security headers, and lets in only Users holding a Kami Role ([Users and roles](users-and-roles.md#panel-access));
-- an example `Page` type in `app/Content/Page.php`, with one `body` Field, its table's migration and its view `resources/views/kami/page.blade.php` ([Content types](content-types.md));
+- three example types in `app/Content`, with their tables' migrations and views ([Content types](content-types.md)): a `Home` Singleton at `/`, a `Page` with a `body` Field and `tags`, and the `Tag` Taxonomy;
+- a home page answering 404 until it is published: publish it in the admin, or run `php artisan db:seed --class=DemoSeeder`, which writes a demo through `SaveEntry` (`composer setup` runs it);
 - two Locales, French by default and English: a Page published in both answers at `/about` and `/en/about` ([Multilingual](multilingual.md));
 - a minimal accessible layout, built by Vite and Tailwind, with no JavaScript, no web font and nothing inline, as Kami's front policy requires ([Security](security.md)).
 

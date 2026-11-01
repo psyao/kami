@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Routing\Router;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
+use Psyao\Kami\Content\Internal\MakeTypeCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -27,7 +28,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         $package->name('kami')
             ->hasConfigFile()
             ->hasTranslations()
-            ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class]);
+            ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class]);
     }
 
     public function packageRegistered(): void
