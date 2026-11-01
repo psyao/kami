@@ -82,7 +82,7 @@ abstract class Field
         return $this;
     }
 
-    /** The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet. */
+    /** The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created. */
     public function default(mixed $value): static
     {
         $this->default = $value;
@@ -107,7 +107,7 @@ abstract class Field
     }
 
     /**
-     * Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
+     * Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and a save that gives the target clears it.
      *
      * @param  mixed  $value  A value, or a list of values.
      */
@@ -119,7 +119,7 @@ abstract class Field
         return $this;
     }
 
-    /** Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and `SaveEntry` clears it. */
+    /** Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and a save that gives the target clears it. */
     public function visibleWhenFilled(string $field): static
     {
         $this->target = $field;

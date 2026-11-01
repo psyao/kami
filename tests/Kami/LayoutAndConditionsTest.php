@@ -169,6 +169,15 @@ it('clears them from a Shared-only write too', function () {
     expect(projectRow($entry, 'fr')['featured_note'])->toBeNull();
 });
 
+it('clears nothing stored when the save does not give the target', function () {
+    $entry = saveProject(['title' => 'Kami', 'featured' => true, 'featured_note' => 'Why']);
+    DB::table('kami_type_project')->where(['entry_id' => $entry->id, 'locale' => '*'])->update(['featured' => false]);
+
+    saveProject(['title' => 'Kami 2'], $entry);
+
+    expect(projectRow($entry, 'fr')['featured_note'])->toBe('Why');
+});
+
 it('keeps a given value in a Locale whose own target row is empty: a target is Shared', function () {
     $entry = saveProject(['title' => 'Kami', 'client' => 'Ada', 'story' => 'Il était une fois'], locale: 'fr');
 

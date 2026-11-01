@@ -138,7 +138,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `protected function baseRules(): array`: The rules every value of this Field type passes, before those of `->rules()`.
 - `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
 - `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date`, `dateTime` or `json` (ADR 0006).
-- `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
+- `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created.
 - `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
 - `public function required(): static`: Required to publish; a Draft may leave it blank.
@@ -147,8 +147,8 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `public function sortable(): static`: A listing sorts on this Field: `kami:make:migration` indexes its column.
 - `protected function store(mixed $value): mixed`: What its column stores for a valid value given to `SaveEntry`; never called with `null`.
 - `public function translatable(): static`: One value per Locale, falling back to the default Locale's when blank.
-- `public function visibleWhen(string $field, mixed $value): static`: Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
-- `public function visibleWhenFilled(string $field): static`: Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and `SaveEntry` clears it.
+- `public function visibleWhen(string $field, mixed $value): static`: Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and a save that gives the target clears it.
+- `public function visibleWhenFilled(string $field): static`: Shown only while another Field of the type holds a value; a Boolean always does, so it cannot be this target. Hidden, it is neither validated nor stored, and a save that gives the target clears it.
 
 ## `Psyao\Kami\Content\Fields\Group`
 
