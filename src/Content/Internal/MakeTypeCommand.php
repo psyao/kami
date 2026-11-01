@@ -48,7 +48,8 @@ final class MakeTypeCommand extends Command
         }
 
         $base = (string) array_key_first($bases);
-        $name = (string) $this->argument('name');
+        $argument = $this->input->getArgument('name');
+        $name = is_string($argument) ? $argument : '';
 
         if (! $this->isClassName($name, $base)) {
             $this->components->error("{$name} is not a class name a type can take: one StudlyCase word, no path, no PHP keyword, not the name of the class it extends.");

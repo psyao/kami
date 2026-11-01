@@ -8,7 +8,11 @@ use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 
-beforeEach(fn () => $this->app->useAppPath(sys_get_temp_dir() . '/kami-make-type-' . uniqid()));
+beforeEach(function () {
+    // Laravel reads the namespace by matching the app path against composer.json: read it before the path moves.
+    $this->app->getNamespace();
+    $this->app->useAppPath(sys_get_temp_dir() . '/kami-make-type-' . uniqid());
+});
 
 afterEach(fn () => File::deleteDirectory(app_path()));
 

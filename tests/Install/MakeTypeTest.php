@@ -9,6 +9,8 @@ use Psyao\Kami\Content\Fields\Text;
 // Here rather than beside the other kami:make:type tests: it runs kami:install, which publishes into the shared skeleton.
 it('passes kami:install and its drift check once the printed steps are followed', function () {
     $this->bootWithKamiOnAPanel();
+    // Laravel reads the namespace by matching the app path against composer.json: read it before the path moves.
+    $this->app->getNamespace();
     $site = sys_get_temp_dir() . '/kami-make-type-' . uniqid();
     $this->app->useAppPath("{$site}/app");
     $this->app->useDatabasePath("{$site}/database");
