@@ -199,7 +199,7 @@ it('keeps docs/reference in step with the public surface', function () {
     }
 });
 
-// ponytail: no collector for `x-kami::` components until the first view; this fails the day one is registered.
+// ponytail: no collector for `x-kami::` components until M7's first view; this fails the day one is registered.
 it('has no x-kami:: component outside the snapshot yet', function () {
     expect(View::getFinder()->getHints())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()')
         ->and(Blade::getClassComponentNamespaces())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()');
