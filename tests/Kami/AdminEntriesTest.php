@@ -767,6 +767,19 @@ it('clears a Field the form hid, as SaveEntry does for anyone', function () {
         ->and(onlyEntry('project')->story)->toBe('Once');
 });
 
+it('shows a row\'s required error on its input, with the sub-Field\'s label', function () {
+    $this->actingAs(userWithRole('administrator'));
+
+    $entry = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'links' => [['label' => 'One', 'url' => 'https://one.test'], ['label' => 'Two', 'url' => 'https://two.test']]], locale: 'fr');
+    $page = entryPage(EditEntry::class, 'project', ['record' => $entry->getKey()]);
+    $row = array_keys($page->get('data.links'))[1];
+
+    $page->set("data.links.{$row}.url", '')->callAction(formAction('publish'))
+        ->assertHasErrors(["data.links.{$row}.url"]);
+
+    expect($page->errors()->get("data.links.{$row}.url"))->toBe(['The address field is required.']);
+});
+
 it('adds, removes and reorders a Repeater\'s rows, and fills its Group', function () {
     $this->actingAs(userWithRole('administrator'));
 

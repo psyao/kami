@@ -118,6 +118,17 @@ it('applies a sub-Field\'s required and rules row by row, with the error on that
     expect(linkErrors(['address' => ['street' => str_repeat('a', 256)]]))->toHaveKey('address.street');
 });
 
+it('names a sub-Field by its label in a row\'s error, in the language of the request', function () {
+    $errors = fn (): array => linkErrors(['status' => 'published', 'featured_note' => 'x', 'links' => [['label' => 'Ok', 'url' => 'https://example.test'], ['label' => 'No address'], ['url' => 'nope']]]);
+
+    expect($errors()['links.1.url'])->toBe(['The address field is required.'])
+        ->and($errors()['links.2.url'])->toBe(['The address field must be a valid URL.']);
+
+    app()->setLocale('fr');
+
+    expect($errors()['links.1.url'])->toBe(['The adresse field is required.']);
+});
+
 it('validates a stored value decoded when publishing leaves it out', function () {
     $entry = saveLinks(['links' => [['label' => 'No address']]]);
 
@@ -193,7 +204,7 @@ it('reads and writes each sub-Field through its own type, nested ones included',
         ->and($entry->stops[0]['notes'])->toBe([['text' => 'a']]);
 
     expect(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published', 'stops' => [['place' => ['city' => '']]]], locale: 'fr'))
-        ->toThrow(ValidationException::class, 'stops.0.place.city');
+        ->toThrow(ValidationException::class, 'city');
 });
 
 it('requires a Group\'s sub-Field to publish, and validates its nested rows', function () {
@@ -202,8 +213,8 @@ it('requires a Group\'s sub-Field to publish, and validates its nested rows', fu
     structuredTable(fn (Blueprint $table) => $table->json('place')->nullable());
     $save = resolve(SaveEntry::class);
 
-    expect(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published'], locale: 'fr'))->toThrow(ValidationException::class, 'place.city')
-        ->and(fn () => $save->handle(Rowed::class, ['title' => 'x', 'place' => ['stops' => [['url' => 'nope']]]], locale: 'fr'))->toThrow(ValidationException::class, 'place.stops.0.url');
+    expect(fn () => $save->handle(Rowed::class, ['title' => 'x', 'status' => 'published'], locale: 'fr'))->toThrow(ValidationException::class, 'city')
+        ->and(fn () => $save->handle(Rowed::class, ['title' => 'x', 'place' => ['stops' => [['url' => 'nope']]]], locale: 'fr'))->toThrow(ValidationException::class, 'url');
 });
 
 it('leaves a Draft free with an optional Shared Repeater holding a required sub-Field, another Translation published', function () {

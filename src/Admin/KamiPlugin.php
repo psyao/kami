@@ -19,6 +19,7 @@ use Filament\Panel;
 use Filament\Resources\ResourceConfiguration;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Support\Assets\Css;
+use Filament\Support\Assets\Js;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
 use Livewire\Component as LivewireComponent;
@@ -163,7 +164,7 @@ final class KamiPlugin implements Plugin
         }
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
-        $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css')], 'psyao/kami');
+        $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css'), Js::make('kami', __DIR__ . '/../../resources/dist/kami.js')], 'psyao/kami');
     }
 
     public function boot(Panel $panel): void

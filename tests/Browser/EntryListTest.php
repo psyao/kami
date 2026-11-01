@@ -31,3 +31,28 @@ it('shows a site\'s own form and table', function () {
         ->assertNoAccessibilityIssues()
         ->assertNoJavaScriptErrors();
 });
+
+it('keeps focus on the moved row\'s control after a keyboard move, and names the row', function () {
+    $save = resolve(SaveEntry::class);
+
+    foreach (['Premier', 'Second', 'Third'] as $title) {
+        $save->handle(Project::class, ['title' => $title], locale: 'fr');
+    }
+
+    $focused = 'document.activeElement.textContent.trim()';
+    $page = signIn()
+        ->navigate('/admin/projects')
+        ->click('internal:role=button[name="Reorder records"i]');
+
+    $page->script("document.querySelectorAll('[data-table-reorder-direction=up]')[2].focus()");
+    $page->keys(':focus', 'Enter');
+    $page->wait(1);
+    $page->assertScript($focused, 'Move Third up');
+    $page->assertScript("document.querySelector('[x-ref=tableReorderStatus]').textContent", 'Third moved to position 2 of 3.');
+
+    // Reaching the top disables the button pressed: its other one takes focus.
+    $page->keys(':focus', 'Enter');
+    $page->wait(1);
+    $page->assertScript($focused, 'Move Third down');
+    $page->assertNoJavaScriptErrors();
+});

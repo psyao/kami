@@ -53,3 +53,21 @@ On its first run it makes sure someone can manage Users. Give it the email of on
 - **Filament's assets.** `kami:install` copies them to `public/`, as `php artisan filament:assets` does.
 
 Kami adds no route or scheduled task to your application until you ask for them, and applies no middleware to your routes or your panel: it only names the `kami` middleware group and the `kami.security-headers` alias.
+
+## Testing your site
+
+Kami answers the URLs your routes leave, and reads `kami_paths` to do so: a test reaching it needs the tables, and `RefreshDatabase` runs Kami's migrations with yours. Without it, Laravel's default `ExampleTest` fails with `no such table: kami_paths` once the `welcome` route is gone; with it, `/` answers 404 until something is published there:
+
+```php
+use App\Content\Home;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
+uses(RefreshDatabase::class);
+
+it('answers at the home page', function () {
+    app(SaveEntry::class)->handle(Home::class, ['title' => 'Home', 'status' => 'published']);
+
+    $this->get('/')->assertOk();
+});
+```
