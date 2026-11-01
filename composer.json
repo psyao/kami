@@ -30,6 +30,7 @@
         "driftingly/rector-laravel": "^2.7",
         "evilmartians/lefthook": "^2.2",
         "larastan/larastan": "^3.13",
+        "laravel/boost": "^2.10",
         "laravel/pint": "^1.32",
         "orchestra/testbench": "^11.3",
         "pestphp/pest": "^5.3",
@@ -56,7 +57,7 @@
             "lefthook install",
             "@link-skills"
         ],
-        "link-skills": "mkdir -p .claude/skills && for d in vendor/*/*/resources/boost/skills/*/ resources/boost/skills/*/; do [ -d \"$d\" ] && ln -sfn \"../../$d\" .claude/skills/$(basename \"$d\"); done; true",
+        "link-skills": "mkdir -p .claude/skills && for d in vendor/*/*/resources/boost/skills/*/ resources/boost/skills/*/; do [ -d \"$d\" ] && ln -sfn \"../../$d\" .claude/skills/$(basename \"$d\"); done; php workbench/link-boost-skills.php >/dev/null 2>&1; true",
         "build": "@php vendor/bin/testbench workbench:build --ansi",
         "serve": [
             "Composer\\Config::disableProcessTimeout",

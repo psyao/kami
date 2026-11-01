@@ -3,6 +3,9 @@ laravel: '@testbench'
 env:
   - AUTH_MODEL="Workbench\\App\\Models\\User"
 
+dont-discover:
+  - laravel/boost
+
 providers:
   - Workbench\App\Providers\WorkbenchServiceProvider
   - Workbench\App\Providers\AdminPanelProvider
