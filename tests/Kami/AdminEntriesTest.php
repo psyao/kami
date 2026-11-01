@@ -897,7 +897,7 @@ describe('a Singleton in the admin', function () {
         $this->actingAs(userWithRole('administrator'));
 
         entryPage(EditEntry::class, 'home')
-            ->assertFormFieldHidden('slug')
+            ->assertFormFieldDoesNotExist('slug')
             ->fillForm(['title' => 'Bienvenue', 'intro' => 'Bonjour'])
             ->callAction(formAction('publish'))
             ->assertHasNoFormErrors();
@@ -923,9 +923,9 @@ describe('a Global Set in the admin', function () {
         resolve(SaveEntry::class)->handle(Footer::class, [], locale: 'fr');
 
         entryPage(EditEntry::class, 'footer')
-            ->assertFormFieldHidden('title')
-            ->assertFormFieldHidden('slug')
-            ->assertFormFieldHidden('published_at')
+            ->assertFormFieldDoesNotExist('title')
+            ->assertFormFieldDoesNotExist('slug')
+            ->assertFormFieldDoesNotExist('published_at')
             ->assertActionDoesNotExist(formAction('publish'))
             ->assertActionDoesNotExist(formAction('unpublish'))
             ->fillForm(['tagline' => 'Bonjour'])
@@ -980,7 +980,7 @@ it('hides the slug of a type with no URL and saves it without one', function () 
     $this->actingAs(userWithRole('administrator'));
 
     entryPage(EditEntry::class, 'testimonial', ['record' => $entry->id])
-        ->assertFormFieldHidden('slug')
+        ->assertFormFieldDoesNotExist('slug')
         ->assertActionHidden('view')
         ->fillForm(['title' => 'Une autre', 'quote' => 'Soigné.'])
         ->callAction(formAction('publish'))

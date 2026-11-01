@@ -318,7 +318,7 @@ What follows from the declaration:
 - `->required()` is checked at publication, never on a Draft. `featured_note` is neither validated nor stored while hidden.
 - Reads: `$project->client`, `$project->body` (a `Document`, `Htmlable`), `$project->tags` (`Collection<int, Term>`). Larastan types come from `kami:types` stubs.
 - Rendering: `Project::render()` returns `view('kami.project', ['entry' => $entry])` unless the class overrides it. Archives go through `renderArchive()`.
-- Admin: Kami generates the form and the table. A site that needs more writes `ProjectForm extends EntryForm` in `app/Filament/` and registers it with `KamiPlugin::make()->forms([...])`. That form may rearrange and chain Filament calls, but may not add or drop a stored Field.
+- Admin: Kami generates the form and the table. A site that needs more writes `ProjectForm extends EntryForm` in `app/Filament/` and registers it with `KamiPlugin::make()->forms([...])`. That form may rearrange and chain Filament calls, but may not add or drop a stored Field: an error when the form is built.
 - Blocks are `final` classes with `handle()`, `fields()` and `view()`, stored as `{handle, data}` nodes inside the document. A Block no longer declared is kept and shown read-only.
 
 ## Subsystems

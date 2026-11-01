@@ -554,6 +554,89 @@ return [
 
 The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')`, `optionLabel('kind', 'news')`, with `links.fields.url` for a sub-Field, `tabLabel('details')` and `sectionLabel('highlight')`. `kami:doctor` warns about each missing `label`, `plural`, Field or sub-Field `label`, `Select` option key and tab or section `label`, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 
+### Your own form
+
+The generated form is enough for most types. When it is not, extend `Psyao\Kami\Admin\EntryForm` in `app/Filament/` and register it on the plugin, by the type's class:
+
+```php
+use Filament\Actions\Action;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
+use Psyao\Kami\Admin\EntryForm;
+
+final class ProjectForm extends EntryForm
+{
+    public function components(): array
+    {
+        return [
+            Section::make('Essentials')->schema([$this->field('title'), $this->field('slug')]),
+            Text::make('Ask the client first.'),
+            $this->field('client')->columnSpanFull(),
+            // Every other input the generated form has.
+        ];
+    }
+
+    public function actions(): array
+    {
+        return [Action::make('notify')->action(fn () => /* a core action, see below */ null)];
+    }
+}
+```
+
+```php
+->plugin(KamiPlugin::make()->forms([Project::class => ProjectForm::class]))
+```
+
+`field()` hands you a generated component by its handle: a Field, `address.city` inside a Group, or `title`, `slug`, `parent` and `published_at` where the type's form has them. It is the very component `parent::components()` holds, so to change one input and leave the rest in place, chain on it and return `parent::components()`. Layout, `Actions` and text are free. `actions()` adds header actions to the Edit page; one that writes calls a core action such as `SaveEntry`.
+
+Storage still follows the declaration. A form holding a field component the generated form does not have, or lacking one it has, stops the page with an error naming it, when the form is built. To keep an input out of sight, say so with `->hidden()`: the check sees that a component is there, not whether it shows. A hidden input is not sent. The rows inside a Repeater are not checked. Keep the component `field()` gives you rather than writing one under the same name: the generated one carries the type's rules, such as `published_at` taking the `publish` Permission.
+
+Filament's components are not covered by semantic versioning: the names and signatures of `EntryForm`'s methods are, what `parent::components()` returns is not.
+
+### Your own table
+
+`Psyao\Kami\Admin\EntryTable` works the same way, with `columns()`, `filters()`, `recordActions()` and `toolbarActions()`, the latter holding bulk actions too:
+
+```php
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Illuminate\Database\Eloquent\Builder;
+use Psyao\Kami\Admin\EntryTable;
+
+final class ProjectTable extends EntryTable
+{
+    public function columns(): array
+    {
+        return [...parent::columns(), TextColumn::make('client')->default('No client')];
+    }
+
+    public function filters(): array
+    {
+        return [Filter::make('recent')->query(fn (Builder $query): Builder => $query->where('created_at', '>=', now()->subMonth()))];
+    }
+}
+```
+
+```php
+->plugin(KamiPlugin::make()->tables([Project::class => ProjectTable::class]))
+```
+
+Three things to know:
+
+- A cell links to the Entry, and an empty one is a link with no name for assistive technology. Give a column that may be empty a `default()`, or `disabledClick()` to make no link. Filament's `placeholder()` is too pale to meet the contrast minimum.
+- **Children** on a hierarchical type comes from `parent::recordActions()`, like **Edit**: replacing the list drops it unless you put it back.
+- The level shown, the manual order and their Permissions stay Kami's, whatever the class returns. Reordering writes through Kami's own action, so Filament's `beforeReordering()` and `afterReordering()` are neither reachable here nor called.
+
+### Your own admin page
+
+A page of your own is plain Filament, with no Kami concept. Create it with `php artisan make:filament-page`, and let the panel find it or name it in your panel provider:
+
+```php
+$panel->pages([Reports::class]);
+```
+
+It runs in the same panel, under the same login. Guard it with `canAccess()`. To change content from it, call a core action, not the database.
+
 ## Writing Entries
 
 Every write goes through `Psyao\Kami\Content\Actions\SaveEntry`, from seeders, commands and imports alike. It takes the type, by class or handle, and the values:

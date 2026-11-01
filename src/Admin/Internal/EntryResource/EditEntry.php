@@ -128,6 +128,7 @@ final class EditEntry extends EditRecord
                 ->color('gray')
                 ->url(fn (): ?string => $this->getRecord()->url(), shouldOpenInNewTab: true)
                 ->visible(fn (): bool => $this->getRecord()->url() !== null),
+            ...EntryResource::plugin()->entryForm(EntryResource::type(), $this)->actions(),
         ];
     }
 

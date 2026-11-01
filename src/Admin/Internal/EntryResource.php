@@ -6,6 +6,7 @@ namespace Psyao\Kami\Admin\Internal;
 
 use Closure;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
@@ -22,6 +23,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab as FilamentTab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -33,7 +35,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Component as LivewireComponent;
 use LogicException;
+use Psyao\Kami\Admin\EntryForm;
 use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
@@ -133,8 +137,36 @@ final class EntryResource extends FilamentResource
 
     public static function form(Schema $schema): Schema
     {
-        $timezone = Site::current()->timezone;
         $livewire = $schema->getLivewire();
+        $form = self::plugin()->entryForm(self::type(), $livewire);
+        $components = $form->components();
+
+        // The generated form is the list of what is stored, so a site's form neither adds a value with no column nor hides one (ADR 0007).
+        if ($form::class !== EntryForm::class) {
+            $expected = self::formFieldPaths(self::generatedForm($livewire), $livewire);
+            $built = self::formFieldPaths($components, $livewire);
+
+            if (($added = array_diff($built, $expected)) !== []) {
+                throw new LogicException($form::class . ' adds [' . implode(', ', $added) . '], which ' . self::type()::class . ' does not declare.');
+            }
+
+            if (($missing = array_diff($expected, $built)) !== []) {
+                throw new LogicException($form::class . ' leaves out [' . implode(', ', $missing) . ']; hide one with ->hidden() to keep it out of sight.');
+            }
+        }
+
+        // Last: walking the components above attaches them to a schema of its own.
+        return $schema->columns(1)->components($components);
+    }
+
+    /**
+     * The form the declaration gives.
+     *
+     * @return list<Component>
+     */
+    public static function generatedForm(HasSchemas & LivewireComponent $livewire): array
+    {
+        $timezone = Site::current()->timezone;
         // The Locale of the values typed, so assistive technology reads them in their language (WCAG 3.1.2).
         $locale = $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale();
         $lang = self::locales() === [] ? [] : ['lang' => $locale];
@@ -144,24 +176,71 @@ final class EntryResource extends FilamentResource
         // Its values simply apply: `SaveEntry` publishes it and titles it with its label.
         $hasPublication = ! self::type() instanceof GlobalSet;
 
-        return $schema->columns(1)->components([
-            TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)->visible($hasPublication)
+        return [
+            ...($hasPublication ? [TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)
                 ->live(onBlur: true, condition: fn (): bool => $hasSlug && ! $hasStoredSlug())
                 // The hook also runs on a save's deferred update, hence the check. Blank or the previous title's slug: not typed by hand.
                 ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasSlug, $hasStoredSlug, $locale): void {
                     if ($hasSlug && ! $hasStoredSlug() && (blank($get('slug')) || $get('slug') === Path::slugFrom($old ?? '', $locale))) {
                         $set('slug', Path::slugFrom($state ?? '', $locale));
                     }
-                }),
-            TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)->visible($hasSlug)
+                })] : []),
+            ...($hasSlug ? [TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
                 // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
-                ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help')),
+                ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help'))] : []),
             ...(self::type()->isHierarchical() ? [self::parentInput()] : []),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish`; a disabled field is not saved (ADR 0019).
-            DateTimePicker::make('published_at')->visible($hasPublication)->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
-                ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record)),
-        ]);
+            ...($hasPublication ? [DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
+                ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record))] : []),
+        ];
+    }
+
+    /**
+     * Every component holding a value, by its path: `client`, a Group's `address` and `address.city`. A Repeater's rows are its own: they exist only once the form has state.
+     *
+     * @param  array<Component|Action|ActionGroup>  $components
+     * @return array<string, Component>
+     */
+    public static function inputs(array $components, HasSchemas & LivewireComponent $livewire): array
+    {
+        // With the page's record, as the form has it: a site's closure may read it.
+        return self::inputsOf(Schema::make($livewire)->record($livewire instanceof EditEntry ? $livewire->getRecord() : null)->components($components));
+    }
+
+    /**
+     * @param  array<Component|Action|ActionGroup>  $components
+     * @return list<string>
+     */
+    private static function formFieldPaths(array $components, HasSchemas & LivewireComponent $livewire): array
+    {
+        return array_keys(array_filter(self::inputs($components, $livewire), fn (Component $input): bool => $input instanceof FormField));
+    }
+
+    /** @return array<string, Component> */
+    private static function inputsOf(Schema $schema, string $prefix = ''): array
+    {
+        $inputs = [];
+
+        foreach ($schema->getComponents(withActions: false, withHidden: true) as $component) {
+            if (! $component instanceof Component) {
+                continue;
+            }
+
+            $own = $component->getStatePath(false);
+
+            if (filled($own)) {
+                $inputs[$prefix . $own] = $component;
+            }
+
+            if (! $component instanceof FormField) {
+                foreach ($component->getChildSchemas(withHidden: true) as $child) {
+                    $inputs = [...$inputs, ...self::inputsOf($child, filled($own) ? "{$prefix}{$own}." : $prefix)];
+                }
+            }
+        }
+
+        return $inputs;
     }
 
     public static function table(Table $table): Table
@@ -172,29 +251,47 @@ final class EntryResource extends FilamentResource
                 ->defaultSort(fn (EntryBuilder $query): Builder => $query->ordered());
         }
 
-        $hierarchical = self::type()->isHierarchical();
-
-        if ($hierarchical) {
+        if (self::type()->isHierarchical()) {
             $table->modifyQueryUsing(fn (EntryBuilder $query, ListEntries $livewire): EntryBuilder => $query->where('parent_id', $livewire->parent));
         }
 
+        $entryTable = self::plugin()->entryTable(self::type());
+
         return $table
-            ->columns([
-                TextColumn::make('title')
-                    ->label(__('kami::admin.fields.title'))
-                    ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
-                        ->whereIn('locale', [Site::current()->defaultLocale(), '*'])
-                        ->where('title', 'like', "%{$search}%"))),
-                ...array_map(self::stateColumn(...), self::locales() ?: ['*']),
-                TextColumn::make('published_at')
-                    ->label(__('kami::admin.fields.published_at'))
-                    ->dateTime()
-                    ->timezone(Site::current()->timezone),
-            ])
-            ->recordActions([
-                ...($hierarchical ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))] : []),
-                EditAction::make(),
-            ]);
+            ->columns($entryTable->columns())
+            ->filters($entryTable->filters())
+            ->recordActions($entryTable->recordActions())
+            ->toolbarActions($entryTable->toolbarActions());
+    }
+
+    /** @return list<TextColumn> */
+    public static function columns(): array
+    {
+        return [
+            TextColumn::make('title')
+                ->label(__('kami::admin.fields.title'))
+                // Every cell links to the record: an empty one would be a link with no name (WCAG 2.4.4). Not `placeholder()`, whose grey fails contrast (WCAG 1.4.3).
+                ->default(__('kami::admin.fields.untitled'))
+                ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
+                    ->whereIn('locale', [Site::current()->defaultLocale(), '*'])
+                    ->where('title', 'like', "%{$search}%"))),
+            ...array_map(self::stateColumn(...), self::locales() ?: ['*']),
+            TextColumn::make('published_at')
+                ->label(__('kami::admin.fields.published_at'))
+                // A Draft has no date, so no link either: an empty one would have no name (WCAG 2.4.4).
+                ->disabledClick()
+                ->dateTime()
+                ->timezone(Site::current()->timezone),
+        ];
+    }
+
+    /** @return list<Action> */
+    public static function recordActions(): array
+    {
+        return [
+            ...(self::type()->isHierarchical() ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))] : []),
+            EditAction::make(),
+        ];
     }
 
     public static function getPages(): array
@@ -297,6 +394,13 @@ final class EntryResource extends FilamentResource
                     throw ValidationException::withMessages(['mountedActions.0.data.title' => Arr::flatten($exception->errors())]);
                 }
             });
+    }
+
+    public static function plugin(): KamiPlugin
+    {
+        $plugin = Filament::getPlugin('kami');
+
+        return $plugin instanceof KamiPlugin ? $plugin : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
     }
 
     /** The Parent the request's `?parent=` names, or null; 404 when the type or the Site has no such Parent. */
@@ -534,8 +638,7 @@ final class EntryResource extends FilamentResource
                 : RepeaterInput::make($field->handle)->label($label)->helperText($help)->schema($children)->default($default)->defaultItems(0)->reorderableWithButtons();
         }
 
-        $plugin = Filament::getPlugin('kami');
-        $component = $plugin instanceof KamiPlugin ? $plugin->component($field) : throw new LogicException('EntryResource is served by a panel with KamiPlugin.');
+        $component = self::plugin()->component($field);
         $component->label($label)->helperText($help);
 
         $component->default($default);
