@@ -7,7 +7,7 @@ namespace Psyao\Kami\Content\Fields;
 /** Several lines of plain text. */
 final class Textarea extends Field
 {
-    use ReadsInlineMarkdown;
+    use TakesInlineMarkdown;
 
     /** @internal */
     #[\Override]

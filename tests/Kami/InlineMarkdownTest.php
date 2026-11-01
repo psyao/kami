@@ -90,7 +90,11 @@ it('keeps only emphasis, strong, inline code and safe links', function (string $
     'emphasis in a refused link' => ['[*a*](tel:+41)', '<em>a</em>'],
     'image' => ['![a](https://example.test/i.png)', 'a'],
     'image in a link' => ['[![a](https://example.test/i.png)](https://example.test)', '<a href="https://example.test">a</a>'],
-    'strikethrough' => ['~~a~~', 'a'],
+    'strikethrough' => ['~~a~~', '~~a~~'],
+    'bare web address' => ['www.example.test', 'www.example.test'],
+    'bare URL' => ['https://example.test', 'https://example.test'],
+    'angle autolink' => ['<https://example.test>', '<a href="https://example.test">https://example.test</a>'],
+    'table' => ["| a |\n|---|", "| a |\n|---|"],
     'no block' => ['# a', '# a'],
 ]);
 
@@ -105,6 +109,7 @@ it('breaks a Textarea\'s lines, and leaves a Text\'s alone', function (Text | Te
 })->with([
     'Textarea' => [Textarea::make('summary'), "*a*\nb", "<em>a</em><br>\nb"],
     'Textarea, CRLF' => [Textarea::make('summary'), "a\r\nb", "a<br>\nb"],
+    'Textarea, a blank line' => [Textarea::make('summary'), "*a*\n\nb", "<em>a</em><br>\n<br>\nb"],
     'Textarea, one line' => [Textarea::make('summary'), 'a', 'a'],
     'Textarea, a hard break stays one' => [Textarea::make('summary'), "a  \nb", "a<br />\nb"],
     'Text' => [Text::make('summary'), "a\nb", "a\nb"],

@@ -9,12 +9,11 @@ use League\CommonMark\Event\DocumentParsedEvent;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 use League\CommonMark\Extension\ExtensionInterface;
-use League\CommonMark\Extension\Strikethrough\Strikethrough;
 
 /**
- * @internal
+ * Reduces to their content what CommonMark keeps and ADR 0016 does not: an image, and a link outside `http`, `https` and `mailto`. Its `allow_unsafe_links` lets `tel`, `ftp` and relative links through.
  *
- * Reduces to their content what `Str::inlineMarkdown` keeps and ADR 0016 does not: an image, a strikethrough and a link outside `http`, `https` and `mailto`. CommonMark's `allow_unsafe_links` lets `tel`, `ftp` and relative links through.
+ * @internal
  */
 final class InlineMarkdownAllowList implements ExtensionInterface
 {
@@ -22,7 +21,7 @@ final class InlineMarkdownAllowList implements ExtensionInterface
     {
         $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event): void {
             foreach (iterator_to_array($event->getDocument()->iterator(), false) as $node) {
-                if ($node instanceof Image || $node instanceof Strikethrough || ($node instanceof Link && preg_match('/^(https?|mailto):/i', $node->getUrl()) !== 1)) {
+                if ($node instanceof Image || ($node instanceof Link && preg_match('/^(https?|mailto):/i', $node->getUrl()) !== 1)) {
                     foreach (iterator_to_array($node->children(), false) as $child) {
                         $node->insertBefore($child);
                     }

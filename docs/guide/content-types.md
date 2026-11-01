@@ -264,21 +264,21 @@ Block nodes and `kami://` links survive a save, though nothing writes them from 
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 
-Text::make('subtitle')->inlineMarkdown();
-Textarea::make('summary')->inlineMarkdown();   // A newline becomes <br>.
+Text::make('hero_subtitle')->inlineMarkdown();
+Textarea::make('hero_title')->inlineMarkdown();   // A newline becomes <br>.
 ```
 
-The column and the form hold the raw text. `$entry->summary` is always an `InlineMarkdown`, even blank:
+The column and the form hold the raw text. `$entry->hero_title` is always an `InlineMarkdown`, even blank:
 
 ```blade
-<h1>{{ $entry->summary }}</h1>
+<h1>{{ $entry->hero_title }}</h1>
 
-<meta name="description" content="{{ $entry->summary->text() }}">
+<meta name="description" content="{{ $entry->hero_title->text() }}">
 ```
 
 `text()` returns its words without the syntax, and `isEmpty()` says whether there are any. A value fallen back from the default Locale renders inside a `span` carrying `lang`.
 
-Only `*emphasis*`, `**strong**`, `` `inline code` `` and links to `http`, `https` or `mailto` are kept. Raw HTML goes. An image, a strikethrough and any other link, relative ones and `tel` included, are reduced to their text: a link to a page of the site belongs in a `RichText`.
+Only `*emphasis*`, `**strong**`, `` `inline code` `` and links to `http`, `https` or `mailto` are kept. Raw HTML goes. An image and any other link, relative ones and `tel` included, are reduced to their text: a link to a page of the site belongs in a `RichText`. Any other syntax stays as typed, and a bare address is no link: write `<https://example.com>`.
 
 The method exists on these two types only. The first read of the declarations refuses such a Field inside a Repeater or a Group, whose values are read as stored, and as a condition's target.
 

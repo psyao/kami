@@ -23,7 +23,6 @@ use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\RichText\Document;
-use Psyao\Kami\Content\RichText\InlineMarkdown;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 

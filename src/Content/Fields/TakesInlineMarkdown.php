@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Fields;
 
-use Psyao\Kami\Content\RichText\InlineMarkdown;
+use Psyao\Kami\Content\InlineMarkdown;
 
 /** What `Text` and `Textarea` share, public only because they are: on another Field type, `->inlineMarkdown()` is an undefined method. */
-trait ReadsInlineMarkdown
+trait TakesInlineMarkdown
 {
     private bool $inlineMarkdown = false;
 
@@ -21,12 +21,19 @@ trait ReadsInlineMarkdown
 
     /** @internal */
     #[\Override]
+    public function isInlineMarkdown(): bool
+    {
+        return $this->inlineMarkdown;
+    }
+
+    /** @internal */
+    #[\Override]
     public function read(mixed $stored): mixed
     {
         if (! $this->inlineMarkdown) {
             return parent::read($stored);
         }
 
-        return new InlineMarkdown(is_scalar($stored) ? (string) $stored : null, $this->column() === 'text');
+        return new InlineMarkdown(is_string($stored) ? $stored : null, $this->column() === 'text');
     }
 }

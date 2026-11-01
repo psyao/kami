@@ -16,10 +16,10 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\GlobalSet;
+use Psyao\Kami\Content\InlineMarkdown;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\RichText\Document;
-use Psyao\Kami\Content\RichText\InlineMarkdown;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
 

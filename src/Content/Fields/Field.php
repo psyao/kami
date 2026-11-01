@@ -232,6 +232,12 @@ abstract class Field
     }
 
     /** @internal */
+    public function isInlineMarkdown(): bool
+    {
+        return false;
+    }
+
+    /** @internal */
     public function read(mixed $stored): mixed
     {
         return $stored === null ? null : $this->cast($stored);
