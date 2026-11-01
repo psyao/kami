@@ -82,7 +82,7 @@ abstract class Field
         return $this;
     }
 
-    /** The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet. */
+    /** The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created. */
     public function default(mixed $value): static
     {
         $this->default = $value;

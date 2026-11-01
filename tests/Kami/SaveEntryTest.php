@@ -195,7 +195,7 @@ it('records the Creator and the Last modifier, and accepts no actor', function (
         ->and([$anonymous->created_by, $anonymous->updated_by])->toBe([null, null]);
 });
 
-it('stores a Field\'s default when it creates a Translation, a Shared one only while the Entry has none, and never on update', function () {
+it('stores a Field\'s default when it creates a Translation, a Shared one only with a new Entry, and never on update', function () {
     config(['kami.types' => [ArticleWithDefaults::class]]);
     $save = fn (array $values, ?Entry $entry = null, ?string $locale = null): Entry => resolve(SaveEntry::class)->handle('article', $values, $entry, $locale);
 
@@ -209,6 +209,16 @@ it('stores a Field\'s default when it creates a Translation, a Shared one only w
         ->and(Entry::query()->withUnpublished()->inLocale('en')->find($english->id)?->summary)->toBe('To be written.')
         ->and(Entry::query()->withUnpublished()->find($entry->id)?->summary)->toBe('To be written.')
         ->and(Entry::query()->withUnpublished()->find($entry->id)?->author)->toBeNull();
+});
+
+it('stores no Shared default on an Entry that exists, even with no Shared value yet', function () {
+    $entry = resolve(SaveEntry::class)->handle('article', ['title' => 'Bonjour', 'author' => null]);
+    DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => '*'])->delete();
+    config(['kami.types' => [ArticleWithDefaults::class]]);
+
+    $english = resolve(SaveEntry::class)->handle('article', ['title' => 'Hello'], $entry, 'en');
+
+    expect(Entry::query()->withUnpublished()->inLocale('en')->find($english->id)?->author)->toBeNull();
 });
 
 it('stores a Boolean once for the whole Entry and reads it as a bool, null until given', function (mixed $given, bool $read) {

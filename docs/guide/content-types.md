@@ -210,7 +210,7 @@ A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Si
 
 `->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it. A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
 
-`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only while the Entry has no Shared value yet, so adding a Locale never overwrites one. An update never applies a default, and a value given as `null` stays `null`:
+`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`. An update never applies a default, and a value given as `null` stays `null`:
 
 ```php
 Text::make('author')->shared()->default('The newsroom'),
@@ -374,7 +374,7 @@ Textarea::make('story')->visibleWhenFilled('client'),                     // any
 A hidden Field is neither validated nor stored, not even required to publish, and takes no `default()`. `SaveEntry` applies this whoever calls it, so an import and the form give the same result:
 
 - A value given for a hidden Field is ignored, without an error.
-- A stored value is cleared as soon as its Field becomes hidden, and does not come back when the Field shows again.
+- A stored value is cleared by a save that gives the target and leaves the Field hidden, and does not come back when the Field shows again. A save that does not give the target clears nothing, so a condition declared later empties nothing until the target is next saved.
 - A Translatable Field is cleared in every Locale, since the target holds for all of them.
 
 A Boolean with no value reads as `false`, as an untouched toggle does.

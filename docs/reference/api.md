@@ -138,7 +138,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `protected function baseRules(): array`: The rules every value of this Field type passes, before those of `->rules()`.
 - `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
 - `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date`, `dateTime` or `json` (ADR 0006).
-- `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only while the Entry has none yet.
+- `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created.
 - `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
 - `public function required(): static`: Required to publish; a Draft may leave it blank.

@@ -27,6 +27,8 @@ use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Boolean;
+use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
@@ -196,6 +198,67 @@ final class ReopenedForm extends EntryForm
         }
 
         return parent::components();
+    }
+}
+
+/** An Article as it stood before a Shared default was declared. */
+final class ArticleWithoutDefault extends ContentType
+{
+    public function handle(): string
+    {
+        return 'article';
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('author')->shared()];
+    }
+}
+
+/** The same, once declared. */
+final class ArticleWithDefaultDeclaredLater extends ContentType
+{
+    public function handle(): string
+    {
+        return 'article';
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('author')->shared()->default('The newsroom')];
+    }
+}
+
+/** An Article as it stood before a condition was declared. */
+final class ArticleWithoutCondition extends ContentType
+{
+    public function handle(): string
+    {
+        return 'article';
+    }
+
+    public function fields(): array
+    {
+        return [Text::make('summary'), Text::make('author')->shared(), Boolean::make('featured'), Entries::make('related')->of(self::class)];
+    }
+}
+
+/** The same, once declared: the Entry's Fields are all hidden. */
+final class ArticleWithConditionDeclaredLater extends ContentType
+{
+    public function handle(): string
+    {
+        return 'article';
+    }
+
+    public function fields(): array
+    {
+        return [
+            Text::make('summary')->visibleWhen('featured', true),
+            Text::make('author')->shared()->visibleWhen('featured', true),
+            Boolean::make('featured'),
+            Entries::make('related')->of(self::class)->visibleWhen('featured', true),
+        ];
     }
 }
 
@@ -482,6 +545,33 @@ describe('what a Permission keeps from a User, whatever the form', function () {
         $saved = Entry::query()->inLocale('en')->withUnpublished()->findOrFail($entry->id);
 
         expect($saved->title)->toBe('Hello')->and($saved->author)->toBe('Ada Lovelace');
+    });
+
+    it('writes no Shared default declared later when a User without publish adds a Locale', function () {
+        config(['kami.types' => [ArticleWithoutDefault::class]]);
+        $entry = resolve(SaveEntry::class)->handle(ArticleWithoutDefault::class, ['title' => 'Bonjour', 'status' => 'published']);
+        config(['kami.types' => [ArticleWithDefaultDeclaredLater::class]]);
+        asWriter();
+
+        typePage('article', EditEntry::class, ['record' => $entry->id, 'locale' => 'en'])->set('data.title', 'Hello')->call('save')->assertHasNoFormErrors();
+
+        expect(Entry::query()->findOrFail($entry->id)->author)->toBeNull();
+    });
+
+    it('clears no hidden value of a published Translation when a User without publish adds a Locale', function () {
+        config(['kami.types' => [ArticleWithoutCondition::class]]);
+        $other = resolve(SaveEntry::class)->handle(ArticleWithoutCondition::class, ['title' => 'Autre', 'status' => 'published']);
+        $entry = resolve(SaveEntry::class)->handle(ArticleWithoutCondition::class, ['title' => 'Bonjour', 'summary' => 'Résumé', 'author' => 'Ada', 'related' => [$other->id], 'status' => 'published']);
+        config(['kami.types' => [ArticleWithConditionDeclaredLater::class]]);
+        asWriter();
+
+        typePage('article', EditEntry::class, ['record' => $entry->id, 'locale' => 'en'])->set('data.title', 'Hello')->call('save')->assertHasNoFormErrors();
+
+        $read = Entry::query()->findOrFail($entry->id);
+
+        expect($read->summary)->toBe('Résumé')
+            ->and($read->author)->toBe('Ada')
+            ->and($read->related->modelKeys())->toBe([$other->id]);
     });
 
     it('keeps the Parent from a User without reorder', function () {

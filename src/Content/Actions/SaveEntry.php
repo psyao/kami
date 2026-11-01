@@ -96,10 +96,10 @@ final class SaveEntry
         $relations = $contentType->relationFields();
         $references = $entry instanceof Entry && $relations !== [] ? References::stored([$entry->id], array_column($relations, 'handle'))[$entry->id] ?? [] : [];
 
-        // A new Translation starts from its Fields' defaults; a Shared Field's only while the Entry has no `'*'` row yet.
+        // A new Translation starts from its Fields' defaults; a Shared Field's only with a new Entry: on an existing one it would reach Published Translations.
         if ($writesTranslation && ! $translation->exists) {
             foreach ($fields as $handle => $field) {
-                if (! array_key_exists($handle, $values) && $field->defaultValue() !== null && ($contentType->isTranslatable($field) || ! $stored->has('*'))) {
+                if (! array_key_exists($handle, $values) && $field->defaultValue() !== null && ($contentType->isTranslatable($field) || ! $entry instanceof Entry)) {
                     $values[$handle] = $field->defaultValue();
                 }
             }
@@ -173,6 +173,11 @@ final class SaveEntry
             if (! $field->isVisibleGiven($target, $data[$target->handle])) {
                 unset($values[$field->handle]);
                 $rules = array_diff_key($rules, $field->rulesAt($field->handle, $publishing));
+
+                // Stored values go only with a save that gives the target: a User who may not change it must not empty what visitors read (ADR 0019).
+                if (! array_key_exists($target->handle, $values)) {
+                    continue;
+                }
 
                 if ($field instanceof RelationField) {
                     $clearedReferences[] = $field->handle;
