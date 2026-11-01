@@ -79,7 +79,7 @@ final class MakeTypeCommand extends Command
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $this->declaration($namespace, $name, $base));
         $this->components->info("Content Type [{$path}] created.");
-        $this->printNextSteps("{$namespace}\\{$name}", $name, $handle, $base);
+        $this->printNextSteps("{$namespace}\\{$name}", $handle, $base);
 
         return self::SUCCESS;
     }
@@ -116,9 +116,9 @@ final class MakeTypeCommand extends Command
             PHP;
     }
 
-    private function printNextSteps(string $class, string $name, string $handle, string $base): void
+    private function printNextSteps(string $class, string $handle, string $base): void
     {
-        $label = Str::headline($name);
+        $label = Str::headline(class_basename($class));
         $labels = is_a($base, Singleton::class, true) ? "['label' => '{$label}']" : "['label' => '{$label}', 'plural' => '" . Str::plural($label) . "']";
 
         $this->line('Add it to <comment>types</comment> in config/kami.php:');
