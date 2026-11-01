@@ -35,7 +35,7 @@ List it in `config/kami.php`:
 
 Every Entry has a title, a slug, a status and a publication date of its own: they are not Fields. The type adds the rest.
 
-`kami:make:type` starts one. It writes the class into `app/Content`, refuses to overwrite a file, and prints what to add elsewhere: the `config/kami.php` line, the `kami:make:migration` to run once its Fields are declared, its labels and, when it has a URL, its view. `--singleton`, `--global-set` and `--taxonomy` choose [its base](#singletons), one at most; `$routable`, `$orderable` and `$hierarchical` are yours to add:
+`kami:make:type` starts one. It writes the class into `app/Content`, refuses to overwrite a file, and prints what to add elsewhere: the `config/kami.php` line, the `kami:make:migration` to run once its Fields are declared, its labels, when it has a URL its view, and the `kami:install` that applies it all. `--singleton`, `--global-set` and `--taxonomy` choose [its base](#singletons), one at most; `$routable`, `$orderable` and `$hierarchical` are yours to add:
 
 ```bash
 php artisan kami:make:type Article

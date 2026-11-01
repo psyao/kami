@@ -35,7 +35,9 @@ it('prints the lines a site adds elsewhere, and the view only for a type with a 
         ->expectsOutputToContain($this->app->getNamespace() . 'Content\NewsItem::class,')
         ->expectsOutputToContain('php artisan kami:make:migration news_item')
         ->expectsOutputToContain("'news_item' => ['label' => 'News Item', 'plural' => 'News Items'],")
+        ->expectsOutputToContain('fields.<field>.label')
         ->expectsOutputToContain('resources/views/kami/news_item.blade.php')
+        ->expectsOutputToContain('php artisan kami:install')
         ->assertSuccessful();
 
     $this->artisan('kami:make:type', ['name' => 'Home', '--singleton' => true])
@@ -78,6 +80,8 @@ it('refuses a name that cannot be a type', function (string $name, string $messa
     'a path' => ['Blog/Post', 'not a class name'],
     'lowercase' => ['article', 'not a class name'],
     'a PHP keyword' => ['List', 'not a class name'],
+    'a name PHP reserves' => ['String', 'not a class name'],
+    'a reserved name in capitals' => ['MIXED', 'not a class name'],
     'the base it would extend' => ['ContentType', 'not a class name'],
     'too long a handle' => [str_repeat('A', 21), 'longer than 40'],
 ]);

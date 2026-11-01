@@ -29,6 +29,9 @@ use Psyao\Kami\Content\Taxonomy;
     {--taxonomy : Terms classifying other types}')]
 final class MakeTypeCommand extends Command
 {
+    /** Names PHP refuses for a class though `PhpToken` reads them as plain identifiers. */
+    private const array RESERVED = ['bool', 'false', 'float', 'int', 'iterable', 'mixed', 'never', 'null', 'object', 'parent', 'self', 'string', 'true', 'void'];
+
     public function handle(ContentTypes $types): int
     {
         $bases = array_filter([
@@ -85,6 +88,7 @@ final class MakeTypeCommand extends Command
     {
         return preg_match('/^[A-Z][A-Za-z0-9]*$/', $name) === 1
             && PhpToken::tokenize("<?php {$name}")[1]->is(T_STRING)
+            && ! in_array(strtolower($name), self::RESERVED, true)
             && $name !== class_basename($base);
     }
 
@@ -121,12 +125,15 @@ final class MakeTypeCommand extends Command
         $this->line("    {$class}::class,");
         $this->line('Declare its Fields, then write its table:');
         $this->line("    php artisan kami:make:migration {$handle}");
-        $this->line('Add its labels to lang/<locale>/kami-types.php, for each Locale:');
+        $this->line('Add its labels to lang/<locale>/kami-types.php, for each Locale, with a fields.<field>.label per Field:');
         $this->line("    '{$handle}' => {$labels},");
 
         if ($base !== GlobalSet::class) {
             $this->line('Create its view, or override render():');
             $this->line("    resources/views/kami/{$handle}.blade.php");
         }
+
+        $this->line('Run its migration and create the Entry a Singleton or a Global Set needs:');
+        $this->line('    php artisan kami:install');
     }
 }

@@ -120,7 +120,7 @@ The setup lives in `tests/Smoke/`:
 | `fpm.conf` | The host's web-only settings on top of `tests/infomaniak.ini`: 60 s `max_execution_time`, OPcache off, `display_errors` on, the 120 s wall-clock kill |
 | `httpd.conf` | Apache in front of FPM, honouring the site's `.htaccess` |
 | `install.sh` | Creates the site with the checkout as a `path` repository, then runs `kami:install` |
-| `run.sh` | Starts the stack, runs `install.sh`, builds the assets, publishes the Page, then runs the HTTP checks and the log check |
+| `run.sh` | Starts the stack, runs `install.sh`, builds the assets, seeds the starter kit's demo, publishes the Page, then runs the HTTP checks and the log check |
 
 Each milestone adds its subsystem's checks to `run.sh`.
 
