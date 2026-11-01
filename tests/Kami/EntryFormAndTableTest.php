@@ -19,6 +19,7 @@ use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\EntryForm;
 use Psyao\Kami\Admin\EntryTable;
+use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
@@ -32,6 +33,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Facades\Kami;
+use Workbench\App\Content\Article;
 use Workbench\App\Content\Page;
 use Workbench\App\Models\User;
 
@@ -175,6 +177,28 @@ final class FormNamingNoSuchField extends EntryForm
     }
 }
 
+/** A site's own date input, without the generated one's `disabled`. */
+final class OwnDateInputForm extends EntryForm
+{
+    public function components(): array
+    {
+        return array_map(fn (Component $component): Component => $component === $this->field('published_at') ? TextInput::make('published_at') : $component, parent::components());
+    }
+}
+
+/** Every input a Permission keeps from a User, opened again. */
+final class ReopenedForm extends EntryForm
+{
+    public function components(): array
+    {
+        foreach (EntryResource::type() instanceof Article ? ['published_at', 'author'] : ['parent'] as $handle) {
+            $this->field($handle)->disabled(false);
+        }
+
+        return parent::components();
+    }
+}
+
 final class CommissionTable extends EntryTable
 {
     public function columns(): array
@@ -203,8 +227,20 @@ final class PageTable extends EntryTable
 
 function projectPage(string $page, array $parameters = []): Testable
 {
+    return typePage('project', $page, $parameters);
+}
+
+function asWriter(): void
+{
+    $writer = User::forceCreate(['name' => 'Grace Hopper', 'email' => 'grace@example.test', 'password' => 'secret']);
+    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $writer->getKey(), 'role' => 'writer']);
+    test()->actingAs($writer);
+}
+
+function typePage(string $type, string $page, array $parameters = []): Testable
+{
     Filament::setCurrentPanel('admin');
-    Filament::setCurrentResourceConfigurationKey('project');
+    Filament::setCurrentResourceConfigurationKey($type);
 
     return Livewire::test($page, $parameters);
 }
@@ -350,6 +386,114 @@ describe('EntryTable', function () {
             ->assertSee('Slim')
             ->call('toggleTableReordering')
             ->assertSet('isTableReordering', true);
+    });
+});
+
+dataset('date inputs', ['generated' => [null], 'own input' => [OwnDateInputForm::class], 'reopened' => [ReopenedForm::class]]);
+
+describe('what a Permission keeps from a User, whatever the form', function () {
+    beforeEach(function () {
+        config(['kami.types' => [Article::class, Page::class], 'kami.roles.writer' => [
+            ...collect(['article', 'page'])->crossJoin(['view', 'create', 'update'])->map(fn (array $pair): string => "kami.entries.{$pair[0]}.{$pair[1]}"),
+        ]]);
+    });
+
+    it('keeps a Draft\'s publication date from a User without publish', function (?string $form) {
+        kamiPlugin()->forms(array_filter([Article::class => $form]));
+        $draft = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour']);
+        asWriter();
+
+        typePage('article', EditEntry::class, ['record' => $draft->id])
+            ->set('data.title', 'Salut')
+            ->set('data.published_at', '2020-01-01 09:00:00')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $saved = Entry::query()->withUnpublished()->findOrFail($draft->id);
+
+        expect($saved->title)->toBe('Salut')->and($saved->published_at)->toBeNull();
+    })->with('date inputs');
+
+    it('keeps the date of an Entry being created from a User without publish', function (?string $form) {
+        kamiPlugin()->forms(array_filter([Article::class => $form]));
+        asWriter();
+
+        typePage('article', CreateEntry::class)
+            ->set('data.title', 'Bonjour')
+            ->set('data.published_at', '2020-01-01 09:00:00')
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(Entry::query()->withUnpublished()->ofType('article')->sole()->published_at)->toBeNull();
+    })->with('date inputs');
+
+    it('saves the date of a User holding publish, through a site\'s own input', function () {
+        kamiPlugin()->forms([Article::class => OwnDateInputForm::class]);
+        $draft = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour']);
+
+        typePage('article', EditEntry::class, ['record' => $draft->id])
+            ->set('data.published_at', '2020-01-01 09:00:00')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        expect(Entry::query()->withUnpublished()->findOrFail($draft->id)->published_at?->toDateTimeString())->toBe('2020-01-01 09:00:00');
+    });
+
+    it('publishes now a Draft whose date a User without publish tried to set', function () {
+        kamiPlugin()->forms([Article::class => OwnDateInputForm::class]);
+        $draft = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+        $publisher = auth()->user();
+        asWriter();
+        typePage('article', EditEntry::class, ['record' => $draft->id])->set('data.published_at', '2099-01-01 09:00:00')->call('save')->assertHasNoFormErrors();
+
+        $this->actingAs($publisher);
+        typePage('article', EditEntry::class, ['record' => $draft->id])
+            ->callAction(TestAction::make('publish')->schemaComponent('form-actions', schema: 'content'))
+            ->assertHasNoFormErrors();
+
+        expect(Entry::query()->findOrFail($draft->id)->published_at->timestamp)->toBeGreaterThanOrEqual(now()->subMinute()->timestamp)->toBeLessThanOrEqual(now()->timestamp);
+    });
+
+    it('keeps a Translation published while the page is open from a User without publish', function () {
+        kamiPlugin()->forms([Article::class => ReopenedForm::class]);
+        $draft = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+        asWriter();
+        $page = typePage('article', EditEntry::class, ['record' => $draft->id])->set('data.title', 'Salut')->set('data.published_at', '2020-01-01 09:00:00');
+        resolve(SaveEntry::class)->handle(Article::class, ['status' => 'published', 'published_at' => '2026-01-01 00:00:00'], $draft);
+
+        $page->call('save')->assertForbidden();
+
+        $saved = Entry::query()->findOrFail($draft->id);
+
+        expect($saved->title)->toBe('Bonjour')->and($saved->published_at?->toDateTimeString())->toBe('2026-01-01 00:00:00');
+    });
+
+    it('keeps a Shared Field from a User without publish while another Translation is published', function () {
+        kamiPlugin()->forms([Article::class => ReopenedForm::class]);
+        $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published']);
+        asWriter();
+
+        typePage('article', EditEntry::class, ['record' => $entry->id, 'locale' => 'en'])
+            ->set('data.title', 'Hello')
+            ->set('data.author', 'Grace Hopper')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $saved = Entry::query()->inLocale('en')->withUnpublished()->findOrFail($entry->id);
+
+        expect($saved->title)->toBe('Hello')->and($saved->author)->toBe('Ada Lovelace');
+    });
+
+    it('keeps the Parent from a User without reorder', function () {
+        kamiPlugin()->forms([Page::class => ReopenedForm::class]);
+        $root = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Root'], locale: 'fr');
+        $draft = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Draft'], locale: 'fr');
+        asWriter();
+
+        typePage('page', EditEntry::class, ['record' => $draft->id])->set('data.parent', $root->id)->call('save')->assertHasNoFormErrors();
+        typePage('page', CreateEntry::class)->set('data.title', 'New')->set('data.parent', $root->id)->call('create')->assertHasNoFormErrors();
+
+        expect(Entry::query()->withUnpublished()->ofType('page')->whereNotNull('parent_id')->count())->toBe(0);
     });
 });
 
