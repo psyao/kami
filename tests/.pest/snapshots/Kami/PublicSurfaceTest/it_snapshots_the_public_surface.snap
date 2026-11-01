@@ -1,11 +1,22 @@
+class Psyao\Kami\Admin\EntryForm class
+class Psyao\Kami\Admin\EntryForm::actions() public function actions(): array
+class Psyao\Kami\Admin\EntryForm::components() public function components(): array
+class Psyao\Kami\Admin\EntryForm::field() final protected function field(string $handle): Filament\Schemas\Components\Component
+class Psyao\Kami\Admin\EntryTable class
+class Psyao\Kami\Admin\EntryTable::columns() public function columns(): array
+class Psyao\Kami\Admin\EntryTable::filters() public function filters(): array
+class Psyao\Kami\Admin\EntryTable::recordActions() public function recordActions(): array
+class Psyao\Kami\Admin\EntryTable::toolbarActions() public function toolbarActions(): array
 class Psyao\Kami\Admin\InitialsAvatarProvider final class implements Filament\AvatarProviders\Contracts\AvatarProvider
 class Psyao\Kami\Admin\InitialsAvatarProvider::get() public function get(Illuminate\Database\Eloquent\Model|Illuminate\Contracts\Auth\Authenticatable $record): string
 class Psyao\Kami\Admin\KamiPlugin final class implements Filament\Contracts\Plugin
 class Psyao\Kami\Admin\KamiPlugin::boot() public function boot(Filament\Panel $panel): void
 class Psyao\Kami\Admin\KamiPlugin::fieldComponents() public function fieldComponents(array $components): Psyao\Kami\Admin\KamiPlugin
+class Psyao\Kami\Admin\KamiPlugin::forms() public function forms(array $forms): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
+class Psyao\Kami\Admin\KamiPlugin::tables() public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class

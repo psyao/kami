@@ -17,9 +17,11 @@ use Filament\Forms\Components\Toggle;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Filament\Resources\ResourceConfiguration;
+use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Support\Assets\Css;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
+use Livewire\Component as LivewireComponent;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\ContentType;
@@ -45,6 +47,12 @@ final class KamiPlugin implements Plugin
 {
     /** @var array<class-string<Field>, Closure> */
     private array $fieldComponents = [];
+
+    /** @var array<class-string<ContentType>, class-string<EntryForm>> */
+    private array $forms = [];
+
+    /** @var array<class-string<ContentType>, class-string<EntryTable>> */
+    private array $tables = [];
 
     public static function make(): self
     {
@@ -73,6 +81,42 @@ final class KamiPlugin implements Plugin
         $this->fieldComponents = [...$this->fieldComponents, ...$components];
 
         return $this;
+    }
+
+    /**
+     * A type's own form, in place of the generated one.
+     *
+     * @param  array<class-string<ContentType>, class-string<EntryForm>>  $forms
+     */
+    public function forms(array $forms): self
+    {
+        $this->forms = [...$this->forms, ...$forms];
+
+        return $this;
+    }
+
+    /**
+     * A type's own table, in place of the generated one.
+     *
+     * @param  array<class-string<ContentType>, class-string<EntryTable>>  $tables
+     */
+    public function tables(array $tables): self
+    {
+        $this->tables = [...$this->tables, ...$tables];
+
+        return $this;
+    }
+
+    /** @internal */
+    public function entryForm(ContentType $type, HasSchemas & LivewireComponent $livewire): EntryForm
+    {
+        return new ($this->forms[$type::class] ?? EntryForm::class)($livewire);
+    }
+
+    /** @internal */
+    public function entryTable(ContentType $type): EntryTable
+    {
+        return new ($this->tables[$type::class] ?? EntryTable::class);
     }
 
     /** @internal */

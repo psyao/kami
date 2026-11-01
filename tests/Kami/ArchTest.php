@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Str;
+use Psyao\Kami\Admin\EntryForm;
+use Psyao\Kami\Admin\EntryTable;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Term;
 use Symfony\Component\Console\Command\Command;
@@ -12,6 +14,8 @@ use Symfony\Component\Console\Command\Command;
 const OPEN_CLASSES = [
     Entry::class, // a type's `$model` extends it (ADR 0007)
     Term::class, // a Taxonomy's `$model` extends it (ADR 0007)
+    EntryForm::class, // a site's own form (ADR 0007)
+    EntryTable::class, // a site's own table (ADR 0007)
 ];
 
 /**
