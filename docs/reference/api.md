@@ -51,7 +51,7 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 
 Creates or updates one Translation of an Entry: the one way content is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
 
-- `public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry`
+- `public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL, ?DateTimeInterface $updatedAt = NULL): Psyao\Kami\Content\Entry`
 
 ## `Psyao\Kami\Content\ContentType`
 

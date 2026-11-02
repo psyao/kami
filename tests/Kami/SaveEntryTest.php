@@ -221,6 +221,44 @@ it('records the Creator and the Last modifier, and accepts no actor', function (
         ->and([$anonymous->created_by, $anonymous->updated_by])->toBe([null, null]);
 });
 
+it('refuses a save over a change made since the updated_at given, in any Locale, naming the Last modifier and the time', function () {
+    $ada = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
+    $this->travelTo(CarbonImmutable::parse('2026-11-02 09:00:00', 'UTC'));
+    $entry = save(['title' => 'Bonjour'], actor: $ada);
+    $loaded = $entry->updated_at;
+
+    // The same User, in another Locale: the Entry is what is compared, whoever changed it.
+    $this->travelTo(CarbonImmutable::parse('2026-11-02 09:05:00', 'UTC'));
+    save(['title' => 'Hello'], $entry, 'en', $ada);
+
+    expect(fn () => resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Salut'], $entry, actor: $ada, updatedAt: $loaded))
+        ->toThrow(ValidationException::class, 'Ada changed this Entry on November 2, 2026 10:05 AM, after you opened it.')
+        ->and(Entry::query()->withUnpublished()->find($entry->id)?->title)->toBe('Bonjour');
+});
+
+it('checks nothing without an updated_at, and saves over the one stored', function () {
+    $entry = save(['title' => 'Bonjour']);
+    $this->travel(5)->minutes();
+    save(['title' => 'Salut'], $entry);
+
+    expect(fn () => resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Coucou'], $entry, updatedAt: Entry::query()->withUnpublished()->find($entry->id)?->updated_at))->not->toThrow(ValidationException::class)
+        ->and(Entry::query()->withUnpublished()->find($entry->id)?->title)->toBe('Coucou');
+});
+
+it('names no Last modifier for a change from code or by a deleted User', function () {
+    $grace = User::forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => 'secret']);
+    $this->travelTo(CarbonImmutable::parse('2026-11-02 09:00:00', 'UTC'));
+    $entry = save(['title' => 'Bonjour']);
+    $loaded = $entry->updated_at;
+    $this->travel(5)->minutes();
+    save(['title' => 'Salut'], $entry, actor: $grace);
+    $grace->delete();
+
+    expect(failures(fn () => resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Coucou'], $entry, updatedAt: $loaded)))->toBe(['updated_at'])
+        ->and(fn () => resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Coucou'], $entry, updatedAt: $loaded))
+        ->toThrow(ValidationException::class, 'This Entry was changed on November 2, 2026 10:05 AM, after you opened it.');
+});
+
 it('stores a Field\'s default when it creates a Translation, a Shared one only with a new Entry, and never on update', function () {
     config(['kami.types' => [ArticleWithDefaults::class]]);
     $save = fn (array $values, ?Entry $entry = null, ?string $locale = null): Entry => resolve(SaveEntry::class)->handle('article', $values, $entry, $locale);

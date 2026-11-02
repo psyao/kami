@@ -8,6 +8,10 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 - **Upgrade floor.** From 1.0, a release that squashes Kami's migrations is a major, and its section names the release a site must reach first.
 - **Security fixes.** A patch that tightens a default for security reasons is listed here too, though it breaks the rule above.
 
+## 0.4.0
+
+1. **`SaveEntry::handle()` takes a sixth argument, `updatedAt`.** It is optional, so no call changes. Passed, a save over a change made since is refused ([Concurrent edits](docs/guide/publishing.md#concurrent-edits)). Every save now also touches the Entry's `updated_at`, a save changing one Translation only too: code reading it sees more recent dates.
+
 ## 0.3.0
 
 0.3.0 is the full content model. The public surface only gains, but some behaviour tightens, so a site that relied on it can stop deploying or see a save refused. Run `kami:install` as usual: its migrations run first.

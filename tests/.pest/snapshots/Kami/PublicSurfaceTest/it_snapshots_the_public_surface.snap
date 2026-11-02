@@ -18,7 +18,7 @@ class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\K
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
 class Psyao\Kami\Admin\KamiPlugin::tables() public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Content\Actions\SaveEntry final class
-class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
+class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL, ?DateTimeInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$hierarchical protected bool $hierarchical = false
 class Psyao\Kami\Content\ContentType::$model protected ?string $model = NULL

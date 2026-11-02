@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal\EntryResource;
 
+use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
@@ -41,6 +44,10 @@ final class EditEntry extends EditRecord
     #[Locked]
     public string $locale;
 
+    /** The Entry's `updated_at` as this page loaded it or last saved it, in seconds: `SaveEntry` refuses a save over a change made since, in any Locale. */
+    #[Locked]
+    public ?int $updatedAt = null;
+
     /** Set by the Publish and Unpublish actions for the save they start; a plain save keeps the state. */
     private ?string $status = null;
 
@@ -56,6 +63,7 @@ final class EditEntry extends EditRecord
         $this->locale = $locale ?? $default;
 
         parent::mount($record ?? EntryResource::getEloquentQuery()->where('site', Site::current()->handle)->firstOrFail()->id);
+        $this->updatedAt = $this->getRecord()->updated_at?->getTimestamp();
     }
 
     /** Read in the page's Locale on every call: Livewire reloads the record on each request, which would read it in the default one. */
@@ -147,7 +155,20 @@ final class EditEntry extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Entry
     {
-        $this->record = $entry = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? []);
+        try {
+            $this->record = $entry = EntryResource::save($data, $this->getRecord(), $this->status, $this->locale, $this->data ?? [], $this->updatedAt === null ? null : CarbonImmutable::createFromTimestamp($this->updatedAt));
+        } catch (ValidationException $exception) {
+            // No input holds the Entry's date: the refusal shows on a notification, kept until dismissed.
+            $message = $exception->validator->errors()->first('data.updated_at');
+
+            if ($message !== '') {
+                Notification::make()->danger()->title($message)->persistent()->send();
+            }
+
+            throw $exception;
+        }
+
+        $this->updatedAt = $entry->updated_at?->getTimestamp();
 
         // The editor shows what was stored, not what it held: `SaveEntry` normalised it.
         if (array_filter(EntryResource::type()->flatFields(), fn (Field $field): bool => $field instanceof RichText) !== []) {
