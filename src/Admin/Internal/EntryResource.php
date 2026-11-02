@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
+use Carbon\CarbonImmutable;
 use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -193,6 +194,8 @@ final class EntryResource extends FilamentResource
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish` (ADR 0019); `save()` holds the rule, this shows it.
             ...($hasPublication ? [DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
+                // Live, so Publish reads Schedule as soon as a date to come is chosen.
+                ->live()
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record))] : []),
         ];
     }
@@ -559,13 +562,19 @@ final class EntryResource extends FilamentResource
             ->label($locale === '*' ? __('kami::admin.state.label') : __('kami::admin.state.label_in', ['locale' => $locale]))
             ->badge()
             ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record->translations->firstWhere('locale', $locale))))
-            ->description(function (Entry $record, TextColumn $column) use ($locale): ?string {
-                $translation = $record->translations->firstWhere('locale', $locale);
+            ->description(fn (Entry $record, TextColumn $column): ?string => self::scheduledAt($record->translations->firstWhere('locale', $locale), $column->getTable()->getDefaultDateTimeDisplayFormat()));
+    }
 
-                return self::state($translation) === 'scheduled'
-                    ? $translation?->published_at?->setTimezone(Site::current()->timezone)->translatedFormat($column->getTable()->getDefaultDateTimeDisplayFormat())
-                    : null;
-            });
+    /** A Scheduled Translation's date in the Site's time zone; null in any other state. */
+    public static function scheduledAt(?Translation $translation, string $format): ?string
+    {
+        return self::state($translation) === 'scheduled' ? $translation?->published_at?->setTimezone(Site::current()->timezone)->translatedFormat($format) : null;
+    }
+
+    /** Publish, or Schedule while the form's date, in the Site's time zone, is to come: what the click will do. */
+    public static function publishLabel(mixed $date): string
+    {
+        return (string) __(is_string($date) && $date !== '' && CarbonImmutable::parse($date, Site::current()->timezone)->isFuture() ? 'kami::admin.actions.schedule' : 'kami::admin.actions.publish');
     }
 
     /** Draft, Scheduled or Published, as visitors see the Translation now (ADR 0019), or missing. */

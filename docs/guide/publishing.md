@@ -42,9 +42,11 @@ $save->handle(Article::class, ['status' => 'draft'], $entry);                   
 - A date to come schedules: the page appears at that moment, with no task to run.
 - Unpublishing keeps `published_at`, so republishing without a date keeps the original one.
 
+After each save and each `kami:install`, Kami writes the Site's next visibility change, the earliest date a Scheduled Translation appears, to a file under `storage/framework/kami/`. Its format is internal: Kami's page cache reads it with no query to know when cached pages go stale, so nothing needs to run at that moment.
+
 ### In the admin
 
-The create form saves a Draft with **Save draft**, or publishes with **Publish**. The edit form's **Save changes** keeps the Translation's state, and **Publish** or **Unpublish** changes it. **Publish** with the publication date blank publishes now; a past date backdates, a date to come schedules. The date is entered and listed in the Site's time zone, `timezone` in `config/kami.php`, and stored in UTC. Publish and Unpublish appear only to a User with the type's `publish` Permission, and only that User may change the publication date: without it, a Scheduled Translation cannot be brought forward. Each Locale's Translation is published from its own screen, described in [Multilingual](multilingual.md#in-the-admin); **View on the site** opens its public URL while it is visible.
+The create form saves a Draft with **Save draft**, or publishes with **Publish**. The edit form's **Save changes** keeps the Translation's state, and **Publish** or **Unpublish** changes it. The edit page's subheading shows the state, Draft, Scheduled with its date, or Published. **Publish** with the publication date blank publishes now; a past date backdates; a date to come schedules, and the button then reads **Schedule**. Unpublishing a Parent hides only the Parent: its children keep answering at their own URLs, as a Path does not follow the tree yet. The date is entered and listed in the Site's time zone, `timezone` in `config/kami.php`, and stored in UTC. Publish and Unpublish appear only to a User with the type's `publish` Permission, and only that User may change the publication date: without it, a Scheduled Translation cannot be brought forward. Each Locale's Translation is published from its own screen, described in [Multilingual](multilingual.md#in-the-admin); **View on the site** opens its public URL while it is visible.
 
 ## Validation
 

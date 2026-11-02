@@ -10,10 +10,13 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\SiteSettings;
+use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Tests\Install\InstallTestCase as TestCase;
+use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 
@@ -46,6 +49,21 @@ it('installs Kami on SQLite without a terminal', function () {
         ->and(public_path('css/psyao/kami/kami.css'))->toBeFile()
         ->and(public_path('js/psyao/kami/kami.js'))->toBeFile()
         ->and(public_path('js/filament/filament/app.js'))->toBeFile();
+});
+
+it('writes the Site\'s next visibility change, which a deploy may have left stale', function () {
+    $this->bootWithTypes([Article::class]);
+    $this->app->useStoragePath($storage = temporaryPath());
+    File::ensureDirectoryExists($storage);
+    install()->assertSuccessful();
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => '2099-01-01 09:00']);
+    File::deleteDirectory("{$storage}/framework/kami");
+
+    install()->assertSuccessful();
+
+    expect(Visibility::nextChangeAt(Site::current())?->toIso8601String())->toBe('2099-01-01T09:00:00+00:00');
+
+    File::deleteDirectory($storage);
 });
 
 it('creates a missing SQLite file, as on a first deploy from git', function () {

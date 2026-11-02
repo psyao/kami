@@ -28,6 +28,12 @@ pest()->extend(TestCase::class)->beforeEach(function () {
 })->in('Browser');
 pest()->extend(InstallTestCase::class)->in('Install');
 
+/** A directory of the test's own, as parallel processes share the skeleton's `storage/`. */
+function temporaryPath(): string
+{
+    return sys_get_temp_dir() . '/kami-' . uniqid();
+}
+
 /** The admin's dashboard, signed in as an administrator. Filament's theme drops its transitions under reduced motion, so axe never measures a notification mid-fade. */
 function signIn(): mixed
 {

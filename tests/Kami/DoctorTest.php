@@ -51,11 +51,6 @@ beforeEach(function () {
     config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty']);
 });
 
-function temporaryPath(): string
-{
-    return sys_get_temp_dir() . '/kami-doctor-' . uniqid();
-}
-
 function withoutExtensions(string ...$missing): Doctor
 {
     return new Doctor(extensionLoaded: fn (string $extension) => ! in_array($extension, $missing, true));
