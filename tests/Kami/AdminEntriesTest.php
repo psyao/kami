@@ -373,6 +373,36 @@ it('schedules at a date to come, read in the Site\'s time zone, and the front wa
     $this->get('/articles/bonjour')->assertOk();
 });
 
+it('shows the edit page\'s state, a Scheduled one\'s date in the Site\'s time zone', function () {
+    $this->travelTo('2026-10-28 10:00:00');
+    $save = fn (array $values) => resolve(SaveEntry::class)->handle(Article::class, [...$values, 'author' => 'Ada Lovelace']);
+    $subheading = fn (Entry $entry): ?string => entryPage(EditEntry::class, parameters: ['record' => $entry->id])->instance()->getSubheading();
+
+    expect($subheading($save(['title' => 'Brouillon'])))->toBe('Translation: FR · Draft')
+        ->and($subheading($save(['title' => 'Programmé', 'status' => 'published', 'published_at' => '2026-10-29 08:00:00'])))->toBe('Translation: FR · Scheduled for Oct 29, 2026 09:00:00')
+        ->and($subheading($save(['title' => 'Publié', 'status' => 'published'])))->toBe('Translation: FR · Published');
+});
+
+it('reads Schedule while the date given is to come, then shows the Translation Scheduled', function () {
+    $this->travelTo('2026-10-28 10:00:00');
+    entryPage(CreateEntry::class)
+        ->assertActionHasLabel(formAction('publish'), 'Publish')
+        ->fillForm(['published_at' => '2026-10-28 12:30:00'])
+        ->assertActionHasLabel(formAction('publish'), 'Schedule');
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        // Zurich is UTC+1 on 28 October: 11:00 there.
+        ->fillForm(['published_at' => '2026-10-28 11:30:00'])
+        ->assertActionHasLabel(formAction('publish'), 'Schedule')
+        ->fillForm(['published_at' => '2026-10-28 10:30:00'])
+        ->assertActionHasLabel(formAction('publish'), 'Publish')
+        ->fillForm(['published_at' => '2026-10-28 12:30:00'])
+        ->callAction(formAction('publish'))
+        ->assertHasNoFormErrors()
+        ->assertSee('Scheduled for Oct 28, 2026 12:30:00');
+});
+
 it('backdates, keeping the date given', function () {
     entryPage(CreateEntry::class)
         ->fillForm(['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'published_at' => '2020-01-01 09:00:00'])

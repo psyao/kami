@@ -86,9 +86,18 @@ final class EditEntry extends EditRecord
         return EntryResource::cancelToLevel(parent::getCancelFormAction(), fn (): ?string => $this->getRecord()->parent_id);
     }
 
-    public function getSubheading(): ?string
+    /** The Locale edited and its Translation's state, read on every render: a save changes it. */
+    public function getSubheading(): string
     {
-        return EntryResource::locales() === [] ? null : (string) __('kami::admin.locale', ['locale' => $this->locale]);
+        $translation = $this->getRecord()->translations->whereIn('locale', [$this->locale, '*'])->first();
+        $scheduledAt = EntryResource::scheduledAt($translation, $this->form->getDefaultDateTimeDisplayFormat());
+        $state = match (true) {
+            $scheduledAt !== null => __('kami::admin.state.scheduled_at', ['date' => $scheduledAt]),
+            ! $translation instanceof Translation => __('kami::admin.state.no_translation'),
+            default => __('kami::admin.state.' . EntryResource::state($translation)),
+        };
+
+        return implode(' · ', [...(EntryResource::locales() === [] ? [] : [__('kami::admin.locale', ['locale' => $this->locale])]), $state]);
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -189,6 +198,7 @@ final class EditEntry extends EditRecord
         return [
             $this->getSaveFormAction(),
             $this->statusAction('publish', Translation::PUBLISHED)->visible(fn (): bool => $this->getRecord()->status !== Translation::PUBLISHED),
+            // ponytail: no confirmation listing a Parent's children, as none becomes unreachable while Paths ignore ancestors; #266 adds it with M10's hierarchical URLs.
             $this->statusAction('unpublish', Translation::DRAFT)->visible(fn (): bool => $this->getRecord()->status === Translation::PUBLISHED),
             $this->getCancelFormAction(),
         ];
@@ -197,7 +207,7 @@ final class EditEntry extends EditRecord
     private function statusAction(string $name, string $status): Action
     {
         return Action::make($name)
-            ->label(__("kami::admin.actions.{$name}"))
+            ->label(fn (): string => $name === 'publish' ? EntryResource::publishLabel($this->data['published_at'] ?? null) : __("kami::admin.actions.{$name}"))
             ->authorize(fn (): bool => EntryResource::can('publish', $this->getRecord()))
             ->action(function () use ($status): void {
                 $this->status = $status;

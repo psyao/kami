@@ -58,7 +58,7 @@ final class CreateEntry extends CreateRecord
         return [
             $this->getCreateFormAction()->label(__('kami::admin.actions.save_draft')),
             Action::make('publish')
-                ->label(__('kami::admin.actions.publish'))
+                ->label(fn (): string => EntryResource::publishLabel($this->data['published_at'] ?? null))
                 ->authorize(fn (): bool => EntryResource::can('publish'))
                 ->action(function (): void {
                     $this->status = Translation::PUBLISHED;

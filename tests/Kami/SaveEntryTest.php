@@ -7,13 +7,16 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
 use Workbench\App\Content\Label;
@@ -181,6 +184,29 @@ it('schedules, backdates, unpublishes and republishes as ADR 0019 states', funct
 
     $this->get('/articles/later')->assertNotFound();
     $this->get('/articles/earlier')->assertOk();
+});
+
+it('writes the Site\'s next visibility change after each save, read with no query', function () {
+    $this->freezeSecond();
+    $this->app->useStoragePath($storage = temporaryPath());
+    $site = Site::current();
+
+    $later = save(['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addWeek()]);
+    $sooner = save(['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()]);
+    save(['title' => 'Draft', 'author' => 'Ada', 'published_at' => now()->addHour()]);
+    save(['title' => 'Now', 'author' => 'Ada', 'status' => 'published']);
+
+    DB::enableQueryLog();
+    expect(Visibility::nextChangeAt($site)?->toIso8601String())->toBe(now()->addDay()->toIso8601String())
+        ->and(DB::getQueryLog())->toBeEmpty();
+
+    save(['status' => 'draft'], $sooner);
+    expect(Visibility::nextChangeAt($site)?->toIso8601String())->toBe(now()->addWeek()->toIso8601String());
+
+    save(['status' => 'draft'], $later);
+    expect(Visibility::nextChangeAt($site))->toBeNull();
+
+    File::deleteDirectory($storage);
 });
 
 it('records the Creator and the Last modifier, and accepts no actor', function () {
