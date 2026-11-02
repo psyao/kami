@@ -6,6 +6,7 @@ namespace Psyao\Kami\Admin\Internal;
 
 use Carbon\CarbonImmutable;
 use Closure;
+use DateTimeInterface;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
@@ -29,6 +30,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -488,8 +491,9 @@ final class EntryResource extends FilamentResource
      *
      * @param  array<string, mixed>  $data
      * @param  array<string, mixed>  $state  The form's raw state, whose rows the errors must name.
+     * @param  DateTimeInterface|null  $updatedAt  The Entry's `updated_at` as the page loaded it: `SaveEntry` refuses a save over a change made since.
      */
-    public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null, array $state = []): Entry
+    public static function save(array $data, ?Entry $entry = null, ?string $status = null, ?string $locale = null, array $state = [], ?DateTimeInterface $updatedAt = null): Entry
     {
         $isNew = $entry?->translations->whereIn('locale', [$locale, '*'])->isEmpty() ?? true;
 
@@ -499,7 +503,7 @@ final class EntryResource extends FilamentResource
         }
 
         try {
-            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...array_diff_key($data, array_flip(self::keptFromUser($entry))), ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user());
+            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...array_diff_key($data, array_flip(self::keptFromUser($entry))), ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt);
         } catch (ValidationException $exception) {
             $errors = [];
 
@@ -509,6 +513,16 @@ final class EntryResource extends FilamentResource
 
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /** The panel's name for the User of a key, `null` for none or a User deleted since: the Last modifier `SaveEntry`'s refusal names, through `PluginRegistration`. */
+    public static function userName(int | string | null $key): ?string
+    {
+        $guard = Filament::auth();
+        // ponytail: a panel guard other than a session one names nobody, as none exists in the Workbench or the starter kit; V1 reads its provider if a friction shows one.
+        $user = $key !== null && $guard instanceof SessionGuard ? $guard->getProvider()->retrieveById($key) : null;
+
+        return $user instanceof Authenticatable ? Filament::getUserName($user) : null;
     }
 
     /**

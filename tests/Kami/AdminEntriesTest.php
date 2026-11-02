@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Filament\Actions\Testing\TestAction;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
@@ -627,6 +628,30 @@ it('adds English from the French screen, each Locale publishing on its own', fun
 
     $this->get('/articles/bonjour')->assertNotFound();
     $this->get('/en/articles/hello')->assertOk();
+});
+
+it('refuses a save over another editor\'s, from any Locale\'s screen, naming them on a notification, and saves again from its own', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-11-02 09:00:00', 'UTC'));
+    entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour'])->call('create');
+    $french = entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id]);
+    $english = entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en']);
+
+    // Minutes apart, so the second save checks the date the first one wrote.
+    $this->travel(1)->minutes();
+    $french->fillForm(['title' => 'Salut'])->call('save')->assertHasNoFormErrors();
+    $this->travel(1)->minutes();
+    $french->fillForm(['title' => 'Coucou'])->call('save')->assertHasNoFormErrors();
+
+    $this->travel(3)->minutes();
+    $grace = User::forceCreate(['name' => 'Grace Hopper', 'email' => 'grace@example.test', 'password' => 'secret']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Allô'], onlyEntry(), actor: $grace);
+
+    $english->fillForm(['title' => 'Hello'])
+        ->call('save')
+        ->assertHasFormErrors(['updated_at'])
+        ->assertNotified('Grace Hopper changed this Entry on November 2, 2026 10:05 AM, after you opened it. Nothing was saved: reload the page to see the changes.');
+
+    expect(onlyEntry()->translations->pluck('title', 'locale')->all())->toBe(['fr' => 'Allô']);
 });
 
 it('saves a Shared Field once, whichever Locale\'s screen changes it', function () {

@@ -24,4 +24,11 @@ final class PluginRegistration
      * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>}>
      */
     public array $panels = [];
+
+    /**
+     * The panel's name for the User of a key, `null` for a User deleted since: what `SaveEntry`'s refusals name. Unset with no panel.
+     *
+     * @var (Closure(int|string): ?string)|null
+     */
+    public ?Closure $userName = null;
 }

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RelationField;
@@ -42,6 +43,7 @@ use Psyao\Kami\Sites\Internal\Site;
  * @property-read string|null $parent_id Its Parent's id, on a hierarchical type.
  * @property-read int|string|null $created_by The Creator's User key.
  * @property-read int|string|null $updated_by The Last modifier's User key.
+ * @property-read Carbon|null $updated_at When it was last saved, in any Locale: `SaveEntry` refuses a save over a change made since the one its caller loaded.
  */
 #[ScopedBy(Visibility::class)]
 #[UseEloquentBuilder(EntryBuilder::class)]

@@ -22,6 +22,11 @@ return [
 
     'locale_state' => ':LOCALE · :state',
 
+    'changed_since' => [
+        'named' => ':name changed this Entry on :time, after you opened it. Nothing was saved: reload the page to see the changes.',
+        'unnamed' => 'This Entry was changed on :time, after you opened it. Nothing was saved: reload the page to see the changes.',
+    ],
+
     'state' => [
         'label' => 'State',
         'label_in' => 'State (:LOCALE)',

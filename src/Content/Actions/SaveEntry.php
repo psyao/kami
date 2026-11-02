@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Actions;
 
 use Closure;
+use DateTimeInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
@@ -33,6 +34,7 @@ use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
+use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 
 /**
  * Creates or updates one Translation of an Entry: the one way content is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
@@ -47,10 +49,11 @@ final class SaveEntry
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
      * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
+     * @param  DateTimeInterface|null  $updatedAt  The Entry's `updated_at` as the caller loaded it: the save is refused, naming the Last modifier and the time, when the Entry changed since, in any Locale. Null checks nothing, for imports and the CLI.
      *
      * @throws ValidationException
      */
-    public function handle(string $type, array $values, ?Entry $entry = null, ?string $locale = null, ?Authenticatable $actor = null): Entry
+    public function handle(string $type, array $values, ?Entry $entry = null, ?string $locale = null, ?Authenticatable $actor = null, ?DateTimeInterface $updatedAt = null): Entry
     {
         $contentType = resolve(ContentTypes::class)->find($type) ?? throw new InvalidArgumentException("No Content Type [{$type}] is declared in kami.types.");
 
@@ -68,6 +71,10 @@ final class SaveEntry
         // ponytail: no database constraint, as the portable partial unique index does not exist; two concurrent first saves can both pass. The admin offers no create page, so only site code or a concurrent `kami:install` can race; V1 adds a lock if a friction shows it.
         if (! $entry instanceof Entry && $contentType instanceof Singleton && Entry::query()->withUnpublished()->ofType($contentType->handle())->where('site', $site->handle)->exists()) {
             throw ValidationException::withMessages(['type' => __('validation.unique', ['attribute' => $contentType->label()])]);
+        }
+
+        if ($entry instanceof Entry && $updatedAt instanceof DateTimeInterface) {
+            $this->refuseChangedSince($entry, $updatedAt, $site);
         }
 
         // A translatable type's `'*'` call holds no Translation: only its Shared Fields.
@@ -217,7 +224,8 @@ final class SaveEntry
 
         $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
-            $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier()]);
+            // Touched by every save, one changing a Translation only too: the concurrent-edit check reads it.
+            $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()]);
 
             if (array_key_exists('parent', $values)) {
                 $entry->forceFill(['parent_id' => $values['parent']]);
@@ -291,6 +299,28 @@ final class SaveEntry
         }
 
         return $saved;
+    }
+
+    /**
+     * Refuses a save over a change made since the caller loaded the Entry, naming the Last modifier through the panel, and the time in the Site's time zone.
+     *
+     * ponytail: read with no lock, to the second the column holds, so two saves within one second can both pass; accepted in spec #241.
+     */
+    private function refuseChangedSince(Entry $entry, DateTimeInterface $updatedAt, Site $site): void
+    {
+        $stored = Entry::query()->withUnpublished()->without('translations')->findOrFail($entry->id, ['id', 'updated_at', 'updated_by']);
+
+        if ($stored->updated_at?->getTimestamp() === $updatedAt->getTimestamp()) {
+            return;
+        }
+
+        $resolve = resolve(PluginRegistration::class)->userName;
+        $name = $stored->updated_by === null || $resolve === null ? null : $resolve($stored->updated_by);
+
+        throw ValidationException::withMessages(['updated_at' => __('kami::admin.changed_since.' . ($name === null ? 'unnamed' : 'named'), [
+            'name' => $name,
+            'time' => $stored->updated_at?->setTimezone($site->timezone)->isoFormat('LLL'),
+        ])]);
     }
 
     /**
