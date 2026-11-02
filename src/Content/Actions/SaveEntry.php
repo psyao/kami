@@ -304,7 +304,7 @@ final class SaveEntry
     /**
      * Refuses a save over a change made since the caller loaded the Entry, naming the Last modifier through the panel, and the time in the Site's time zone.
      *
-     * ponytail: read with no lock, to the second the column holds, so two saves within one second can both pass; accepted in spec #241.
+     * ponytail: read with no lock, to the second the column holds, so two saves within one second can both pass (spec #241); V1 adds a version column if a friction shows it.
      */
     private function refuseChangedSince(Entry $entry, DateTimeInterface $updatedAt, Site $site): void
     {
