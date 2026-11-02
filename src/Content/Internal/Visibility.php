@@ -75,6 +75,7 @@ final class Visibility implements Scope
         });
     }
 
+    // ponytail: a file of its own per Site; M7's page cache manifest takes it over, as ADR 0021 makes them one file.
     private static function nextChangePath(Site $site): string
     {
         return storage_path("framework/kami/visibility-{$site->handle}.json");

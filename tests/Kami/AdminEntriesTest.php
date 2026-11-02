@@ -1160,8 +1160,10 @@ describe('a Singleton in the admin', function () {
 });
 
 describe('a Global Set in the admin', function () {
-    it('shows no publication controls and no title, and its save applies', function () {
+    it('shows no publication controls, no state and no title, and its save applies', function () {
         resolve(SaveEntry::class)->handle(Footer::class, [], locale: 'fr');
+
+        expect(entryPage(EditEntry::class, 'footer')->instance()->getSubheading())->toBe('Translation: FR');
 
         entryPage(EditEntry::class, 'footer')
             ->assertFormFieldDoesNotExist('title')

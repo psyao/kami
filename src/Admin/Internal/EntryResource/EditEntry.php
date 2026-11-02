@@ -86,9 +86,15 @@ final class EditEntry extends EditRecord
         return EntryResource::cancelToLevel(parent::getCancelFormAction(), fn (): ?string => $this->getRecord()->parent_id);
     }
 
-    /** The Locale edited and its Translation's state, read on every render: a save changes it. */
-    public function getSubheading(): string
+    /** The Locale edited and its Translation's state, read on every render: a save changes it. A Global Set, always published, shows its Locale only. */
+    public function getSubheading(): ?string
     {
+        $locale = EntryResource::locales() === [] ? null : (string) __('kami::admin.locale', ['locale' => $this->locale]);
+
+        if (EntryResource::type() instanceof GlobalSet) {
+            return $locale;
+        }
+
         $translation = $this->getRecord()->translations->whereIn('locale', [$this->locale, '*'])->first();
         $scheduledAt = EntryResource::scheduledAt($translation, $this->form->getDefaultDateTimeDisplayFormat());
         $state = match (true) {
@@ -97,7 +103,7 @@ final class EditEntry extends EditRecord
             default => __('kami::admin.state.' . EntryResource::state($translation)),
         };
 
-        return implode(' · ', [...(EntryResource::locales() === [] ? [] : [__('kami::admin.locale', ['locale' => $this->locale])]), $state]);
+        return implode(' · ', array_filter([$locale, $state]));
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -197,7 +203,9 @@ final class EditEntry extends EditRecord
 
         return [
             $this->getSaveFormAction(),
-            $this->statusAction('publish', Translation::PUBLISHED)->visible(fn (): bool => $this->getRecord()->status !== Translation::PUBLISHED),
+            $this->statusAction('publish', Translation::PUBLISHED)
+                ->label(fn (): string => EntryResource::publishLabel($this->data['published_at'] ?? null))
+                ->visible(fn (): bool => $this->getRecord()->status !== Translation::PUBLISHED),
             // ponytail: no confirmation listing a Parent's children, as none becomes unreachable while Paths ignore ancestors; #266 adds it with M10's hierarchical URLs.
             $this->statusAction('unpublish', Translation::DRAFT)->visible(fn (): bool => $this->getRecord()->status === Translation::PUBLISHED),
             $this->getCancelFormAction(),
@@ -207,7 +215,7 @@ final class EditEntry extends EditRecord
     private function statusAction(string $name, string $status): Action
     {
         return Action::make($name)
-            ->label(fn (): string => $name === 'publish' ? EntryResource::publishLabel($this->data['published_at'] ?? null) : __("kami::admin.actions.{$name}"))
+            ->label(__("kami::admin.actions.{$name}"))
             ->authorize(fn (): bool => EntryResource::can('publish', $this->getRecord()))
             ->action(function () use ($status): void {
                 $this->status = $status;

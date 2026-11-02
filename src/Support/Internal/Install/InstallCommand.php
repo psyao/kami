@@ -94,6 +94,7 @@ final class InstallCommand extends Command
         }
 
         // A deploy may bring dates, a database or a storage/ the file has not seen.
+        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite writes every Site's.
         Visibility::writeNextChange(Site::current());
 
         // ponytail: Kami keeps no cache until M7; clearing them (the Content version bump, ADR 0021) lands here in M7.
