@@ -69,11 +69,15 @@ final class RichText extends Field
     /**
      * @internal
      *
-     * A document holding nothing is `null`, so `required()` and the Fallback read it as blank.
+     * A document holding nothing is `null`, so `required()` and the Fallback read it as blank. A `Document`, from `Document::fromHtml()` for instance, is normalised as its content.
      */
     #[\Override]
     public function normalise(mixed $value): mixed
     {
+        if ($value instanceof Document) {
+            $value = $value->content() ?? [];
+        }
+
         if (! is_array($value)) {
             return parent::normalise($value);
         }

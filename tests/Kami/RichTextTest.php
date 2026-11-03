@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -82,6 +83,11 @@ function para(string $text): array
 function linkedPara(string $href, string $text = 'link'): array
 {
     return ['type' => 'paragraph', 'content' => [txt($text, ['type' => 'link', 'attrs' => ['href' => $href]])]];
+}
+
+function heading(int $level, string $text): array
+{
+    return ['type' => 'heading', 'attrs' => ['level' => $level], ...($text === '' ? [] : ['content' => [txt($text)]])];
 }
 
 function aBlock(): array
@@ -224,6 +230,39 @@ it('normalises a document against the allowed set', function (array $given, ?arr
     'a rule alone is null' => [doc(['type' => 'horizontalRule']), null],
     'an empty heading among text stays' => [doc(['type' => 'heading', 'attrs' => ['level' => 2]], para('a')), doc(['type' => 'heading', 'attrs' => ['level' => 2]], para('a'))],
     'something else than a document is null' => [['foo' => 'bar'], null],
+]);
+
+it('imports HTML into a normalised document', function (string $html, ?array $stored) {
+    $field = RichText::make('body')->code();
+
+    expect(saveProse(Document::fromHtml($html, $field), $field))->toEqual($stored);
+})->with([
+    'a heading outside the set takes the nearest level' => ['<h1>Title</h1>', doc(['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [txt('Title')]])],
+    'bare text wrapped in list items and quotes' => [
+        "<ul>\n  <li>one <b>two</b></li>\n  <li><p>three</p></li>\n</ul><blockquote>said</blockquote>",
+        doc(
+            ['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [['type' => 'paragraph', 'content' => [txt('one '), txt('two', ['type' => 'bold'])]]]], ['type' => 'listItem', 'content' => [para('three')]]]],
+            ['type' => 'blockquote', 'content' => [para('said')]],
+        ),
+    ],
+    'unknown blocks as paragraphs, their words apart' => ['bare<div>in <span>div</span></div><table><tr><td>a</td><td>b</td></tr></table>', doc(para('bare'), para('in div'), para('a'), para('b'))],
+    'a script, a style and an image leave nothing' => ['<p>a</p><script>alert(1)</script><style>p{}</style><img src="x.png" alt="x">', doc(para('a'))],
+    'a code block with its language' => ['<pre><code class="language-php">echo 1;' . "\n" . '  exit;</code></pre>', doc(['type' => 'codeBlock', 'attrs' => ['language' => 'php'], 'content' => [txt("echo 1;\n  exit;")]])],
+    'a kami:// link kept' => ['<p><a href="kami://entry/01J">in</a></p>', doc(linkedPara('kami://entry/01J', 'in'))],
+    'an unsafe link reduced to its text' => ['<p><a href="javascript:alert(1)">link</a></p>', doc(para('link'))],
+    'a Block marker' => [<<<'HTML'
+        <p>a</p><kami-block handle="gallery" data='{"items":["01J"]}'></kami-block>
+        HTML, doc(para('a'), aBlock())],
+    'a Block marker with no data' => ['<kami-block handle="gallery"></kami-block>', doc(['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => []]])],
+    'nothing is null' => ['<p> </p>', null],
+]);
+
+it('refuses a malformed Block marker, naming it', function (string $marker) {
+    expect(fn () => Document::fromHtml($marker, RichText::make('body')))->toThrow(InvalidArgumentException::class, 'kami-block');
+})->with([
+    'no handle' => ['<kami-block data="{}"></kami-block>'],
+    'data no JSON' => ['<kami-block handle="gallery" data="{items"></kami-block>'],
+    'data no object' => ['<kami-block handle="gallery" data="1"></kami-block>'],
 ]);
 
 it('keeps a safe link and reduces any other to its text', function (string $href, bool $kept) {
@@ -475,6 +514,49 @@ it('shows what was stored once saved', function () {
 
     expect(array_column($page->get('data.body')['content'], 'type'))->toBe(['paragraph', 'paragraph'])
         ->and($page->get('data.body')['content'][0]['content'][0])->not->toHaveKey('marks');
+});
+
+it('reminds of accessibility issues on save without stopping it', function (array $body, array $reminders) {
+    $entry = savedArticle(['body' => doc(para('a'))]);
+
+    editorPage(['record' => $entry->id])
+        ->set('data.body', $body)
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertNotified(Notification::make()->warning()->persistent()->title('Accessibility reminders for Body')->body('<ul><li>' . implode('</li><li>', $reminders) . '</li></ul>'));
+
+    expect($entry->fresh()->body->text())->toContain('b');
+})->with([
+    'a skipped level from the title' => [doc(heading(3, 'b')), ['A heading goes from H1 to H3, skipping a level.']],
+    'a skipped level between headings, in a quote' => [doc(heading(2, 'a'), ['type' => 'blockquote', 'content' => [heading(4, 'b')]]), ['A heading goes from H2 to H4, skipping a level.']],
+    'empty headings, once' => [doc(heading(2, ''), para('b'), heading(2, ' ')), ['A heading is empty.']],
+    'a link with no text, beside text' => [doc(['type' => 'paragraph', 'content' => [txt('b '), txt(' ', ['type' => 'link', 'attrs' => ['href' => 'https://a.test']])]]), ['A link has no text.']],
+    'all three' => [
+        doc(heading(2, ''), heading(4, 'b'), linkedPara('https://a.test', ' ')),
+        ['A heading is empty.', 'A heading goes from H2 to H4, skipping a level.', 'A link has no text.'],
+    ],
+]);
+
+it('reminds of nothing for a sound document', function () {
+    $entry = savedArticle(['body' => doc(para('a'))]);
+    $bold = ['type' => 'bold'];
+
+    editorPage(['record' => $entry->id])
+        ->set('data.body', doc(heading(2, 'a'), heading(3, 'b'), heading(2, 'c'), ['type' => 'paragraph', 'content' => [txt('d', ['type' => 'link', 'attrs' => ['href' => 'https://a.test']]), txt(' ', $bold, ['type' => 'link', 'attrs' => ['href' => 'https://a.test']])]]))
+        ->call('save')
+        ->assertHasNoFormErrors()
+        ->assertNotNotified('Accessibility reminders for Body');
+});
+
+it('reminds in French on the create page', function () {
+    app()->setLocale('fr');
+    signInToPanel();
+
+    Livewire::test(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour', 'author' => 'Ada', 'body' => doc(heading(2, ''), para('a'))])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified(Notification::make()->warning()->persistent()->title('Rappels d’accessibilité pour Corps')->body('<ul><li>Un titre est vide.</li></ul>'));
 });
 
 it('gives the create form a default holding a Block as a customBlock', function () {

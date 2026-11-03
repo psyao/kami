@@ -276,6 +276,7 @@ A `RichText` Field's value, rendered at read time. `{{ $entry->body }}` outputs 
 
 - `public function blocks(?string $handle = NULL): array`: Its Blocks in order, or those of one handle.
 - `public function excerpt(int $chars = 160): string`: The start of its text, cut at a word boundary.
+- `public static function fromHtml(string $html, Psyao\Kami\Content\Fields\RichText $field): Psyao\Kami\Content\RichText\Document`: Parses HTML and normalises it against the Field, as `SaveEntry` would: bare text in a list item or a quote is wrapped, anything else not allowed is unwrapped with its text kept.
 - `public function isEmpty(): bool`: Whether it holds no text and no Block.
 - `public function text(): string`: Its words, from text nodes only: Blocks are skipped.
 - `public function toHtml(): string`: The HTML, in an element carrying `lang` when the value fell back from another Locale.

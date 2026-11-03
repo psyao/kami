@@ -123,6 +123,7 @@ class Psyao\Kami\Content\Layout::make() public static function make(string $hand
 class Psyao\Kami\Content\RichText\Document final readonly class implements Illuminate\Contracts\Support\Htmlable
 class Psyao\Kami\Content\RichText\Document::blocks() public function blocks(?string $handle = NULL): array
 class Psyao\Kami\Content\RichText\Document::excerpt() public function excerpt(int $chars = 160): string
+class Psyao\Kami\Content\RichText\Document::fromHtml() public static function fromHtml(string $html, Psyao\Kami\Content\Fields\RichText $field): Psyao\Kami\Content\RichText\Document
 class Psyao\Kami\Content\RichText\Document::isEmpty() public function isEmpty(): bool
 class Psyao\Kami\Content\RichText\Document::text() public function text(): string
 class Psyao\Kami\Content\RichText\Document::toHtml() public function toHtml(): string

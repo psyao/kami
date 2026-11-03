@@ -17,6 +17,7 @@ use Filament\Forms\Components\Repeater as RepeaterInput;
 use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Resources\ResourceConfiguration;
 use Filament\Schemas\Components\Component;
@@ -62,6 +63,7 @@ use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Layout;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Content\Taxonomy;
@@ -503,7 +505,7 @@ final class EntryResource extends FilamentResource
         }
 
         try {
-            return resolve(SaveEntry::class)->handle(self::type()->handle(), [...array_diff_key($data, array_flip(self::keptFromUser($entry))), ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt);
+            $saved = resolve(SaveEntry::class)->handle(self::type()->handle(), [...array_diff_key($data, array_flip(self::keptFromUser($entry))), ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt);
         } catch (ValidationException $exception) {
             $errors = [];
 
@@ -512,6 +514,30 @@ final class EntryResource extends FilamentResource
             }
 
             throw ValidationException::withMessages($errors);
+        }
+
+        self::remind($data);
+
+        return $saved;
+    }
+
+    /**
+     * Reminders on what was saved, kept until dismissed so the editor fixes them at their own pace (WCAG 2.2.1); they never stop a save (ADR 0016).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private static function remind(array $data): void
+    {
+        foreach (self::type()->flatFields() as $field) {
+            $value = $field instanceof RichText && array_key_exists($field->handle, $data) ? $field->normalise($data[$field->handle]) : null;
+            $reminders = is_array($value) ? RichTextInput::reminders($field, new Document($value)) : [];
+
+            if ($reminders !== []) {
+                Notification::make()->warning()->persistent()
+                    ->title(__('kami::admin.reminders.title', ['field' => self::type()->fieldLabel($field->handle)]))
+                    ->body('<ul><li>' . implode('</li><li>', array_map(e(...), $reminders)) . '</li></ul>')
+                    ->send();
+            }
         }
     }
 
