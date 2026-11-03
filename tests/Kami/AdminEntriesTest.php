@@ -379,9 +379,9 @@ it('shows the edit page\'s state, a Scheduled one\'s date in the Site\'s time zo
     $save = fn (array $values) => resolve(SaveEntry::class)->handle(Article::class, [...$values, 'author' => 'Ada Lovelace']);
     $subheading = fn (Entry $entry): ?string => entryPage(EditEntry::class, parameters: ['record' => $entry->id])->instance()->getSubheading();
 
-    expect($subheading($save(['title' => 'Brouillon'])))->toBe('Translation: FR · Draft')
-        ->and($subheading($save(['title' => 'Programmé', 'status' => 'published', 'published_at' => '2026-10-29 08:00:00'])))->toBe('Translation: FR · Scheduled for Oct 29, 2026 09:00:00')
-        ->and($subheading($save(['title' => 'Publié', 'status' => 'published'])))->toBe('Translation: FR · Published');
+    expect($subheading($save(['title' => 'Brouillon'])))->toBe('Translation: FR · Draft · Created by Nobody · Last modified by Nobody')
+        ->and($subheading($save(['title' => 'Programmé', 'status' => 'published', 'published_at' => '2026-10-29 08:00:00'])))->toBe('Translation: FR · Scheduled for Oct 29, 2026 09:00:00 · Created by Nobody · Last modified by Nobody')
+        ->and($subheading($save(['title' => 'Publié', 'status' => 'published'])))->toBe('Translation: FR · Published · Created by Nobody · Last modified by Nobody');
 });
 
 it('reads Schedule while the date given is to come, then shows the Translation Scheduled', function () {
@@ -548,6 +548,23 @@ it('shows each Locale\'s state in its own column, or one column for an untransla
         ->assertTableColumnStateSet('state', 'Published', $label);
 });
 
+it('names the Creator and Last modifier in columns hidden by default, a deleted User as nobody', function () {
+    $grace = User::forceCreate(['name' => 'Grace Hopper', 'email' => 'grace@example.test', 'password' => 'secret']);
+    $linus = User::forceCreate(['name' => 'Linus Torvalds', 'email' => 'linus@example.test', 'password' => 'secret']);
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace'], actor: $grace);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour !'], $entry, actor: $linus);
+    $orphan = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Salut', 'author' => 'Ada Lovelace'], actor: $linus);
+    $linus->delete();
+
+    entryPage(ListEntries::class)
+        ->assertCanNotRenderTableColumn('creator.name')
+        ->assertCanNotRenderTableColumn('lastModifier.name')
+        ->toggleAllTableColumns()
+        ->assertTableColumnStateSet('creator.name', 'Grace Hopper', $entry)
+        ->assertTableColumnStateSet('lastModifier.name', 'Nobody', $entry)
+        ->assertTableColumnStateSet('creator.name', 'Nobody', $orphan);
+});
+
 it('lists Entries in a fixed number of queries, whatever their number', function (int $entries) {
     for ($i = 1; $i <= $entries; $i++) {
         resolve(SaveEntry::class)->handle(Article::class, ['title' => "Article {$i}"]);
@@ -557,6 +574,20 @@ it('lists Entries in a fixed number of queries, whatever their number', function
     $this->get('/admin/articles')->assertOk()->assertSee('Article 1');
 
     expect(DB::getQueryLog())->toHaveCount(5);
+})->with([1, 10]);
+
+it('loads the Creators and Last modifiers in one query each, whatever the number of Entries', function (int $entries) {
+    for ($i = 1; $i <= $entries; $i++) {
+        $user = User::forceCreate(['name' => "User {$i}", 'email' => "user{$i}@example.test", 'password' => 'secret']);
+        resolve(SaveEntry::class)->handle(Article::class, ['title' => "Article {$i}"], actor: $user);
+    }
+
+    $page = entryPage(ListEntries::class)->toggleAllTableColumns();
+    DB::enableQueryLog();
+    $page->call('$refresh')->assertSee('User 1');
+
+    // Entries, their count, Translations, type rows, then Creators and Last modifiers.
+    expect(DB::getQueryLog())->toHaveCount(6);
 })->with([1, 10]);
 
 it('names each type in the navigation from kami-types, or from its handle', function () {
@@ -748,6 +779,22 @@ it('lists every Locale in one menu with its state, the edited one unlinked', fun
         ->assertActionHasUrl('locale_fr', url("/admin/articles/{$entry->id}/edit"))
         ->assertActionDisabled('locale_en')
         ->assertSee('EN · Scheduled');
+});
+
+it('names the Creator and Last modifier on the edit page, a deleted User as nobody, and the editor once they save', function () {
+    $grace = User::forceCreate(['name' => 'Grace Hopper', 'email' => 'grace@example.test', 'password' => 'secret']);
+    $linus = User::forceCreate(['name' => 'Linus Torvalds', 'email' => 'linus@example.test', 'password' => 'secret']);
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace'], actor: $grace);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour !'], $entry, actor: $linus);
+    $page = entryPage(EditEntry::class, parameters: ['record' => $entry->id]);
+
+    expect($page->instance()->getSubheading())->toBe('Translation: FR · Draft · Created by Grace Hopper · Last modified by Linus Torvalds');
+
+    $grace->delete();
+    $this->travel(1)->seconds();
+    $page->call('save');
+
+    expect($page->instance()->getSubheading())->toBe('Translation: FR · Draft · Created by Nobody · Last modified by Ada Lovelace');
 });
 
 it('shows the new state in the menu after publishing from the page', function () {
@@ -1188,7 +1235,7 @@ describe('a Global Set in the admin', function () {
     it('shows no publication controls, no state and no title, and its save applies', function () {
         resolve(SaveEntry::class)->handle(Footer::class, [], locale: 'fr');
 
-        expect(entryPage(EditEntry::class, 'footer')->instance()->getSubheading())->toBe('Translation: FR');
+        expect(entryPage(EditEntry::class, 'footer')->instance()->getSubheading())->toBe('Translation: FR · Created by Nobody · Last modified by Nobody');
 
         entryPage(EditEntry::class, 'footer')
             ->assertFormFieldDoesNotExist('title')

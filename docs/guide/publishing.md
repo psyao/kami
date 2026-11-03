@@ -17,6 +17,8 @@ $entry->updated_by; // the Last modifier's, set on every save
 
 Deleting a User leaves both `null` on the Entries they touched.
 
+The admin names both as the panel names Users: under the edit page's heading, and in the **Created by** and **Last modified by** columns, hidden until shown from the table's column menu. A save from code, or a User deleted since, shows as nobody. The columns load every row's Users in one query each, and only while shown; on a panel whose Users are not Eloquent models they are left out.
+
 ## Concurrent edits
 
 Pass the Entry's `updated_at` as you loaded it, and `SaveEntry` refuses to save over a change made since, by anyone and in any Locale: the Entry is compared, and every save touches it. The `ValidationException` is on `updated_at`; its message names the Last modifier, as the panel names Users, and the time in the Site's time zone. A save from code, or by a User deleted since, names nobody.
