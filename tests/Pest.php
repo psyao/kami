@@ -60,7 +60,7 @@ function signIn(): mixed
 }
 
 /** A page of the type's Entries in the admin, for a User holding the Role, or these Permissions under a Role of their own. */
-function entriesPage(string $page, string | array $role = 'administrator', array $parameters = [], string $type = 'article'): Testable
+function entriesPage(string $page, string | array $role = 'administrator', array $parameters = [], ?string $type = 'article'): Testable
 {
     if (is_array($role)) {
         config(['kami.roles.custom' => $role]);

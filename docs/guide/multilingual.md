@@ -109,3 +109,5 @@ Shared Fields are marked as such on every screen and saved once, whichever scree
 An untranslatable type has a single screen, at the default Locale's URL, with no other Locale to reach.
 
 The list shows one state column per Locale: Draft, Scheduled with its date in the Site's time zone, Published, or Missing when the Entry has no Translation there. A row's title is the default Locale's, or the first Translation having one in the order of the Site's Locales, and the search reads every Locale's title.
+
+The admin's global search finds Entries by title or slug in every Locale, whatever the case, with one result per Translation showing its title, type and Locale and opening that Locale's screen. It lists only the types the User may list, and leaves the Trash out. Beyond unaccented letters, engines differ: SQLite tells `é` from `É`, and MySQL's default collation finds `ete` in `Été`.
