@@ -6,6 +6,9 @@ namespace Psyao\Kami\Content\RichText;
 
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\Internal\RichTextHtml;
+use Tiptap\Core\Extension;
 use Tiptap\Editor;
 use Tiptap\Marks\Bold;
 use Tiptap\Marks\Code;
@@ -34,6 +37,23 @@ final readonly class Document implements Htmlable
      */
     public function __construct(private ?array $content = null, private ?string $lang = null) {}
 
+    /**
+     * Parses HTML and normalises it against the Field, as `SaveEntry` would: bare text in a list item or a quote is wrapped, anything else not allowed is unwrapped with its text kept.
+     *
+     * It reads `<pre><code class="language-x">`, `kami://` links and `<kami-block handle="..." data='{json}'>` markers.
+     *
+     * @throws \InvalidArgumentException A `<kami-block>` with no handle, or data that is no JSON object.
+     */
+    public static function fromHtml(string $html, RichText $field): self
+    {
+        $parsed = new Editor(['extensions' => [...self::extensions(new Link(['allowedProtocols' => ['http', 'https', 'mailto', 'tel', 'kami']])), ...RichTextHtml::nodes()]])
+            ->setContent($html)
+            ->getDocument();
+        $normalised = $field->normalise($parsed);
+
+        return new self(is_array($normalised) ? $normalised : null);
+    }
+
     /** @internal */
     public function inLanguage(string $lang): self
     {
@@ -57,11 +77,7 @@ final readonly class Document implements Htmlable
             return '';
         }
 
-        $html = new Editor(['extensions' => [
-            new RootNode, new Text, new Paragraph, new Heading, new BulletList, new OrderedList, new ListItem,
-            new Blockquote, new HorizontalRule, new HardBreak, new CodeBlock,
-            new Bold, new Italic, new Code, new Link(['HTMLAttributes' => ['target' => null, 'rel' => null]]),
-        ]])->setContent($this->renderable($this->content ?? []))->getHTML();
+        $html = new Editor(['extensions' => self::extensions(new Link(['HTMLAttributes' => ['target' => null, 'rel' => null]]))])->setContent($this->renderable($this->content ?? []))->getHTML();
 
         return $this->lang === null ? $html : '<div lang="' . e($this->lang) . '">' . $html . '</div>';
     }
@@ -94,6 +110,16 @@ final readonly class Document implements Htmlable
         $blocks = $this->blocksIn($this->content['content'] ?? []);
 
         return $handle === null ? $blocks : array_values(array_filter($blocks, fn (array $block): bool => $block['handle'] === $handle));
+    }
+
+    /** @return list<Extension> */
+    private static function extensions(Link $link): array
+    {
+        return [
+            new RootNode, new Text, new Paragraph, new Heading, new BulletList, new OrderedList, new ListItem,
+            new Blockquote, new HorizontalRule, new HardBreak, new CodeBlock,
+            new Bold, new Italic, new Code, $link,
+        ];
     }
 
     /**

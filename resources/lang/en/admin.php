@@ -51,4 +51,11 @@ return [
     'rich_text' => [
         'unavailable_block' => 'Block unavailable for now: :handle',
     ],
+
+    'reminders' => [
+        'title' => 'Accessibility reminders for :field',
+        'skipped_level' => 'A heading goes from H:from to H:to, skipping a level.',
+        'empty_heading' => 'A heading is empty.',
+        'empty_link' => 'A link has no text.',
+    ],
 ];

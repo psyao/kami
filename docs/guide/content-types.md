@@ -250,11 +250,34 @@ RichText::make('body')->headings([3, 4]);   // Narrows the levels.
 
 `text()` returns its words and `excerpt($chars = 160)` their start, cut at a word boundary. `blocks($handle = null)` returns its Blocks as `{handle, data}` arrays. A value fallen back from the default Locale renders inside an element carrying `lang`.
 
-`SaveEntry` rebuilds every document against the Field, whoever calls it, so forged form state, an import and your own code end in the same clean document. An unknown node is unwrapped and its text kept. An unknown mark or attribute goes. A heading at another level takes the nearest allowed one. A link keeps its `href` only when it is `http`, `https`, `mailto`, `tel`, relative, an anchor or `kami://`, otherwise it becomes its text. A value that is not an array is refused. A document with no text and no Block is stored as `null`, so `required()` and Fallback read it as blank. A narrowed Field reaches stored documents at their next save.
+`SaveEntry` rebuilds every document against the Field, whoever calls it, so forged form state, an import and your own code end in the same clean document. An unknown node is unwrapped and its text kept. An unknown mark or attribute goes. A heading at another level takes the nearest allowed one. A link keeps its `href` only when it is `http`, `https`, `mailto`, `tel`, relative, an anchor or `kami://`, otherwise it becomes its text. A value that is neither an array nor a `Document` is refused. A document with no text and no Block is stored as `null`, so `required()` and Fallback read it as blank. A narrowed Field reaches stored documents at their next save.
 
 The first read of the declarations refuses a heading level other than 2, 3 or 4 and a `RichText` inside a Repeater or a Group, as nothing normalises a document there yet.
 
 Block nodes and `kami://` links survive a save, though nothing writes them from the admin before M10. Until then, a `kami://` link renders as its text and a Block renders nothing. The editor shows a Block as unavailable: an editor can only delete it.
+
+`Document::fromHtml($html, $field)` imports HTML through the same normalisation, so an importer hands `SaveEntry` the result:
+
+```php
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\RichText\Document;
+
+resolve(SaveEntry::class)->handle(Article::class, [
+    'title' => $post->title,
+    'body' => Document::fromHtml($post->html, RichText::make('body')->code()),
+]);
+```
+
+Bare text in a list item or a quote is wrapped in a paragraph, and each unknown block element such as a `div` or a table cell becomes a paragraph of its own. Scripts, styles and images leave nothing: an image is a Block. It reads three things beyond plain HTML:
+
+- `<pre><code class="language-php">` as a code block with its language, when the Field has `->code()`;
+- `kami://` links, kept as they are;
+- `<kami-block handle="gallery" data='{"items": ["01J..."]}'></kami-block>` as a Block, with `data` a JSON object, `{}` when left out. A marker with no handle or unreadable data throws an `InvalidArgumentException` naming it, as it is a bug in the importer that wrote it. A marker inside a paragraph moves after it, as a Block never sits inside text.
+
+Unwrapping paragraphs (`wpautop`), shortcodes, Media and rewriting URLs stay with the importer, which emits that HTML.
+
+Saving a document in the admin reminds the editor, without stopping the save, of a skipped heading level, counted from the Field's highest level as the title is the H1, of an empty heading and of a link with no text. The reminders stay on screen until dismissed.
 
 ### Inline Markdown
 

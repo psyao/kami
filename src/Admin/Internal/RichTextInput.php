@@ -84,6 +84,71 @@ final class RichTextInput
     }
 
     /**
+     * What an editor is reminded of on save, in document order and once each: a skipped heading level, counted from the Field's highest one as the title is H1, an empty heading, a link with no text.
+     *
+     * @return list<string>
+     */
+    public static function reminders(RichText $field, Document $document): array
+    {
+        $reminders = [];
+        $level = min($field->headingLevels() ?: [2]) - 1;
+
+        $walk = function (mixed $nodes) use (&$walk, &$reminders, &$level): void {
+            foreach (is_array($nodes) ? $nodes : [] as $node) {
+                if (data_get($node, 'type') === 'heading') {
+                    $to = data_get($node, 'attrs.level');
+                    $to = is_int($to) ? $to : 0;
+
+                    if (trim(self::text(data_get($node, 'content'))) === '') {
+                        $reminders[] = __('kami::admin.reminders.empty_heading');
+                    }
+
+                    if ($to > $level + 1) {
+                        $reminders[] = __('kami::admin.reminders.skipped_level', ['from' => $level, 'to' => $to]);
+                    }
+
+                    $level = $to;
+                }
+
+                if (self::hasEmptyLink(data_get($node, 'content'))) {
+                    $reminders[] = __('kami::admin.reminders.empty_link');
+                }
+
+                $walk(data_get($node, 'content'));
+            }
+        };
+        $walk($document->content()['content'] ?? []);
+
+        return array_values(array_unique(array_map(strval(...), $reminders)));
+    }
+
+    /** Whether a run of text nodes linking to one href holds only spaces: a link spans its nodes, whatever their other marks. */
+    private static function hasEmptyLink(mixed $inline): bool
+    {
+        $href = null;
+        $text = '';
+
+        foreach ([...(is_array($inline) ? $inline : []), null] as $node) {
+            $marks = data_get($node, 'marks');
+            $next = data_get(collect(is_array($marks) ? $marks : [])->firstWhere('type', 'link'), 'attrs.href');
+
+            if ($next !== $href && $href !== null && trim($text) === '') {
+                return true;
+            }
+
+            $text = $next === $href ? $text . self::text([$node]) : self::text([$node]);
+            $href = $next;
+        }
+
+        return false;
+    }
+
+    private static function text(mixed $nodes): string
+    {
+        return implode('', array_map(fn (mixed $node): string => is_string($text = data_get($node, 'text')) ? $text : '', is_array($nodes) ? $nodes : []));
+    }
+
+    /**
      * @param  array<mixed>  $node
      * @return array<mixed>
      */

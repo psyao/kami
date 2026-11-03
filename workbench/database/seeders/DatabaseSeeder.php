@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\SiteSettings;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
@@ -41,8 +43,8 @@ class DatabaseSeeder extends Seeder
         // Scheduled.
         $save->handle(Article::class, [...$published, 'title' => 'À paraître', 'author' => 'Ada', 'published_at' => now()->addMonth()], locale: 'fr', actor: $admin);
 
-        // Draft.
-        $save->handle(Article::class, ['title' => 'Brouillon', 'author' => 'Ada'], locale: 'fr', actor: $admin);
+        // Draft, its body imported from HTML with a skipped heading level: saving it shows a reminder.
+        $save->handle(Article::class, ['title' => 'Brouillon', 'author' => 'Ada', 'body' => Document::fromHtml('<h3>Un intertitre trop bas</h3><p>Enregistrez : un rappel signale le niveau sauté.</p>', RichText::make('body'))], locale: 'fr', actor: $admin);
 
         // A blank en Field showing Fallback.
         $fallback = $save->handle(Article::class, [...$published, 'title' => 'Résumé vide', 'summary' => 'Ce résumé est aussi lu en anglais.', 'author' => 'Ada'], locale: 'fr', actor: $admin);

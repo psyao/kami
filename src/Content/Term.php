@@ -35,7 +35,9 @@ class Term extends Entry
     public function ancestors(): Collection
     {
         $ids = Ancestors::ids($this->parent_id);
+        /** @var Collection<int, static> $terms Larastan 3.14 reads `static::query()` as Entry's builder. */
+        $terms = static::query()->whereKey($ids)->get();
 
-        return static::query()->whereKey($ids)->get()->sortBy(fn (self $term): int => (int) array_search($term->id, $ids, true))->values();
+        return $terms->sortBy(fn (self $term): int => (int) array_search($term->id, $ids, true))->values();
     }
 }
