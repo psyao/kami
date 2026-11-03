@@ -733,7 +733,7 @@ final class ProjectTable extends EntryTable
 Three things to know:
 
 - A cell links to the Entry, and an empty one is a link with no name for assistive technology. Give a column that may be empty a `default()`, or `disabledClick()` to make no link. Filament's `placeholder()` is too pale to meet the contrast minimum.
-- **Children** on a hierarchical type comes from `parent::recordActions()`, like **Edit**, **Move to Trash** and **Restore**, and the Trash filter from `parent::filters()`: replacing a list drops them unless you put them back.
+- **Children** on a hierarchical type comes from `parent::recordActions()`, like **Edit**, **Duplicate**, **Move to Trash** and **Restore**, and the Trash filter from `parent::filters()`: replacing a list drops them unless you put them back.
 - The level shown, the manual order and their Permissions stay Kami's, whatever the class returns. Reordering writes through Kami's own action, so Filament's `beforeReordering()` and `afterReordering()` are neither reachable here nor called.
 
 ### Your own admin page
@@ -774,6 +774,27 @@ app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello again'], $entry
 ```
 
 The write is saved in the site's default Locale; other Locales are in [Multilingual](multilingual.md). `SaveEntry` does not check who is calling: authorise before calling it from a request ([Publishing](publishing.md#saveentry-does-not-authorise)).
+
+## Duplicating an Entry
+
+`Psyao\Kami\Content\Actions\DuplicateEntry` copies an Entry with its Field values and References, and returns the copy. It takes the User as second argument, recorded as the Creator and Last modifier, and checks no Permission ([Publishing](publishing.md#saveentry-does-not-authorise)):
+
+```php
+use Psyao\Kami\Content\Actions\DuplicateEntry;
+
+$copy = app(DuplicateEntry::class)->handle($entry, $request->user());
+```
+
+The copy cannot go live by accident:
+
+- every Translation is a Draft with no date;
+- each title gains " (copy)" in its own Locale, from Kami's translation files, and each slug the first of `-copy`, `-copy-2`… free in its Locales. An address held by a Redirect or a 410 counts as taken, so a copy never replaces one. A title or slug too long to take its mark is shortened to fit in 255 characters, and a blank one stays blank;
+- it sits last under the same Parent, without the children or the [Preview links](publishing.md#preview-links);
+- links to an Entry in the [Trash](#the-trash) are copied too, as a save keeps them, so restoring that Entry brings them back on both.
+
+It writes directly, without `SaveEntry`, so it dispatches `EntryDuplicated` only ([Reacting to content](publishing.md#reacting-to-content)). A [Singleton](#singletons) or a [Global Set](#global-sets) is refused with a `ValidationException` on `entry`, as a Site holds only one; an Entry in the Trash is an `InvalidArgumentException`.
+
+In the admin, **Duplicate** on a row takes the type's `create` Permission and opens the copy's edit page.
 
 ## The Trash
 

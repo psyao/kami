@@ -130,6 +130,7 @@ The core actions dispatch Content events, in `Psyao\Kami\Content\Events`, so you
 | `EntryUnpublished` | the save returned a published Translation to Draft | `entry`, `locale`, `actor` |
 | `EntryTrashed` | `TrashEntry` moved the Entry to the [Trash](content-types.md#the-trash) | `entry`, `actor` |
 | `EntryRestored` | `RestoreEntry` brought it back | `entry`, `actor` |
+| `EntryDuplicated` | `DuplicateEntry` [copied the Entry](content-types.md#duplicating-an-entry), with no `EntrySaved` | `source`, `copy`, `actor` |
 | `EntryDeleted` | `DeleteEntry` [deleted it for good](content-types.md#deleting-for-good) | `entryId`, `type`, `site`, `replacementId`, `actor` |
 | `TranslationDeleted` | `DeleteTranslation` [deleted a Translation](content-types.md#deleting-a-translation) | `entryId`, `type`, `site`, `locale`, `actor` |
 

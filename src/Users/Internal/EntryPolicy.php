@@ -31,6 +31,12 @@ final class EntryPolicy
         return $this->can($user, $type, 'create');
     }
 
+    /** Duplicating creates an Entry, a Draft in every Locale. */
+    public function replicate(Authenticatable $user, Entry $entry): bool
+    {
+        return $this->can($user, $entry->type, 'create');
+    }
+
     public function reorder(Authenticatable $user, string $type): bool
     {
         return $this->can($user, $type, 'reorder');

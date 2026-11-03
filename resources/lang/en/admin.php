@@ -44,6 +44,14 @@ return [
         'parent' => 'Restore its Parent first: :parent.',
     ],
 
+    'duplicate' => [
+        'heading' => 'Duplicate :title',
+        'description' => 'The copy is a Draft in every language, without children or Preview links.',
+        'title' => ':title (copy)',
+        'singleton' => 'A Singleton or a Global Set cannot be duplicated: a Site holds only one.',
+        'done' => 'Copy created',
+    ],
+
     'delete' => [
         'children' => 'Delete its children first: :children.',
         'description' => 'It is deleted for good, in every language. Its addresses send visitors to the replacement, or say the page is gone.',
@@ -85,6 +93,7 @@ return [
         'unpublish' => 'Unpublish',
         'view' => 'View on the site',
         'trash' => 'Move to Trash',
+        'duplicate' => 'Duplicate',
     ],
 
     'preview' => [

@@ -61,6 +61,14 @@ Deletes a Translation that was never published, with its Field values, Reference
 
 - `public function handle(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
 
+## `Psyao\Kami\Content\Actions\DuplicateEntry`
+
+`final class`
+
+Copies an Entry with its Field values and References, last under the same Parent, every Translation a Draft with no date, so the copy cannot go live by accident. It copies no children and no Preview links, and writes directly, so it dispatches `EntryDuplicated` only. It does not authorise: the caller checks the actor's `create` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Content\Entry $source, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry`
+
 ## `Psyao\Kami\Content\Actions\RestoreEntry`
 
 `final class`

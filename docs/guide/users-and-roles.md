@@ -48,7 +48,7 @@ Every check targets a Permission, never a Role. Each declared Content Type has e
 | Permission | Lets a User |
 | --- | --- |
 | `kami.entries.{type}.view` | list and read the type's Entries |
-| `kami.entries.{type}.create` | create an Entry |
+| `kami.entries.{type}.create` | create an Entry, [duplicate](content-types.md#duplicating-an-entry) one |
 | `kami.entries.{type}.update` | edit a Draft |
 | `kami.entries.{type}.reorder` | reorder the rows of an [orderable type](content-types.md#types-ordered-by-hand), change the Parent of an Entry of a [hierarchical type](content-types.md#hierarchical-types) |
 | `kami.entries.{type}.publish` | publish or unpublish a Translation, or edit a Published or Scheduled one |

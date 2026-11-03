@@ -12,6 +12,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ReplicateAction;
 use Filament\Actions\RestoreAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
@@ -53,6 +54,7 @@ use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Content\Actions\DeleteEntry;
+use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
@@ -330,6 +332,20 @@ final class EntryResource extends FilamentResource
             ...(self::type()->isHierarchical() ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))->hidden($trashed)] : []),
             // A trashed Entry has no edit page: nothing changes while it waits.
             EditAction::make()->hidden($trashed),
+            // The copy opens at once: duplicating is where its editing starts.
+            ReplicateAction::make()
+                ->label(__('kami::admin.actions.duplicate'))
+                ->modalHeading(fn (ReplicateAction $action): string => __('kami::admin.duplicate.heading', ['title' => $action->getRecordTitle()]))
+                ->modalDescription(__('kami::admin.duplicate.description'))
+                ->modalSubmitActionLabel(__('kami::admin.actions.duplicate'))
+                ->successNotificationTitle(__('kami::admin.duplicate.done'))
+                ->hidden($trashed)
+                // No refusal to show: a Singleton or a Global Set, the only ones refused, has no list.
+                ->action(function (Entry $record, ReplicateAction $action): void {
+                    $copy = resolve(DuplicateEntry::class)->handle($record, Filament::auth()->user());
+                    $action->success();
+                    $action->redirect(self::editUrl($copy, null));
+                }),
             DeleteAction::make()
                 ->label(__('kami::admin.actions.trash'))
                 ->modalHeading(fn (DeleteAction $action): string => __('kami::admin.trash.heading', ['title' => $action->getRecordTitle()]))
