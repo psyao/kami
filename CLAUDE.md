@@ -14,7 +14,7 @@ From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they
 
 - Pre-push runs `phpstan analyse`, `pest --parallel` and the `Install` suite; the other engines, the `Browser` suite and the shared-hosting smoke run in CI only.
 - `Browser` suite locally: `npm ci`, `npx playwright install chromium`, then `mkdir -p tests/Browser/Traces` (until pest-plugin-browser's next release) and `pest --testsuite=Browser`.
-- An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed snapshot line makes the commit breaking (`!`).
+- An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters.
 - Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
 - Never skip the hooks (`--no-verify`): they are the only check before a push.
 - `composer serve` runs the Workbench Site with its synthetic seeder.
