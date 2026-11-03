@@ -17,6 +17,10 @@ class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
 class Psyao\Kami\Admin\KamiPlugin::tables() public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin
+class Psyao\Kami\Content\Actions\DeleteEntry final class
+class Psyao\Kami\Content\Actions\DeleteEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Psyao\Kami\Content\Entry $replacement = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Content\Actions\DeleteTranslation final class
+class Psyao\Kami\Content\Actions\DeleteTranslation::handle() public function handle(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\Actions\RestoreEntry final class
 class Psyao\Kami\Content\Actions\RestoreEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\Actions\SaveEntry final class
@@ -48,6 +52,12 @@ class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Da
 class Psyao\Kami\Content\Entry::ordered() protected function ordered(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
+class Psyao\Kami\Content\Events\EntryDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Content\Events\EntryDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Content\Events\EntryDeleted::$entryId public protected(set) readonly string $entryId
+class Psyao\Kami\Content\Events\EntryDeleted::$replacementId public protected(set) readonly ?string $replacementId
+class Psyao\Kami\Content\Events\EntryDeleted::$type public protected(set) readonly string $type
+class Psyao\Kami\Content\Events\EntryDeleted::__construct() public function __construct(string $entryId, string $type, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Events\EntryPublished final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Content\Events\EntryPublished::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
 class Psyao\Kami\Content\Events\EntryPublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
@@ -73,6 +83,12 @@ class Psyao\Kami\Content\Events\EntryUnpublished::$actor public protected(set) r
 class Psyao\Kami\Content\Events\EntryUnpublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
 class Psyao\Kami\Content\Events\EntryUnpublished::$locale public protected(set) readonly string $locale
 class Psyao\Kami\Content\Events\EntryUnpublished::__construct() public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Events\TranslationDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Content\Events\TranslationDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Content\Events\TranslationDeleted::$entryId public protected(set) readonly string $entryId
+class Psyao\Kami\Content\Events\TranslationDeleted::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Content\Events\TranslationDeleted::$type public protected(set) readonly string $type
+class Psyao\Kami\Content\Events\TranslationDeleted::__construct() public function __construct(string $entryId, string $type, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Fields\Boolean final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Boolean::column() public function column(): string
 class Psyao\Kami\Content\Fields\Date final class extends Psyao\Kami\Content\Fields\Field
@@ -200,6 +216,7 @@ middleware kami group
 middleware kami.security-headers Psyao\Kami\Support\SecurityHeaders
 permission kami.entries.{type}.create
 permission kami.entries.{type}.delete
+permission kami.entries.{type}.force-delete
 permission kami.entries.{type}.publish
 permission kami.entries.{type}.reorder
 permission kami.entries.{type}.restore

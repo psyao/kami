@@ -3,14 +3,11 @@
 declare(strict_types=1);
 
 use Filament\Actions\Testing\TestAction;
-use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
@@ -215,28 +212,10 @@ it('refuses to save a trashed Entry, which has no edit page', function () {
     expect(fn () => resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Encore'], $entry))->toThrow(InvalidArgumentException::class, 'Trash');
 });
 
-/** A page of the type's Entries in the admin, for a User holding the Role, or these Permissions under a Role of their own. */
-function trashPage(string $page, string | array $role = 'administrator', array $parameters = [], string $type = 'article'): Testable
-{
-    if (is_array($role)) {
-        config(['kami.roles.custom' => $role]);
-        $role = 'custom';
-    }
-
-    $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
-    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
-    config(['app.env' => 'local']);
-    test()->actingAs($user);
-    Filament::setCurrentPanel('admin');
-    Filament::setCurrentResourceConfigurationKey($type);
-
-    return Livewire::test($page, $parameters);
-}
-
 it('trashes from the row, finds the Entry through the Trash filter, and restores it', function () {
     $entry = published('Bonjour');
 
-    trashPage(ListEntries::class)
+    entriesPage(ListEntries::class)
         ->callAction(TestAction::make('delete')->table($entry))
         ->assertNotified()
         ->assertCanNotSeeTableRecords([$entry])
@@ -254,11 +233,11 @@ it('warns of what uses the Entry before trashing it', function () {
     $article = published('Bonjour');
     $project = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Quai', 'related' => [$article->id]]);
 
-    trashPage(ListEntries::class)
+    entriesPage(ListEntries::class)
         ->mountAction(TestAction::make('delete')->table($article))
         ->assertMountedActionModalSee('Quai');
 
-    trashPage(ListEntries::class, type: 'project')
+    entriesPage(ListEntries::class, type: 'project')
         ->mountAction(TestAction::make('delete')->table($project))
         ->assertMountedActionModalDontSee('Used by');
 });
@@ -267,7 +246,7 @@ it('shows a refusal on a notification, and trashes nothing', function () {
     $parent = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Parent']);
     resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Kept', 'parent' => $parent->id]);
 
-    trashPage(ListEntries::class, type: 'page')
+    entriesPage(ListEntries::class, type: 'page')
         ->callAction(TestAction::make('delete')->table($parent))
         ->assertNotified(__('kami::admin.trash.children', ['children' => 'Kept']));
 
@@ -280,15 +259,15 @@ it('offers Trash under delete and Restore under restore, a visible-to-be Entry\'
     resolve(TrashEntry::class)->handle($published);
     $can = fn (string ...$actions): array => array_map(fn (string $action): string => "kami.entries.article.{$action}", ['view', ...$actions]);
 
-    trashPage(ListEntries::class, $can('update'))->assertActionHidden(TestAction::make('delete')->table($draft));
-    trashPage(ListEntries::class, $can('delete'))->assertActionVisible(TestAction::make('delete')->table($draft));
-    trashPage(ListEntries::class, $can('restore'))->filterTable('trashed', false)->assertActionHidden(TestAction::make('restore')->table($published));
-    trashPage(ListEntries::class, $can('restore', 'publish'))->filterTable('trashed', false)->assertActionVisible(TestAction::make('restore')->table($published));
+    entriesPage(ListEntries::class, $can('update'))->assertActionHidden(TestAction::make('delete')->table($draft));
+    entriesPage(ListEntries::class, $can('delete'))->assertActionVisible(TestAction::make('delete')->table($draft));
+    entriesPage(ListEntries::class, $can('restore'))->filterTable('trashed', false)->assertActionHidden(TestAction::make('restore')->table($published));
+    entriesPage(ListEntries::class, $can('restore', 'publish'))->filterTable('trashed', false)->assertActionVisible(TestAction::make('restore')->table($published));
 });
 
 it('answers 404 at a trashed Entry\'s edit URL, and to a page opened before', function () {
     $entry = published('Bonjour');
-    $page = trashPage(EditEntry::class, parameters: ['record' => $entry->id]);
+    $page = entriesPage(EditEntry::class, parameters: ['record' => $entry->id]);
     resolve(TrashEntry::class)->handle($entry);
 
     $page->call('save')->assertNotFound();
@@ -300,7 +279,7 @@ it('shows a restore refused under a Parent trashed since the page opened on a no
     $parent = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Parent']);
     $child = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Child', 'parent' => $parent->id]);
     resolve(TrashEntry::class)->handle($child);
-    trashPage(ListEntries::class, type: 'page');
+    entriesPage(ListEntries::class, type: 'page');
     $page = Livewire::withQueryParams(['parent' => $parent->id])->test(ListEntries::class)->filterTable('trashed', false);
 
     resolve(TrashEntry::class)->handle($parent);
@@ -315,7 +294,7 @@ it('lists the Trash in a fixed number of queries, whatever its size', function (
     for ($i = 1; $i <= $entries; $i++) {
         resolve(TrashEntry::class)->handle(published("Article {$i}"));
     }
-    trashPage(ListEntries::class);
+    entriesPage(ListEntries::class);
 
     DB::enableQueryLog();
     $this->get('/admin/articles?filters[trashed][value]=0')->assertOk()->assertSee('Article 1');

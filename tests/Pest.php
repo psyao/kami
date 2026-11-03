@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+use Filament\Facades\Filament;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
+use Livewire\Features\SupportTesting\Testable;
+use Livewire\Livewire;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
@@ -54,6 +57,24 @@ function signIn(): mixed
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]')
         ->assertSee('Dashboard');
+}
+
+/** A page of the type's Entries in the admin, for a User holding the Role, or these Permissions under a Role of their own. */
+function entriesPage(string $page, string | array $role = 'administrator', array $parameters = [], string $type = 'article'): Testable
+{
+    if (is_array($role)) {
+        config(['kami.roles.custom' => $role]);
+        $role = 'custom';
+    }
+
+    $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
+    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
+    config(['app.env' => 'local']);
+    test()->actingAs($user);
+    Filament::setCurrentPanel('admin');
+    Filament::setCurrentResourceConfigurationKey($type);
+
+    return Livewire::test($page, $parameters);
 }
 
 /** `kami:install` as a deploy runs it, with the first administrator's inputs. */

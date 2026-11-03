@@ -26,7 +26,7 @@ The default Locale's Paths start at the root; another Locale's sit under its cod
 
 A [Singleton](content-types.md#singletons)'s Path is its Prefix, and a [type with no URL](content-types.md#types-with-no-url) has none.
 
-An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404.
+An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404. The address of an Entry [deleted for good](content-types.md#deleting-for-good) answers 301 to its replacement's current URL, or 410 Gone.
 
 ## After a deploy
 

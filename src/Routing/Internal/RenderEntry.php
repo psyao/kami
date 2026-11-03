@@ -25,12 +25,22 @@ final class RenderEntry
         $path = Path::normalise($path);
 
         // MySQL's and MariaDB's binary collation ignores trailing spaces, which no stored Path has.
-        $entryId = str_ends_with($path, ' ') ? null : Path::query()
+        $row = str_ends_with($path, ' ') ? null : Path::query()
             ->where('site', $site->handle)
             ->where('locale', $locale)
             ->where('path', $path)
-            ->where('status', 200)
-            ->value('entry_id');
+            ->first(['status', 'entry_id']);
+
+        abort_if($row?->status === 410, 410);
+
+        if ($row?->status === 301) {
+            // At the replacement's current URL, so Redirects never chain; one not visible here answers as absent, its address unrevealed.
+            $url = Entry::query()->whereKey($row->entry_id)->first()?->url();
+
+            return $url === null ? abort(404) : redirect()->away($url, 301);
+        }
+
+        $entryId = $row?->status === 200 ? $row->entry_id : null;
 
         // No row, a Translation that is not visible, an Entry whose type is no longer declared, or one flipped to no URL whose rows wait for `SyncPaths`.
         $entry = $entryId === null ? null : Entry::query()->whereKey($entryId)->first();

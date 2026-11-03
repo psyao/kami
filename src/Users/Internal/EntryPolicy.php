@@ -61,6 +61,12 @@ final class EntryPolicy
             && ($entry->translations->doesntContain('status', Translation::PUBLISHED) || $this->can($user, $entry->type, 'publish'));
     }
 
+    /** Deleting from the Trash for good, its addresses redirected or answering 410 (ADR 0008). */
+    public function forceDelete(Authenticatable $user, Entry $entry): bool
+    {
+        return $this->can($user, $entry->type, 'force-delete');
+    }
+
     /** Creating, listing and revoking the Preview links of a Translation (ADR 0019). */
     public function sharePreview(Authenticatable $user, Entry $entry): bool
     {

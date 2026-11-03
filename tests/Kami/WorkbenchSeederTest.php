@@ -24,6 +24,7 @@ it('seeds an Entry in each state, answering only where it is visible', function 
     $this->get('/articles/a-paraitre')->assertNotFound();
     $this->get('/articles/brouillon')->assertNotFound();
     $this->get('/articles/dans-la-corbeille')->assertNotFound();
+    $this->get('/articles/ancien-article')->assertRedirect('http://localhost/articles/bonjour');
     $this->get('/en/articles/blank-summary')->assertOk()->assertSee('lang="fr"', escape: false);
     $this->get('/label/urgent')->assertOk();
     $this->get('/en/label/urgent')->assertOk();

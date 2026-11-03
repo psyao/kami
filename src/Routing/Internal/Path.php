@@ -14,7 +14,7 @@ use Normalizer;
 use Psyao\Kami\Content\ContentType;
 
 /**
- * An address Kami answers in a Site and Locale: the current Path of a Translation (status 200) for now (ADR 0008).
+ * An address Kami answers in a Site and Locale: the current Path of a Translation (status 200), a 301 to the Entry replacing a deleted one, or a 410 (ADR 0008).
  *
  * @internal
  *

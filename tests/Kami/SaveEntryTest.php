@@ -135,6 +135,11 @@ it('writes only Shared Fields in a \'*\' call of a translatable type', function 
         ->and(DB::table('kami_translations')->pluck('locale')->all())->toBe(['fr']);
 });
 
+it('refuses a \'*\' call with no Entry on a translatable type, which would leave an Entry with no Translation', function () {
+    expect(fn () => save(['author' => 'Ada'], locale: '*'))->toThrow(InvalidArgumentException::class, 'no Translation')
+        ->and(Entry::query()->withUnpublished()->exists())->toBeFalse();
+});
+
 it('refuses a Field the type does not declare', function () {
     expect(failures(fn () => save(['title' => 'Odd', 'colour' => 'red'])))->toBe(['colour']);
 });

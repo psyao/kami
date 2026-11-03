@@ -44,6 +44,22 @@ return [
         'parent' => 'Restore its Parent first: :parent.',
     ],
 
+    'delete' => [
+        'children' => 'Delete its children first: :children.',
+        'description' => 'It is deleted for good, in every language. Its addresses send visitors to the replacement, or say the page is gone.',
+        'replacement' => 'Replacement',
+        'gone' => 'None: the page is gone (410)',
+    ],
+
+    'delete_translation' => [
+        'published' => 'This translation was published once: unpublish it, or move the Entry to the Trash.',
+        'last' => 'This is the only translation: move the Entry to the Trash instead.',
+        'action' => 'Delete translation',
+        'heading' => 'Delete the :LOCALE translation',
+        'description' => 'Its values in this language and its address are deleted for good; the other languages stay.',
+        'done' => 'Translation deleted',
+    ],
+
     'titles' => [
         'more' => ':titles and :count more',
     ],
