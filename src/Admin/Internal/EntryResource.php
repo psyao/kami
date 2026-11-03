@@ -37,10 +37,13 @@ use Filament\Tables\Filters\BaseFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -302,6 +305,8 @@ final class EntryResource extends FilamentResource
                 ->searchable(query: fn (EntryBuilder $query, string $search): EntryBuilder => $query->whereHas('translations', fn (Builder $translations) => $translations
                     ->whereLike('title', "%{$search}%"))),
             ...array_map(self::stateColumn(...), self::locales() ?: ['*']),
+            self::userColumn('creator', __('kami::admin.users.creator')),
+            self::userColumn('lastModifier', __('kami::admin.users.last_modifier')),
         ];
     }
 
@@ -681,11 +686,42 @@ final class EntryResource extends FilamentResource
     /** The panel's name for the User of a key, `null` for none or a User deleted since: the Last modifier `SaveEntry`'s refusal names, through `PluginRegistration`. */
     public static function userName(int | string | null $key): ?string
     {
-        $guard = Filament::auth();
-        // ponytail: a panel guard other than a session one names nobody, as none exists in the Workbench or the starter kit; V1 reads its provider if a friction shows one.
-        $user = $key !== null && $guard instanceof SessionGuard ? $guard->getProvider()->retrieveById($key) : null;
+        $user = $key !== null ? self::userProvider()?->retrieveById($key) : null;
 
         return $user instanceof Authenticatable ? Filament::getUserName($user) : null;
+    }
+
+    /**
+     * `creator` and `lastModifier` on `Entry`, the panel's Users the table loads for its visible columns only, in one query each.
+     *
+     * The admin's own: not public surface, absent without a panel, a `LogicException` on a panel whose Users are not Eloquent models.
+     */
+    public static function relateUsers(): void
+    {
+        foreach (['creator' => 'created_by', 'lastModifier' => 'updated_by'] as $relation => $key) {
+            Entry::resolveRelationUsing($relation, function (Entry $entry) use ($relation, $key): BelongsTo {
+                $user = self::newUser() ?? throw new LogicException('The panel\'s Users are not Eloquent models.');
+
+                return $entry->belongsTo($user::class, $key, $user->getAuthIdentifierName(), $relation);
+            });
+        }
+    }
+
+    /** A new User of the panel's Eloquent provider; `null` for another guard or provider, whose Users no query loads in a batch. */
+    private static function newUser(): (Model & Authenticatable) | null
+    {
+        $provider = self::userProvider();
+        $user = $provider instanceof EloquentUserProvider ? $provider->createModel() : null;
+
+        return $user instanceof Authenticatable ? $user : null;
+    }
+
+    private static function userProvider(): ?UserProvider
+    {
+        $guard = Filament::auth();
+
+        // ponytail: a panel guard other than a session one names nobody, as none exists in the Workbench or the starter kit; V1 reads its provider if a friction shows one.
+        return $guard instanceof SessionGuard ? $guard->getProvider() : null;
     }
 
     /**
@@ -740,6 +776,20 @@ final class EntryResource extends FilamentResource
             ->badge()
             ->state(fn (Entry $record): string => __('kami::admin.state.' . self::state($record->translations->firstWhere('locale', $locale))))
             ->description(fn (Entry $record, TextColumn $column): ?string => self::scheduledAt($record->translations->firstWhere('locale', $locale), $column->getTable()->getDefaultDateTimeDisplayFormat()));
+    }
+
+    /** The Creator or Last modifier as the panel names them, nobody for none or a User deleted since. */
+    private static function userColumn(string $relation, string $label): TextColumn
+    {
+        // Named after the relation, so Filament eager-loads it while the column shows.
+        return TextColumn::make("{$relation}.name")
+            ->label($label)
+            ->toggleable(isToggledHiddenByDefault: true)
+            // ponytail: hidden on a panel whose Users are not Eloquent models, which no query loads in a batch; V1 if a friction shows one.
+            ->visible(fn (): bool => self::newUser() !== null)
+            // The loaded relation, never the attribute: a Field may take the relation's name.
+            ->state(fn (Entry $record): ?string => ($user = $record->getRelationValue($relation)) instanceof Authenticatable ? Filament::getUserName($user) : null)
+            ->default(__('kami::admin.users.nobody'));
     }
 
     /** A Scheduled Translation's date in the Site's time zone; null in any other state. */

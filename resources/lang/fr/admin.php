@@ -72,6 +72,14 @@ return [
         'more' => ':titles et :count autres',
     ],
 
+    'users' => [
+        'created_by' => 'Créé par :name',
+        'last_modified_by' => 'Modifié en dernier par :name',
+        'creator' => 'Créé par',
+        'last_modifier' => 'Modifié en dernier par',
+        'nobody' => 'Personne',
+    ],
+
     'state' => [
         'label' => 'État',
         'label_in' => 'État (:LOCALE)',

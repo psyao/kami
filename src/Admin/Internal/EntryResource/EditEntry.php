@@ -105,24 +105,33 @@ final class EditEntry extends EditRecord
         return EntryResource::cancelToLevel(parent::getCancelFormAction(), fn (): ?string => $this->getRecord()->parent_id);
     }
 
-    /** The Locale edited and its Translation's state, read on every render: a save changes it. A Global Set, always published, shows its Locale only. */
-    public function getSubheading(): ?string
+    /** The Locale edited, its Translation's state, the Creator and the Last modifier, read on every render: a save changes them. A Global Set, always published, shows no state. */
+    public function getSubheading(): string
     {
+        $entry = $this->getRecord();
         $locale = EntryResource::locales() === [] ? null : (string) __('kami::admin.locale', ['locale' => $this->locale]);
+        $state = null;
 
-        if (EntryResource::type() instanceof GlobalSet) {
-            return $locale;
+        if (! EntryResource::type() instanceof GlobalSet) {
+            $translation = $entry->translations->whereIn('locale', [$this->locale, '*'])->first();
+            $scheduledAt = EntryResource::scheduledAt($translation, $this->form->getDefaultDateTimeDisplayFormat());
+            $state = match (true) {
+                $scheduledAt !== null => __('kami::admin.state.scheduled_at', ['date' => $scheduledAt]),
+                ! $translation instanceof Translation => __('kami::admin.state.no_translation'),
+                default => __('kami::admin.state.' . EntryResource::state($translation)),
+            };
         }
 
-        $translation = $this->getRecord()->translations->whereIn('locale', [$this->locale, '*'])->first();
-        $scheduledAt = EntryResource::scheduledAt($translation, $this->form->getDefaultDateTimeDisplayFormat());
-        $state = match (true) {
-            $scheduledAt !== null => __('kami::admin.state.scheduled_at', ['date' => $scheduledAt]),
-            ! $translation instanceof Translation => __('kami::admin.state.no_translation'),
-            default => __('kami::admin.state.' . EntryResource::state($translation)),
-        };
+        // One query when the same User both created and last modified the Entry.
+        $creator = EntryResource::userName($entry->created_by) ?? __('kami::admin.users.nobody');
+        $lastModifier = $entry->updated_by === $entry->created_by ? $creator : EntryResource::userName($entry->updated_by) ?? __('kami::admin.users.nobody');
 
-        return implode(' · ', array_filter([$locale, $state]));
+        return implode(' · ', array_filter([
+            $locale,
+            $state,
+            __('kami::admin.users.created_by', ['name' => $creator]),
+            __('kami::admin.users.last_modified_by', ['name' => $lastModifier]),
+        ]));
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
