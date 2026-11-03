@@ -23,6 +23,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Replace a type's admin form or table (`EntryForm`, `EntryTable`), or add a Field type or an admin page | `vendor/psyao/kami/docs/guide/content-types.md#in-the-admin` |
 | Seed content from code | `vendor/psyao/kami/docs/guide/content-types.md#writing-entries` |
 | Write, publish, schedule or unpublish Entries, from the admin or from code | `vendor/psyao/kami/docs/guide/publishing.md` |
+| Duplicate an Entry (`DuplicateEntry`) | `vendor/psyao/kami/docs/guide/content-types.md#duplicating-an-entry` |
 | Trash or restore Entries (`TrashEntry`, `RestoreEntry`) | `vendor/psyao/kami/docs/guide/content-types.md#the-trash` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |

@@ -27,7 +27,7 @@ use Psyao\Kami\Sites\Internal\Site;
 final class DuplicateEntry
 {
     /** The longest title and slug `SaveEntry` takes. */
-    private const int MAX = 255;
+    private const int MAX_LENGTH = 255;
 
     /**
      * @param  Entry  $source  The Entry to copy, outside the Trash.
@@ -112,7 +112,7 @@ final class DuplicateEntry
     private function marked(string $title, string $locale): string
     {
         $marked = __('kami::admin.duplicate.title', ['title' => $title], $locale);
-        $excess = mb_strlen($marked) - self::MAX;
+        $excess = mb_strlen($marked) - self::MAX_LENGTH;
 
         return $excess > 0 ? __('kami::admin.duplicate.title', ['title' => mb_substr($title, 0, mb_strlen($title) - $excess)], $locale) : $marked;
     }
@@ -128,7 +128,7 @@ final class DuplicateEntry
     {
         for ($n = 1; ; $n++) {
             $suffix = $n === 1 ? '-copy' : "-copy-{$n}";
-            $candidate = mb_substr($slug, 0, self::MAX - strlen($suffix)) . $suffix;
+            $candidate = mb_substr($slug, 0, self::MAX_LENGTH - strlen($suffix)) . $suffix;
             $path = Path::of($type, $candidate);
 
             if ($path === null || ! Path::query()->where('site', $site->handle)->whereIn('locale', $locales)->where('path', $path)->exists()) {
