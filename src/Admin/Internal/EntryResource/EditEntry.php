@@ -105,7 +105,7 @@ final class EditEntry extends EditRecord
         return EntryResource::cancelToLevel(parent::getCancelFormAction(), fn (): ?string => $this->getRecord()->parent_id);
     }
 
-    /** The Locale edited and its Translation's state, read on every render: a save changes it. A Global Set, always published, shows its Locale only. */
+    /** The Locale edited, its Translation's state, the Creator and the Last modifier, read on every render: a save changes them. A Global Set, always published, shows no state. */
     public function getSubheading(): string
     {
         $entry = $this->getRecord();
