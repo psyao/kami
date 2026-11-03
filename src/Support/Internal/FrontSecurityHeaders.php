@@ -21,14 +21,15 @@ final readonly class FrontSecurityHeaders
 
     /**
      * @param  Closure(Request): Response  $next
-     * @param  string|null  $openerPolicy  In place of the front's `Cross-Origin-Opener-Policy`, for the admin Preview (ADR 0018).
+     * @param  string  ...$overrides  `Name=value` in place of the front's header, for the admin Preview and Preview links (ADR 0018).
      */
-    public function handle(Request $request, Closure $next, ?string $openerPolicy = null): Response
+    public function handle(Request $request, Closure $next, string ...$overrides): Response
     {
         $response = $this->headers->handle($request, $next);
 
-        if ($openerPolicy !== null) {
-            $response->headers->set('Cross-Origin-Opener-Policy', $openerPolicy);
+        foreach ($overrides as $override) {
+            [$name, $value] = explode('=', $override, 2);
+            $response->headers->set($name, $value);
         }
 
         return $response;

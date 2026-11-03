@@ -76,6 +76,24 @@ return [
         'banner' => 'Preview of unsaved changes: visitors do not see this page.',
     ],
 
+    'preview_links' => [
+        'action' => 'Preview links',
+        'heading' => 'Preview links',
+        'description' => 'Anyone holding a link reads this language as saved, Draft or Scheduled included, until it expires or is revoked.',
+        'days' => 'Expires in',
+        'days_suffix' => 'days',
+        'create' => 'Create a link',
+        'created' => 'Preview link created',
+        'created_body' => 'Copy it now: it will not be shown again. :url',
+        'copy' => 'Copy',
+        'none' => 'No active link.',
+        'active' => 'Expires on :date, created by :user',
+        'unknown_user' => 'a deleted User',
+        'revoke' => 'Revoke',
+        'revoked' => 'Preview link revoked',
+        'banner' => 'Preview of a saved version that visitors may not see. This link expires on :date.',
+    ],
+
     'rich_text' => [
         'unavailable_block' => 'Block unavailable for now: :handle',
     ],

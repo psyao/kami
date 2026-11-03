@@ -76,6 +76,24 @@ return [
         'banner' => 'Prévisualisation de modifications non enregistrées : les visiteurs ne voient pas cette page.',
     ],
 
+    'preview_links' => [
+        'action' => 'Liens de prévisualisation',
+        'heading' => 'Liens de prévisualisation',
+        'description' => 'Toute personne qui détient un lien lit cette langue telle qu’enregistrée, brouillon ou programmée comprise, jusqu’à son expiration ou sa révocation.',
+        'days' => 'Expire dans',
+        'days_suffix' => 'jours',
+        'create' => 'Créer un lien',
+        'created' => 'Lien de prévisualisation créé',
+        'created_body' => 'Copiez-le maintenant : il ne sera plus affiché. :url',
+        'copy' => 'Copier',
+        'none' => 'Aucun lien actif.',
+        'active' => 'Expire le :date, créé par :user',
+        'unknown_user' => 'un utilisateur supprimé',
+        'revoke' => 'Révoquer',
+        'revoked' => 'Lien de prévisualisation révoqué',
+        'banner' => 'Prévisualisation d’une version enregistrée que les visiteurs ne voient peut-être pas. Ce lien expire le :date.',
+    ],
+
     'rich_text' => [
         'unavailable_block' => 'Bloc indisponible pour le moment : :handle',
     ],

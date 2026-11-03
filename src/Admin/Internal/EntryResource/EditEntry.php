@@ -7,11 +7,16 @@ namespace Psyao\Kami\Admin\Internal\EntryResource;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -23,6 +28,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\InlineMarkdown;
+use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\RichText\Document;
@@ -193,6 +199,7 @@ final class EditEntry extends EditRecord
                 ->url(fn (): ?string => $this->getRecord()->url(), shouldOpenInNewTab: true)
                 ->visible(fn (): bool => $this->getRecord()->url() !== null),
             EntryResource::previewAction(),
+            $this->previewLinksAction(),
             ...EntryResource::plugin()->entryForm(EntryResource::type(), $this)->actions(),
         ];
     }
@@ -201,6 +208,63 @@ final class EditEntry extends EditRecord
     public function preview(): string
     {
         return EntryResource::preview($this->form->getState(), $this->getRecord(), $this->locale, $this->data ?? [], $this->previewToken ??= Str::random(40));
+    }
+
+    /**
+     * The Translation's Preview links: its active ones, each revocable, and a form creating one whose full URL shows once, in a notification (ADR 0019).
+     * A type with no URL, or a Locale with no Translation yet, has nothing to share.
+     */
+    private function previewLinksAction(): Action
+    {
+        $links = fn (): Collection => PreviewLink::unexpired()->where('entry_id', $this->getRecord()->id)->where('locale', $this->locale)->oldest('expires_at')->get();
+
+        return Action::make('previewLinks')
+            ->label(__('kami::admin.preview_links.action'))
+            ->color('gray')
+            ->visible(fn (): bool => EntryResource::type()->isRoutable()
+                && $this->getRecord()->translations->whereIn('locale', [$this->locale, '*'])->isNotEmpty()
+                && Gate::allows('sharePreview', $this->getRecord()))
+            ->modalHeading(__('kami::admin.preview_links.heading'))
+            ->modalDescription(__('kami::admin.preview_links.description'))
+            ->modalContent(fn (Action $action): View => view('kami::admin.preview-links', [
+                'action' => $action,
+                'links' => $links()->map(fn (PreviewLink $link): array => ['id' => $link->id, 'label' => __('kami::admin.preview_links.active', [
+                    'date' => $link->expires_at->setTimezone(Site::current()->timezone)->translatedFormat($this->form->getDefaultDateTimeDisplayFormat()),
+                    'user' => EntryResource::userName($link->created_by) ?? __('kami::admin.preview_links.unknown_user'),
+                ])]),
+            ]))
+            ->schema([
+                TextInput::make('days')
+                    ->label(__('kami::admin.preview_links.days'))
+                    ->suffix(__('kami::admin.preview_links.days_suffix'))
+                    ->integer()->minValue(1)->maxValue(PreviewLink::MAX_DAYS)->default(7)->required(),
+            ])
+            ->modalSubmitActionLabel(__('kami::admin.preview_links.create'))
+            ->registerModalActions([
+                Action::make('revokePreviewLink')
+                    ->label(__('kami::admin.preview_links.revoke'))
+                    ->color('danger')
+                    ->link()
+                    ->requiresConfirmation()
+                    ->action(function (array $arguments): void {
+                        PreviewLink::revoke(is_string($arguments['link'] ?? null) ? $arguments['link'] : '', $this->getRecord(), $this->locale);
+                        Notification::make()->success()->title(__('kami::admin.preview_links.revoked'))->send();
+                    }),
+            ])
+            ->action(function (array $data): void {
+                // Validated as an integer, which the browser may still send as a string.
+                $url = PreviewLink::issue($this->getRecord(), $this->locale, filter_var($data['days'], FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE) ?? 0, Filament::auth()->user());
+
+                // Kept until dismissed, as the URL is never shown again.
+                Notification::make()->success()->persistent()
+                    ->title(__('kami::admin.preview_links.created'))
+                    ->body(__('kami::admin.preview_links.created_body', ['url' => $url]))
+                    ->actions([
+                        Action::make('copy')->label(__('kami::admin.preview_links.copy'))->button()
+                            ->alpineClickHandler('navigator.clipboard.writeText(' . Js::from($url) . ')'),
+                    ])
+                    ->send();
+            });
     }
 
     /** Every Locale with its state, labelled through closures: a save on this page changes them. Each other Locale is a link, keeping M2's URLs. */

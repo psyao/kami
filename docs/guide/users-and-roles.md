@@ -43,7 +43,7 @@ While no User holds a Role that grants `kami.users.manage`, `kami:install` gives
 
 ## Permissions
 
-Every check targets a Permission, never a Role. Each declared Content Type has seven, named after its handle:
+Every check targets a Permission, never a Role. Each declared Content Type has eight, named after its handle:
 
 | Permission | Lets a User |
 | --- | --- |
@@ -54,6 +54,7 @@ Every check targets a Permission, never a Role. Each declared Content Type has s
 | `kami.entries.{type}.publish` | publish or unpublish a Translation, or edit a Published or Scheduled one |
 | `kami.entries.{type}.delete` | move an Entry to the [Trash](content-types.md#the-trash) |
 | `kami.entries.{type}.restore` | restore an Entry from the Trash; one with a published Translation takes `publish` too |
+| `kami.entries.{type}.share-preview` | create, list and revoke a Translation's [Preview links](publishing.md#preview-links) |
 
 `kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.
 

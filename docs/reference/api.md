@@ -355,7 +355,7 @@ Kami's entry point for sites.
 
 What a site calls on Kami through the `Kami` facade.
 
-- `public function routes(): void`: Registers Kami's front: one fallback route, so the site's own routes always win.
+- `public function routes(): void`: Registers Kami's front: one fallback route, so the site's own routes always win, and `/kami/share/{token}` for Preview links.
 
 ## `Psyao\Kami\KamiServiceProvider`
 

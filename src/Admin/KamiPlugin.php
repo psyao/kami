@@ -177,7 +177,7 @@ final class KamiPlugin implements Plugin
             ->name('kami.preview')
             // Named with its profile too: Laravel before 13.39 only drops a middleware excluded by its exact name, parameters included.
             ->withoutMiddleware([SecurityHeaders::class, SecurityHeaders::class . ':admin'])
-            ->middleware(FrontSecurityHeaders::class . ':unsafe-none'));
+            ->middleware(FrontSecurityHeaders::class . ':Cross-Origin-Opener-Policy=unsafe-none'));
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css'), Js::make('kami', __DIR__ . '/../../resources/dist/kami.js')], 'psyao/kami');
