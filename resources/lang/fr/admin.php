@@ -27,6 +27,27 @@ return [
         'unnamed' => 'Cette Entry a été modifiée le :time, après que vous l’avez ouverte. Rien n’a été enregistré : rechargez la page pour voir les modifications.',
     ],
 
+    'trash' => [
+        'filter' => 'Corbeille',
+        'without' => 'Hors de la corbeille',
+        'with' => 'Avec la corbeille',
+        'only' => 'Dans la corbeille',
+        'heading' => 'Mettre :title à la corbeille',
+        'description' => 'Elle quitte le site dans toutes les langues jusqu’à ce que quelqu’un la restaure.',
+        'used_by' => 'Utilisée par :entries : elles la liront comme absente jusqu’à ce que quelqu’un la restaure.',
+        'done' => 'Mise à la corbeille',
+        'singleton' => 'Un Singleton ou un Global Set ne va pas à la corbeille : un Site ne le perd jamais.',
+        'children' => 'Déplacez ou mettez d’abord ses enfants à la corbeille : :children.',
+    ],
+
+    'restore' => [
+        'parent' => 'Restaurez d’abord son Parent : :parent.',
+    ],
+
+    'titles' => [
+        'more' => ':titles et :count autres',
+    ],
+
     'state' => [
         'label' => 'État',
         'label_in' => 'État (:LOCALE)',
@@ -47,6 +68,7 @@ return [
         'schedule' => 'Programmer',
         'unpublish' => 'Dépublier',
         'view' => 'Voir sur le site',
+        'trash' => 'Mettre à la corbeille',
     ],
 
     'preview' => [

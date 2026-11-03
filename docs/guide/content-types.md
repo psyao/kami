@@ -118,7 +118,7 @@ $child = app(SaveEntry::class)->handle(Page::class, ['title' => 'Team', 'parent'
 Entry::query()->ofType(Page::class)->where('parent_id', $about->id)->ordered()->get();
 ```
 
-`SaveEntry` takes the Parent's id as `parent`, or `null` for the root; left out, the Parent stays. It refuses as a validation error a cycle, a Parent of another type or Site, and a `parent` on a type that is not hierarchical. A Singleton cannot be hierarchical. The database refuses the hard deletion of a Parent with children, as moving them up would change the tree silently.
+`SaveEntry` takes the Parent's id as `parent`, or `null` for the root; left out, the Parent stays. It refuses as a validation error a cycle, a Parent of another type or Site, and a `parent` on a type that is not hierarchical. A Singleton cannot be hierarchical. The database refuses the hard deletion of a Parent with children, as moving them up would change the tree silently, and `TrashEntry` refuses to trash one whose children are outside the [Trash](#the-trash).
 
 The two flags are separate. Alone, `$hierarchical` gives a tree with no hand order: a `position` is refused. With `$orderable`, Positions count within one Parent: a new Entry goes last among its siblings, and so does an Entry moved under another Parent, unless the same save gives a `position`.
 
@@ -364,7 +364,7 @@ foreach ($projects as $project) {
 
 `with()` names the Field and loads every listed Entry's links with one query for the rows, then the targets' usual queries: the Entries, their Translations and one per target type. Several relation Fields share those queries, and `with('related.related')` follows a link further. Unlike an Eloquent relation, it takes no constraint: filter the Collection, or query the type. Read without `with()`, among several Entries, it throws under Laravel's strict mode, as a lazy relation does; a single Entry, as a type's view has, loads it on first read.
 
-Reads leave out a target not visible in the Locale read, and `withUnpublished()` on the query brings them back. Hard-deleting a target removes its links, and hard-deleting an Entry removes the links it holds.
+Reads leave out a target not visible in the Locale read, and `withUnpublished()` on the query brings them back. A target in the [Trash](#the-trash) is left out either way, and its links survive: a save that gives the Field keeps them after the ids given, since no form shows them and `SaveEntry` refuses a trashed id, so restoring the target brings them back. Hard-deleting a target removes its links, and hard-deleting an Entry removes the links it holds.
 
 A relation is Shared by default. With `->translatable()`, each Locale has its own list, and a blank one falls back to the default Locale's, while that Translation is visible, as for any Field ([Multilingual](multilingual.md)). A Locale with links whose targets are all hidden is not blank: it reads empty. Fallen-back targets are checked in the Locale read too.
 
@@ -721,7 +721,7 @@ final class ProjectTable extends EntryTable
 
     public function filters(): array
     {
-        return [Filter::make('recent')->query(fn (Builder $query): Builder => $query->where('created_at', '>=', now()->subMonth()))];
+        return [...parent::filters(), Filter::make('recent')->query(fn (Builder $query): Builder => $query->where('created_at', '>=', now()->subMonth()))];
     }
 }
 ```
@@ -733,7 +733,7 @@ final class ProjectTable extends EntryTable
 Three things to know:
 
 - A cell links to the Entry, and an empty one is a link with no name for assistive technology. Give a column that may be empty a `default()`, or `disabledClick()` to make no link. Filament's `placeholder()` is too pale to meet the contrast minimum.
-- **Children** on a hierarchical type comes from `parent::recordActions()`, like **Edit**: replacing the list drops it unless you put it back.
+- **Children** on a hierarchical type comes from `parent::recordActions()`, like **Edit**, **Move to Trash** and **Restore**, and the Trash filter from `parent::filters()`: replacing a list drops them unless you put them back.
 - The level shown, the manual order and their Permissions stay Kami's, whatever the class returns. Reordering writes through Kami's own action, so Filament's `beforeReordering()` and `afterReordering()` are neither reachable here nor called.
 
 ### Your own admin page
@@ -775,9 +775,31 @@ app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello again'], $entry
 
 The write is saved in the site's default Locale; other Locales are in [Multilingual](multilingual.md). `SaveEntry` does not check who is calling: authorise before calling it from a request ([Publishing](publishing.md#saveentry-does-not-authorise)).
 
-## Deleting Entries
+## The Trash
 
-Kami has no deletion yet. The admin offers no delete action, and `$entry->delete()` on an Entry with a Path fails with a raw foreign key error from `kami_paths`. Unpublish an Entry to take it off the site. What [Relations](#relations) and [Hierarchical types](#hierarchical-types) say of hard deletion is what the database does once a row goes.
+`Psyao\Kami\Content\Actions\TrashEntry` moves an Entry to the Trash in all its Locales, and `RestoreEntry` brings it back with its states and Paths as they were: a Published Translation is visible again at once, a Scheduled one at its date. Both take the User as second argument, recorded as the Last modifier, and check no Permission ([Publishing](publishing.md#saveentry-does-not-authorise)):
+
+```php
+use Psyao\Kami\Content\Actions\RestoreEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
+
+app(TrashEntry::class)->handle($entry, $request->user());
+
+$trashed = Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
+app(RestoreEntry::class)->handle($trashed, $request->user());
+```
+
+A trashed Entry reads as absent: its URLs answer 404, queries leave it out, `withUnpublished()` included, and relations read it as missing. Its Paths stay reserved, so no other Entry takes its address meanwhile. `withTrashed()` and `onlyTrashed()` bring it back in a query, and `SaveEntry` refuses it: restore it first. Nothing empties the Trash.
+
+Each refusal is a `ValidationException` on `entry` naming its reason:
+
+- a [Singleton](#singletons) or a [Global Set](#global-sets), which a Site never loses;
+- a Parent whose children are outside the Trash, the first ten named: trash or move them first;
+- a restore under a Parent still in the Trash, named: restore it first.
+
+Eloquent's own `$entry->delete()` and `restore()` move the row too, with none of these checks, events or the next visibility change: call the actions.
+
+In the admin, **Move to Trash** on a row takes the type's `delete` Permission and lists first what links to the Entry, as those relations will read it as absent. The table's Trash filter shows **In the Trash**, where **Restore** takes `restore`, and `publish` too when a Translation is published, since restoring makes it visible. A trashed Entry has no edit page: its address answers 404, and so does an edit page left open when it went. Kami has no hard deletion yet.
 
 ## Reading Entries
 
@@ -789,7 +811,7 @@ $entry->summary;      // 'A first article.'
 $entry->published_at; // CarbonImmutable, in UTC
 ```
 
-Its queries return only visible Entries: published, with a publication date that has come. Drafts and Scheduled Entries need `withUnpublished()`, so a forgotten scope never shows them:
+Its queries return only visible Entries: published, with a publication date that has come, out of the [Trash](#the-trash). Drafts and Scheduled Entries need `withUnpublished()`, so a forgotten scope never shows them:
 
 ```php
 Entry::query()->ofType(Article::class)->get();                     // visible Articles

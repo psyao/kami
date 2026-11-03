@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Internal;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Entry;
@@ -60,6 +61,16 @@ final class References
     public static function clear(string $entry, string $handle): void
     {
         DB::table(self::TABLE)->where(['source_entry_id' => $entry, 'field' => $handle])->delete();
+    }
+
+    /**
+     * What links to an Entry through a relation Field, in any state, out of the Trash: "used by".
+     *
+     * @return Builder<Entry>
+     */
+    public static function sources(string $target): Builder
+    {
+        return Entry::query()->withUnpublished()->whereIn('id', DB::table(self::TABLE)->where('target_entry_id', $target)->select('source_entry_id'))->orderBy('id');
     }
 
     /**

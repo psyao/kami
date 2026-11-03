@@ -21,14 +21,18 @@ class EntryTable
         return EntryResource::columns();
     }
 
-    /** @return array<BaseFilter> */
+    /**
+     * The Trash filter.
+     *
+     * @return array<BaseFilter>
+     */
     public function filters(): array
     {
-        return [];
+        return EntryResource::filters();
     }
 
     /**
-     * Each row's actions: Edit, and Children on a hierarchical type.
+     * Each row's actions: Edit, Children on a hierarchical type, Trash, and Restore in the Trash.
      *
      * @return array<Action|ActionGroup>
      */

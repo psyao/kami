@@ -20,8 +20,8 @@ use Psyao\Kami\Users\KamiUser;
  */
 final class Permissions
 {
-    /** What a User may do with a Content Type's Entries in M2; ADR 0014's other actions join with their features. */
-    private const array ENTRY_ACTIONS = ['view', 'create', 'update', 'reorder', 'publish'];
+    /** What a User may do with a Content Type's Entries; ADR 0014's other actions join with their features. */
+    private const array ENTRY_ACTIONS = ['view', 'create', 'update', 'reorder', 'publish', 'delete', 'restore'];
 
     /**
      * No `Gate::before`: it would answer the host's own abilities too.

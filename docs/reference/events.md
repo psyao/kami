@@ -14,6 +14,16 @@ A Translation became visible: published with its publication date reached, once 
 - `public protected(set) readonly bool $scheduled`
 - `public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, bool $scheduled, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
+## `Psyao\Kami\Content\Events\EntryRestored`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+An Entry left the Trash through `RestoreEntry`, as it was, once the write committed (ADR 0029).
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly Psyao\Kami\Content\Entry $entry`
+- `public function __construct(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
 ## `Psyao\Kami\Content\Events\EntrySaved`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
@@ -25,6 +35,16 @@ An Entry was saved through `SaveEntry`, once its transaction committed (ADR 0029
 - `public protected(set) readonly Psyao\Kami\Content\Entry $entry`
 - `public protected(set) readonly string $locale`
 - `public function __construct(Psyao\Kami\Content\Entry $entry, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
+## `Psyao\Kami\Content\Events\EntryTrashed`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+An Entry went to the Trash through `TrashEntry`, once the write committed (ADR 0029).
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly Psyao\Kami\Content\Entry $entry`
+- `public function __construct(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
 ## `Psyao\Kami\Content\Events\EntryUnpublished`
 
