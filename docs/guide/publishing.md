@@ -17,7 +17,7 @@ $entry->updated_by; // the Last modifier's, set on every save
 
 Deleting a User leaves both `null` on the Entries they touched.
 
-The admin names both as the panel names Users: under the edit page's heading, and in the **Created by** and **Last modified by** columns, hidden until shown from the table's column menu. A save from code, or a User deleted since, shows as nobody. The columns load every row's Users in one query each, and only while shown; on a panel whose Users are not Eloquent models they are left out.
+The admin names both as the panel names Users: under the edit page's heading, and in the **Created by** and **Last modified by** columns, hidden until shown from the table's column menu. A save from code, or a User deleted since, shows as nobody. The columns load every row's Users in one query each, and only while shown; on a panel whose Users are not Eloquent models they are left out. The admin reads them through `creator` and `lastModifier` relations it adds to `Entry`: they are not public, so read the keys above in your own code.
 
 ## Concurrent edits
 
