@@ -12,6 +12,8 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 
 1. **`SaveEntry::handle()` takes a sixth argument, `updatedAt`.** It is optional, so no call changes. Passed, a save over a change made since is refused ([Concurrent edits](docs/guide/publishing.md#concurrent-edits)). Every save now also touches the Entry's `updated_at`, a save changing one Translation only too: code reading it sees more recent dates.
 2. **`<x-kami::preview-banner />` in your layout.** The admin's new Preview renders the unsaved form through your type's `render()`. Add the component at the top of your layout's `<body>`, so an editor reading a Preview is told so; it renders nothing on public pages ([The Preview banner](docs/guide/routing-and-rendering.md#the-preview-banner)).
+3. **`SaveEntry` refuses a `'*'` call with no Entry on a translatable type.** It created an Entry with no Translation, which no visitor read found and which blocked a Singleton's later creation; it now throws an `InvalidArgumentException`. Create the Entry with a Locale first, then write its Shared Fields ([Scope](docs/guide/publishing.md#scope)).
+4. **`force-delete` is a new Permission.** A Role granting it through a wildcard, such as `kami.*` or `kami.entries.*.*`, may now delete Entries from the Trash for good. Narrow the Role in `config/kami.php` if it should not ([Permissions](docs/guide/users-and-roles.md#permissions)).
 
 ## 0.3.0
 
