@@ -109,17 +109,19 @@ In the admin form, leaving the title field fills the slug with what saving would
 
 ## Reacting to content
 
-`SaveEntry` dispatches Content events, in `Psyao\Kami\Content\Events`, so your code reacts to a write without changing it (ADR 0029). There is no event before a write and none can cancel one: validation belongs to the type's declaration.
+The core actions dispatch Content events, in `Psyao\Kami\Content\Events`, so your code reacts to a write without changing it (ADR 0029). There is no event before a write and none can cancel one: validation belongs to the type's declaration.
 
 | Event | Dispatched when | Properties |
 | --- | --- | --- |
 | `EntrySaved` | every save | `entry`, `locale`, `created`, `actor` |
 | `EntryPublished` | the save made the Translation visible: published now or backdated | `entry`, `locale`, `scheduled`, `actor` |
 | `EntryUnpublished` | the save returned a published Translation to Draft | `entry`, `locale`, `actor` |
+| `EntryTrashed` | `TrashEntry` moved the Entry to the [Trash](content-types.md#the-trash) | `entry`, `actor` |
+| `EntryRestored` | `RestoreEntry` brought it back | `entry`, `actor` |
 
 - `entry` is the Entry as saved, with its Translations and Field values loaded; `locale` is the Locale written, or `'*'` for an untranslatable type and a Shared-only call. `created` is `true` when the save created the Entry, not when it added a Locale. `actor` is the User passed to `SaveEntry`, `null` for imports and the CLI.
 - Scheduling a Translation dispatches `EntrySaved` only: no event fires yet when its moment comes, so `scheduled` is always `false` for now.
-- Events are dispatched once the write is committed. When you call `SaveEntry` inside your own `DB::transaction()`, they wait for that transaction to commit and are dropped if it rolls back, so a listener never sees a write that did not happen.
+- Events are dispatched once the write is committed. When you call a core action inside your own `DB::transaction()`, they wait for that transaction to commit and are dropped if it rolls back, so a listener never sees a write that did not happen.
 - An exception thrown by a listener reaches the caller, after the write is committed: a failed side effect is visible, never silent.
 
 Listen to them as to any Laravel event, for instance in a service provider's `boot()`:

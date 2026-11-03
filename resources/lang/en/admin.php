@@ -27,6 +27,27 @@ return [
         'unnamed' => 'This Entry was changed on :time, after you opened it. Nothing was saved: reload the page to see the changes.',
     ],
 
+    'trash' => [
+        'filter' => 'Trash',
+        'without' => 'Outside the Trash',
+        'with' => 'With the Trash',
+        'only' => 'In the Trash',
+        'heading' => 'Move :title to the Trash',
+        'description' => 'It leaves the site in every language until someone restores it.',
+        'used_by' => 'Used by :entries: they will read it as absent until someone restores it.',
+        'done' => 'Moved to the Trash',
+        'singleton' => 'A Singleton or a Global Set cannot go to the Trash: a Site never loses it.',
+        'children' => 'Move or trash its children first: :children.',
+    ],
+
+    'restore' => [
+        'parent' => 'Restore its Parent first: :parent.',
+    ],
+
+    'titles' => [
+        'more' => ':titles and :count more',
+    ],
+
     'state' => [
         'label' => 'State',
         'label_in' => 'State (:LOCALE)',
@@ -47,6 +68,7 @@ return [
         'schedule' => 'Schedule',
         'unpublish' => 'Unpublish',
         'view' => 'View on the site',
+        'trash' => 'Move to Trash',
     ],
 
     'preview' => [

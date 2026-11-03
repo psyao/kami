@@ -265,10 +265,10 @@ it('removes References when a target or a source is hard-deleted', function () {
 
     // A Path holds its Entry back (ADR 0005).
     DB::table('kami_paths')->delete();
-    $one->delete();
+    $one->forceDelete();
     expect(titlesOf(readLinked()->related))->toBe(['Two']);
 
-    $source->delete();
+    $source->forceDelete();
     expect(DB::table('kami_references')->count())->toBe(0);
 });
 

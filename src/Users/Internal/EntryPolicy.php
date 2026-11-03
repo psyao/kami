@@ -48,6 +48,19 @@ final class EntryPolicy
         return $this->can($user, $entry instanceof Entry ? $entry->type : $entry, 'publish');
     }
 
+    /** Moving it to the Trash, in all its Locales. */
+    public function delete(Authenticatable $user, Entry $entry): bool
+    {
+        return $this->can($user, $entry->type, 'delete');
+    }
+
+    /** A published Translation, Scheduled ones included, is visible again once restored: it takes `publish` too (ADR 0019). */
+    public function restore(Authenticatable $user, Entry $entry): bool
+    {
+        return $this->can($user, $entry->type, 'restore')
+            && ($entry->translations->doesntContain('status', Translation::PUBLISHED) || $this->can($user, $entry->type, 'publish'));
+    }
+
     private function can(Authenticatable $user, string $type, string $action): bool
     {
         return Gate::forUser($user)->allows("kami.entries.{$type}.{$action}");

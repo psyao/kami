@@ -83,10 +83,11 @@ it('answers a page in the same number of queries as the small dataset', function
     expect(measure('Page', fn () => pageQueries()))->toBe(smallDatasetPageQueries());
 });
 
-it('walks a listing in its index, sorting nothing', function () {
+it('walks a listing in its index, sorting nothing, the Trash left out', function () {
     $query = Entry::query()->ofType(Project::class)->ordered()->limit(50);
 
-    expect(plan($query))->toContain('kami_entries_type_position_id_index')->not->toContain('filesort')->not->toContain('Sort')->not->toContain('TEMP B-TREE')
+    expect($query->toBase()->toSql())->toContain('deleted_at')
+        ->and(plan($query))->toContain('kami_entries_type_position_id_index')->not->toContain('filesort')->not->toContain('Sort')->not->toContain('TEMP B-TREE')
         ->and(measure('Listing, 50 rows', fn () => (clone $query)->get()))->toHaveCount(50);
 
     measure('Listing in a Site', fn () => Entry::query()->where('site', 'default')->ofType(Project::class)->ordered()->limit(50)->get());

@@ -19,8 +19,8 @@ A Content Type's form in the admin, registered with `KamiPlugin::make()->forms([
 A Content Type's table in the admin, registered with `KamiPlugin::make()->tables([...])`. Extend it to choose the columns, filters and actions; the level, the manual order and their Permissions stay Kami's.
 
 - `public function columns(): array`
-- `public function filters(): array`
-- `public function recordActions(): array`: Each row's actions: Edit, and Children on a hierarchical type.
+- `public function filters(): array`: The Trash filter.
+- `public function recordActions(): array`: Each row's actions: Edit, Children on a hierarchical type, Trash, and Restore in the Trash.
 - `public function toolbarActions(): array`: The actions above the table, bulk ones included.
 
 ## `Psyao\Kami\Admin\InitialsAvatarProvider`
@@ -45,6 +45,14 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 - `public function register(Filament\Panel $panel): void`
 - `public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin`: A type's own table, in place of the generated one.
 
+## `Psyao\Kami\Content\Actions\RestoreEntry`
+
+`final class`
+
+Brings an Entry back from the Trash with its states and Paths as they were: a Published Translation is visible again at once. It does not authorise: the caller checks the actor's `restore` Permission first, and `publish` when a Translation is published (ADR 0011, ADR 0019).
+
+- `public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
 ## `Psyao\Kami\Content\Actions\SaveEntry`
 
 `final class`
@@ -52,6 +60,14 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 Creates or updates one Translation of an Entry: the one way content is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
 
 - `public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL, ?DateTimeInterface $updatedAt = NULL): Psyao\Kami\Content\Entry`
+
+## `Psyao\Kami\Content\Actions\TrashEntry`
+
+`final class`
+
+Moves an Entry to the Trash in all its Locales: it reads as absent everywhere and answers 404, its Paths stay reserved, and `RestoreEntry` brings it back as it was. It does not authorise: the caller checks the actor's `delete` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
 
 ## `Psyao\Kami\Content\ContentType`
 
@@ -80,14 +96,15 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 
 `class extends Illuminate\Database\Eloquent\Model`
 
-One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()` (ADR 0002, ADR 0012).
+One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()`, and never one in the Trash unless `withTrashed()` (ADR 0002, ADR 0012).
 
+- `protected $forceDeleting = false`: Indicates if the model is currently force deleting.
 - `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL.
-- `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too.
+- `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
 
 ## `Psyao\Kami\Content\Fields\Boolean`
 

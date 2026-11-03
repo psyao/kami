@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
@@ -28,7 +29,7 @@ use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
- * One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()` (ADR 0002, ADR 0012).
+ * One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()`, and never one in the Trash unless `withTrashed()` (ADR 0002, ADR 0012).
  *
  * Its title, slug, status, publication date and Field values read as attributes: `$entry->title`, `$entry->summary`.
  *
@@ -43,7 +44,8 @@ use Psyao\Kami\Sites\Internal\Site;
  * @property-read string|null $parent_id Its Parent's id, on a hierarchical type.
  * @property-read int|string|null $created_by The Creator's User key.
  * @property-read int|string|null $updated_by The Last modifier's User key.
- * @property-read Carbon|null $updated_at When it was last saved, in any Locale: `SaveEntry` refuses a save over a change made since the one its caller loaded.
+ * @property-read Carbon|null $updated_at When it was last saved, trashed or restored, in any Locale: `SaveEntry` refuses a save over a change made since the one its caller loaded.
+ * @property-read Carbon|null $deleted_at When it went to the Trash; `null` outside it.
  */
 #[ScopedBy(Visibility::class)]
 #[UseEloquentBuilder(EntryBuilder::class)]
@@ -51,6 +53,7 @@ use Psyao\Kami\Sites\Internal\Site;
 class Entry extends Model
 {
     use HasUlids;
+    use SoftDeletes;
 
     /** @internal */
     #[\Override]
@@ -303,7 +306,7 @@ class Entry extends Model
     }
 
     /**
-     * Drafts and Scheduled Entries too.
+     * Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
      *
      * @param  Builder<static>  $query
      */

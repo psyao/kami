@@ -53,7 +53,7 @@ final class Visibility implements Scope
     }
 
     /**
-     * Recomputes the Site's next visibility change, in one query on the `(status, published_at)` index, and replaces its file atomically. Called after commit by the core actions and `kami:install`; a failure is reported, never thrown, as the write it follows has committed.
+     * Recomputes the Site's next visibility change, out of the Trash, in one query on the `(status, published_at)` index, and replaces its file atomically. Called after commit by the core actions and `kami:install`; a failure is reported, never thrown, as the write it follows has committed.
      */
     public static function writeNextChange(Site $site): void
     {
@@ -61,7 +61,7 @@ final class Visibility implements Scope
             $next = DB::table('kami_translations')
                 ->where('status', Translation::PUBLISHED)
                 ->where('published_at', '>', now())
-                ->whereIn('entry_id', DB::table('kami_entries')->select('id')->where('site', $site->handle))
+                ->whereIn('entry_id', DB::table('kami_entries')->select('id')->where('site', $site->handle)->whereNull('deleted_at'))
                 ->min('published_at');
             $path = self::nextChangePath($site);
 

@@ -9,7 +9,7 @@ use Filament\Tables\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
 use Psyao\Kami\Admin\EntryTable;
 
-/** A site's own table: the generated columns, a Field's column and a filter. */
+/** A site's own table: the generated columns, a Field's column, and a filter beside Kami's. */
 final class ProjectTable extends EntryTable
 {
     public function columns(): array
@@ -20,6 +20,7 @@ final class ProjectTable extends EntryTable
     public function filters(): array
     {
         return [
+            ...parent::filters(),
             Filter::make('recent')
                 ->label('Created this month')
                 ->query(fn (Builder $query): Builder => $query->whereDate('created_at', '>=', now()->subMonth())),

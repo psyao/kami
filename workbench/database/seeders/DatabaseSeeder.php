@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\SiteSettings;
@@ -25,7 +26,7 @@ use Workbench\App\Models\User;
 /** What `composer serve` shows: known accounts and one Entry per state worth looking at. */
 class DatabaseSeeder extends Seeder
 {
-    public function run(SaveEntry $save): void
+    public function run(SaveEntry $save, TrashEntry $trash): void
     {
         $admin = $this->user('Ada Admin', 'admin@example.test', 'administrator');
         $this->user('Eddie Editor', 'editor@example.test', 'editor');
@@ -49,6 +50,9 @@ class DatabaseSeeder extends Seeder
         // A blank en Field showing Fallback.
         $fallback = $save->handle(Article::class, [...$published, 'title' => 'Résumé vide', 'summary' => 'Ce résumé est aussi lu en anglais.', 'author' => 'Ada'], locale: 'fr', actor: $admin);
         $save->handle(Article::class, [...$published, 'title' => 'Blank summary'], $fallback, 'en', $admin);
+
+        // In the Trash, found through the table's filter; its address stays reserved.
+        $trash->handle($save->handle(Article::class, [...$published, 'title' => 'Dans la corbeille', 'author' => 'Ada'], locale: 'fr', actor: $admin), $admin);
 
         $about = $save->handle(Page::class, [...$published, 'title' => 'À propos', 'body' => 'Une page à la racine du Site.'], locale: 'fr', actor: $admin);
         $save->handle(Page::class, [...$published, 'title' => 'About', 'body' => 'A page at the root of the Site.'], $about, 'en', $admin);

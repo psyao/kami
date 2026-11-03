@@ -9,7 +9,9 @@ use Closure;
 use DateTimeInterface;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field as FormField;
@@ -29,6 +31,8 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\BaseFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Auth\SessionGuard;
@@ -47,7 +51,9 @@ use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Admin\KamiPlugin;
+use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
@@ -61,6 +67,8 @@ use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\EntrySnapshot;
+use Psyao\Kami\Content\Internal\EntryTitles;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Layout;
@@ -301,13 +309,53 @@ final class EntryResource extends FilamentResource
         return $entry->translations->whereNotNull('title')->sortBy(fn (Translation $translation): int => $order[$translation->locale] ?? count($order))->first()?->title;
     }
 
+    /** @return list<BaseFilter> */
+    public static function filters(): array
+    {
+        return [TrashedFilter::make()
+            ->label(__('kami::admin.trash.filter'))
+            ->placeholder(__('kami::admin.trash.without'))
+            ->trueLabel(__('kami::admin.trash.with'))
+            ->falseLabel(__('kami::admin.trash.only'))];
+    }
+
     /** @return list<Action> */
     public static function recordActions(): array
     {
+        $trashed = fn (Entry $record): bool => $record->trashed();
+
         return [
-            ...(self::type()->isHierarchical() ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))] : []),
-            EditAction::make(),
+            ...(self::type()->isHierarchical() ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))->hidden($trashed)] : []),
+            // A trashed Entry has no edit page: nothing changes while it waits.
+            EditAction::make()->hidden($trashed),
+            DeleteAction::make()
+                ->label(__('kami::admin.actions.trash'))
+                ->modalHeading(fn (DeleteAction $action): string => __('kami::admin.trash.heading', ['title' => $action->getRecordTitle()]))
+                ->modalDescription(function (Entry $record): string {
+                    $sources = EntryTitles::list(References::sources($record->id));
+
+                    return $sources === '' ? __('kami::admin.trash.description') : __('kami::admin.trash.used_by', ['entries' => $sources]);
+                })
+                ->modalSubmitActionLabel(__('kami::admin.actions.trash'))
+                ->successNotificationTitle(__('kami::admin.trash.done'))
+                ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(TrashEntry::class)->handle($record, Filament::auth()->user()))),
+            RestoreAction::make()
+                ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(RestoreEntry::class)->handle($record, Filament::auth()->user()))),
         ];
+    }
+
+    /** Runs a core action; its refusal shows on a notification, and the Filament action fails with no other message. */
+    private static function onNotification(Closure $call): bool
+    {
+        try {
+            $call();
+
+            return true;
+        } catch (ValidationException $exception) {
+            Notification::make()->danger()->title($exception->validator->errors()->first())->send();
+
+            return false;
+        }
     }
 
     public static function getPages(): array
