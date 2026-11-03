@@ -11,6 +11,8 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 ## 0.4.0
 
 1. **`SaveEntry::handle()` takes a sixth argument, `updatedAt`.** It is optional, so no call changes. Passed, a save over a change made since is refused ([Concurrent edits](docs/guide/publishing.md#concurrent-edits)). Every save now also touches the Entry's `updated_at`, a save changing one Translation only too: code reading it sees more recent dates.
+2. **`<x-kami::preview-banner />` in your layout.** The admin's new Preview renders the unsaved form through your type's `render()`. Add the component at the top of your layout's `<body>`, so an editor reading a Preview is told so; it renders nothing on public pages ([The Preview banner](docs/guide/routing-and-rendering.md#the-preview-banner)).
+3. **The admin sends `Cross-Origin-Opener-Policy: same-origin`.** It keeps the Preview tab the same tab from one click to the next. A popup your panel opens on another origin, such as an OAuth sign-in in a popup, can no longer reach back to the admin window ([Security](docs/guide/security.md)).
 
 ## 0.3.0
 

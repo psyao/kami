@@ -42,10 +42,16 @@ return [
         'children' => 'Enfants',
         'create_target' => 'Créer : :type',
         'save_draft' => 'Enregistrer le brouillon',
+        'preview' => 'Prévisualiser',
         'publish' => 'Publier',
         'schedule' => 'Programmer',
         'unpublish' => 'Dépublier',
         'view' => 'Voir sur le site',
+    ],
+
+    'preview' => [
+        'label' => 'Prévisualisation',
+        'banner' => 'Prévisualisation de modifications non enregistrées : les visiteurs ne voient pas cette page.',
     ],
 
     'rich_text' => [

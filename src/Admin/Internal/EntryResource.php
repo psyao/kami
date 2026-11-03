@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +61,7 @@ use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
+use Psyao\Kami\Content\Internal\EntrySnapshot;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Layout;
@@ -506,8 +508,59 @@ final class EntryResource extends FilamentResource
 
         $data = array_diff_key($data, array_flip(self::keptFromUser($entry)));
 
+        $saved = self::onForm(fn (): Entry => resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt), $state);
+
+        self::remind($data);
+
+        return $saved;
+    }
+
+    /**
+     * The unsaved form as `SaveEntry` would write it, checked with the Draft rules and kept in the cache for this User only; returns the Preview's URL.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $state  The form's raw state, whose rows the errors must name.
+     * @param  string  $token  The page's: each Preview of it replaces the last.
+     */
+    public static function preview(array $data, ?Entry $entry, string $locale, array $state, string $token): string
+    {
+        $data = array_diff_key($data, array_flip(self::keptFromUser($entry)));
+        $draft = self::onForm(fn (): array => resolve(SaveEntry::class)->draft(self::type()->handle(), $data, $entry, $locale), $state);
+
+        Cache::put(RenderPreview::CACHE_KEY . $token, ['user' => Filament::auth()->id(), 'snapshot' => EntrySnapshot::capture(self::type(), $entry, $draft, $locale)], now()->addHour());
+
+        return (Filament::getCurrentPanel() ?? throw new LogicException('A Preview is made from a panel.'))->route('kami.preview', ['token' => $token]);
+    }
+
+    /**
+     * Opens the Preview's tab on the click, before the round trip, which a popup blocker would refuse; a second click finds it by name and refreshes it.
+     * An invalid form keeps its errors and closes a tab still blank. A Global Set or a type with no URL has no page to show.
+     */
+    public static function previewAction(): Action
+    {
+        return Action::make('preview')
+            ->label(__('kami::admin.actions.preview'))
+            ->color('gray')
+            ->visible(fn (): bool => self::type()->isRoutable())
+            ->alpineClickHandler(<<<'JS'
+                const tab = window.open('', 'kami-preview');
+                $wire.preview().then((url) => url ? tab.location.assign(url) : tab.location.href === 'about:blank' && tab.close());
+                JS);
+    }
+
+    /**
+     * Runs a `SaveEntry` call with its errors on the form's fields.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $call
+     * @param  array<string, mixed>  $state
+     * @return T
+     */
+    private static function onForm(Closure $call, array $state): mixed
+    {
         try {
-            $saved = resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt);
+            return $call();
         } catch (ValidationException $exception) {
             $errors = [];
 
@@ -517,10 +570,6 @@ final class EntryResource extends FilamentResource
 
             throw ValidationException::withMessages($errors);
         }
-
-        self::remind($data);
-
-        return $saved;
     }
 
     /**

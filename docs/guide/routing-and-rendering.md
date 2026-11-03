@@ -53,7 +53,7 @@ The Entry is rendered by its Content Type's `render()`. By default, it returns t
 </article>
 ```
 
-The views are the site's: Kami ships none. Print values with `{{ }}`, which escapes them: a title or a Field holding markup shows as text.
+The views are the site's: Kami ships no page view, only the `x-kami::` components below. Print values with `{{ }}`, which escapes them: a title or a Field holding markup shows as text.
 
 ### Overriding `render()`
 
@@ -75,6 +75,19 @@ public function render(Entry $entry, ?EventCalendar $calendar = null): View | Re
 ```
 
 It may return any view or response: a redirect, JSON, or a controller's response called from there.
+
+### The Preview banner
+
+The admin's Preview calls the same `render()` with an Entry that was never saved ([Publishing](publishing.md#preview)): `render()` must not assume its Entry is stored or visible. Put the banner at the top of your layout's `<body>`:
+
+```blade
+<body>
+    <x-kami::preview-banner />
+    ...
+</body>
+```
+
+It renders nothing on a public page. In a Preview it renders an `<aside class="kami-preview-banner">` landmark saying the page holds unsaved changes visitors do not see, in the Preview's Locale. It carries no CSS: style `.kami-preview-banner` as you wish. Kami does not change your HTML, so a layout without the component shows no banner.
 
 ## Query count
 

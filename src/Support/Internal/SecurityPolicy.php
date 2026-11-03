@@ -56,10 +56,15 @@ final class SecurityPolicy
         'frame-ancestors' => ["'none'"],
     ];
 
-    /** @var array<string, string> */
+    /**
+     * The opener policy matches the front's, so a tab the admin opens on a front page, its Preview included, stays reachable by name.
+     *
+     * @var array<string, string>
+     */
     public const array ADMIN_HEADERS = [
         'X-Content-Type-Options' => 'nosniff',
         'Referrer-Policy' => 'same-origin',
+        'Cross-Origin-Opener-Policy' => 'same-origin',
         'X-Frame-Options' => 'DENY',
     ];
 

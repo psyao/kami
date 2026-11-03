@@ -55,6 +55,120 @@ final class SaveEntry
      */
     public function handle(string $type, array $values, ?Entry $entry = null, ?string $locale = null, ?Authenticatable $actor = null, ?DateTimeInterface $updatedAt = null): Entry
     {
+        [
+            'contentType' => $contentType, 'site' => $site, 'locale' => $locale, 'values' => $values, 'writesTranslation' => $writesTranslation,
+            'translation' => $translation, 'data' => $data, 'fields' => $fields, 'cleared' => $cleared, 'clearedReferences' => $clearedReferences,
+        ] = $this->prepare($type, $values, $entry, $locale, $updatedAt, draft: false);
+
+        $wasPublished = $translation->status === Translation::PUBLISHED;
+        $wasVisible = Visibility::isVisible($translation);
+
+        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences): string {
+            $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
+            // Touched by every save, one changing a Translation only too: the concurrent-edit check reads it.
+            $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()]);
+
+            if (array_key_exists('parent', $values)) {
+                $entry->forceFill(['parent_id' => $values['parent']]);
+            }
+
+            if ($contentType->isOrderable() && (isset($values['position']) || ! $entry->exists || $entry->isDirty('parent_id'))) {
+                $entry->forceFill(['position' => $values['position'] ?? ReorderEntries::next($contentType, $entry->parent_id)]);
+            }
+
+            $entry->save();
+
+            if ($writesTranslation) {
+                $translation->entry_id = $entry->id;
+                foreach (Translation::ATTRIBUTES as $attribute) {
+                    $translation->setAttribute($attribute, $data[$attribute] ?? null);
+                }
+
+                // ADR 0019: publishing with no date publishes now; unpublishing keeps the date, which republishing reuses.
+                if ($translation->status === Translation::PUBLISHED) {
+                    $translation->published_at ??= now()->toImmutable();
+                }
+
+                $translation->save();
+            }
+
+            $rows = [];
+            foreach ($fields as $handle => $field) {
+                if (! array_key_exists($handle, $values)) {
+                    continue;
+                }
+
+                if ($field instanceof RelationField) {
+                    /** @var list<string>|null $targets */
+                    $targets = $values[$handle];
+                    References::replace($entry->id, $handle, $contentType->isTranslatable($field) ? $locale : null, $targets ?? []);
+                } else {
+                    $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $field->write($values[$handle]);
+                }
+            }
+
+            foreach ($rows as $rowLocale => $row) {
+                DB::table("kami_type_{$contentType->handle()}")->updateOrInsert(['entry_id' => $entry->id, 'locale' => $rowLocale], $row);
+            }
+
+            if ($cleared !== []) {
+                DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($cleared);
+            }
+
+            foreach ($clearedReferences as $handle) {
+                References::clear($entry->id, $handle);
+            }
+
+            if ($writesTranslation) {
+                $this->reservePath($contentType, $site, $entry, $locale, $translation->slug);
+            }
+
+            return $entry->id;
+        });
+
+        $saved = Entry::query()->withUnpublished()->findOrFail($id);
+        // At a caller's own commit, as the events are: a rolled back write leaves the file as it was.
+        DB::afterCommit(fn () => Visibility::writeNextChange($site));
+
+        // After commit, so a listener never sees a write rolled back; a caller's own transaction defers them to its commit (ADR 0029).
+        event(new EntrySaved($saved, $locale, ! $entry instanceof Entry, $actor));
+
+        if (! $wasVisible && Visibility::isVisible($translation)) {
+            event(new EntryPublished($saved, $locale, false, $actor));
+        } elseif ($wasPublished && ($data['status'] ?? null) === Translation::DRAFT) {
+            event(new EntryUnpublished($saved, $locale, $actor));
+        }
+
+        return $saved;
+    }
+
+    /**
+     * @internal
+     *
+     * What `handle()` would write, checked with the Draft rules and written nowhere: the Preview's unsaved form (ADR 0019).
+     *
+     * @param  array<string, mixed>  $values
+     * @return array{locale: string, data: array<mixed>} The Locale written and the Translation's attributes and Field values, a relation Field's as target ids.
+     *
+     * @throws ValidationException
+     */
+    public function draft(string $type, array $values, ?Entry $entry = null, ?string $locale = null): array
+    {
+        $prepared = $this->prepare($type, $values, $entry, $locale, null, draft: true);
+
+        return ['locale' => $prepared['locale'], 'data' => [...$prepared['data'], ...$prepared['cleared'], ...array_fill_keys($prepared['clearedReferences'], null)]];
+    }
+
+    /**
+     * Everything before the write: the values normalised, the Translation as it will be, validated whole; Draft rules require nothing.
+     *
+     * @param  array<string, mixed>  $values
+     * @return array{contentType: ContentType, site: Site, locale: string, values: array<string, mixed>, writesTranslation: bool, translation: Translation, data: array<mixed>, fields: array<string, Field>, cleared: array<string, null>, clearedReferences: list<string>}
+     *
+     * @throws ValidationException
+     */
+    private function prepare(string $type, array $values, ?Entry $entry, ?string $locale, ?DateTimeInterface $updatedAt, bool $draft): array
+    {
         $contentType = resolve(ContentTypes::class)->find($type) ?? throw new InvalidArgumentException("No Content Type [{$type}] is declared in kami.types.");
 
         if ($entry instanceof Entry && $entry->type !== $contentType->handle()) {
@@ -148,7 +262,7 @@ final class SaveEntry
             $data['slug'] = $data['slug'] === '' ? null : $data['slug'];
         }
 
-        $publishing = ($data['status'] ?? null) === Translation::PUBLISHED;
+        $publishing = ! $draft && ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
             // A Singleton's form has no slug: what its Prefix breaks shows on the title.
             'title' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', ...($contentType->hasSlug() ? [] : [$this->pathRule($contentType, $site, $locale)])],
@@ -168,7 +282,7 @@ final class SaveEntry
 
         // A Shared value is read by every Translation: a save may not blank what another one publishes. One already blank holds nothing back, as a Field may turn required after publication.
         $held = array_filter($fields, fn (Field $field): bool => $field->isRequired() && ! $contentType->isTranslatable($field) && array_key_exists($field->handle, $values) && $before[$field->handle] !== null);
-        $publishedElsewhere = $held !== [] && $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
+        $publishedElsewhere = ! $draft && $held !== [] && $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
 
         foreach ($fields as $handle => $field) {
             $rules = [...$rules, ...$field->rulesAt($handle, $publishing || ($publishedElsewhere && isset($held[$handle])))];
@@ -219,86 +333,7 @@ final class SaveEntry
 
         Validator::make($data, $rules, [], $names)->validate();
 
-        $wasPublished = $translation->status === Translation::PUBLISHED;
-        $wasVisible = Visibility::isVisible($translation);
-
-        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences): string {
-            $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
-            // Touched by every save, one changing a Translation only too: the concurrent-edit check reads it.
-            $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()]);
-
-            if (array_key_exists('parent', $values)) {
-                $entry->forceFill(['parent_id' => $values['parent']]);
-            }
-
-            if ($contentType->isOrderable() && (isset($values['position']) || ! $entry->exists || $entry->isDirty('parent_id'))) {
-                $entry->forceFill(['position' => $values['position'] ?? ReorderEntries::next($contentType, $entry->parent_id)]);
-            }
-
-            $entry->save();
-
-            if ($writesTranslation) {
-                $translation->entry_id = $entry->id;
-                foreach (Translation::ATTRIBUTES as $attribute) {
-                    $translation->setAttribute($attribute, $data[$attribute] ?? null);
-                }
-
-                // ADR 0019: publishing with no date publishes now; unpublishing keeps the date, which republishing reuses.
-                if ($translation->status === Translation::PUBLISHED) {
-                    $translation->published_at ??= now()->toImmutable();
-                }
-
-                $translation->save();
-            }
-
-            $rows = [];
-            foreach ($fields as $handle => $field) {
-                if (! array_key_exists($handle, $values)) {
-                    continue;
-                }
-
-                if ($field instanceof RelationField) {
-                    /** @var list<string>|null $targets */
-                    $targets = $values[$handle];
-                    References::replace($entry->id, $handle, $contentType->isTranslatable($field) ? $locale : null, $targets ?? []);
-                } else {
-                    $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $field->write($values[$handle]);
-                }
-            }
-
-            foreach ($rows as $rowLocale => $row) {
-                DB::table("kami_type_{$contentType->handle()}")->updateOrInsert(['entry_id' => $entry->id, 'locale' => $rowLocale], $row);
-            }
-
-            if ($cleared !== []) {
-                DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($cleared);
-            }
-
-            foreach ($clearedReferences as $handle) {
-                References::clear($entry->id, $handle);
-            }
-
-            if ($writesTranslation) {
-                $this->reservePath($contentType, $site, $entry, $locale, $translation->slug);
-            }
-
-            return $entry->id;
-        });
-
-        $saved = Entry::query()->withUnpublished()->findOrFail($id);
-        // At a caller's own commit, as the events are: a rolled back write leaves the file as it was.
-        DB::afterCommit(fn () => Visibility::writeNextChange($site));
-
-        // After commit, so a listener never sees a write rolled back; a caller's own transaction defers them to its commit (ADR 0029).
-        event(new EntrySaved($saved, $locale, ! $entry instanceof Entry, $actor));
-
-        if (! $wasVisible && Visibility::isVisible($translation)) {
-            event(new EntryPublished($saved, $locale, false, $actor));
-        } elseif ($wasPublished && ($data['status'] ?? null) === Translation::DRAFT) {
-            event(new EntryUnpublished($saved, $locale, $actor));
-        }
-
-        return $saved;
+        return ['contentType' => $contentType, 'site' => $site, 'locale' => $locale, 'values' => $values, 'writesTranslation' => $writesTranslation, 'translation' => $translation, 'data' => $data, 'fields' => $fields, 'cleared' => $cleared, 'clearedReferences' => $clearedReferences];
     }
 
     /**

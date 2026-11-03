@@ -22,9 +22,11 @@ use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Route;
 use Livewire\Component as LivewireComponent;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
@@ -43,7 +45,9 @@ use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Sites\Internal\Site;
+use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
+use Psyao\Kami\Support\SecurityHeaders;
 
 /** Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make())`. */
 final class KamiPlugin implements Plugin
@@ -166,6 +170,12 @@ final class KamiPlugin implements Plugin
                 $panel->resources([$resource::configure($type)]);
             }
         }
+
+        // A front page, so the front's headers in place of the panel's (ADR 0018).
+        $panel->authenticatedRoutes(fn () => Route::get('kami/preview/{token}', RenderPreview::class)
+            ->name('kami.preview')
+            ->withoutMiddleware(SecurityHeaders::class)
+            ->middleware(FrontSecurityHeaders::class));
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css'), Js::make('kami', __DIR__ . '/../../resources/dist/kami.js')], 'psyao/kami');
