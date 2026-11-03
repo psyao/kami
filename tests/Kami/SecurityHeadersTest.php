@@ -108,7 +108,6 @@ it('sends the admin policy with a nonce that signs every inline script of the pa
     $response = $this->get('/admin/login')->assertOk()
         ->assertHeader('X-Content-Type-Options', 'nosniff')
         ->assertHeader('Referrer-Policy', 'same-origin')
-        ->assertHeader('Cross-Origin-Opener-Policy', 'same-origin')
         ->assertHeader('X-Frame-Options', 'DENY')
         ->assertHeaderMissing('Permissions-Policy');
 

@@ -19,9 +19,18 @@ final readonly class FrontSecurityHeaders
 {
     public function __construct(private SecurityHeaders $headers) {}
 
-    /** @param  Closure(Request): Response  $next */
-    public function handle(Request $request, Closure $next): Response
+    /**
+     * @param  Closure(Request): Response  $next
+     * @param  string|null  $openerPolicy  In place of the front's `Cross-Origin-Opener-Policy`, for the admin Preview (ADR 0018).
+     */
+    public function handle(Request $request, Closure $next, ?string $openerPolicy = null): Response
     {
-        return $this->headers->handle($request, $next);
+        $response = $this->headers->handle($request, $next);
+
+        if ($openerPolicy !== null) {
+            $response->headers->set('Cross-Origin-Opener-Policy', $openerPolicy);
+        }
+
+        return $response;
     }
 }

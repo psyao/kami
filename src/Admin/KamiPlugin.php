@@ -171,11 +171,12 @@ final class KamiPlugin implements Plugin
             }
         }
 
-        // A front page, so the front's headers in place of the panel's (ADR 0018).
+        // A front page, so the front's headers in place of the panel's (ADR 0018); but for the admin's opener policy,
+        // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.
         $panel->authenticatedRoutes(fn () => Route::get('kami/preview/{token}', RenderPreview::class)
             ->name('kami.preview')
             ->withoutMiddleware(SecurityHeaders::class)
-            ->middleware(FrontSecurityHeaders::class));
+            ->middleware(FrontSecurityHeaders::class . ':unsafe-none'));
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css'), Js::make('kami', __DIR__ . '/../../resources/dist/kami.js')], 'psyao/kami');

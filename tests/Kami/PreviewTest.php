@@ -188,13 +188,13 @@ it('holds the snapshot in the file cache, not in the session', function () {
     $this->get(previewUrl($page))->assertSee('<h1>Sur disque</h1>', escape: false);
 });
 
-it('carries the front headers, noindex and no-store', function () {
+it('carries the front headers, noindex and no-store, with the admin\'s opener policy', function () {
     $url = previewUrl(previewPage(EditEntry::class, ['record' => previewedArticle()->id])->call('preview'));
     $front = $this->get('/articles/bonjour');
 
     $this->get($url)
         ->assertHeader('Content-Security-Policy', $front->headers->get('Content-Security-Policy'))
-        ->assertHeader('Cross-Origin-Opener-Policy', 'same-origin')
+        ->assertHeader('Cross-Origin-Opener-Policy', 'unsafe-none')
         ->assertHeader('X-Robots-Tag', 'noindex')
         ->assertHeader('Cache-Control', 'no-store, private');
 });

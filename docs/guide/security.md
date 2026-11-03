@@ -61,7 +61,7 @@ img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'sel
 object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ```
 
-Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Cross-Origin-Opener-Policy: same-origin` and `X-Frame-Options: DENY`. The opener policy is the front's, so the Preview tab stays the same tab from one click to the next; a popup your panel opens on another origin, such as an OAuth sign-in, cannot reach back to the admin window. The admin policy is fixed: the options below change the front only. `kami:doctor` warns when a panel carrying `KamiPlugin` lacks the middleware.
+Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` and `X-Frame-Options: DENY`. The admin policy is fixed: the options below change the front only. `kami:doctor` warns when a panel carrying `KamiPlugin` lacks the middleware.
 
 ## Extending the policy
 
