@@ -24,10 +24,10 @@ final class KamiServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
-        // ponytail: no hasViews() until resources/views exists, or `view:cache` fails (#65).
         $package->name('kami')
             ->hasConfigFile()
             ->hasTranslations()
+            ->hasViews()
             ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class]);
     }
 

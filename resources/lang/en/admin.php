@@ -42,10 +42,16 @@ return [
         'children' => 'Children',
         'create_target' => 'Create a :type',
         'save_draft' => 'Save draft',
+        'preview' => 'Preview',
         'publish' => 'Publish',
         'schedule' => 'Schedule',
         'unpublish' => 'Unpublish',
         'view' => 'View on the site',
+    ],
+
+    'preview' => [
+        'label' => 'Preview',
+        'banner' => 'Preview of unsaved changes: visitors do not see this page.',
     ],
 
     'rich_text' => [

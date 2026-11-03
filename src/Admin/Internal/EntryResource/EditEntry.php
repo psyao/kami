@@ -12,6 +12,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use LogicException;
@@ -47,6 +48,10 @@ final class EditEntry extends EditRecord
     /** The Entry's `updated_at` as this page loaded it or last saved it, in seconds: `SaveEntry` refuses a save over a change made since, in any Locale. */
     #[Locked]
     public ?int $updatedAt = null;
+
+    /** This page's Preview, which each click replaces (ADR 0019). */
+    #[Locked]
+    public ?string $previewToken = null;
 
     /** Set by the Publish and Unpublish actions for the save they start; a plain save keeps the state. */
     private ?string $status = null;
@@ -187,8 +192,15 @@ final class EditEntry extends EditRecord
                 ->color('gray')
                 ->url(fn (): ?string => $this->getRecord()->url(), shouldOpenInNewTab: true)
                 ->visible(fn (): bool => $this->getRecord()->url() !== null),
+            EntryResource::previewAction(),
             ...EntryResource::plugin()->entryForm(EntryResource::type(), $this)->actions(),
         ];
+    }
+
+    /** The unsaved form's Preview URL, or its errors on the form; called by the Preview button, which opened the tab. */
+    public function preview(): string
+    {
+        return EntryResource::preview($this->form->getState(), $this->getRecord(), $this->locale, $this->data ?? [], $this->previewToken ??= Str::random(40));
     }
 
     /** Every Locale with its state, labelled through closures: a save on this page changes them. Each other Locale is a link, keeping M2's URLs. */

@@ -5,6 +5,7 @@
     <title>{{ $entry->title }}</title>
 </head>
 <body>
+    <x-kami::preview-banner />
     <main>
         <h1>{{ $entry->title }}</h1>
         <p @if ($lang = $entry->fallbackLocale('summary'))lang="{{ $lang }}"@endif>{{ $entry->summary }}</p>

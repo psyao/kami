@@ -172,6 +172,7 @@ command kami:make:type --global-set [--global-set]
 command kami:make:type --singleton [--singleton]
 command kami:make:type --taxonomy [--taxonomy]
 command kami:make:type name <name>
+component x-kami::preview-banner
 config kami.resources.entry
 config kami.roles.administrator
 config kami.security.csp

@@ -6,10 +6,12 @@ namespace Psyao\Kami\Admin\Internal\EntryResource;
 
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\Translation;
+use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Writes an Entry's first Translation, in the default Locale, as a Draft or published.
@@ -24,6 +26,10 @@ final class CreateEntry extends CreateRecord
     /** The Parent the Entry starts under: without `reorder` the form saves none, so it is created at the root. */
     #[Locked]
     public ?string $parent = null;
+
+    /** This page's Preview, which each click replaces (ADR 0019). */
+    #[Locked]
+    public ?string $previewToken = null;
 
     /** Set by the Publish action for the save it starts; a plain create saves a Draft. */
     private ?string $status = null;
@@ -46,6 +52,17 @@ final class CreateEntry extends CreateRecord
     protected function getCancelFormAction(): Action
     {
         return EntryResource::cancelToLevel(parent::getCancelFormAction(), fn (): ?string => $this->parent);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [EntryResource::previewAction()];
+    }
+
+    /** The unsaved form's Preview URL, or its errors on the form; called by the Preview button, which opened the tab. */
+    public function preview(): string
+    {
+        return EntryResource::preview($this->form->getState(), null, Site::current()->defaultLocale(), $this->data ?? [], $this->previewToken ??= Str::random(40));
     }
 
     protected function handleRecordCreation(array $data): Entry

@@ -3,10 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputDefinition;
@@ -91,6 +89,12 @@ function publicSurface(): array
         array_map(fn (string $table) => $element('table', $table), $tables[1]);
     }
 
+    // Anonymous components, by the name a view writes, with the props each declares (ADR 0009).
+    foreach (File::allFiles(dirname(__DIR__, 2) . '/resources/views/components') as $view) {
+        preg_match('/^@props\((.*)\)$/m', $view->getContents(), $props);
+        $element('component', 'x-kami::' . str_replace(['/', '.blade.php'], ['.', ''], $view->getRelativePathname()), $props[1] ?? '');
+    }
+
     // A Content Type's Permissions are named after the site's handles: the vocabulary is their pattern (ADR 0014).
     $permissions = collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'));
     $permissions->map(fn (string $permission): string => (string) preg_replace('/^kami\.entries\.[^.]+\./', 'kami.entries.{type}.', $permission))->unique()->each(fn (string $permission) => $element('permission', $permission));
@@ -149,6 +153,7 @@ function referencePages(array $surface): array
     $page = fn (array $element): string => match ($element['group']) {
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
+        'component' => 'components.md',
         'config' => 'config.md',
         'middleware' => 'middleware.md',
         'permission' => 'permissions.md',
@@ -156,6 +161,8 @@ function referencePages(array $surface): array
     };
 
     $entry = fn (array $element): string => match (true) {
+        // Before members: a component's name holds `::` too.
+        $element['group'] === 'component' => "- `<{$element['name']} />`" . ($element['signature'] !== '' ? ": props `{$element['signature']}`" : '') . "\n",
         // A member: a method, property or constant of a class, an argument or option of a command.
         str_contains($element['name'], '::') || str_contains($element['name'], ' ') => "- `{$element['signature']}`" . ($element['summary'] !== '' ? ": {$element['summary']}" : '') . "\n",
         $element['group'] === 'class' => "\n## `{$element['name']}`\n\n`{$element['signature']}`\n\n" . ($element['summary'] !== '' ? "{$element['summary']}\n\n" : ''),
@@ -197,10 +204,4 @@ it('keeps docs/reference in step with the public surface', function () {
     foreach ($pages as $file => $markdown) {
         expect(File::get("{$directory}/{$file}"))->toBe($markdown, "docs/reference/{$file} is stale: run composer reference.");
     }
-});
-
-// ponytail: no collector for `x-kami::` components until M7's first view; this fails the day one is registered.
-it('has no x-kami:: component outside the snapshot yet', function () {
-    expect(View::getFinder()->getHints())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()')
-        ->and(Blade::getClassComponentNamespaces())->not->toHaveKey('kami', 'x-kami:: components need their props in publicSurface()');
 });
