@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
@@ -67,6 +68,16 @@ final class PreviewLink extends Model
     public static function revoke(string $id, Entry $entry, string $locale): void
     {
         self::query()->whereKey($id)->where('entry_id', $entry->id)->where('locale', $locale)->delete();
+    }
+
+    /**
+     * A Translation's links that have not expired, the soonest to expire first.
+     *
+     * @return Collection<int, self>
+     */
+    public static function activeFor(Entry $entry, string $locale): Collection
+    {
+        return self::unexpired()->where('entry_id', $entry->id)->where('locale', $locale)->oldest('expires_at')->get();
     }
 
     /** @return Builder<self> */

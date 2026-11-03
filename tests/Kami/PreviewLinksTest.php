@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
-use Filament\Notifications\Livewire\Notifications;
-use Filament\Notifications\NotificationMailbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
@@ -51,19 +49,6 @@ function linksPage(Entry $entry, array $parameters = [], string $type = 'article
     return Livewire::test(EditEntry::class, ['record' => $entry->id, ...$parameters]);
 }
 
-/** The full link, which only the notification of its creation holds. */
-function sharedUrl(): string
-{
-    // As `assertNotified()` reads them.
-    app(NotificationMailbox::class)->flush();
-    $notifications = new Notifications;
-    $notifications->mount();
-    $notifications->pullNotificationsFromSession();
-    preg_match('#https?://\S+/kami/share/[0-9a-f]{64}#', (string) json_encode($notifications->notifications->toArray(), JSON_UNESCAPED_SLASHES), $matches);
-
-    return $matches[0] ?? throw new LogicException('No Preview link was shown.');
-}
-
 beforeEach(function () {
     $this->freezeSecond();
     Kami::routes();
@@ -74,10 +59,13 @@ beforeEach(function () {
 it('creates a link expiring in 7 days by default, shown once and stored as a hash only', function () {
     $entry = draftArticle();
 
-    linksPage($entry)
+    $page = linksPage($entry)
         ->callAction('previewLinks')
-        ->assertHasNoFormErrors();
-    $url = sharedUrl();
+        ->assertHasNoFormErrors()
+        // In the page's state, not in a notification, which Filament's cache store would hold.
+        ->assertActionMounted('previewLinkCreated')
+        ->assertNotNotified();
+    $url = $page->get('mountedActions')[0]['arguments']['url'];
     $token = Str::afterLast($url, '/');
 
     $link = PreviewLink::query()->sole();
@@ -131,6 +119,17 @@ it('revokes only a link of the Entry and Locale edited', function () {
     $this->get($other)->assertOk();
 });
 
+it('refuses a revocation without share-preview', function () {
+    config(['kami.roles.reviewer' => ['kami.entries.*.view', 'kami.entries.*.update']]);
+    $entry = draftArticle();
+    $url = PreviewLink::issue($entry, 'fr', 7, $this->user);
+
+    $this->actingAs(sharer('reviewer'));
+    linksPage($entry)->callAction([TestAction::make('previewLinks'), TestAction::make('revokePreviewLink')->arguments(['link' => PreviewLink::query()->sole()->id])]);
+
+    $this->get($url)->assertOk();
+});
+
 it('offers links under share-preview only, on a type with a URL', function () {
     config(['kami.roles.reviewer' => ['kami.entries.*.view', 'kami.entries.*.update']]);
     $entry = draftArticle();
@@ -165,7 +164,7 @@ it('reads an untranslatable type\'s Translation in the link\'s Locale', function
     $this->get($url)->assertOk()->assertSee('<html lang="en">', escape: false)->assertSee('Étiquette');
 });
 
-it('carries the front CSP, noindex, no-store and no referrer, with no session cookie', function () {
+it('carries the front CSP, noindex, nofollow, no-store and no referrer, with no session cookie', function () {
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Public', 'author' => 'Ada', 'status' => 'published']);
     $url = PreviewLink::issue(draftArticle(), 'fr', 7, $this->user);
     $front = $this->get('/articles/public');
@@ -173,7 +172,7 @@ it('carries the front CSP, noindex, no-store and no referrer, with no session co
     $this->get($url)
         ->assertHeader('Content-Security-Policy', $front->headers->get('Content-Security-Policy'))
         ->assertHeader('Cross-Origin-Opener-Policy', 'same-origin')
-        ->assertHeader('X-Robots-Tag', 'noindex')
+        ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
         ->assertHeader('Cache-Control', 'no-store, private')
         ->assertHeader('Referrer-Policy', 'no-referrer')
         ->assertHeaderMissing('Set-Cookie');

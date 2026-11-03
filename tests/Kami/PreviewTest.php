@@ -195,7 +195,7 @@ it('carries the front headers, noindex and no-store, with the admin\'s opener po
     $this->get($url)
         ->assertHeader('Content-Security-Policy', $front->headers->get('Content-Security-Policy'))
         ->assertHeader('Cross-Origin-Opener-Policy', 'unsafe-none')
-        ->assertHeader('X-Robots-Tag', 'noindex')
+        ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
         ->assertHeader('Cache-Control', 'no-store, private');
 });
 

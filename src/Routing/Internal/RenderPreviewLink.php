@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Psyao\Kami\Routing\Internal;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\EntrySnapshot;
 use Psyao\Kami\Content\Internal\PreviewLink;
@@ -36,16 +35,9 @@ final class RenderPreviewLink
         // Through a snapshot of what is stored, so the scope is lifted for this Translation only: what it links to reads as visitors see it.
         $entry = EntrySnapshot::rebuild(EntrySnapshot::capture($type, $entry, ['locale' => $translation->locale, 'data' => $translation->only(Translation::ATTRIBUTES)], $link->locale));
 
-        // As `ResolveLocale` does from the URL, which names no Locale here.
-        Site::useLocale($link->locale);
-        app()->setLocale($link->locale);
-        $request->attributes->set('kami.preview', true);
-        $request->attributes->set('kami.preview.banner', __('kami::admin.preview_links.banner', ['date' => $link->expires_at->setTimezone($site->timezone)->isoFormat('LLL')]));
+        // The expiry in the Site's time zone and the link's Locale, which the page renders in.
+        $expiresAt = $link->expires_at->setTimezone($site->timezone)->settings(['locale' => $link->locale])->isoFormat('LLL');
 
-        $response = Route::toResponse($request, app()->call($type->render(...), ['entry' => $entry]));
-        $response->headers->set('X-Robots-Tag', 'noindex');
-        $response->headers->set('Cache-Control', 'no-store');
-
-        return $response;
+        return PreviewResponse::make($request, $type, $entry, __('kami::admin.preview_links.banner', ['date' => $expiresAt], $link->locale));
     }
 }

@@ -8,9 +8,8 @@ use Filament\Facades\Filament;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Internal\EntrySnapshot;
-use Psyao\Kami\Sites\Internal\Site;
+use Psyao\Kami\Routing\Internal\PreviewResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -44,15 +43,6 @@ final class RenderPreview
         $type = $entry->contentType();
         abort_unless($type?->isRoutable() === true && Gate::forUser(Filament::auth()->user())->allows("kami.entries.{$type->handle()}.view"), 404);
 
-        // As `ResolveLocale` does from the URL, which names no Locale here.
-        Site::useLocale($entry->readLocale());
-        app()->setLocale($entry->readLocale());
-        $request->attributes->set('kami.preview', true);
-
-        $response = Route::toResponse($request, app()->call($type->render(...), ['entry' => $entry]));
-        $response->headers->set('X-Robots-Tag', 'noindex');
-        $response->headers->set('Cache-Control', 'no-store');
-
-        return $response;
+        return PreviewResponse::make($request, $type, $entry);
     }
 }

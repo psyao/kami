@@ -16,7 +16,6 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -211,13 +210,11 @@ final class EditEntry extends EditRecord
     }
 
     /**
-     * The Translation's Preview links: its active ones, each revocable, and a form creating one whose full URL shows once, in a notification (ADR 0019).
+     * The Translation's Preview links: its active ones, each revocable, and a form creating one whose full URL shows once (ADR 0019).
      * A type with no URL, or a Locale with no Translation yet, has nothing to share.
      */
     private function previewLinksAction(): Action
     {
-        $links = fn (): Collection => PreviewLink::unexpired()->where('entry_id', $this->getRecord()->id)->where('locale', $this->locale)->oldest('expires_at')->get();
-
         return Action::make('previewLinks')
             ->label(__('kami::admin.preview_links.action'))
             ->color('gray')
@@ -228,7 +225,7 @@ final class EditEntry extends EditRecord
             ->modalDescription(__('kami::admin.preview_links.description'))
             ->modalContent(fn (Action $action): View => view('kami::admin.preview-links', [
                 'action' => $action,
-                'links' => $links()->map(fn (PreviewLink $link): array => ['id' => $link->id, 'label' => __('kami::admin.preview_links.active', [
+                'links' => PreviewLink::activeFor($this->getRecord(), $this->locale)->map(fn (PreviewLink $link): array => ['id' => $link->id, 'label' => __('kami::admin.preview_links.active', [
                     'date' => $link->expires_at->setTimezone(Site::current()->timezone)->translatedFormat($this->form->getDefaultDateTimeDisplayFormat()),
                     'user' => EntryResource::userName($link->created_by) ?? __('kami::admin.preview_links.unknown_user'),
                 ])]),
@@ -255,16 +252,26 @@ final class EditEntry extends EditRecord
                 // Validated as an integer, which the browser may still send as a string.
                 $url = PreviewLink::issue($this->getRecord(), $this->locale, filter_var($data['days'], FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE) ?? 0, Filament::auth()->user());
 
-                // Kept until dismissed, as the URL is never shown again.
-                Notification::make()->success()->persistent()
-                    ->title(__('kami::admin.preview_links.created'))
-                    ->body(__('kami::admin.preview_links.created_body', ['url' => $url]))
-                    ->actions([
-                        Action::make('copy')->label(__('kami::admin.preview_links.copy'))->button()
-                            ->alpineClickHandler('navigator.clipboard.writeText(' . Js::from($url) . ')'),
-                    ])
-                    ->send();
+                // In the page's Livewire state only: a notification would pass through Filament's cache store, writing the token on the server.
+                $this->replaceMountedAction('previewLinkCreated', ['url' => $url]);
             });
+    }
+
+    /** The link just created, shown once to be copied; opened by `previewLinksAction()`, never from the page. */
+    public function previewLinkCreatedAction(): Action
+    {
+        return Action::make('previewLinkCreated')
+            ->modalHeading(__('kami::admin.preview_links.created'))
+            ->modalDescription(__('kami::admin.preview_links.created_body'))
+            ->fillForm(fn (array $arguments): array => ['url' => $arguments['url'] ?? null])
+            ->schema([
+                TextInput::make('url')
+                    ->label(__('kami::admin.preview_links.url'))
+                    ->readOnly()
+                    ->copyable(copyMessage: __('kami::admin.preview_links.copied')),
+            ])
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel(__('kami::admin.preview_links.close'));
     }
 
     /** Every Locale with its state, labelled through closures: a save on this page changes them. Each other Locale is a link, keeping M2's URLs. */

@@ -20,11 +20,11 @@ it('creates a link that shows the Draft, lists it in the dialog, and revokes it'
         ->assertSee('Preview link created');
 
     // On the Site's URL, which is not the test server's: its path only.
-    $path = $page->script('document.body.innerText.match(/\\/kami\\/share\\/[0-9a-f]{64}/)[0]');
+    $path = $page->script("new URL(document.querySelector('.fi-modal-window input[readonly]').value).pathname");
 
     visit($path)->assertSee('Brouillon')->assertSee('Ce lien expire le')->assertNoJavaScriptErrors();
 
-    $page->click('.fi-no-notification >> internal:role=button[name="Close"i]')
+    $page->click('.fi-modal-footer-actions >> internal:role=button[name="Close"s]')
         ->click('internal:role=button[name="Preview links"s]')
         ->assertSee('created by Ada Lovelace')
         ->click('internal:role=button[name="Revoke"s]')
