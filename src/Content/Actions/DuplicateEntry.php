@@ -111,10 +111,9 @@ final class DuplicateEntry
     /** The title with " (copy)" in the Locale, the title shortened so the whole fits. */
     private function marked(string $title, string $locale): string
     {
-        $marked = __('kami::admin.duplicate.title', ['title' => $title], $locale);
-        $excess = mb_strlen($marked) - self::MAX_LENGTH;
+        $room = self::MAX_LENGTH - mb_strlen(__('kami::admin.duplicate.title', ['title' => ''], $locale));
 
-        return $excess > 0 ? __('kami::admin.duplicate.title', ['title' => mb_substr($title, 0, mb_strlen($title) - $excess)], $locale) : $marked;
+        return __('kami::admin.duplicate.title', ['title' => mb_substr($title, 0, $room)], $locale);
     }
 
     /**
