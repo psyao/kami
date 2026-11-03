@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -19,7 +20,9 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
+use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Project;
@@ -86,17 +89,24 @@ it('runs none of the save\'s side effects', function () {
     $entry = previewedArticle();
     $updatedAt = $entry->updated_at?->toDateTimeString();
     Event::fake([EntrySaved::class, EntryPublished::class, EntryUnpublished::class]);
+    $this->app->useStoragePath($storage = temporaryPath());
     $this->travel(5)->minutes();
 
     previewPage(EditEntry::class, ['record' => $entry->id])
-        // A skipped heading level, which a save reminds of.
-        ->fillForm(['body' => RichTextInput::toEditor(['type' => 'doc', 'content' => [['type' => 'heading', 'attrs' => ['level' => 4], 'content' => [['type' => 'text', 'text' => 'Plus bas']]]]])])
+        ->fillForm([
+            // A skipped heading level, which a save reminds of.
+            'body' => RichTextInput::toEditor(['type' => 'doc', 'content' => [['type' => 'heading', 'attrs' => ['level' => 4], 'content' => [['type' => 'text', 'text' => 'Plus bas']]]]]),
+            // A date to come, which a save writes as the Site's next visibility change.
+            'published_at' => now()->addDay()->setTimezone(Site::current()->timezone)->format('Y-m-d H:i:s'),
+        ])
         ->call('preview')
         ->assertHasNoFormErrors()
         ->assertNotNotified();
 
     Event::assertNothingDispatched();
-    expect(Entry::query()->sole()->updated_at?->toDateTimeString())->toBe($updatedAt);
+    expect(Entry::query()->sole()->updated_at?->toDateTimeString())->toBe($updatedAt)
+        ->and(Visibility::nextChangeAt(Site::current()))->toBeNull()
+        ->and(File::exists($storage))->toBeFalse();
 });
 
 it('shows an invalid value on the form, while a missing required one does not stop the Preview', function () {
@@ -216,6 +226,20 @@ it('leaves a Draft target out and renders within an exact query count, under str
 
     // The visible targets, their Translations and type rows: the Preview itself comes from the cache.
     expect(DB::getQueryLog())->toHaveCount(3);
+});
+
+it('renders a rich text Preview with no query, under strict mode', function () {
+    $page = previewPage(EditEntry::class, ['record' => previewedArticle()->id])
+        ->fillForm(['body' => RichTextInput::toEditor(['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Du texte riche']]]]])])
+        ->call('preview');
+    $url = previewUrl($page);
+
+    Model::shouldBeStrict();
+    DB::enableQueryLog();
+    $this->get($url)->assertOk()->assertSee('<p>Du texte riche</p>', escape: false);
+
+    // Everything comes from the cache.
+    expect(DB::getQueryLog())->toBeEmpty();
 });
 
 it('shows the Preview banner in a Preview only', function () {

@@ -22,8 +22,17 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class RenderPreview
 {
-    /** Held one hour, under a random token per page, never in the session. */
-    public const string CACHE_KEY = 'kami.preview.';
+    private const string CACHE_KEY = 'kami.preview.';
+
+    /**
+     * Holds a snapshot for the current User, one hour, under the page's token, never in the session; a later Preview of the page replaces it.
+     *
+     * @param  Snapshot  $snapshot
+     */
+    public static function store(string $token, array $snapshot): void
+    {
+        Cache::put(self::CACHE_KEY . $token, ['user' => Filament::auth()->id(), 'snapshot' => $snapshot], now()->addHour());
+    }
 
     public function __invoke(Request $request, string $token): Response
     {

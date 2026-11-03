@@ -37,7 +37,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -527,7 +526,7 @@ final class EntryResource extends FilamentResource
         $data = array_diff_key($data, array_flip(self::keptFromUser($entry)));
         $draft = self::onForm(fn (): array => resolve(SaveEntry::class)->draft(self::type()->handle(), $data, $entry, $locale), $state);
 
-        Cache::put(RenderPreview::CACHE_KEY . $token, ['user' => Filament::auth()->id(), 'snapshot' => EntrySnapshot::capture(self::type(), $entry, $draft, $locale)], now()->addHour());
+        RenderPreview::store($token, EntrySnapshot::capture(self::type(), $entry, $draft, $locale));
 
         return (Filament::getCurrentPanel() ?? throw new LogicException('A Preview is made from a panel.'))->route('kami.preview', ['token' => $token]);
     }
