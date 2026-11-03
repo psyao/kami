@@ -253,6 +253,9 @@ it('imports HTML into a normalised document', function (string $html, ?array $st
     'a Block marker' => [<<<'HTML'
         <p>a</p><kami-block handle="gallery" data='{"items":["01J"]}'></kami-block>
         HTML, doc(para('a'), aBlock())],
+    'a Block marker inside text moved after it' => [<<<'HTML'
+        <p>a <kami-block handle="gallery" data='{"items":["01J"]}'></kami-block>b</p>
+        HTML, doc(para('a b'), aBlock())],
     'a Block marker with no data' => ['<kami-block handle="gallery"></kami-block>', doc(['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => []]])],
     'nothing is null' => ['<p> </p>', null],
 ]);
@@ -263,6 +266,7 @@ it('refuses a malformed Block marker, naming it', function (string $marker) {
     'no handle' => ['<kami-block data="{}"></kami-block>'],
     'data no JSON' => ['<kami-block handle="gallery" data="{items"></kami-block>'],
     'data no object' => ['<kami-block handle="gallery" data="1"></kami-block>'],
+    'data a list' => ['<kami-block handle="gallery" data="[1, 2]"></kami-block>'],
 ]);
 
 it('keeps a safe link and reduces any other to its text', function (string $href, bool $kept) {

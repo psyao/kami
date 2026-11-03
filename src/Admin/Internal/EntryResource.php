@@ -504,8 +504,10 @@ final class EntryResource extends FilamentResource
             $status ??= Translation::DRAFT;
         }
 
+        $data = array_diff_key($data, array_flip(self::keptFromUser($entry)));
+
         try {
-            $saved = resolve(SaveEntry::class)->handle(self::type()->handle(), [...array_diff_key($data, array_flip(self::keptFromUser($entry))), ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt);
+            $saved = resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt);
         } catch (ValidationException $exception) {
             $errors = [];
 
@@ -522,7 +524,7 @@ final class EntryResource extends FilamentResource
     }
 
     /**
-     * Reminders on what was saved, kept until dismissed so the editor fixes them at their own pace (WCAG 2.2.1); they never stop a save (ADR 0016).
+     * Reminders on what was saved, never on what the User's Permissions kept out, kept until dismissed so the editor fixes them at their own pace (WCAG 2.2.1); they never stop a save (ADR 0016).
      *
      * @param  array<string, mixed>  $data
      */

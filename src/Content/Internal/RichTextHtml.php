@@ -58,7 +58,7 @@ final class RichTextHtml
         $handle = $marker->getAttribute('handle');
         $data = json_decode($marker->getAttribute('data') ?: '{}', true);
 
-        if ($handle === '' || ! is_array($data)) {
+        if ($handle === '' || ! is_array($data) || ($data !== [] && array_is_list($data))) {
             throw new InvalidArgumentException('Unreadable <kami-block> marker: ' . $marker->ownerDocument?->saveHTML($marker));
         }
 

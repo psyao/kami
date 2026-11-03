@@ -273,7 +273,7 @@ Bare text in a list item or a quote is wrapped in a paragraph, and each unknown 
 
 - `<pre><code class="language-php">` as a code block with its language, when the Field has `->code()`;
 - `kami://` links, kept as they are;
-- `<kami-block handle="gallery" data='{"items": ["01J..."]}'></kami-block>` as a Block, with `data` a JSON object, `{}` when left out. A marker with no handle or unreadable data throws an `InvalidArgumentException` naming it, as it is a bug in the importer that wrote it.
+- `<kami-block handle="gallery" data='{"items": ["01J..."]}'></kami-block>` as a Block, with `data` a JSON object, `{}` when left out. A marker with no handle or unreadable data throws an `InvalidArgumentException` naming it, as it is a bug in the importer that wrote it. A marker inside a paragraph moves after it, as a Block never sits inside text.
 
 Unwrapping paragraphs (`wpautop`), shortcodes, Media and rewriting URLs stay with the importer, which emits that HTML.
 
