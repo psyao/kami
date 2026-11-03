@@ -175,7 +175,8 @@ final class KamiPlugin implements Plugin
         // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.
         $panel->authenticatedRoutes(fn () => Route::get('kami/preview/{token}', RenderPreview::class)
             ->name('kami.preview')
-            ->withoutMiddleware(SecurityHeaders::class)
+            // Named with its profile too: Laravel before 13.39 only drops a middleware excluded by its exact name, parameters included.
+            ->withoutMiddleware([SecurityHeaders::class, SecurityHeaders::class . ':admin'])
             ->middleware(FrontSecurityHeaders::class . ':unsafe-none'));
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
