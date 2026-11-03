@@ -8,6 +8,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Fields\RichText;
@@ -26,7 +27,7 @@ use Workbench\App\Models\User;
 /** What `composer serve` shows: known accounts and one Entry per state worth looking at. */
 class DatabaseSeeder extends Seeder
 {
-    public function run(SaveEntry $save, TrashEntry $trash): void
+    public function run(SaveEntry $save, TrashEntry $trash, DeleteEntry $delete): void
     {
         $admin = $this->user('Ada Admin', 'admin@example.test', 'administrator');
         $this->user('Eddie Editor', 'editor@example.test', 'editor');
@@ -53,6 +54,11 @@ class DatabaseSeeder extends Seeder
 
         // In the Trash, found through the table's filter; its address stays reserved.
         $trash->handle($save->handle(Article::class, [...$published, 'title' => 'Dans la corbeille', 'author' => 'Ada'], locale: 'fr', actor: $admin), $admin);
+
+        // Deleted for good: its former address answers 301 to Bonjour.
+        $deleted = $save->handle(Article::class, [...$published, 'title' => 'Ancien article', 'author' => 'Ada'], locale: 'fr', actor: $admin);
+        $trash->handle($deleted, $admin);
+        $delete->handle($deleted, $both, $admin);
 
         $about = $save->handle(Page::class, [...$published, 'title' => 'À propos', 'body' => 'Une page à la racine du Site.'], locale: 'fr', actor: $admin);
         $save->handle(Page::class, [...$published, 'title' => 'About', 'body' => 'A page at the root of the Site.'], $about, 'en', $admin);

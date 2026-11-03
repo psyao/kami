@@ -52,8 +52,9 @@ Every check targets a Permission, never a Role. Each declared Content Type has e
 | `kami.entries.{type}.update` | edit a Draft |
 | `kami.entries.{type}.reorder` | reorder the rows of an [orderable type](content-types.md#types-ordered-by-hand), change the Parent of an Entry of a [hierarchical type](content-types.md#hierarchical-types) |
 | `kami.entries.{type}.publish` | publish or unpublish a Translation, or edit a Published or Scheduled one |
-| `kami.entries.{type}.delete` | move an Entry to the [Trash](content-types.md#the-trash) |
+| `kami.entries.{type}.delete` | move an Entry to the [Trash](content-types.md#the-trash), delete a [Translation never published](content-types.md#deleting-a-translation) |
 | `kami.entries.{type}.restore` | restore an Entry from the Trash; one with a published Translation takes `publish` too |
+| `kami.entries.{type}.force-delete` | [delete an Entry for good](content-types.md#deleting-for-good) from the Trash |
 | `kami.entries.{type}.share-preview` | create, list and revoke a Translation's [Preview links](publishing.md#preview-links) |
 
 `kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.

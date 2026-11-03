@@ -220,7 +220,7 @@ A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Si
 
 `->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it: see [Listing on a Field](#listing-on-a-field). A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
 
-`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. An Entry first written by a `'*'` call takes none either. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`: a `->required()` Shared Field left blank stops a Locale from publishing until someone fills it. An update never applies a default, and a value given as `null` stays `null`:
+`->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`: a `->required()` Shared Field left blank stops a Locale from publishing until someone fills it. An update never applies a default, and a value given as `null` stays `null`:
 
 ```php
 Text::make('author')->shared()->default('The newsroom'),
@@ -799,7 +799,36 @@ Each refusal is a `ValidationException` on `entry` naming its reason:
 
 Eloquent's own `$entry->delete()` and `restore()` move the row too, with none of these checks, events or the next visibility change: call the actions.
 
-In the admin, **Move to Trash** on a row takes the type's `delete` Permission and lists first what links to the Entry, as those relations will read it as absent. The table's Trash filter shows **In the Trash**, where **Restore** takes `restore`, and `publish` too when a Translation is published, since restoring makes it visible. A trashed Entry has no edit page: its address answers 404, and so does an edit page left open when it went. Kami has no hard deletion yet.
+In the admin, **Move to Trash** on a row takes the type's `delete` Permission and lists first what links to the Entry, as those relations will read it as absent. The table's Trash filter shows **In the Trash**, where **Restore** takes `restore`, and `publish` too when a Translation is published, since restoring makes it visible. A trashed Entry has no edit page: its address answers 404, and so does an edit page left open when it went.
+
+### Deleting for good
+
+`DeleteEntry` deletes an Entry from the Trash for good, with its Translations, Field values, References both ways and [Preview links](publishing.md#preview-links). Its addresses, in every Locale, become 301 Redirects to a replacement Entry, or answer 410 Gone by default, so no former URL falls silently to a 404:
+
+```php
+use Psyao\Kami\Content\Actions\DeleteEntry;
+
+$trashed = Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
+app(DeleteEntry::class)->handle($trashed, replacement: $home, actor: $request->user());
+```
+
+A Redirect sends visitors to the replacement's current URL in the same Locale, read at each request, so it follows a later change of slug. Where the replacement is not visible, a Draft or a Locale it has no Translation in, the former address answers 404 until it is, so a Draft's address never leaks. Deleting the replacement in turn rewrites those Redirects the same way. A new Entry may take an address left as a Redirect or a 410.
+
+`DeleteEntry` refuses, with a `ValidationException` on `entry`, a Parent that still has children, the first ten named: delete them first. An Entry outside the Trash is an `InvalidArgumentException`. Nothing is kept to undo it.
+
+In the admin, **Force delete** on a row in the Trash takes the type's `force-delete` Permission and asks for a replacement among the type's Entries outside the Trash, or none for a 410.
+
+### Deleting a Translation
+
+`DeleteTranslation` deletes one Locale's Translation that was never published, with its Field values, References and Preview links in that Locale, and frees its Path. Shared values stay with the Entry:
+
+```php
+use Psyao\Kami\Content\Actions\DeleteTranslation;
+
+app(DeleteTranslation::class)->handle($entry, 'en', $request->user());
+```
+
+A Translation published at least once, Scheduled or unpublished since included, or an Entry's only Translation, is refused with a `ValidationException` on `locale`: unpublish it, or move the Entry to the Trash. In the admin, **Delete translation** on the edit page of that Locale takes the type's `delete` Permission.
 
 ## Reading Entries
 

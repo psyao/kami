@@ -14,7 +14,8 @@ uses(DatabaseMigrations::class);
 it('adds parent_id to a site with content, keeping what hangs off its Entries', function () {
     $entry = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'One', 'status' => 'published'], locale: 'fr');
 
-    $migration = ['--path' => realpath(__DIR__ . '/../../database/migrations/2026_10_31_000003_add_parent_id_to_kami_entries_table.php'), '--realpath' => true, '--force' => true];
+    // With the later index on `parent_id`, which SQLite cannot keep once the column goes.
+    $migration = ['--path' => array_map(realpath(...), [__DIR__ . '/../../database/migrations/2026_10_31_000003_add_parent_id_to_kami_entries_table.php', __DIR__ . '/../../database/migrations/2026_11_03_000002_add_deletion_indexes.php']), '--realpath' => true, '--force' => true];
 
     Artisan::call('migrate:rollback', $migration);
     expect(Schema::hasColumn('kami_entries', 'parent_id'))->toBeFalse();

@@ -47,7 +47,7 @@ final class SaveEntry
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
      * @param  array<string, mixed>  $values  `title` (the type's label on a Global Set when blank), `slug` (from the title when blank; refused by a Singleton or a type with no URL), `status` (`draft`, the default, or `published`, a Taxonomy's default; refused by a Global Set, always published), `published_at` (now when publishing without one; refused by a Global Set), `position` (last on a new Entry when blank; refused by a type that is not orderable; an Entry moved under another Parent goes last there when blank), `parent` (the id of another Entry of the type, `null` for the root; refused by a type that is not hierarchical) and the type's Field values. A value left out keeps its stored one; `''` and `[]` store `null`.
      * @param  Entry|null  $entry  The Entry to update; a new one when null.
-     * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only; an untranslatable type always writes `'*'`.
+     * @param  string|null  $locale  The Locale written, the default one when null. Shared Field values go to the Entry's `'*'` row whatever the Locale. `'*'` writes a translatable type's Shared Fields only, on an existing Entry; an untranslatable type always writes `'*'`.
      * @param  Authenticatable|null  $actor  Recorded as the Creator of a new Entry and the Last modifier; null for imports and the CLI.
      * @param  DateTimeInterface|null  $updatedAt  The Entry's `updated_at` as the caller loaded it: the save is refused, naming the Last modifier and the time, when the Entry changed since, in any Locale. Null checks nothing, for imports and the CLI.
      *
@@ -197,6 +197,11 @@ final class SaveEntry
 
         // A translatable type's `'*'` call holds no Translation: only its Shared Fields.
         $writesTranslation = $locale !== '*' || ! $contentType->isTranslatable();
+
+        if (! $writesTranslation && ! $entry instanceof Entry) {
+            throw new InvalidArgumentException("A '*' call on the translatable type [{$contentType->handle()}] writes Shared Fields only: it would create an Entry with no Translation.");
+        }
+
         $values = array_map(fn (mixed $value): mixed => $value === '' || $value === [] ? null : $value, $values);
         $fields = [];
 
@@ -434,6 +439,8 @@ final class SaveEntry
 
         try {
             foreach ($locales as $pathLocale) {
+                // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008).
+                Path::query()->where(['site' => $site->handle, 'locale' => $pathLocale, 'path' => $path])->where('status', '!=', 200)->delete();
                 Path::query()->updateOrCreate(
                     ['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200],
                     ['path' => $path],

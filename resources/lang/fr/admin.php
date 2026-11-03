@@ -44,6 +44,22 @@ return [
         'parent' => 'Restaurez d’abord son Parent : :parent.',
     ],
 
+    'delete' => [
+        'children' => 'Supprimez d’abord ses enfants : :children.',
+        'description' => 'Elle est supprimée définitivement, dans toutes les langues. Ses adresses envoient les visiteurs vers la remplaçante, ou indiquent que la page n’existe plus.',
+        'replacement' => 'Remplaçante',
+        'gone' => 'Aucune : la page n’existe plus (410)',
+    ],
+
+    'delete_translation' => [
+        'published' => 'Cette traduction a déjà été publiée : dépubliez-la, ou mettez l’Entry à la corbeille.',
+        'last' => 'C’est la seule traduction : mettez plutôt l’Entry à la corbeille.',
+        'action' => 'Supprimer la traduction',
+        'heading' => 'Supprimer la traduction :LOCALE',
+        'description' => 'Ses valeurs dans cette langue et son adresse sont supprimées définitivement ; les autres langues restent.',
+        'done' => 'Traduction supprimée',
+    ],
+
     'titles' => [
         'more' => ':titles et :count autres',
     ],

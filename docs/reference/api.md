@@ -45,6 +45,22 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 - `public function register(Filament\Panel $panel): void`
 - `public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin`: A type's own table, in place of the generated one.
 
+## `Psyao\Kami\Content\Actions\DeleteEntry`
+
+`final class`
+
+Deletes an Entry from the Trash for good, with its Translations, Field values, References and Preview links. Its addresses, in every Locale, become 301s to a replacement Entry, or 410s, so none falls silently to a 404 (ADR 0008). It does not authorise: the caller checks the actor's `force-delete` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Content\Entry $entry, ?Psyao\Kami\Content\Entry $replacement = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
+## `Psyao\Kami\Content\Actions\DeleteTranslation`
+
+`final class`
+
+Deletes a Translation that was never published, with its Field values, References and Preview links in that Locale, and frees its Paths; Shared values stay with the Entry. It does not authorise: the caller checks the actor's `delete` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
 ## `Psyao\Kami\Content\Actions\RestoreEntry`
 
 `final class`

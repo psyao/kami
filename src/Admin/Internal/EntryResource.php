@@ -11,6 +11,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
@@ -51,6 +52,7 @@ use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Admin\KamiPlugin;
+use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
@@ -341,11 +343,26 @@ final class EntryResource extends FilamentResource
                 ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(TrashEntry::class)->handle($record, Filament::auth()->user()))),
             RestoreAction::make()
                 ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(RestoreEntry::class)->handle($record, Filament::auth()->user()))),
+            // Its addresses go to an Entry of the same type outside the Trash, or answer 410 (ADR 0008); `DeleteEntry` itself takes any Entry.
+            ForceDeleteAction::make()
+                ->modalDescription(__('kami::admin.delete.description'))
+                ->schema([
+                    self::sameTypeInput('replacement')
+                        ->label(__('kami::admin.delete.replacement'))
+                        ->placeholder(__('kami::admin.delete.gone')),
+                ])
+                ->using(fn (Entry $record, array $data): bool => self::onNotification(function () use ($record, $data): void {
+                    $id = is_string($data['replacement'] ?? null) ? $data['replacement'] : null;
+                    // Trashed or deleted since it was picked: refused rather than read as a 410.
+                    $replacement = $id === null ? null : self::getEloquentQuery()->find($id) ?? throw ValidationException::withMessages(['replacement' => __('validation.exists', ['attribute' => __('kami::admin.delete.replacement')])]);
+
+                    resolve(DeleteEntry::class)->handle($record, $replacement, Filament::auth()->user());
+                })),
         ];
     }
 
     /** Runs a core action; its refusal shows on a notification, and the Filament action fails with no other message. */
-    private static function onNotification(Closure $call): bool
+    public static function onNotification(Closure $call): bool
     {
         try {
             $call();
@@ -411,12 +428,18 @@ final class EntryResource extends FilamentResource
     /** Searched on the server. Moving changes URLs once they follow the tree, so it takes `reorder` (ADR 0014); `save()` holds the rule, this shows it. On a create page, the Parent whose children the list showed. */
     private static function parentInput(): SelectInput
     {
-        return SelectInput::make('parent')
+        // Itself and its children stay offered: `SaveEntry` refuses them.
+        return self::sameTypeInput('parent')
             ->label(__('kami::admin.fields.parent'))
-            ->searchable()
             ->default(fn (mixed $livewire): ?string => $livewire instanceof CreateEntry ? $livewire->parent : null)
-            ->disabled(fn (): bool => ! self::can('reorder'))
-            // Itself and its children stay offered: `SaveEntry` refuses them.
+            ->disabled(fn (): bool => ! self::can('reorder'));
+    }
+
+    /** One Entry of the type in the Site, outside the Trash, searched on the server by title. */
+    private static function sameTypeInput(string $name): SelectInput
+    {
+        return SelectInput::make($name)
+            ->searchable()
             ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matchingIds(self::getEloquentQuery()->where('site', Site::current()->handle), $search), $livewire))
             ->getOptionLabelUsing(fn (string $value, mixed $livewire): string => self::pickerTitles([$value], $livewire)[$value] ?? __('kami::admin.fields.untitled'));
     }

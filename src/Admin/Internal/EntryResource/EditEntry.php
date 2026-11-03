@@ -22,6 +22,7 @@ use Livewire\Attributes\Locked;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\RichTextInput;
+use Psyao\Kami\Content\Actions\DeleteTranslation;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
@@ -199,6 +200,7 @@ final class EditEntry extends EditRecord
                 ->visible(fn (): bool => $this->getRecord()->url() !== null),
             EntryResource::previewAction(),
             $this->previewLinksAction(),
+            $this->deleteTranslationAction(),
             ...EntryResource::plugin()->entryForm(EntryResource::type(), $this)->actions(),
         ];
     }
@@ -254,6 +256,26 @@ final class EditEntry extends EditRecord
 
                 // In the page's Livewire state only: a notification would pass through Filament's cache store, writing the token on the server.
                 $this->replaceMountedAction('previewLinkCreated', ['url' => $url]);
+            });
+    }
+
+    /** This Locale's Translation, of a translatable type; `DeleteTranslation` refuses one published once or the last one, with the reason. */
+    private function deleteTranslationAction(): Action
+    {
+        return Action::make('deleteTranslation')
+            ->label(__('kami::admin.delete_translation.action'))
+            ->color('danger')
+            ->visible(fn (): bool => EntryResource::locales() !== []
+                && $this->getRecord()->translations->contains('locale', $this->locale)
+                && Gate::allows('delete', $this->getRecord()))
+            ->requiresConfirmation()
+            ->modalHeading(__('kami::admin.delete_translation.heading', ['locale' => $this->locale]))
+            ->modalDescription(__('kami::admin.delete_translation.description'))
+            ->action(function (): void {
+                if (EntryResource::onNotification(fn () => resolve(DeleteTranslation::class)->handle($this->getRecord(), $this->locale, Filament::auth()->user()))) {
+                    Notification::make()->success()->title(__('kami::admin.delete_translation.done'))->send();
+                    $this->redirect(EntryResource::editUrl($this->getRecord(), null));
+                }
             });
     }
 
