@@ -44,6 +44,14 @@ return [
         'parent' => 'Restaurez d’abord son Parent : :parent.',
     ],
 
+    'duplicate' => [
+        'heading' => 'Dupliquer :title',
+        'description' => 'La copie est un brouillon dans toutes les langues, sans enfants ni liens de prévisualisation.',
+        'title' => ':title (copie)',
+        'singleton' => 'Un Singleton ou un Global Set ne se duplique pas : un Site n’en a qu’un.',
+        'done' => 'Copie créée',
+    ],
+
     'delete' => [
         'children' => 'Supprimez d’abord ses enfants : :children.',
         'description' => 'Elle est supprimée définitivement, dans toutes les langues. Ses adresses envoient les visiteurs vers la remplaçante, ou indiquent que la page n’existe plus.',
@@ -85,6 +93,7 @@ return [
         'unpublish' => 'Dépublier',
         'view' => 'Voir sur le site',
         'trash' => 'Mettre à la corbeille',
+        'duplicate' => 'Dupliquer',
     ],
 
     'preview' => [

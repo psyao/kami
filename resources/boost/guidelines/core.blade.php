@@ -4,7 +4,7 @@ Kami (`psyao/kami`) is a CMS package installed into this Laravel application. It
 
 - Kami's admin is `Psyao\Kami\Admin\KamiPlugin` on the application's own Filament panel; Kami ships no panel of its own.
 - The panel's `defaultAvatarProvider()` is `Psyao\Kami\Admin\InitialsAvatarProvider`, which draws avatars on the server, so Users' names stay on the site.
-- Every write to an Entry goes through `Psyao\Kami\Content\Actions\SaveEntry`, `TrashEntry` or `RestoreEntry`, never through `save()` or `delete()` on a Kami model: they validate, keep Paths and dispatch Content events. They check no Permission, so code calling them from a request checks one first.
+- Every write to an Entry goes through `Psyao\Kami\Content\Actions\SaveEntry` or another action there (`TrashEntry`, `RestoreEntry`, `DeleteEntry`, `DeleteTranslation`, `DuplicateEntry`), never through `save()` or `delete()` on a Kami model: they validate, keep Paths and dispatch Content events. They check no Permission, so code calling them from a request checks one first.
 - Entries are read through `Psyao\Kami\Content\Entry`, whose queries return visible Entries only; `withUnpublished()` is the deliberate way to reach Drafts and Scheduled ones.
 - A Field handle is snake_case and stays clear of the names in `RESERVED_HANDLES` on `Psyao\Kami\Content\Fields\Field` and of `Entry`'s methods.
 - Labels of types and Fields live in `lang/<locale>/kami-types.php`, for every Locale; a declaration holds none.

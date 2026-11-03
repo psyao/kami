@@ -21,6 +21,8 @@ class Psyao\Kami\Content\Actions\DeleteEntry final class
 class Psyao\Kami\Content\Actions\DeleteEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Psyao\Kami\Content\Entry $replacement = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\Actions\DeleteTranslation final class
 class Psyao\Kami\Content\Actions\DeleteTranslation::handle() public function handle(Psyao\Kami\Content\Entry $entry, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Content\Actions\DuplicateEntry final class
+class Psyao\Kami\Content\Actions\DuplicateEntry::handle() public function handle(Psyao\Kami\Content\Entry $source, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\Actions\RestoreEntry final class
 class Psyao\Kami\Content\Actions\RestoreEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\Actions\SaveEntry final class
@@ -59,6 +61,11 @@ class Psyao\Kami\Content\Events\EntryDeleted::$replacementId public protected(se
 class Psyao\Kami\Content\Events\EntryDeleted::$site public protected(set) readonly string $site
 class Psyao\Kami\Content\Events\EntryDeleted::$type public protected(set) readonly string $type
 class Psyao\Kami\Content\Events\EntryDeleted::__construct() public function __construct(string $entryId, string $type, string $site, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Events\EntryDuplicated final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Content\Events\EntryDuplicated::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Content\Events\EntryDuplicated::$copy public protected(set) readonly Psyao\Kami\Content\Entry $copy
+class Psyao\Kami\Content\Events\EntryDuplicated::$source public protected(set) readonly Psyao\Kami\Content\Entry $source
+class Psyao\Kami\Content\Events\EntryDuplicated::__construct() public function __construct(Psyao\Kami\Content\Entry $source, Psyao\Kami\Content\Entry $copy, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Events\EntryPublished final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Content\Events\EntryPublished::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
 class Psyao\Kami\Content\Events\EntryPublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry

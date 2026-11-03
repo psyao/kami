@@ -15,6 +15,17 @@ An Entry was deleted for good through `DeleteEntry`, once the write committed (A
 - `public protected(set) readonly string $type`
 - `public function __construct(string $entryId, string $type, string $site, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
+## `Psyao\Kami\Content\Events\EntryDuplicated`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+An Entry was copied through `DuplicateEntry`, once the write committed (ADR 0029). No `EntrySaved` comes with it.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly Psyao\Kami\Content\Entry $copy`
+- `public protected(set) readonly Psyao\Kami\Content\Entry $source`
+- `public function __construct(Psyao\Kami\Content\Entry $source, Psyao\Kami\Content\Entry $copy, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
 ## `Psyao\Kami\Content\Events\EntryPublished`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
