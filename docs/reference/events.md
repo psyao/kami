@@ -11,8 +11,9 @@ An Entry was deleted for good through `DeleteEntry`, once the write committed (A
 - `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
 - `public protected(set) readonly string $entryId`
 - `public protected(set) readonly ?string $replacementId`
+- `public protected(set) readonly string $site`
 - `public protected(set) readonly string $type`
-- `public function __construct(string $entryId, string $type, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+- `public function __construct(string $entryId, string $type, string $site, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
 ## `Psyao\Kami\Content\Events\EntryPublished`
 
@@ -78,5 +79,6 @@ A never-published Translation was deleted through `DeleteTranslation`, once the 
 - `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
 - `public protected(set) readonly string $entryId`
 - `public protected(set) readonly string $locale`
+- `public protected(set) readonly string $site`
 - `public protected(set) readonly string $type`
-- `public function __construct(string $entryId, string $type, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+- `public function __construct(string $entryId, string $type, string $site, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)`

@@ -122,17 +122,22 @@ final readonly class SyncPaths
     }
 
     /**
-     * Each write stands alone: wrapped in a transaction, a caught clash would abort every later statement on PostgreSQL.
+     * Each write stands alone, in a transaction of its own: in one around them all, a caught clash would abort every later statement on PostgreSQL.
      *
      * @param  Row  $row
      */
     private function write(Site $site, array $row, ?Path $current): bool
     {
         try {
-            // ponytail: rewritten in place, so the former address answers 404; M7 (Redirects) keeps it as a 301 once published.
-            $current instanceof Path
-                ? $current->update(['path' => $row['path']])
-                : Path::query()->create(['site' => $site->handle, 'status' => 200, ...$row]);
+            DB::transaction(function () use ($site, $row, $current): void {
+                // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008); kept when the write clashes.
+                Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->where('status', '!=', 200)->delete();
+
+                // ponytail: rewritten in place, so the former address answers 404; M7 (Redirects) keeps it as a 301 once published.
+                $current instanceof Path
+                    ? $current->update(['path' => $row['path']])
+                    : Path::query()->create(['site' => $site->handle, 'status' => 200, ...$row]);
+            });
 
             return true;
         } catch (UniqueConstraintViolationException) {

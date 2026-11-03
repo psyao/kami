@@ -347,12 +347,9 @@ final class EntryResource extends FilamentResource
             ForceDeleteAction::make()
                 ->modalDescription(__('kami::admin.delete.description'))
                 ->schema([
-                    SelectInput::make('replacement')
+                    self::sameTypeInput('replacement')
                         ->label(__('kami::admin.delete.replacement'))
-                        ->placeholder(__('kami::admin.delete.gone'))
-                        ->searchable()
-                        ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matchingIds(self::getEloquentQuery()->where('site', Site::current()->handle), $search), $livewire))
-                        ->getOptionLabelUsing(fn (string $value, mixed $livewire): string => self::pickerTitles([$value], $livewire)[$value] ?? __('kami::admin.fields.untitled')),
+                        ->placeholder(__('kami::admin.delete.gone')),
                 ])
                 ->using(fn (Entry $record, array $data): bool => self::onNotification(function () use ($record, $data): void {
                     $id = is_string($data['replacement'] ?? null) ? $data['replacement'] : null;
@@ -431,12 +428,18 @@ final class EntryResource extends FilamentResource
     /** Searched on the server. Moving changes URLs once they follow the tree, so it takes `reorder` (ADR 0014); `save()` holds the rule, this shows it. On a create page, the Parent whose children the list showed. */
     private static function parentInput(): SelectInput
     {
-        return SelectInput::make('parent')
+        // Itself and its children stay offered: `SaveEntry` refuses them.
+        return self::sameTypeInput('parent')
             ->label(__('kami::admin.fields.parent'))
-            ->searchable()
             ->default(fn (mixed $livewire): ?string => $livewire instanceof CreateEntry ? $livewire->parent : null)
-            ->disabled(fn (): bool => ! self::can('reorder'))
-            // Itself and its children stay offered: `SaveEntry` refuses them.
+            ->disabled(fn (): bool => ! self::can('reorder'));
+    }
+
+    /** One Entry of the type in the Site, outside the Trash, searched on the server by title. */
+    private static function sameTypeInput(string $name): SelectInput
+    {
+        return SelectInput::make($name)
+            ->searchable()
             ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => self::pickerTitles(self::matchingIds(self::getEloquentQuery()->where('site', Site::current()->handle), $search), $livewire))
             ->getOptionLabelUsing(fn (string $value, mixed $livewire): string => self::pickerTitles([$value], $livewire)[$value] ?? __('kami::admin.fields.untitled'));
     }

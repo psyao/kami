@@ -55,6 +55,6 @@ final class DeleteTranslation
         });
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
-        event(new TranslationDeleted($entry->id, $entry->type, $locale, $actor));
+        event(new TranslationDeleted($entry->id, $entry->type, $entry->site, $locale, $actor));
     }
 }

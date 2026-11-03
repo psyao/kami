@@ -38,6 +38,7 @@ final class DeleteEntry
         }
 
         // Every child, any outside the Trash too, as `parent_id` restricts: a child saved under a trashed Parent (see `TrashEntry`) would fail the delete.
+        // ponytail: read with no lock, so a child saved meanwhile reaches the caller as the foreign key's `QueryException`; V1 adds a lock on the type's tree if a friction shows it.
         $children = Entry::query()->withUnpublished()->withTrashed()->where('parent_id', $entry->id)->ordered();
 
         if ($children->exists()) {
@@ -50,6 +51,6 @@ final class DeleteEntry
         });
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
-        event(new EntryDeleted($entry->id, $entry->type, $replacement?->id, $actor));
+        event(new EntryDeleted($entry->id, $entry->type, $entry->site, $replacement?->id, $actor));
     }
 }

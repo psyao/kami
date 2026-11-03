@@ -190,6 +190,18 @@ it('moves an Entry onto an address another Entry leaves in the same run', functi
     ]);
 });
 
+it('moves an Entry onto an address left as a 410 or a Redirect, which it replaces', function () {
+    installedSite();
+    $page = saved(Page::class, ['title' => 'Urgent', 'slug' => 'urgent'], locale: 'fr');
+    DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'fr', 'path' => 'label/urgent', 'entry_id' => null, 'status' => 410]);
+    config(['kami.types' => [PageUnderLabel::class, Label::class]]);
+
+    install()->expectsOutputToContain('Paths: 0 created, 1 rewritten, 0 deleted.')->assertSuccessful();
+
+    expect(paths())->toBe(['fr label/urgent' => $page->id])
+        ->and(DB::table('kami_paths')->where('status', 410)->exists())->toBeFalse();
+});
+
 /** Pages straight into the tables, `fr` only: SaveEntry would take minutes for thousands. */
 function seedPages(int $count): void
 {

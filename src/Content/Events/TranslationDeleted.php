@@ -18,6 +18,7 @@ final readonly class TranslationDeleted implements ShouldDispatchAfterCommit
     public function __construct(
         public string $entryId,
         public string $type,
+        public string $site,
         public string $locale,
         public ?Authenticatable $actor,
     ) {}

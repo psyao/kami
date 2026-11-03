@@ -19,6 +19,7 @@ final readonly class EntryDeleted implements ShouldDispatchAfterCommit
     public function __construct(
         public string $entryId,
         public string $type,
+        public string $site,
         public ?string $replacementId,
         public ?Authenticatable $actor,
     ) {}

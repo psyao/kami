@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +17,7 @@ use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryDeleted;
 use Psyao\Kami\Content\Events\TranslationDeleted;
+use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Sites\Internal\Site;
@@ -111,9 +113,35 @@ it('dispatches EntryDeleted once with values, after commit, and rewrites the nex
 
     expect(Visibility::nextChangeAt(Site::current())?->toIso8601String())->toBe(now()->addWeek()->toIso8601String());
     Event::assertDispatchedTimes(EntryDeleted::class, 1);
-    Event::assertDispatched(EntryDeleted::class, fn (EntryDeleted $event): bool => $event->entryId === $sooner->id && $event->type === 'article' && $event->replacementId === null && $event->actor === $ada);
+    Event::assertDispatched(EntryDeleted::class, fn (EntryDeleted $event): bool => $event->entryId === $sooner->id && $event->type === 'article' && $event->site === 'default' && $event->replacementId === null && $event->actor === $ada);
 
     File::deleteDirectory($storage);
+});
+
+it('answers a 410 in one query and a 301 in as many as a page\'s Entry takes', function () {
+    $replacement = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Salut', 'author' => 'Ada', 'status' => 'published']);
+    resolve(DeleteEntry::class)->handle(trashedArticle(), $replacement);
+    resolve(DeleteEntry::class)->handle(trashedArticle('Adieu', 'Bye'));
+
+    DB::enableQueryLog();
+    $this->get('/articles/adieu')->assertGone();
+    // The Path.
+    expect(DB::getQueryLog())->toHaveCount(1);
+
+    DB::flushQueryLog();
+    $this->get('/articles/bonjour')->assertMovedPermanently();
+    // The Path, then the replacement with its visibility, its Translations, its type rows.
+    expect(DB::getQueryLog())->toHaveCount(4);
+});
+
+it('deletes an Entry holding Preview links, which answer 404 since', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
+    $url = PreviewLink::issue($entry, 'fr', 7, null);
+    resolve(TrashEntry::class)->handle($entry);
+
+    resolve(DeleteEntry::class)->handle($entry);
+
+    $this->get(parse_url($url, PHP_URL_PATH))->assertNotFound();
 });
 
 it('rewrites the addresses redirected to an Entry when it is deleted in turn', function () {
@@ -181,7 +209,7 @@ it('records the actor, dispatches TranslationDeleted once with values, and rewri
         ->and($stored->updated_at?->toIso8601String())->toBe(now()->toIso8601String())
         ->and(File::exists(storage_path('framework/kami/visibility-default.json')))->toBeTrue();
     Event::assertDispatchedTimes(TranslationDeleted::class, 1);
-    Event::assertDispatched(TranslationDeleted::class, fn (TranslationDeleted $event): bool => $event->entryId === $entry->id && $event->type === 'article' && $event->locale === 'en' && $event->actor === $ada);
+    Event::assertDispatched(TranslationDeleted::class, fn (TranslationDeleted $event): bool => $event->entryId === $entry->id && $event->type === 'article' && $event->site === 'default' && $event->locale === 'en' && $event->actor === $ada);
 
     File::deleteDirectory($storage);
 });

@@ -130,8 +130,8 @@ The core actions dispatch Content events, in `Psyao\Kami\Content\Events`, so you
 | `EntryUnpublished` | the save returned a published Translation to Draft | `entry`, `locale`, `actor` |
 | `EntryTrashed` | `TrashEntry` moved the Entry to the [Trash](content-types.md#the-trash) | `entry`, `actor` |
 | `EntryRestored` | `RestoreEntry` brought it back | `entry`, `actor` |
-| `EntryDeleted` | `DeleteEntry` [deleted it for good](content-types.md#deleting-for-good) | `entryId`, `type`, `replacementId`, `actor` |
-| `TranslationDeleted` | `DeleteTranslation` [deleted a Translation](content-types.md#deleting-a-translation) | `entryId`, `type`, `locale`, `actor` |
+| `EntryDeleted` | `DeleteEntry` [deleted it for good](content-types.md#deleting-for-good) | `entryId`, `type`, `site`, `replacementId`, `actor` |
+| `TranslationDeleted` | `DeleteTranslation` [deleted a Translation](content-types.md#deleting-a-translation) | `entryId`, `type`, `site`, `locale`, `actor` |
 
 - `entry` is the Entry as saved, with its Translations and Field values loaded; `locale` is the Locale written, or `'*'` for an untranslatable type and a Shared-only call. `created` is `true` when the save created the Entry, not when it added a Locale. `actor` is the User passed to `SaveEntry`, `null` for imports and the CLI.
 - `EntryDeleted` and `TranslationDeleted` carry values rather than models, as the rows are gone: a queued listener has nothing to reload. `replacementId` is `null` when the addresses answer 410.

@@ -56,8 +56,9 @@ class Psyao\Kami\Content\Events\EntryDeleted final readonly class implements Ill
 class Psyao\Kami\Content\Events\EntryDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
 class Psyao\Kami\Content\Events\EntryDeleted::$entryId public protected(set) readonly string $entryId
 class Psyao\Kami\Content\Events\EntryDeleted::$replacementId public protected(set) readonly ?string $replacementId
+class Psyao\Kami\Content\Events\EntryDeleted::$site public protected(set) readonly string $site
 class Psyao\Kami\Content\Events\EntryDeleted::$type public protected(set) readonly string $type
-class Psyao\Kami\Content\Events\EntryDeleted::__construct() public function __construct(string $entryId, string $type, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Events\EntryDeleted::__construct() public function __construct(string $entryId, string $type, string $site, ?string $replacementId, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Events\EntryPublished final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Content\Events\EntryPublished::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
 class Psyao\Kami\Content\Events\EntryPublished::$entry public protected(set) readonly Psyao\Kami\Content\Entry $entry
@@ -87,8 +88,9 @@ class Psyao\Kami\Content\Events\TranslationDeleted final readonly class implemen
 class Psyao\Kami\Content\Events\TranslationDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
 class Psyao\Kami\Content\Events\TranslationDeleted::$entryId public protected(set) readonly string $entryId
 class Psyao\Kami\Content\Events\TranslationDeleted::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Content\Events\TranslationDeleted::$site public protected(set) readonly string $site
 class Psyao\Kami\Content\Events\TranslationDeleted::$type public protected(set) readonly string $type
-class Psyao\Kami\Content\Events\TranslationDeleted::__construct() public function __construct(string $entryId, string $type, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Content\Events\TranslationDeleted::__construct() public function __construct(string $entryId, string $type, string $site, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Fields\Boolean final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Boolean::column() public function column(): string
 class Psyao\Kami\Content\Fields\Date final class extends Psyao\Kami\Content\Fields\Field
