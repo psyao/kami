@@ -72,6 +72,22 @@ expect_page / Bienvenue
 expect_page /en Welcome
 expect_page /about '<li>Kami</li>'
 
+# A Preview link to a Draft, created as the admin does: sessionless, read through the cached route table.
+share_path=$(docker compose run -T --rm cli php -r '
+    require "vendor/autoload.php";
+    $app = require "bootstrap/app.php";
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    $draft = $app->make(Psyao\Kami\Content\Actions\SaveEntry::class)->handle(App\Content\Page::class, ["title" => "Brouillon partagé", "slug" => "shared-draft", "body" => "Pas encore public"]);
+    echo parse_url(Psyao\Kami\Content\Internal\PreviewLink::issue($draft, "fr", 7, null), PHP_URL_PATH);
+' 2>&1 || true)
+expect 404 /shared-draft
+if [[ "$share_path" == /kami/share/* ]]; then
+    expect_page "$share_path" 'Pas encore public'
+else
+    echo "Preview link: not created: $share_path"
+    failed=1
+fi
+
 # Rich text renders in pure PHP, on the host's PHP and its extensions: the starter kit declares no RichText yet.
 rich_text=$(docker compose run -T --rm cli php -r '
     require "vendor/autoload.php";

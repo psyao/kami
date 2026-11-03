@@ -198,10 +198,12 @@ erDiagram
         json label "per Locale"
     }
     kami_preview_links {
+        ulid id PK
         ulid entry_id FK
         string locale
         string token_hash
         datetime expires_at
+        id created_by FK
     }
     kami_import_keys {
         string site

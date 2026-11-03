@@ -78,7 +78,7 @@ it('writes in the rich text editor, and keeps a document holding a Block whole',
     visit("/admin/articles/{$entry->id}/edit")->inDarkMode()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
     visit("/admin/articles/{$entry->id}/edit")->on()->mobile()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
 
-    $page->click('internal:role=button[name="Link"i]');
+    $page->click('internal:role=button[name="Link"s]');
     $page->assertSee('URL')->assertDontSee('Open in new tab');
     $page->click('internal:role=button[name="Cancel"i] >> nth=-1');
 

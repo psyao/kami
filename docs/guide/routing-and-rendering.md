@@ -78,7 +78,7 @@ It may return any view or response: a redirect, JSON, or a controller's response
 
 ### The Preview banner
 
-The admin's Preview calls the same `render()` with an Entry that was never saved ([Publishing](publishing.md#preview)): `render()` must not assume its Entry is stored or visible. Put the banner at the top of your layout's `<body>`:
+The admin's Preview calls the same `render()` with an Entry that was never saved ([Publishing](publishing.md#preview)), and a [Preview link](publishing.md#preview-links) with a Draft or Scheduled one: `render()` must not assume its Entry is stored or visible. Put the banner at the top of your layout's `<body>`:
 
 ```blade
 <body>
@@ -87,7 +87,7 @@ The admin's Preview calls the same `render()` with an Entry that was never saved
 </body>
 ```
 
-It renders nothing on a public page. In a Preview it renders an `<aside class="kami-preview-banner">` landmark saying the page holds unsaved changes visitors do not see, in the Preview's Locale. It carries no CSS: style `.kami-preview-banner` as you wish. Kami does not change your HTML, so a layout without the component shows no banner.
+It renders nothing on a public page. In a Preview it renders an `<aside class="kami-preview-banner">` landmark saying the page holds unsaved changes visitors do not see, in the Preview's Locale; through a Preview link, that visitors may not see this saved version, and when the link expires, in the Site's time zone. It carries no CSS: style `.kami-preview-banner` as you wish. Kami does not change your HTML, so a layout without the component shows no banner.
 
 ## Query count
 

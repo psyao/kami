@@ -203,11 +203,13 @@ permission kami.entries.{type}.delete
 permission kami.entries.{type}.publish
 permission kami.entries.{type}.reorder
 permission kami.entries.{type}.restore
+permission kami.entries.{type}.share-preview
 permission kami.entries.{type}.update
 permission kami.entries.{type}.view
 permission kami.users.manage
 table kami_entries
 table kami_paths
+table kami_preview_links
 table kami_references
 table kami_role_user
 table kami_translations
