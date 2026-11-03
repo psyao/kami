@@ -332,9 +332,9 @@ final class EntryResource extends FilamentResource
                 ->label(__('kami::admin.actions.trash'))
                 ->modalHeading(fn (DeleteAction $action): string => __('kami::admin.trash.heading', ['title' => $action->getRecordTitle()]))
                 ->modalDescription(function (Entry $record): string {
-                    $sources = References::sources($record->id);
+                    $sources = EntryTitles::list(References::sources($record->id));
 
-                    return $sources->exists() ? __('kami::admin.trash.used_by', ['entries' => EntryTitles::list($sources)]) : __('kami::admin.trash.description');
+                    return $sources === '' ? __('kami::admin.trash.description') : __('kami::admin.trash.used_by', ['entries' => $sources]);
                 })
                 ->modalSubmitActionLabel(__('kami::admin.actions.trash'))
                 ->successNotificationTitle(__('kami::admin.trash.done'))
