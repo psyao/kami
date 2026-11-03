@@ -42,11 +42,11 @@ final class TrashEntry
             throw ValidationException::withMessages(['entry' => __('kami::admin.trash.children', ['children' => EntryTitles::list($children)])]);
         }
 
-        DB::transaction(fn () => $entry->forceFill([
+        $entry->forceFill([
             'updated_by' => $actor?->getAuthIdentifier(),
             'updated_at' => $now = $entry->freshTimestamp(),
             'deleted_at' => $now,
-        ])->save());
+        ])->save();
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryTrashed($entry, $actor));

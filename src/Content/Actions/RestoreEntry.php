@@ -37,11 +37,11 @@ final class RestoreEntry
             throw ValidationException::withMessages(['entry' => __('kami::admin.restore.parent', ['parent' => EntryTitles::of($parent)])]);
         }
 
-        DB::transaction(fn () => $entry->forceFill([
+        $entry->forceFill([
             'updated_by' => $actor?->getAuthIdentifier(),
             'updated_at' => $entry->freshTimestamp(),
             'deleted_at' => null,
-        ])->save());
+        ])->save();
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryRestored($entry, $actor));

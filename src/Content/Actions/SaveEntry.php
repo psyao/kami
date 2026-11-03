@@ -222,7 +222,7 @@ final class SaveEntry
 
         $relations = $contentType->relationFields();
         $references = $entry instanceof Entry && $relations !== [] ? References::stored([$entry->id], array_column($relations, 'handle'))[$entry->id] ?? [] : [];
-        // Read as absent, so checked without them, as `exists` refuses them; a save keeps them, after the given ones, for `RestoreEntry` to bring back.
+        // Links to trashed targets read as absent: validated without them, kept by the write below.
         /** @var list<string> $trashed */
         $trashed = $references === [] ? [] : DB::table('kami_entries')->whereIn('id', Arr::flatten($references))->whereNotNull('deleted_at')->pluck('id')->all();
 
@@ -340,14 +340,16 @@ final class SaveEntry
 
         Validator::make($data, $rules, [], $names)->validate();
 
+        // A given relation keeps its links to trashed targets, which no form shows and `exists` refuses: restoring a target brings them back.
         foreach (array_intersect_key($fields, $values) as $handle => $field) {
-            $kept = array_intersect($references[$contentType->isTranslatable($field) ? $locale : '*'][$handle] ?? [], $trashed);
-
-            if ($field instanceof RelationField && $kept !== []) {
-                /** @var list<string>|null $given */
-                $given = $values[$handle];
-                $values[$handle] = [...$given ?? [], ...array_values(array_diff($kept, $given ?? []))];
+            if (! $field instanceof RelationField) {
+                continue;
             }
+
+            /** @var list<string>|null $given */
+            $given = $values[$handle];
+            $kept = array_intersect($references[$contentType->isTranslatable($field) ? $locale : '*'][$handle] ?? [], $trashed);
+            $values[$handle] = $kept === [] ? $given : [...$given ?? [], ...array_values(array_diff($kept, $given ?? []))];
         }
 
         return ['contentType' => $contentType, 'site' => $site, 'locale' => $locale, 'values' => $values, 'writesTranslation' => $writesTranslation, 'translation' => $translation, 'data' => $data, 'fields' => $fields, 'cleared' => $cleared, 'clearedReferences' => $clearedReferences];

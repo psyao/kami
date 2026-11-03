@@ -338,14 +338,14 @@ final class EntryResource extends FilamentResource
                 })
                 ->modalSubmitActionLabel(__('kami::admin.actions.trash'))
                 ->successNotificationTitle(__('kami::admin.trash.done'))
-                ->using(fn (Entry $record): bool => self::refusable(fn () => resolve(TrashEntry::class)->handle($record, Filament::auth()->user()))),
+                ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(TrashEntry::class)->handle($record, Filament::auth()->user()))),
             RestoreAction::make()
-                ->using(fn (Entry $record): bool => self::refusable(fn () => resolve(RestoreEntry::class)->handle($record, Filament::auth()->user()))),
+                ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(RestoreEntry::class)->handle($record, Filament::auth()->user()))),
         ];
     }
 
     /** Runs a core action; its refusal shows on a notification, and the Filament action fails with no other message. */
-    private static function refusable(Closure $call): bool
+    private static function onNotification(Closure $call): bool
     {
         try {
             $call();

@@ -295,3 +295,30 @@ it('answers 404 at a trashed Entry\'s edit URL, and to a page opened before', fu
     $this->get("/admin/articles/{$entry->id}/edit")->assertNotFound();
     expect(Entry::query()->withUnpublished()->withTrashed()->sole()->title)->toBe('Bonjour');
 });
+
+it('shows a restore refused under a Parent trashed since the page opened on a notification', function () {
+    $parent = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Parent']);
+    $child = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Child', 'parent' => $parent->id]);
+    resolve(TrashEntry::class)->handle($child);
+    trashPage(ListEntries::class, type: 'page');
+    $page = Livewire::withQueryParams(['parent' => $parent->id])->test(ListEntries::class)->filterTable('trashed', false);
+
+    resolve(TrashEntry::class)->handle($parent);
+
+    $page->callAction(TestAction::make('restore')->table($child))
+        ->assertNotified(__('kami::admin.restore.parent', ['parent' => 'Parent']));
+
+    expect(Entry::query()->withUnpublished()->whereKey($child->id)->exists())->toBeFalse();
+});
+
+it('lists the Trash in a fixed number of queries, whatever its size', function (int $entries) {
+    for ($i = 1; $i <= $entries; $i++) {
+        resolve(TrashEntry::class)->handle(published("Article {$i}"));
+    }
+    trashPage(ListEntries::class);
+
+    DB::enableQueryLog();
+    $this->get('/admin/articles?filters[trashed][value]=0')->assertOk()->assertSee('Article 1');
+
+    expect(DB::getQueryLog())->toHaveCount(4);
+})->with([1, 10]);
