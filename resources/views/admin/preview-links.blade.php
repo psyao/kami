@@ -2,7 +2,7 @@
 @if ($links->isEmpty())
     <p>{{ __('kami::admin.preview_links.none') }}</p>
 @else
-    <ul class="kami-preview-links">
+    <ul>
         @foreach ($links as $link)
             <li>
                 {{ $link['label'] }}

@@ -21,7 +21,7 @@ return new class extends Migration
             $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
             $table->string('locale', 20);
             $table->char('token_hash', 64)->unique();
-            $table->datetime('expires_at')->index();
+            $table->datetime('expires_at');
             $table->foreignIdFor($user, 'created_by')->nullable()->constrained($user->getTable(), $user->getKeyName())->nullOnDelete();
         });
     }
