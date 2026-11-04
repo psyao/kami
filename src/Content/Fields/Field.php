@@ -296,6 +296,9 @@ abstract class Field
         return function (string $attribute, mixed $value, Closure $fail) use ($max, $length): void {
             if (is_array($value)) {
                 $fail(__('validation.string'));
+            } elseif (is_string($value) && ! mb_check_encoding($value, 'UTF-8')) {
+                // SQLite stores it, the other engines refuse it at the column.
+                $fail(__('kami::admin.fields.encoding'));
             } elseif (is_string($value) && $length($value) > $max) {
                 $fail(__('validation.max.string', ['max' => $max]));
             }

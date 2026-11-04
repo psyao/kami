@@ -398,6 +398,29 @@ it('refuses a value over its column\'s limit on the Field, and stores one at the
         ->and($page(['title' => 'Long', 'body' => $body])->body)->toBe($body);
 });
 
+it('refuses text that is not valid UTF-8, which SQLite would store and the other engines refuse at the column', function (string $type, string $attribute) {
+    $values = ['title' => 'Bonjour', $attribute => "\xff a"];
+
+    expect(failures(fn () => resolve(SaveEntry::class)->handle($type, $values)))->toBe([$attribute]);
+})->with([
+    'a title' => [Article::class, 'title'],
+    'a slug' => [Article::class, 'slug'],
+    'a Text' => [Article::class, 'author'],
+    'a Textarea' => [Page::class, 'body'],
+]);
+
+it('names the Field whose text is not valid UTF-8', function () {
+    try {
+        save(['title' => 'Bonjour', 'author' => "\xff a"]);
+    } catch (ValidationException $exception) {
+        expect($exception->errors()['author'][0])->toBe('The author field must be valid UTF-8 text.');
+
+        return;
+    }
+
+    $this->fail('The value was accepted.');
+});
+
 it('counts a number\'s characters against its column\'s limit, not its value', function () {
     config(['kami.types' => [Zipped::class]]);
     Schema::create('kami_type_zipped', function (Blueprint $table): void {

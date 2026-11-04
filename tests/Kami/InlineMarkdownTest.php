@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use League\CommonMark\Exception\UnexpectedEncodingException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
@@ -17,6 +18,7 @@ use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
+use Psyao\Kami\Content\InlineMarkdown;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Workbench\App\Models\User;
 
@@ -133,6 +135,10 @@ it('reads a blank value as an empty one', function (?string $raw) {
 
     expect($read->isEmpty())->toBeTrue()->and($read->toHtml())->toBe('')->and($read->text())->toBe('');
 })->with(['null' => [null], 'nothing' => [''], 'only stripped HTML' => ['<b></b>']]);
+
+it('throws on text that is not valid UTF-8, which SaveEntry refuses', function () {
+    new InlineMarkdown("\xff a", false)->toHtml();
+})->throws(UnexpectedEncodingException::class);
 
 it('is not empty with text', function () {
     expect(lede(Text::make('summary'), 'a')->summary->isEmpty())->toBeFalse();
