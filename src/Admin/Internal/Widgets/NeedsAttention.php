@@ -51,16 +51,9 @@ final class NeedsAttention extends TableWidget
             ->emptyStateDescription(__('kami::admin.widgets.attention.run', ['command' => 'php artisan kami:doctor']))
             ->columns([
                 TextColumn::make('severity')->label(__('kami::admin.widgets.attention.severity'))->badge()
-                    ->formatStateUsing(fn (string $state): string => match (Severity::from($state)) {
-                        Severity::Error => __('kami::admin.widgets.attention.error'),
-                        Severity::Warning => __('kami::admin.widgets.attention.warning'),
-                        Severity::Info => __('kami::admin.widgets.attention.info'),
-                    })
-                    ->color(fn (string $state): string => match (Severity::from($state)) {
-                        Severity::Error => 'danger',
-                        Severity::Warning => 'warning',
-                        Severity::Info => 'info',
-                    }),
+                    // `result()` keeps Kami's severities only; warning and info are Filament colours too.
+                    ->formatStateUsing(fn (string $state): string => __("kami::admin.widgets.attention.{$state}"))
+                    ->color(fn (string $state): string => $state === Severity::Error->value ? 'danger' : $state),
                 TextColumn::make('message')->label(__('kami::admin.widgets.attention.problem'))->wrap()
                     ->description(
                         fn (array $record): string => (string) __('kami::admin.widgets.attention.fix', ['fix' => Arr::string($record, 'fix')])

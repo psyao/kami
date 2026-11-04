@@ -32,8 +32,6 @@ final class Scheduled extends TableWidget
 
     public function table(Table $table): Table
     {
-        $types = fn (Builder $entries): Builder => $entries->whereIn('type', EntryResource::accessibleTypes());
-
         return $table
             ->heading(__('kami::admin.widgets.scheduled.heading'))
             ->query(fn () => Translation::query()
@@ -41,7 +39,7 @@ final class Scheduled extends TableWidget
                 ->where('published_at', '>', now())
                 // A Locale the Site dropped has no screen to lead to.
                 ->whereIn('locale', [...Site::current()->locales, '*'])
-                ->whereHas('entry', $types)
+                ->whereHas('entry', fn (Builder $entries): Builder => $entries->whereIn('type', EntryResource::accessibleTypes()))
                 ->with('entry')
                 ->oldest('published_at')
                 ->orderBy('id')
