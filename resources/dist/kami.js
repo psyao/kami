@@ -1,5 +1,5 @@
 // A keyboard move re-renders the rows and drops focus to the body (WCAG 2.4.3): bring it back to the moved row's control, or its other one where the row reached the end.
-// ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; #238 removes it once Filament holds focus itself.
+// ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; it goes once Filament holds focus itself; #281 checks before M9.
 document.addEventListener('livewire:init', () => {
     let moved = null
 
