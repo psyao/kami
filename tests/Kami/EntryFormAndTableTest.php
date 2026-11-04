@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
@@ -13,8 +14,10 @@ use Filament\Schemas\Components\Text as TextComponent;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\EntryForm;
@@ -51,7 +54,7 @@ final class Commission extends ContentType
     public function fields(): array
     {
         return [
-            Text::make('client'),
+            Text::make('client')->rules(['different:title']),
             Group::make('address', [Text::make('city')]),
             Repeater::make('links', [Text::make('url')]),
         ];
@@ -280,6 +283,41 @@ final class CommissionTable extends EntryTable
     }
 }
 
+/** A row, a header and a bulk action of a site's own, in the guide's form: each writes through `SaveEntry` under the User's Permissions. */
+final class ClientTable extends EntryTable
+{
+    public function recordActions(): array
+    {
+        return [...parent::recordActions(), Action::make('clear_client')
+            ->authorize(fn (Entry $record): bool => Filament::auth()->user()?->can('update', $record) ?? false)
+            ->action(fn (Entry $record) => resolve(SaveEntry::class)->handle('project', ['client' => null], $record, actor: Filament::auth()->user()))];
+    }
+
+    public function toolbarActions(): array
+    {
+        return [
+            Action::make('commission')
+                ->schema([TextInput::make('title')->required()])
+                ->authorize(fn (): bool => Filament::auth()->user()?->can('create', [Entry::class, 'project']) ?? false)
+                ->action(fn (array $data) => resolve(SaveEntry::class)->handle('project', ['title' => $data['title']], actor: Filament::auth()->user())),
+            BulkAction::make('assign_client')
+                ->schema([TextInput::make('client')->required()])
+                ->authorizeIndividualRecords(fn (Entry $record): bool => Filament::auth()->user()?->can('update', $record) ?? false)
+                ->failureNotificationTitle(fn (int $successCount, int $totalCount): string => "{$successCount} of {$totalCount} assigned")
+                ->action(function (BulkAction $action, Collection $records, array $data): void {
+                    foreach ($records as $record) {
+                        try {
+                            resolve(SaveEntry::class)->handle('project', ['client' => $data['client']], $record, actor: Filament::auth()->user());
+                        } catch (ValidationException $exception) {
+                            $action->reportBulkProcessingFailure($reason = $exception->validator->errors()->first(), e($reason));
+                        }
+                    }
+                }),
+            ...parent::toolbarActions(),
+        ];
+    }
+}
+
 final class PageTable extends EntryTable
 {
     public function columns(): array
@@ -431,6 +469,25 @@ describe('EntryTable', function () {
             ->assertActionExists(TestAction::make('archive')->table($entry))
             ->assertActionDoesNotExist(TestAction::make('edit')->table($entry))
             ->assertSee('Acme');
+    });
+
+    it('runs a site\'s own row, header and bulk actions, and keeps the generated bulk ones', function () {
+        kamiPlugin()->tables([Commission::class => ClientTable::class]);
+        $save = resolve(SaveEntry::class);
+        $first = $save->handle(Commission::class, ['title' => 'Refonte', 'client' => 'Acme']);
+        $second = $save->handle(Commission::class, ['title' => 'Logo']);
+        $refused = $save->handle(Commission::class, ['title' => 'Globex']);
+
+        projectPage(ListEntries::class)
+            ->callAction(TestAction::make('commission')->table(), ['title' => 'Affiche'])
+            ->selectTableRecords([$first->id, $second->id, $refused->id])
+            ->callAction(TestAction::make('assign_client')->table()->bulk(), ['client' => 'Globex'])
+            ->assertNotified('2 of 3 assigned')
+            ->callAction(TestAction::make('clear_client')->table($first))
+            ->assertActionExists(TestAction::make('publish')->table()->bulk());
+
+        expect(Entry::query()->withUnpublished()->get()->mapWithKeys(fn (Entry $entry): array => [$entry->title => $entry->client])->sortKeys()->all())
+            ->toBe(['Affiche' => null, 'Globex' => null, 'Logo' => 'Globex', 'Refonte' => null]);
     });
 
     it('stays at the level and in the manual order whatever a site chooses', function () {

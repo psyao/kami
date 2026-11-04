@@ -9,11 +9,16 @@ use Closure;
 use DateTimeInterface;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\ReplicateAction;
 use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field as FormField;
@@ -42,6 +47,7 @@ use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Arr;
@@ -307,7 +313,10 @@ final class EntryResource extends FilamentResource
             ->columns($entryTable->columns())
             ->filters($entryTable->filters())
             ->recordActions($entryTable->recordActions())
-            ->toolbarActions($entryTable->toolbarActions());
+            ->toolbarActions($entryTable->toolbarActions())
+            // A bulk action reaches one page per request: at most the largest page size, 50 rows, within shared hosting's time limit.
+            ->paginationPageOptions([5, 10, 25, 50])
+            ->selectCurrentPageOnly();
     }
 
     /** @return list<TextColumn> */
@@ -411,6 +420,119 @@ final class EntryResource extends FilamentResource
             Notification::make()->danger()->title($exception->validator->errors()->first())->send();
 
             return false;
+        }
+    }
+
+    /**
+     * Trash, Restore, Force delete, Publish and Unpublish on the selected rows: each row authorised on its own, then written by a core action; a refused row stops nothing, the report counts it with its reason.
+     *
+     * @return list<BulkActionGroup>
+     */
+    public static function toolbarActions(): array
+    {
+        $actor = fn (): ?Authenticatable => Filament::auth()->user();
+        $trashed = fn (Entry $record): ?string => $record->trashed() ? (string) __('kami::admin.bulk.trashed') : null;
+        $notTrashed = fn (Entry $record): ?string => $record->trashed() ? null : (string) __('kami::admin.bulk.not_trashed');
+
+        return [BulkActionGroup::make([
+            self::rowByRow(
+                DeleteBulkAction::make()
+                    ->label(__('kami::admin.actions.trash'))
+                    ->modalHeading(__('kami::admin.bulk.trash_heading'))
+                    ->modalDescription(__('kami::admin.bulk.trash_description'))
+                    ->modalSubmitActionLabel(__('kami::admin.actions.trash'))
+                    ->successNotificationTitle(__('kami::admin.bulk.trash_done'))
+                    ->authorizeIndividualRecords(),
+                $trashed,
+                fn (Entry $record) => resolve(TrashEntry::class)->handle($record, $actor()),
+            ),
+            self::rowByRow(RestoreBulkAction::make()->authorizeIndividualRecords(), $notTrashed, fn (Entry $record) => resolve(RestoreEntry::class)->handle($record, $actor())),
+            // No replacement row by row: every address answers 410 (ADR 0008); the row action offers one.
+            self::rowByRow(
+                ForceDeleteBulkAction::make()->modalDescription(__('kami::admin.bulk.delete_description'))->authorizeIndividualRecords(),
+                $notTrashed,
+                fn (Entry $record) => resolve(DeleteEntry::class)->handle($record, actor: $actor()),
+            ),
+            self::statusBulkAction('publish', Translation::PUBLISHED, $trashed, $actor),
+            self::statusBulkAction('unpublish', Translation::DRAFT, $trashed, $actor),
+        ])];
+    }
+
+    /**
+     * Publish or Unpublish one Locale's Translations, the Locale asked on a translatable type, under `update` and `publish` per row (ADR 0019).
+     *
+     * @param  Closure(Entry): ?string  $trashed
+     * @param  Closure(): ?Authenticatable  $actor
+     */
+    private static function statusBulkAction(string $name, string $status, Closure $trashed, Closure $actor): BulkAction
+    {
+        $locales = self::locales();
+        $locale = fn (array $data): ?string => is_string($data['locale'] ?? null) ? $data['locale'] : null;
+
+        $action = BulkAction::make($name)
+            ->label(__("kami::admin.actions.{$name}"))
+            ->requiresConfirmation()
+            ->modalHeading(__("kami::admin.bulk.{$name}_heading"))
+            ->schema($locales === [] ? [] : [SelectInput::make('locale')
+                ->label(__('kami::admin.search.locale'))
+                ->options(array_combine($locales, array_map(strtoupper(...), $locales)))
+                ->default(Site::current()->defaultLocale())
+                ->required()])
+            ->authorize(fn (): bool => self::can('publish'))
+            ->authorizeIndividualRecords(fn (Entry $record): bool => self::can('update', $record) && self::can('publish', $record))
+            ->successNotificationTitle(__("kami::admin.bulk.{$name}_done"))
+            ->deselectRecordsAfterCompletion();
+
+        return self::rowByRow(
+            $action,
+            function (Entry $record, array $data) use ($status, $trashed, $locale): ?string {
+                $translation = $record->translations->whereIn('locale', [$locale($data) ?? '*', '*'])->first();
+
+                return $trashed($record) ?? match (true) {
+                    $translation === null => (string) __('kami::admin.bulk.no_translation', ['locale' => strtoupper((string) $locale($data))]),
+                    $translation->status === $status => (string) __("kami::admin.bulk.already_{$status}"),
+                    default => null,
+                };
+            },
+            fn (Entry $record, array $data) => resolve(SaveEntry::class)->handle(self::type()->handle(), ['status' => $status], $record, $locale($data), $actor()),
+        );
+    }
+
+    /**
+     * Writes each row the User may act on, unless `$refuse` gives a reason to leave it; a core action's refusal counts under its own. Authorising each row is the caller's: `authorizeIndividualRecords()`.
+     *
+     * @param  Closure(Entry, array<mixed>): ?string  $refuse  The reason a row is left as it is, such as being in that state already.
+     * @param  Closure(Entry, array<mixed>): mixed  $write
+     */
+    private static function rowByRow(BulkAction $action, Closure $refuse, Closure $write): BulkAction
+    {
+        return $action
+            ->failureNotificationTitle(fn (int $successCount, int $totalCount): string => (string) __('kami::admin.bulk.partial', ['count' => $successCount, 'total' => $totalCount]))
+            ->missingBulkAuthorizationFailureNotificationMessage(fn (int $count): string => (string) __('kami::admin.bulk.reason', ['reason' => __('kami::admin.bulk.forbidden'), 'count' => $count]))
+            ->action(fn (BulkAction $action, EloquentCollection $records, array $data) => self::eachRow($action, $records, $data, $refuse, $write));
+    }
+
+    /**
+     * @param  EloquentCollection<int, Entry>  $records
+     * @param  array<mixed>  $data
+     * @param  Closure(Entry, array<mixed>): ?string  $refuse
+     * @param  Closure(Entry, array<mixed>): mixed  $write
+     */
+    private static function eachRow(BulkAction $action, EloquentCollection $records, array $data, Closure $refuse, Closure $write): void
+    {
+        foreach ($records as $record) {
+            try {
+                if (($reason = $refuse($record, $data)) === null) {
+                    $write($record, $data);
+                }
+            } catch (ValidationException $exception) {
+                $reason = $exception->validator->errors()->first();
+            }
+
+            if ($reason !== null) {
+                // A reason may hold titles, and Filament renders the report as HTML.
+                $action->reportBulkProcessingFailure($reason, fn (int $count): string => (string) __('kami::admin.bulk.reason', ['reason' => e($reason), 'count' => $count]));
+            }
         }
     }
 

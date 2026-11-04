@@ -44,6 +44,25 @@ return [
         'parent' => 'Restore its Parent first: :parent.',
     ],
 
+    'bulk' => [
+        'partial' => ':count of :total done',
+        'reason' => ':reason (:count)',
+        'trash_heading' => 'Move the selected entries to the Trash',
+        'trash_description' => 'They leave the site in every language until someone restores them.',
+        'trash_done' => 'Moved to the Trash',
+        'delete_description' => 'They are deleted for good, in every language. Their addresses say the pages are gone (410).',
+        'publish_heading' => 'Publish the selected entries',
+        'unpublish_heading' => 'Unpublish the selected entries',
+        'publish_done' => 'Published',
+        'unpublish_done' => 'Unpublished',
+        'forbidden' => 'Not allowed for you',
+        'trashed' => 'In the Trash',
+        'not_trashed' => 'Not in the Trash',
+        'no_translation' => 'No :locale translation',
+        'already_published' => 'Already published or scheduled',
+        'already_draft' => 'Already a Draft',
+    ],
+
     'duplicate' => [
         'heading' => 'Duplicate :title',
         'description' => 'The copy is a Draft in every language, without children or Preview links.',
