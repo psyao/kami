@@ -62,7 +62,8 @@ final class ReorderEntries
 
     private static function siblings(ContentType $type, ?string $parent): EntryBuilder
     {
-        return Entry::query()->withUnpublished()->ofType($type->handle())->where('site', Site::current()->handle)
+        // A trashed Entry keeps its place, as it keeps its Paths: restoring it shares a Position with no one.
+        return Entry::query()->withUnpublished()->withTrashed()->ofType($type->handle())->where('site', Site::current()->handle)
             // A type no longer hierarchical is one list again, whatever its rows kept.
             ->when($type->isHierarchical(), fn (EntryBuilder $query): EntryBuilder => $query->where('parent_id', $parent));
     }

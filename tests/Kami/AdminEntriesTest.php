@@ -404,6 +404,16 @@ it('reads Schedule while the date given is to come, then shows the Translation S
         ->assertSee('Scheduled for Oct 28, 2026 12:30:00');
 });
 
+it('reads Publish on a date it cannot read, leaving the error to the save', function () {
+    entryPage(CreateEntry::class)
+        ->fillForm(['title' => 'Bonjour', 'author' => 'Ada Lovelace'])
+        // A client may send any string: the picker's state is live and not locked.
+        ->set('data.published_at', 'garbage')
+        ->assertActionHasLabel(formAction('publish'), 'Publish')
+        ->callAction(formAction('publish'))
+        ->assertHasFormErrors(['published_at' => 'date']);
+});
+
 it('backdates, keeping the date given', function () {
     entryPage(CreateEntry::class)
         ->fillForm(['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'published_at' => '2020-01-01 09:00:00'])
