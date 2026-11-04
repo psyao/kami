@@ -41,7 +41,7 @@ final class Permissions
         $entries = collect(resolve(ContentTypes::class)->all())
             ->flatMap(fn (ContentType $type): array => array_map(fn (string $action): string => "kami.entries.{$type->handle()}.{$action}", self::ENTRY_ACTIONS));
 
-        return [...$entries, 'kami.users.manage'];
+        return [...$entries, 'kami.health.view', 'kami.users.manage'];
     }
 
     /**

@@ -91,6 +91,32 @@ return [
         'no_translation' => 'Pas encore traduit',
     ],
 
+    'widgets' => [
+        'type' => 'Type',
+        'recently_edited' => [
+            'heading' => 'Modifiés récemment',
+            'updated_at' => 'Modifié',
+            'empty' => 'Rien de modifié pour l’instant',
+        ],
+        'scheduled' => [
+            'heading' => 'Programmés',
+            'empty' => 'Rien de programmé',
+        ],
+        'attention' => [
+            'heading' => 'À surveiller',
+            'checked_at' => 'Dernier contrôle le :date.',
+            'never' => 'Aucun contrôle pour l’instant',
+            'none' => 'Aucun problème trouvé',
+            'run' => 'Lancez :command sur le serveur pour contrôler à nouveau cette installation.',
+            'severity' => 'Gravité',
+            'problem' => 'Problème',
+            'fix' => 'Correction : :fix',
+            'error' => 'Erreur',
+            'warning' => 'Avertissement',
+            'info' => 'Information',
+        ],
+    ],
+
     'search' => [
         'locale' => 'Langue',
     ],

@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Psyao\Kami\Content\Entry;
 
 /**
  * The part of an Entry that belongs to one Locale, with its own publication (ADR 0013, ADR 0019).
@@ -22,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $slug
  * @property string|null $status
  * @property CarbonImmutable|null $published_at
+ * @property-read Entry $entry
  */
 #[Unguarded]
 #[Table(name: 'kami_translations')]
@@ -36,6 +39,16 @@ final class Translation extends Model
     public const string DRAFT = 'draft';
 
     public const string PUBLISHED = 'published';
+
+    /**
+     * Read outside the Visibility scope: a Translation's Entry is never hidden from it.
+     *
+     * @return BelongsTo<Entry, $this>
+     */
+    public function entry(): BelongsTo
+    {
+        return $this->belongsTo(Entry::class, 'entry_id')->withUnpublished();
+    }
 
     protected function casts(): array
     {

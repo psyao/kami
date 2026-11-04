@@ -51,6 +51,7 @@ On its first run it makes sure someone can manage Users. Give it the email of on
   ```
 
 - **Filament's assets.** `kami:install` copies them to `public/`, as `php artisan filament:assets` does.
+- **Dashboard widgets.** `KamiPlugin` adds three widgets to the panel's dashboard, after your own: **Recently edited**, **Scheduled** and **Needs attention**, each shown only to a User allowed to see it. A dashboard page of yours that lists its own widgets in `getWidgets()` decides whether they appear. They cannot be turned off otherwise yet.
 - **Global search on Kami's panel.** Filament's own search leaves Kami's types out, so the panel carrying `KamiPlugin` gets Kami's, which searches Entries first and then your Resources, as Filament's does. A provider of your own, or `->globalSearch(false)`, wins; your other panels keep Filament's.
 
 Kami adds no route or scheduled task to your application until you ask for them, and applies no middleware to your routes or your panel: it only names the `kami` middleware group and the `kami.security-headers` alias.

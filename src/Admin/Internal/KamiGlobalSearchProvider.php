@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
-use Filament\Facades\Filament;
 use Filament\GlobalSearch\GlobalSearchResult;
 use Filament\GlobalSearch\GlobalSearchResults;
 use Filament\GlobalSearch\Providers\DefaultGlobalSearchProvider;
@@ -28,7 +27,7 @@ final class KamiGlobalSearchProvider extends DefaultGlobalSearchProvider
     public function getResults(string $query): GlobalSearchResults
     {
         $builder = GlobalSearchResults::make();
-        $types = $this->searchableTypes();
+        $types = EntryResource::accessibleTypes();
         $site = Site::current();
         // As the table's search: `whereLike()` is `ilike` on PostgreSQL and `like` elsewhere. A Locale the Site dropped has no screen to lead to.
         // ponytail: identical for ASCII only; SQLite's `like` tells `é` from `É`, MySQL's default collation also ignores accents. V1 if an editor meets it.
@@ -46,15 +45,14 @@ final class KamiGlobalSearchProvider extends DefaultGlobalSearchProvider
             ->limit(self::LIMIT)
             ->get();
         $order = array_flip($site->locales);
-        $default = $site->defaultLocale();
 
         foreach ($types as $type) {
-            EntryResource::withConfiguration($type, function () use ($builder, $entries, $type, $order, $default): void {
+            EntryResource::withConfiguration($type, function () use ($builder, $entries, $type, $order): void {
                 $results = $entries->where('type', $type)->flatMap(fn (Entry $entry): array => $entry->translations
                     ->sortBy(fn (Translation $translation): int => $order[$translation->locale] ?? 0)
                     ->map(fn (Translation $translation): GlobalSearchResult => new GlobalSearchResult(
                         title: $translation->title ?? __('kami::admin.fields.untitled'),
-                        url: EntryResource::editUrl($entry, in_array($translation->locale, ['*', $default], true) ? null : $translation->locale),
+                        url: EntryResource::editUrl($entry, $translation->locale),
                         details: $translation->locale === '*' ? [] : [__('kami::admin.search.locale') => Str::upper($translation->locale)],
                     ))->all());
 
@@ -72,23 +70,5 @@ final class KamiGlobalSearchProvider extends DefaultGlobalSearchProvider
         }
 
         return $builder;
-    }
-
-    /**
-     * The handles of the types the User may list, in declaration order: none hides the field when no other Resource is searchable.
-     *
-     * @return list<string>
-     */
-    public function searchableTypes(): array
-    {
-        $types = [];
-
-        foreach (Filament::getCurrentOrDefaultPanel()?->getResourceConfigurations() ?? [] as $configuration) {
-            if ($configuration->getResource() === EntryResource::class && EntryResource::withConfiguration($configuration->getKey(), EntryResource::canAccess(...))) {
-                $types[] = $configuration->getKey();
-            }
-        }
-
-        return $types;
     }
 }

@@ -232,6 +232,7 @@ permission kami.entries.{type}.restore
 permission kami.entries.{type}.share-preview
 permission kami.entries.{type}.update
 permission kami.entries.{type}.view
+permission kami.health.view
 permission kami.users.manage
 table kami_entries
 table kami_paths

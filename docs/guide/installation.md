@@ -83,7 +83,7 @@ php artisan kami:doctor
 
 It checks the PHP it runs under: on shared hosting, that is the command line's, which may differ from the web's.
 
-Run it after any change to the environment, and with `--strict` in your CI if warnings should fail it. Each run writes its result to `storage/framework/kami/doctor.json`.
+Run it after any change to the environment, and with `--strict` in your CI if warnings should fail it. Each run writes its result to `storage/framework/kami/doctor.json`, which the admin dashboard's **Needs attention** widget shows to Users holding `kami.health.view`. The widget runs no check itself: run the command again after a fix, or after a deploy, to update it.
 
 ## Installing and deploying
 

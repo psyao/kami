@@ -57,7 +57,7 @@ Every check targets a Permission, never a Role. Each declared Content Type has e
 | `kami.entries.{type}.force-delete` | [delete an Entry for good](content-types.md#deleting-for-good) from the Trash |
 | `kami.entries.{type}.share-preview` | create, list and revoke a Translation's [Preview links](publishing.md#preview-links) |
 
-`kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.
+`kami.health.view` shows the dashboard's **Needs attention** widget, the last [`kami:doctor`](installation.md#checking-the-environment) result. `kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.
 
 Editing a Published or Scheduled Translation changes what visitors see, now or at its date, so it takes `publish` as well as `update` (ADR 0019). A User with `update` alone edits Drafts only.
 

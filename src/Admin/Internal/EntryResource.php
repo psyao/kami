@@ -145,6 +145,24 @@ final class EntryResource extends FilamentResource
         return Gate::forUser(Filament::auth()->user())->inspect($ability, $record ?? [Entry::class, self::type()->handle()]);
     }
 
+    /**
+     * The handles of the types the User may list, in declaration order: what search and the dashboard reach.
+     *
+     * @return list<string>
+     */
+    public static function accessibleTypes(): array
+    {
+        $types = [];
+
+        foreach (Filament::getCurrentOrDefaultPanel()?->getResourceConfigurations() ?? [] as $configuration) {
+            if ($configuration->getResource() === self::class && self::withConfiguration($configuration->getKey(), self::canAccess(...))) {
+                $types[] = $configuration->getKey();
+            }
+        }
+
+        return $types;
+    }
+
     /** A Global Set is always published, so its one page takes `update` and `publish` (ADR 0019): no navigation item leads to a 403. */
     public static function canAccess(): bool
     {
@@ -415,9 +433,11 @@ final class EntryResource extends FilamentResource
         ];
     }
 
-    /** The edit page of an Entry, in another Locale than the default one when named. */
+    /** The edit page of an Entry, in another Locale than the default one when named; the default Locale and `'*'` lead to `/edit`. */
     public static function editUrl(Entry $entry, ?string $locale): string
     {
+        $locale = in_array($locale, ['*', Site::current()->defaultLocale()], true) ? null : $locale;
+
         return self::type() instanceof Singleton ? self::getUrl('index', ['locale' => $locale]) : self::getUrl('edit', ['record' => $entry, 'locale' => $locale]);
     }
 
