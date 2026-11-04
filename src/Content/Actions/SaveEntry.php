@@ -277,7 +277,7 @@ final class SaveEntry
         $publishing = ! $draft && ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
             // A Singleton's form has no slug: what its Prefix breaks shows on the title.
-            'title' => [$publishing ? 'required' : 'nullable', 'string', $this->encodingRule(), 'max:255', ...($contentType->hasSlug() ? [] : [$this->pathRule($contentType, $site, $locale)])],
+            'title' => [$publishing ? 'required' : 'nullable', 'string', Field::encodingRule(), 'max:255', ...($contentType->hasSlug() ? [] : [$this->pathRule($contentType, $site, $locale)])],
             ...($contentType->hasSlug() ? ['slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->pathRule($contentType, $site, $locale)]] : []),
             'status' => ['required', 'in:draft,published'],
             'published_at' => ['nullable', 'date'],
@@ -380,16 +380,6 @@ final class SaveEntry
             'name' => $name,
             'time' => $stored->updated_at?->setTimezone($site->timezone)->isoFormat('LLL'),
         ])]);
-    }
-
-    /** Valid UTF-8, which SQLite stores and the other engines refuse at the column, as a Field's `string` or `text` column checks; a slug's Path rule already refuses the rest. */
-    private function encodingRule(): Closure
-    {
-        return function (string $attribute, mixed $value, Closure $fail): void {
-            if (is_string($value) && ! mb_check_encoding($value, 'UTF-8')) {
-                $fail(__('kami::admin.fields.encoding'));
-            }
-        };
     }
 
     /**

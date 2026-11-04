@@ -262,6 +262,21 @@ abstract class Field
     }
 
     /**
+     * @internal
+     *
+     * Valid UTF-8 throughout a string or a document, keys included: SQLite stores the rest, the other engines refuse it at the column, and `Document::text()` cannot read it.
+     */
+    public static function encodingRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            // @phpstan-ignore argument.type (it walks nested arrays, keys included, and passes any other scalar)
+            if ((is_string($value) || is_array($value)) && ! mb_check_encoding($value, 'UTF-8')) {
+                $fail(__('kami::admin.fields.encoding'));
+            }
+        };
+    }
+
+    /**
      * The rules every value of this Field type passes, before those of `->rules()`.
      *
      * @return array<mixed>
@@ -279,9 +294,9 @@ abstract class Field
     private function columnRules(): array
     {
         return match ($this->column()) {
-            'string' => [$this->lengthRule(255, mb_strlen(...))],
+            'string' => [self::encodingRule(), $this->lengthRule(255, mb_strlen(...))],
             // MySQL's `text` counts bytes.
-            'text' => [$this->lengthRule(65535, strlen(...))],
+            'text' => [self::encodingRule(), $this->lengthRule(65535, strlen(...))],
             default => [],
         };
     }
@@ -296,9 +311,6 @@ abstract class Field
         return function (string $attribute, mixed $value, Closure $fail) use ($max, $length): void {
             if (is_array($value)) {
                 $fail(__('validation.string'));
-            } elseif (is_string($value) && ! mb_check_encoding($value, 'UTF-8')) {
-                // SQLite stores it and the other engines refuse it at the column, as `SaveEntry` checks the title.
-                $fail(__('kami::admin.fields.encoding'));
             } elseif (is_string($value) && $length($value) > $max) {
                 $fail(__('validation.max.string', ['max' => $max]));
             }

@@ -407,6 +407,7 @@ it('refuses text that is not valid UTF-8, which SQLite would store and the other
     'a Text' => [Article::class, ['author' => "\xff a"], 'author'],
     'a Textarea' => [Page::class, ['body' => "\xff a"], 'body'],
     'a Text in a Repeater' => [Project::class, ['links' => [['label' => "\xff a", 'url' => 'https://example.test']]], 'links.0.label'],
+    'a RichText' => [Article::class, ['body' => ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => "\xff a"]]]]]], 'body'],
 ]);
 
 it('names the Field whose text is not valid UTF-8', function () {

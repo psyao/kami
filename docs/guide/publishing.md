@@ -92,7 +92,7 @@ On every save, Drafts included:
 - A handle the type does not declare is refused.
 - `status` is `draft` or `published`; `published_at` is a date.
 - `''` and `[]` are stored as `null`, so a blank Translatable Field falls back to the default Locale.
-- A value fits its column: 255 characters in a `string` column, 65,535 bytes in a `text` one, on every engine. A `string` or `text` value, the title included, is valid UTF-8, which only SQLite would otherwise store.
+- A value fits its column: 255 characters in a `string` column, 65,535 bytes in a `text` one, on every engine. A `string` or `text` value, the title included, and a `RichText` document are valid UTF-8, which only SQLite would otherwise store.
 - A slug can answer at its URL: no space, control character, `?`, `#`, `%` or `\`, no empty segment and no `.` or `..` segment. Accents and `/` between segments are fine. In the default Locale, a Path may not start with another Locale's code, which would answer in that Locale: a type at the root cannot take the slug `en`.
 
 When the Translation is saved as `published`, Scheduled included, `title`, `slug` and every `->required()` Field must have a value, Shared Fields too. A Draft may be incomplete, even without a title, but it cannot blank a `->required()` Shared Field holding a value while another Translation of the Entry is Published or Scheduled, as that Translation reads it. Neither can a `'*'` call:
