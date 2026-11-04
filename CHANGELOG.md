@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.4.0](https://github.com/psyao/kami/compare/v0.3.0...v0.4.0) (2026-11-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* SaveEntry::handle() takes an optional sixth argument, updatedAt; no existing call changes. Every save now touches the Entry's updated_at.
+
+### Features
+
+* add bulk actions and the custom action recipe ([#280](https://github.com/psyao/kami/issues/280)) ([14cc547](https://github.com/psyao/kami/commit/14cc547874f368fc3f06daa3940fda80643b6653))
+* add inline Markdown to Text and Textarea ([#263](https://github.com/psyao/kami/issues/263)) ([32678a9](https://github.com/psyao/kami/commit/32678a91ad61f37f393dfb13e2fc1d20914df794))
+* add the dashboard widgets Recently edited, Scheduled and Needs attention ([#279](https://github.com/psyao/kami/issues/279)) ([5f3ca06](https://github.com/psyao/kami/commit/5f3ca06bda70ccdeb3f303c715844b078a9f39db)), closes [#256](https://github.com/psyao/kami/issues/256)
+* add the Locale switcher and per-Locale table state ([#265](https://github.com/psyao/kami/issues/265)) ([664a7f4](https://github.com/psyao/kami/commit/664a7f47d2825f9cb0d9fc7fd4c1b7bda80eb13a))
+* add the RichText Field and its Document ([#260](https://github.com/psyao/kami/issues/260)) ([af497c9](https://github.com/psyao/kami/commit/af497c9de200c22e054578fa4ddc379f78eb9c5b)), closes [#242](https://github.com/psyao/kami/issues/242)
+* delete Entries for good and never-published Translations ([#275](https://github.com/psyao/kami/issues/275)) ([d2a95fb](https://github.com/psyao/kami/commit/d2a95fb156a29b5cb907fd9cde10a3092c1d360e))
+* duplicate an Entry ([#276](https://github.com/psyao/kami/issues/276)) ([3ca4d27](https://github.com/psyao/kami/commit/3ca4d27121f544f99a1b8c1a6d1092cea14ecfa5))
+* import HTML with Document::fromHtml and remind of accessibility issues on save ([#271](https://github.com/psyao/kami/issues/271)) ([4190b35](https://github.com/psyao/kami/commit/4190b3504b19df7baf88dc3102ec74f91a54e89d))
+* preview the unsaved form from the create and edit pages ([#272](https://github.com/psyao/kami/issues/272)) ([d286151](https://github.com/psyao/kami/commit/d286151fa6b6e809106de7e993d56c69a2b6bd6b))
+* refuse a save over a concurrent edit ([#269](https://github.com/psyao/kami/issues/269)) ([e2c8c5c](https://github.com/psyao/kami/commit/e2c8c5c8e93f99e407603df78c2bb012e989e324))
+* search Entries from the admin's global search ([#278](https://github.com/psyao/kami/issues/278)) ([161e7f2](https://github.com/psyao/kami/commit/161e7f28bbbb7d0ae0854e094e7508b8b6d7d81a))
+* share a Translation through Preview links ([#274](https://github.com/psyao/kami/issues/274)) ([8bf5e36](https://github.com/psyao/kami/commit/8bf5e3694c7a333ea3d1db47b5d042a2d1a31f2b))
+* show scheduling in the admin and write the next visibility change ([#267](https://github.com/psyao/kami/issues/267)) ([50b085e](https://github.com/psyao/kami/commit/50b085e91c8c9b5454872e0750b0ce66b32f02ef))
+* show the Creator and Last modifier in the admin ([#277](https://github.com/psyao/kami/issues/277)) ([0acebee](https://github.com/psyao/kami/commit/0acebeed443688e5ccb1bb56130627ef11552276))
+* trash and restore Entries ([#273](https://github.com/psyao/kami/issues/273)) ([3a055d9](https://github.com/psyao/kami/commit/3a055d94c5e590ebecb97ffdf50c4b3903d314c8))
+
+
+### Bug Fixes
+
+* keep a trashed Entry's Position and read an unreadable form date as Publish ([#292](https://github.com/psyao/kami/issues/292)) ([a50cab8](https://github.com/psyao/kami/commit/a50cab8b1b6a20aa3efd08cb181436c4d5d7f482))
+* refuse a RichText that is not valid UTF-8 on save ([#285](https://github.com/psyao/kami/issues/285)) ([7e56295](https://github.com/psyao/kami/commit/7e56295bb4526ad1813a6573765b069426f36151))
+* refuse text that is not valid UTF-8 on save ([#284](https://github.com/psyao/kami/issues/284)) ([06cbb65](https://github.com/psyao/kami/commit/06cbb655b94b5928623b9693617ab165a4fa5ec2))
+
+
+### Miscellaneous Chores
+
+* give coding agents Boost's Laravel and testing skills ([#261](https://github.com/psyao/kami/issues/261)) ([5f9318c](https://github.com/psyao/kami/commit/5f9318c49d7e3c256ec706ae83621a8af31772ed))
+* keep hand-overs on tickets, write the milestone ritual, check ponytail markers ([#257](https://github.com/psyao/kami/issues/257)) ([6d6189d](https://github.com/psyao/kami/commit/6d6189d84aa8310cb0d0e78b427d9f0bd5e61151))
+
 ## [0.3.0](https://github.com/psyao/kami/compare/v0.2.1...v0.3.0) (2026-11-01)
 
 
