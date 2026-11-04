@@ -10,7 +10,9 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
+use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ReorderEntries;
 use Workbench\App\Content\Article;
@@ -111,6 +113,28 @@ it('leaves another Site alone, in the reorder and in the last position', functio
     expect(DB::table('kami_entries')->where('id', $three->id)->value('position'))->toBe(7)
         ->and($two->fresh()->position)->toBe(1)
         ->and(projects(['Four'])[0]->position)->toBe(3);
+});
+
+it('keeps a trashed Entry its place, so a new Entry goes after it', function () {
+    [, $two] = projects(['One', 'Two']);
+    resolve(TrashEntry::class)->handle($two);
+    projects(['Three']);
+
+    resolve(RestoreEntry::class)->handle(Entry::query()->withUnpublished()->withTrashed()->findOrFail($two->id));
+
+    expect(orderedTitles())->toBe(['One', 'Two', 'Three'])
+        ->and(Entry::query()->withUnpublished()->ofType(Project::class)->ordered()->pluck('position')->all())->toBe([1, 2, 3]);
+});
+
+it('keeps a trashed Entry its place through a reorder', function () {
+    [$one, $two, $three] = projects(['One', 'Two', 'Three']);
+    resolve(TrashEntry::class)->handle($two);
+
+    resolve(ReorderEntries::class)->handle(new Project, [$three->id, $one->id]);
+    resolve(RestoreEntry::class)->handle(Entry::query()->withUnpublished()->withTrashed()->findOrFail($two->id));
+
+    expect(orderedTitles())->toBe(['Three', 'Two', 'One'])
+        ->and(Entry::query()->withUnpublished()->ofType(Project::class)->ordered()->pluck('position')->all())->toBe([1, 2, 3]);
 });
 
 /** A type's table as a User holding the Role. */

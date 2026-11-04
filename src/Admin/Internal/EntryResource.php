@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Admin\Internal;
 
 use Carbon\CarbonImmutable;
+use Carbon\Exceptions\InvalidFormatException;
 use Closure;
 use DateTimeInterface;
 use Filament\Actions\Action;
@@ -943,7 +944,14 @@ final class EntryResource extends FilamentResource
     /** Publish, or Schedule while the form's date, in the Site's time zone, is to come: what the click will do. */
     public static function publishLabel(mixed $date): string
     {
-        return (string) __(is_string($date) && $date !== '' && CarbonImmutable::parse($date, Site::current()->timezone)->isFuture() ? 'kami::admin.actions.schedule' : 'kami::admin.actions.publish');
+        try {
+            $future = is_string($date) && $date !== '' && CarbonImmutable::parse($date, Site::current()->timezone)->isFuture();
+        } catch (InvalidFormatException) {
+            // The form state is the client's: an unreadable date is the save's error to show.
+            $future = false;
+        }
+
+        return (string) __($future ? 'kami::admin.actions.schedule' : 'kami::admin.actions.publish');
     }
 
     /** Draft, Scheduled or Published, as visitors see the Translation now (ADR 0019), or missing. */
