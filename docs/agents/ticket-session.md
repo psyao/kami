@@ -6,6 +6,14 @@ One session per ticket, on a plain branch in the main checkout. Among sessions t
 
 The parent session starts the ticket's session with the ticket number, the context `GLOSSARY.md`, ADRs and the tracker do not give, and the earlier tickets whose hand-over to read. The brief ends by pointing here.
 
+## Parent session
+
+The parent session runs the milestone from outside the tickets:
+
+- **Next ticket.** Start a frontier ticket of the milestone (every blocker closed) once the previous session is archived.
+- **Notes.** Relay each ticket session's note to Steve in one line. Approvals he gives go to the session that acts, never through the parent.
+- **"#N fait".** Match N against the linked session that just finished, then check in one command that the issue is closed, carries its `## Hand-over` comment, and that `main` matches `origin/main`. Archive the session and start the next ticket.
+
 ## Steps
 
 1. **Prepare.** Branch from an up-to-date `main`. Read the ticket, every comment included, and what it touches. Give Steve the files touched and any open question, one at a time, each with a recommended default.

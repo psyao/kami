@@ -18,6 +18,7 @@
 /testbench.yaml export-ignore
 
 # Design material
+/.claude export-ignore
 /CLAUDE.md export-ignore
 /docs/*.md export-ignore
 /docs/agents export-ignore
