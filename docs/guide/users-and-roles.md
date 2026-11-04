@@ -61,6 +61,8 @@ Every check targets a Permission, never a Role. Each declared Content Type has e
 
 Editing a Published or Scheduled Translation changes what visitors see, now or at its date, so it takes `publish` as well as `update` (ADR 0019). A User with `update` alone edits Drafts only.
 
+A [bulk action](content-types.md#bulk-actions) checks these on each row as the row's own action would, so selecting rows grants nothing more.
+
 Each Permission is a Laravel Gate, so your own code checks it the usual way:
 
 ```php

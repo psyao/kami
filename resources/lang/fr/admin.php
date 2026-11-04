@@ -44,6 +44,25 @@ return [
         'parent' => 'Restaurez d’abord son Parent : :parent.',
     ],
 
+    'bulk' => [
+        'partial' => ':count sur :total traités',
+        'reason' => ':reason (:count)',
+        'trash_heading' => 'Mettre les entrées sélectionnées à la corbeille',
+        'trash_description' => 'Elles quittent le site dans toutes les langues jusqu’à ce que quelqu’un les restaure.',
+        'trash_done' => 'Mises à la corbeille',
+        'delete_description' => 'Elles sont supprimées définitivement, dans toutes les langues. Leurs adresses indiquent que les pages n’existent plus (410).',
+        'publish_heading' => 'Publier les entrées sélectionnées',
+        'unpublish_heading' => 'Dépublier les entrées sélectionnées',
+        'publish_done' => 'Publiées',
+        'unpublish_done' => 'Dépubliées',
+        'forbidden' => 'Non autorisé pour vous',
+        'trashed' => 'Dans la corbeille',
+        'not_trashed' => 'Hors de la corbeille',
+        'no_translation' => 'Pas de traduction :locale',
+        'already_published' => 'Déjà publiée ou programmée',
+        'already_draft' => 'Déjà en brouillon',
+    ],
+
     'duplicate' => [
         'heading' => 'Dupliquer :title',
         'description' => 'La copie est un brouillon dans toutes les langues, sans enfants ni liens de prévisualisation.',

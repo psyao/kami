@@ -60,6 +60,22 @@ final class EntryPolicy
         return $this->can($user, $entry->type, 'delete');
     }
 
+    /** Bulk actions: each row is then authorised on its own, through the method below. */
+    public function deleteAny(Authenticatable $user, string $type): bool
+    {
+        return $this->can($user, $type, 'delete');
+    }
+
+    public function restoreAny(Authenticatable $user, string $type): bool
+    {
+        return $this->can($user, $type, 'restore');
+    }
+
+    public function forceDeleteAny(Authenticatable $user, string $type): bool
+    {
+        return $this->can($user, $type, 'force-delete');
+    }
+
     /** A published Translation, Scheduled ones included, is visible again once restored: it takes `publish` too (ADR 0019). */
     public function restore(Authenticatable $user, Entry $entry): bool
     {

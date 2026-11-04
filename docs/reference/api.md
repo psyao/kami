@@ -21,7 +21,7 @@ A Content Type's table in the admin, registered with `KamiPlugin::make()->tables
 - `public function columns(): array`
 - `public function filters(): array`: The Trash filter.
 - `public function recordActions(): array`: Each row's actions: Edit, Children on a hierarchical type, Trash, and Restore in the Trash.
-- `public function toolbarActions(): array`: The actions above the table, bulk ones included.
+- `public function toolbarActions(): array`: The actions above the table, bulk ones included: Move to Trash, Restore, Force delete, Publish and Unpublish, each row authorised on its own.
 
 ## `Psyao\Kami\Admin\InitialsAvatarProvider`
 

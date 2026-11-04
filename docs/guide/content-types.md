@@ -734,8 +734,65 @@ Four things to know:
 
 - A cell links to the Entry, and an empty one is a link with no name for assistive technology. Give a column that may be empty a `default()`, or `disabledClick()` to make no link. Filament's `placeholder()` is too pale to meet the contrast minimum.
 - Replacing a list drops what `parent::` gave it unless you put it back: the title and state columns, and the hidden **Created by** and **Last modified by**, from `parent::columns()`.
-- Likewise **Edit**, **Duplicate**, **Move to Trash**, **Restore** and, on a hierarchical type, **Children** from `parent::recordActions()`, and the Trash filter from `parent::filters()`.
+- Likewise **Edit**, **Duplicate**, **Move to Trash**, **Restore** and, on a hierarchical type, **Children** from `parent::recordActions()`, the bulk actions from `parent::toolbarActions()`, and the Trash filter from `parent::filters()`.
 - The level shown, the manual order and their Permissions stay Kami's, whatever the class returns. Reordering writes through Kami's own action, so Filament's `beforeReordering()` and `afterReordering()` are neither reachable here nor called.
+
+### Bulk actions
+
+Selecting rows offers **Move to Trash**, **Publish** and **Unpublish**, and in the Trash **Restore** and **Force delete**. Each row is authorised as its own action would be, so a bulk action grants nothing a single one would not, then written by the core action: `TrashEntry`, `RestoreEntry`, `DeleteEntry`, or `SaveEntry` with a `status`. A refused row stops nothing: the report gives how many succeeded, then each reason with its count, such as a required Field missing, a row the User may not change, or one already in the wanted state, left untouched. **Publish** and **Unpublish** ask for the Locale on a translatable type, and refuse a row with no Translation in it. **Force delete** takes no replacement: every address answers 410, and the row's own action offers one.
+
+A selection stays within the page shown, at most 50 rows, so a request fits shared hosting's time limit.
+
+### Your own actions
+
+A row, header or bulk action of your own is plain Filament, written through a core action and authorised on its own, since core actions check no Permission ([Publishing](publishing.md#saveentry-does-not-authorise)). Header actions sit in `toolbarActions()` with the bulk ones:
+
+```php
+use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\TextInput;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Admin\EntryTable;
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Entry;
+
+final class ProjectTable extends EntryTable
+{
+    public function recordActions(): array
+    {
+        return [...parent::recordActions(), Action::make('clear_client')
+            ->authorize(fn (Entry $record): bool => Filament::auth()->user()?->can('update', $record) ?? false)
+            ->action(fn (Entry $record) => app(SaveEntry::class)->handle(Project::class, ['client' => null], $record, actor: Filament::auth()->user()))];
+    }
+
+    public function toolbarActions(): array
+    {
+        return [
+            Action::make('commission')
+                ->schema([TextInput::make('title')->required()])
+                ->authorize(fn (): bool => Filament::auth()->user()?->can('create', [Entry::class, 'project']) ?? false)
+                ->action(fn (array $data) => app(SaveEntry::class)->handle(Project::class, ['title' => $data['title']], actor: Filament::auth()->user())),
+            BulkAction::make('assign_client')
+                ->schema([TextInput::make('client')->required()])
+                ->authorizeIndividualRecords(fn (Entry $record): bool => Filament::auth()->user()?->can('update', $record) ?? false)
+                ->action(function (BulkAction $action, Collection $records, array $data): void {
+                    foreach ($records as $record) {
+                        try {
+                            app(SaveEntry::class)->handle(Project::class, ['client' => $data['client']], $record, actor: Filament::auth()->user());
+                        } catch (ValidationException $exception) {
+                            $action->reportBulkProcessingFailure($reason = $exception->validator->errors()->first(), $reason);
+                        }
+                    }
+                }),
+            ...parent::toolbarActions(),
+        ];
+    }
+}
+```
+
+A type's Permissions answer through the policy: `can('update', $record)` for a row, `can('create', [Entry::class, 'project'])` for the type, by its handle. Catching each row's `ValidationException` keeps one refusal from stopping the others, and `reportBulkProcessingFailure()` puts its reason in the report.
 
 ### Your own admin page
 

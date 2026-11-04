@@ -25,6 +25,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Write, publish, schedule or unpublish Entries, from the admin or from code | `vendor/psyao/kami/docs/guide/publishing.md` |
 | Duplicate an Entry (`DuplicateEntry`) | `vendor/psyao/kami/docs/guide/content-types.md#duplicating-an-entry` |
 | Trash or restore Entries (`TrashEntry`, `RestoreEntry`) | `vendor/psyao/kami/docs/guide/content-types.md#the-trash` |
+| Act on selected rows, or add a row, header or bulk action of your own writing through a core action | `vendor/psyao/kami/docs/guide/content-types.md#your-own-actions` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |
 | Render a type, write its view, override `render()` or place `Kami::routes()` | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |

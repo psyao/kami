@@ -42,12 +42,12 @@ class EntryTable
     }
 
     /**
-     * The actions above the table, bulk ones included.
+     * The actions above the table, bulk ones included: Move to Trash, Restore, Force delete, Publish and Unpublish, each row authorised on its own.
      *
      * @return array<Action|ActionGroup>
      */
     public function toolbarActions(): array
     {
-        return [];
+        return EntryResource::toolbarActions();
     }
 }
