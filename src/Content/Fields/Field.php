@@ -297,7 +297,7 @@ abstract class Field
             if (is_array($value)) {
                 $fail(__('validation.string'));
             } elseif (is_string($value) && ! mb_check_encoding($value, 'UTF-8')) {
-                // SQLite stores it, the other engines refuse it at the column.
+                // SQLite stores it and the other engines refuse it at the column, as `SaveEntry` checks the title.
                 $fail(__('kami::admin.fields.encoding'));
             } elseif (is_string($value) && $length($value) > $max) {
                 $fail(__('validation.max.string', ['max' => $max]));

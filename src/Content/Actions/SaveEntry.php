@@ -382,7 +382,7 @@ final class SaveEntry
         ])]);
     }
 
-    /** Valid UTF-8, as a Field's text column requires; a slug's Path rule already refuses the rest. */
+    /** Valid UTF-8, which SQLite stores and the other engines refuse at the column, as a Field's `string` or `text` column checks; a slug's Path rule already refuses the rest. */
     private function encodingRule(): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail): void {
