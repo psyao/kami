@@ -102,6 +102,15 @@ it('lists the Translations to come, soonest first, dated in the Site\'s time zon
         ->assertSeeHtml("/admin/articles/{$entry->id}/edit\"");
 });
 
+it('leaves out a Scheduled Translation in a Locale the Site no longer has, which has no screen', function () {
+    editedArticle('Hello later', ['status' => 'published', 'published_at' => now()->addDay()], editedArticle('Plus tard', ['status' => 'published', 'published_at' => now()->addDay()]), 'en');
+    config(['kami.sites.default.locales' => ['fr']]);
+
+    entriesPage(Scheduled::class, ['kami.entries.article.view'], type: null)
+        ->assertCanSeeTableRecords([translationTitled('Plus tard')])
+        ->assertCanNotSeeTableRecords([translationTitled('Hello later')]);
+});
+
 // An Entry loads its Translations and its type's row with it: 3 queries for Entries, 4 from the Translations.
 it('reads each list in a fixed number of queries, whatever its size', function (string $widget, int $queries, int $entries) {
     for ($i = 1; $i <= $entries; $i++) {
@@ -120,12 +129,16 @@ it('shows the last doctor result, dated in the Site\'s time zone, with each prob
     config(['kami.sites.default.timezone' => 'Europe/Zurich']);
     doctorResult(json_encode(['checked_at' => '2026-03-01T10:00:00+00:00', 'problems' => [
         ['severity' => 'error', 'message' => 'The PHP extension intl is not loaded.', 'fix' => 'enable intl.', 'guide' => 'installation.md#requirements'],
+        ['severity' => 'fatal', 'message' => 'Of a severity Kami does not know.', 'fix' => 'none.', 'guide' => ''],
+        ['severity' => 'warning', 'message' => 'With no fix.'],
         ['severity' => 'warning', 'message' => 'Neither gd nor imagick is loaded.', 'fix' => 'enable gd or imagick.', 'guide' => 'installation.md#requirements'],
     ]]));
 
     entriesPage(NeedsAttention::class, ['kami.health.view'], type: null)
         ->assertSee('The PHP extension intl is not loaded.')
         ->assertSee('enable gd or imagick.')
+        ->assertDontSee('Of a severity Kami does not know.')
+        ->assertDontSee('With no fix.')
         ->assertSee(__('kami::admin.widgets.attention.checked_at', ['date' => 'Mar 1, 2026 11:00:00']));
 });
 
@@ -138,6 +151,7 @@ it('names the command while no readable result exists, and says when the last ru
 })->with([
     'no file' => [null, 'kami::admin.widgets.attention.never'],
     'a broken file' => ['{"checked_at":', 'kami::admin.widgets.attention.never'],
+    'a broken date' => ['{"checked_at":"yesterday-ish","problems":[]}', 'kami::admin.widgets.attention.never'],
     'no problem' => ['{"checked_at":"2026-03-01T10:00:00+00:00","problems":[]}', 'kami::admin.widgets.attention.none'],
 ]);
 

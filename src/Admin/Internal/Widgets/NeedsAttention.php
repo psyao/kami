@@ -13,6 +13,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Psyao\Kami\Sites\Internal\Site;
+use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
+use Psyao\Kami\Support\Internal\Doctor\Severity;
 
 /**
  * The problems of the last `kami:doctor` run, read from the file it writes: no check runs on a web request.
@@ -49,34 +51,43 @@ final class NeedsAttention extends TableWidget
             ->emptyStateDescription(__('kami::admin.widgets.attention.run', ['command' => 'php artisan kami:doctor']))
             ->columns([
                 TextColumn::make('severity')->label(__('kami::admin.widgets.attention.severity'))->badge()
-                    ->formatStateUsing(fn (string $state): string => __("kami::admin.widgets.attention.{$state}"))
-                    ->color(fn (string $state): string => match ($state) {
-                        'error' => 'danger',
-                        'warning' => 'warning',
-                        default => 'info',
+                    ->formatStateUsing(fn (string $state): string => match (Severity::from($state)) {
+                        Severity::Error => __('kami::admin.widgets.attention.error'),
+                        Severity::Warning => __('kami::admin.widgets.attention.warning'),
+                        Severity::Info => __('kami::admin.widgets.attention.info'),
+                    })
+                    ->color(fn (string $state): string => match (Severity::from($state)) {
+                        Severity::Error => 'danger',
+                        Severity::Warning => 'warning',
+                        Severity::Info => 'info',
                     }),
                 TextColumn::make('message')->label(__('kami::admin.widgets.attention.problem'))->wrap()
-                    ->description(fn (array $record): string => (string) __('kami::admin.widgets.attention.fix', ['fix' => Arr::string($record, 'fix')])),
+                    ->description(
+                        fn (array $record): string => (string) __('kami::admin.widgets.attention.fix', ['fix' => Arr::string($record, 'fix')])
+                    ),
             ]);
     }
 
     /**
-     * The last result as `kami:doctor` wrote it, or null while none is readable.
+     * The last result as `kami:doctor` wrote it, or null while none is readable; a problem of another shape is left out.
      *
-     * @return array{checked_at: CarbonImmutable, problems: array<int, array{severity: string, message: string, fix: string}>}|null
+     * @return array{checked_at: CarbonImmutable, problems: list<array{severity: string, message: string, fix: string}>}|null
      */
     private static function result(): ?array
     {
-        $path = storage_path('framework/kami/doctor.json');
-        $result = rescue(fn (): mixed => File::exists($path) ? File::json($path, JSON_THROW_ON_ERROR) : null, report: false);
+        return rescue(function (): ?array {
+            $result = File::exists($path = DoctorCommand::resultPath()) ? File::json($path, JSON_THROW_ON_ERROR) : null;
 
-        if (! is_array($result) || ! is_string($result['checked_at'] ?? null) || ! is_array($result['problems'] ?? null)) {
-            return null;
-        }
+            if (! is_array($result) || ! is_string($result['checked_at'] ?? null) || ! is_array($result['problems'] ?? null)) {
+                return null;
+            }
 
-        /** @var array<int, array{severity: string, message: string, fix: string}> $problems */
-        $problems = $result['problems'];
+            $problems = array_values(array_filter($result['problems'], fn (mixed $problem): bool => is_array($problem)
+                && is_string($problem['severity'] ?? null) && Severity::tryFrom($problem['severity']) instanceof Severity
+                && is_string($problem['message'] ?? null) && is_string($problem['fix'] ?? null)));
 
-        return ['checked_at' => CarbonImmutable::parse($result['checked_at']), 'problems' => $problems];
+            /** @var list<array{severity: string, message: string, fix: string}> $problems */
+            return ['checked_at' => CarbonImmutable::parse($result['checked_at']), 'problems' => $problems];
+        }, report: false);
     }
 }

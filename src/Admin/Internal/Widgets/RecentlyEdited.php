@@ -10,6 +10,7 @@ use Filament\Widgets\TableWidget;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\EntryTitles;
+use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * The last Entries edited by anyone, of the types the User may list, Drafts included and the Trash left out.
@@ -43,7 +44,7 @@ final class RecentlyEdited extends TableWidget
             ->columns([
                 TextColumn::make('title')->label(__('kami::admin.fields.title'))->state(EntryTitles::of(...)),
                 TextColumn::make('type')->label(__('kami::admin.widgets.type'))->state(fn (Entry $record): string => EntryResource::withConfiguration($record->type, EntryResource::getModelLabel(...))),
-                TextColumn::make('updated_at')->label(__('kami::admin.widgets.recently_edited.updated_at'))->since()->dateTimeTooltip(),
+                TextColumn::make('updated_at')->label(__('kami::admin.widgets.recently_edited.updated_at'))->since()->dateTimeTooltip(timezone: Site::current()->timezone),
             ])
             ->recordUrl(fn (Entry $record): string => EntryResource::withConfiguration($record->type, fn (): string => EntryResource::editUrl($record, null)));
     }

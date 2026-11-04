@@ -33,7 +33,7 @@ The starter kit declares two Roles: `administrator` (`kami.*`) and `editor`. The
 - Permission vocabulary:
   - per Content Type: `kami.entries.{type}.{action}`, where the action is one of `view`, `create`, `update`, `reorder`, `publish`, `share-preview`, `delete`, `restore` or `force-delete`;
   - Media: `kami.media.{view|create|update|delete}`;
-  - plus `kami.menus.manage`, `kami.redirects.manage`, `kami.form-submissions.view` and `kami.users.manage`.
+  - plus `kami.menus.manage`, `kami.redirects.manage`, `kami.form-submissions.view`, `kami.health.view` (the dashboard's "Needs attention" widget, added in M4) and `kami.users.manage`.
 
   Global Sets and Singletons are Entries, so they need no separate settings Permission. The tickets for Menus, Forms and Drafts may refine the Permissions outside Content Types.
 - `reorder` covers both Position and Parent, form included, because moving an Entry changes URLs. The admin holds it on the server, whatever the form (ADR 0019). `publish` is kept apart from `update` and `force-delete` apart from `delete`, so editing, going live and losing data are separate rights.

@@ -39,6 +39,8 @@ final class Scheduled extends TableWidget
             ->query(fn () => Translation::query()
                 ->where('status', Translation::PUBLISHED)
                 ->where('published_at', '>', now())
+                // A Locale the Site dropped has no screen to lead to.
+                ->whereIn('locale', [...Site::current()->locales, '*'])
                 ->whereHas('entry', $types)
                 ->with('entry')
                 ->oldest('published_at')

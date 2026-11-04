@@ -197,6 +197,7 @@ final class KamiPlugin implements Plugin
         $panel->renderHook(PanelsRenderHook::SIDEBAR_NAV_START, fn (): string => $this->searchField(GlobalSearchPosition::Sidebar));
 
         // Added to the host's own widgets, each shown by its `canView()`: Kami takes nothing from the host's dashboard.
+        // ponytail: no opt-out but a dashboard listing its own widgets; V1 adds one (spec #241, Out of scope).
         $panel->widgets([RecentlyEdited::class, Scheduled::class, NeedsAttention::class]);
 
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).

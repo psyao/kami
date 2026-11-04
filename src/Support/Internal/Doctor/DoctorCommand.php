@@ -34,17 +34,23 @@ final class DoctorCommand extends Command
                 // The report describes this machine: keep it out of git, as Laravel does cache/, sessions/ and views/.
                 File::put(storage_path('framework/kami/.gitignore'), "*\n!.gitignore\n");
                 // Replaced whole, so the widget never reads half a file.
-                File::replace(storage_path('framework/kami/doctor.json'), json_encode([
+                File::replace(self::resultPath(), json_encode([
                     'checked_at' => now()->toIso8601String(),
                     'problems' => $problems,
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             } catch (Throwable) {
-                $this->components->warn('The result could not be written to ' . storage_path('framework/kami/doctor.json') . '.');
+                $this->components->warn('The result could not be written to ' . self::resultPath() . '.');
             }
         }
 
         $failing = array_filter($problems, fn (Problem $problem): bool => $problem->severity === Severity::Error || ($problem->severity === Severity::Warning && $this->option('strict')));
 
         return $failing === [] ? self::SUCCESS : self::FAILURE;
+    }
+
+    /** Where the last result lies, for the admin's "Needs attention" widget. */
+    public static function resultPath(): string
+    {
+        return storage_path('framework/kami/doctor.json');
     }
 }
