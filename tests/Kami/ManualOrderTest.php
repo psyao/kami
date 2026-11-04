@@ -116,7 +116,7 @@ it('leaves another Site alone, in the reorder and in the last position', functio
 });
 
 it('keeps a trashed Entry its place, so a new Entry goes after it', function () {
-    [$one, $two] = projects(['One', 'Two']);
+    [, $two] = projects(['One', 'Two']);
     resolve(TrashEntry::class)->handle($two);
     projects(['Three']);
 
