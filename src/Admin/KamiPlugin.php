@@ -7,6 +7,8 @@ namespace Psyao\Kami\Admin;
 use Closure;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Contracts\Plugin;
+use Filament\Enums\GlobalSearchPosition;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Field as FormField;
@@ -14,18 +16,24 @@ use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\Textarea as TextareaInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\GlobalSearch\Providers\Contracts\GlobalSearchProvider;
+use Filament\GlobalSearch\Providers\DefaultGlobalSearchProvider;
+use Filament\Livewire\GlobalSearch;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Filament\Resources\ResourceConfiguration;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
 use Livewire\Component as LivewireComponent;
+use Livewire\Livewire;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Content\ContentType;
@@ -180,18 +188,39 @@ final class KamiPlugin implements Plugin
             ->withoutMiddleware([SecurityHeaders::class, SecurityHeaders::class . ':admin'])
             ->middleware(FrontSecurityHeaders::class . ':Cross-Origin-Opener-Policy=unsafe-none'));
 
+        // Filament shows its search field for a searchable Resource of `getResources()` only, which leaves out those registered per configuration.
+        // ponytail: in Filament's own hooks beside the field's place, no `x-show` on a collapsed sidebar; V1, or sooner once Filament counts configurations in `isGlobalSearchEnabled()`.
+        $panel->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => $this->searchField(GlobalSearchPosition::Topbar));
+        $panel->renderHook(PanelsRenderHook::SIDEBAR_NAV_START, fn (): string => $this->searchField(GlobalSearchPosition::Sidebar));
+
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css'), Js::make('kami', __DIR__ . '/../../resources/dist/kami.js')], 'psyao/kami');
     }
 
     public function boot(Panel $panel): void
     {
+        // In boot, after the host's whole `panel()` chain: a provider of its own, or `globalSearch(false)`, wins (ADR 0023).
+        if (($provider = $panel->getGlobalSearchProvider()) instanceof GlobalSearchProvider && $provider::class === DefaultGlobalSearchProvider::class) {
+            // `globalSearch()` also sets the position: the host's is kept.
+            $panel->globalSearch(KamiGlobalSearchProvider::class, $panel->getGlobalSearchPosition());
+        }
+
         // On the panel's own requests only: `register()` runs for Artisan too, which must keep working to fix a declaration (see `ContentTypes`).
         foreach (resolve(ContentTypes::class)->declared() as $type) {
             foreach ($type->flatFields() as $field) {
                 $this->requireComponent($field, $type);
             }
         }
+    }
+
+    /** Filament's search field where the panel places it, when Kami's provider serves it and Filament shows none. */
+    private function searchField(GlobalSearchPosition $position): string
+    {
+        $provider = Filament::getGlobalSearchProvider();
+
+        return $provider instanceof KamiGlobalSearchProvider && ! Filament::isGlobalSearchEnabled() && Filament::getGlobalSearchPosition() === $position && $provider->searchableTypes() !== []
+            ? Livewire::mount(GlobalSearch::class)
+            : '';
     }
 
     private function requireComponent(Field $field, ContentType $type): void

@@ -91,6 +91,10 @@ return [
         'no_translation' => 'Pas encore traduit',
     ],
 
+    'search' => [
+        'locale' => 'Langue',
+    ],
+
     'actions' => [
         'children' => 'Enfants',
         'create_target' => 'Créer : :type',
