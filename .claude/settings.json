@@ -1,0 +1,7 @@
+{
+    "permissions": {
+        "allow": [
+            "mcp__ccd_pr__set_monitor"
+        ]
+    }
+}
