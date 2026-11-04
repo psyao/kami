@@ -60,7 +60,7 @@ final class EntryPolicy
         return $this->can($user, $entry->type, 'delete');
     }
 
-    /** Bulk actions: each row is then authorised on its own, through the method below. */
+    /** The bulk actions' `Any` checks, on the type: each row is then authorised on its own by `delete()`, `restore()` or `forceDelete()`. */
     public function deleteAny(Authenticatable $user, string $type): bool
     {
         return $this->can($user, $type, 'delete');

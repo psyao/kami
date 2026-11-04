@@ -777,12 +777,13 @@ final class ProjectTable extends EntryTable
             BulkAction::make('assign_client')
                 ->schema([TextInput::make('client')->required()])
                 ->authorizeIndividualRecords(fn (Entry $record): bool => Filament::auth()->user()?->can('update', $record) ?? false)
+                ->failureNotificationTitle(fn (int $successCount, int $totalCount): string => "{$successCount} of {$totalCount} assigned")
                 ->action(function (BulkAction $action, Collection $records, array $data): void {
                     foreach ($records as $record) {
                         try {
                             app(SaveEntry::class)->handle(Project::class, ['client' => $data['client']], $record, actor: Filament::auth()->user());
                         } catch (ValidationException $exception) {
-                            $action->reportBulkProcessingFailure($reason = $exception->validator->errors()->first(), $reason);
+                            $action->reportBulkProcessingFailure($reason = $exception->validator->errors()->first(), e($reason));
                         }
                     }
                 }),
@@ -792,7 +793,7 @@ final class ProjectTable extends EntryTable
 }
 ```
 
-A type's Permissions answer through the policy: `can('update', $record)` for a row, `can('create', [Entry::class, 'project'])` for the type, by its handle. Catching each row's `ValidationException` keeps one refusal from stopping the others, and `reportBulkProcessingFailure()` puts its reason in the report.
+A type's Permissions answer through the policy: `can('update', $record)` for a row, `can('create', [Entry::class, 'project'])` for the type, by its handle. Catching each row's `ValidationException` keeps one refusal from stopping the others, and `reportBulkProcessingFailure()` puts its reason in the report, which shows only with a `failureNotificationTitle()`. Escape the reason with `e()`: Filament renders the report as HTML, and a reason may hold a title.
 
 ### Your own admin page
 

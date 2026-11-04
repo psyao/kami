@@ -98,6 +98,12 @@ it('offers each bulk action under its Permission only', function () {
     entriesPage(ListEntries::class, $can('delete', 'publish'))
         ->assertActionVisible(bulk('delete'))
         ->assertActionVisible(bulk('publish'));
+    entriesPage(ListEntries::class, $can())->filterTable('trashed', false)
+        ->assertActionHidden(bulk('restore'))
+        ->assertActionHidden(bulk('forceDelete'));
+    entriesPage(ListEntries::class, $can('restore', 'force-delete'))->filterTable('trashed', false)
+        ->assertActionVisible(bulk('restore'))
+        ->assertActionVisible(bulk('forceDelete'));
 });
 
 it('publishes the chosen Locale\'s Translations, refusing a row without one, a published one and one missing a required Field', function () {

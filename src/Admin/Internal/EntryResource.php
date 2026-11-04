@@ -314,7 +314,8 @@ final class EntryResource extends FilamentResource
             ->filters($entryTable->filters())
             ->recordActions($entryTable->recordActions())
             ->toolbarActions($entryTable->toolbarActions())
-            // One page per request: at most the largest page size offered, 50 rows, within shared hosting's time limit.
+            // A bulk action reaches one page per request: at most the largest page size, 50 rows, within shared hosting's time limit.
+            ->paginationPageOptions([5, 10, 25, 50])
             ->selectCurrentPageOnly();
     }
 
@@ -423,7 +424,7 @@ final class EntryResource extends FilamentResource
     }
 
     /**
-     * Trash, Restore, Delete for good, Publish and Unpublish on the selected rows: each row authorised on its own, then written by a core action; a refused row stops nothing, the report counts it with its reason.
+     * Trash, Restore, Force delete, Publish and Unpublish on the selected rows: each row authorised on its own, then written by a core action; a refused row stops nothing, the report counts it with its reason.
      *
      * @return list<BulkActionGroup>
      */
@@ -487,8 +488,7 @@ final class EntryResource extends FilamentResource
             function (Entry $record, array $data) use ($status, $trashed, $locale): ?string {
                 $translation = $record->translations->whereIn('locale', [$locale($data) ?? '*', '*'])->first();
 
-                return match (true) {
-                    $trashed($record) !== null => $trashed($record),
+                return $trashed($record) ?? match (true) {
                     $translation === null => (string) __('kami::admin.bulk.no_translation', ['locale' => strtoupper((string) $locale($data))]),
                     $translation->status === $status => (string) __("kami::admin.bulk.already_{$status}"),
                     default => null,

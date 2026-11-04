@@ -54,7 +54,7 @@ final class Commission extends ContentType
     public function fields(): array
     {
         return [
-            Text::make('client'),
+            Text::make('client')->rules(['different:title']),
             Group::make('address', [Text::make('city')]),
             Repeater::make('links', [Text::make('url')]),
         ];
@@ -283,7 +283,7 @@ final class CommissionTable extends EntryTable
     }
 }
 
-/** The guide's recipe: a row, a header and a bulk action, each writing through `SaveEntry` under the User's Permissions. */
+/** A row, a header and a bulk action of a site's own, in the guide's form: each writes through `SaveEntry` under the User's Permissions. */
 final class ClientTable extends EntryTable
 {
     public function recordActions(): array
@@ -303,12 +303,13 @@ final class ClientTable extends EntryTable
             BulkAction::make('assign_client')
                 ->schema([TextInput::make('client')->required()])
                 ->authorizeIndividualRecords(fn (Entry $record): bool => Filament::auth()->user()?->can('update', $record) ?? false)
+                ->failureNotificationTitle(fn (int $successCount, int $totalCount): string => "{$successCount} of {$totalCount} assigned")
                 ->action(function (BulkAction $action, Collection $records, array $data): void {
                     foreach ($records as $record) {
                         try {
                             resolve(SaveEntry::class)->handle('project', ['client' => $data['client']], $record, actor: Filament::auth()->user());
                         } catch (ValidationException $exception) {
-                            $action->reportBulkProcessingFailure($reason = $exception->validator->errors()->first(), $reason);
+                            $action->reportBulkProcessingFailure($reason = $exception->validator->errors()->first(), e($reason));
                         }
                     }
                 }),
@@ -475,16 +476,18 @@ describe('EntryTable', function () {
         $save = resolve(SaveEntry::class);
         $first = $save->handle(Commission::class, ['title' => 'Refonte', 'client' => 'Acme']);
         $second = $save->handle(Commission::class, ['title' => 'Logo']);
+        $refused = $save->handle(Commission::class, ['title' => 'Globex']);
 
         projectPage(ListEntries::class)
             ->callAction(TestAction::make('commission')->table(), ['title' => 'Affiche'])
-            ->selectTableRecords([$first->id, $second->id])
+            ->selectTableRecords([$first->id, $second->id, $refused->id])
             ->callAction(TestAction::make('assign_client')->table()->bulk(), ['client' => 'Globex'])
+            ->assertNotified('2 of 3 assigned')
             ->callAction(TestAction::make('clear_client')->table($first))
             ->assertActionExists(TestAction::make('publish')->table()->bulk());
 
         expect(Entry::query()->withUnpublished()->get()->mapWithKeys(fn (Entry $entry): array => [$entry->title => $entry->client])->sortKeys()->all())
-            ->toBe(['Affiche' => null, 'Logo' => 'Globex', 'Refonte' => null]);
+            ->toBe(['Affiche' => null, 'Globex' => null, 'Logo' => 'Globex', 'Refonte' => null]);
     });
 
     it('stays at the level and in the manual order whatever a site chooses', function () {
