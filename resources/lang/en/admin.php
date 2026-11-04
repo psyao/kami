@@ -11,6 +11,7 @@ return [
         'parent' => 'Parent',
         'parent_cycle' => 'An Entry cannot sit under itself or one of its children.',
         'untitled' => 'Untitled',
+        'encoding' => 'The :attribute field must be valid UTF-8 text.',
         'path_taken' => "Another Entry already answers at this type's Prefix: change the Prefix.",
         'slug_moves' => 'Changing it moves the address: the old one stops answering.',
         'published_at' => 'Publication date',

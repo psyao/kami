@@ -21,6 +21,7 @@ use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
+use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
 
@@ -396,6 +397,28 @@ it('refuses a value over its column\'s limit on the Field, and stores one at the
         ->and(save(['title' => 'Long', 'author' => $atLimit])->author)->toBe($atLimit)
         ->and(failures(fn () => $page(['title' => 'Long', 'body' => $body . 'a'])))->toBe(['body'])
         ->and($page(['title' => 'Long', 'body' => $body])->body)->toBe($body);
+});
+
+it('refuses text that is not valid UTF-8, which SQLite would store and the other engines refuse at the column', function (string $type, array $values, string $attribute) {
+    expect(failures(fn () => resolve(SaveEntry::class)->handle($type, ['title' => 'Bonjour', ...$values])))->toBe([$attribute]);
+})->with([
+    'a title' => [Article::class, ['title' => "\xff a"], 'title'],
+    'a slug, by its Path rule' => [Article::class, ['slug' => "\xff a"], 'slug'],
+    'a Text' => [Article::class, ['author' => "\xff a"], 'author'],
+    'a Textarea' => [Page::class, ['body' => "\xff a"], 'body'],
+    'a Text in a Repeater' => [Project::class, ['links' => [['label' => "\xff a", 'url' => 'https://example.test']]], 'links.0.label'],
+]);
+
+it('names the Field whose text is not valid UTF-8', function () {
+    try {
+        save(['title' => 'Bonjour', 'author' => "\xff a"]);
+    } catch (ValidationException $exception) {
+        expect($exception->errors()['author'][0])->toBe('The author field must be valid UTF-8 text.');
+
+        return;
+    }
+
+    $this->fail('The value was accepted.');
 });
 
 it('counts a number\'s characters against its column\'s limit, not its value', function () {

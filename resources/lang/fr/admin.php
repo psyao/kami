@@ -11,6 +11,7 @@ return [
         'parent' => 'Parent',
         'parent_cycle' => 'Une Entry ne peut pas se placer sous elle-même ni sous un de ses enfants.',
         'untitled' => 'Sans titre',
+        'encoding' => 'Le champ :attribute doit être un texte UTF-8 valide.',
         'path_taken' => 'Une autre Entry répond déjà au Prefix de ce type : changez le Prefix.',
         'slug_moves' => 'Le modifier déplace l’adresse : l’ancienne ne répond plus.',
         'published_at' => 'Date de publication',
