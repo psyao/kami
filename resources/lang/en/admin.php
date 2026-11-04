@@ -91,6 +91,32 @@ return [
         'no_translation' => 'No translation yet',
     ],
 
+    'widgets' => [
+        'type' => 'Type',
+        'recently_edited' => [
+            'heading' => 'Recently edited',
+            'updated_at' => 'Edited',
+            'empty' => 'Nothing edited yet',
+        ],
+        'scheduled' => [
+            'heading' => 'Scheduled',
+            'empty' => 'Nothing scheduled',
+        ],
+        'attention' => [
+            'heading' => 'Needs attention',
+            'checked_at' => 'Last checked on :date.',
+            'never' => 'No check yet',
+            'none' => 'No problem found',
+            'run' => 'Run :command on the server to check this installation again.',
+            'severity' => 'Severity',
+            'problem' => 'Problem',
+            'fix' => 'Fix: :fix',
+            'error' => 'Error',
+            'warning' => 'Warning',
+            'info' => 'Information',
+        ],
+    ],
+
     'search' => [
         'locale' => 'Locale',
     ],

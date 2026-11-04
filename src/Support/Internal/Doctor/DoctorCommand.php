@@ -33,7 +33,8 @@ final class DoctorCommand extends Command
                 File::ensureDirectoryExists(storage_path('framework/kami'));
                 // The report describes this machine: keep it out of git, as Laravel does cache/, sessions/ and views/.
                 File::put(storage_path('framework/kami/.gitignore'), "*\n!.gitignore\n");
-                File::put(storage_path('framework/kami/doctor.json'), json_encode([
+                // Replaced whole, so the widget never reads half a file.
+                File::replace(storage_path('framework/kami/doctor.json'), json_encode([
                     'checked_at' => now()->toIso8601String(),
                     'problems' => $problems,
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));

@@ -36,6 +36,9 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RichTextInput;
+use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
+use Psyao\Kami\Admin\Internal\Widgets\RecentlyEdited;
+use Psyao\Kami\Admin\Internal\Widgets\Scheduled;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
@@ -193,6 +196,9 @@ final class KamiPlugin implements Plugin
         $panel->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => $this->searchField(GlobalSearchPosition::Topbar));
         $panel->renderHook(PanelsRenderHook::SIDEBAR_NAV_START, fn (): string => $this->searchField(GlobalSearchPosition::Sidebar));
 
+        // Added to the host's own widgets, each shown by its `canView()`: Kami takes nothing from the host's dashboard.
+        $panel->widgets([RecentlyEdited::class, Scheduled::class, NeedsAttention::class]);
+
         // Precompiled, so a site needs neither Node nor a custom theme for Kami's admin (ADR 0023).
         $panel->assets([Css::make('kami', __DIR__ . '/../../resources/dist/kami.css'), Js::make('kami', __DIR__ . '/../../resources/dist/kami.js')], 'psyao/kami');
     }
@@ -218,7 +224,7 @@ final class KamiPlugin implements Plugin
     {
         $provider = Filament::getGlobalSearchProvider();
 
-        return $provider instanceof KamiGlobalSearchProvider && ! Filament::isGlobalSearchEnabled() && Filament::getGlobalSearchPosition() === $position && $provider->searchableTypes() !== []
+        return $provider instanceof KamiGlobalSearchProvider && ! Filament::isGlobalSearchEnabled() && Filament::getGlobalSearchPosition() === $position && EntryResource::accessibleTypes() !== []
             ? Livewire::mount(GlobalSearch::class)
             : '';
     }
