@@ -183,6 +183,19 @@ class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTo
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
 class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
 class Psyao\Kami\KamiServiceProvider::packageRegistered() public function packageRegistered(): void
+class Psyao\Kami\Media\Actions\SaveMedia final class
+class Psyao\Kami\Media\Actions\SaveMedia::handle() public function handle(Illuminate\Http\UploadedFile|string|null $file, array $values = [], ?Psyao\Kami\Media\Media $media = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Media\Media
+class Psyao\Kami\Media\Events\MediaSaved final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Media\Events\MediaSaved::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Media\Events\MediaSaved::$created public protected(set) readonly bool $created
+class Psyao\Kami\Media\Events\MediaSaved::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Media\Events\MediaSaved::$media public protected(set) readonly Psyao\Kami\Media\Media $media
+class Psyao\Kami\Media\Events\MediaSaved::__construct() public function __construct(Psyao\Kami\Media\Media $media, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Media\Media final class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Media\Media::alt() public function alt(): ?string
+class Psyao\Kami\Media\Media::caption() public function caption(): ?string
+class Psyao\Kami\Media\Media::isDecorative() public function isDecorative(): bool
+class Psyao\Kami\Media\Media::isImage() public function isImage(): bool
 class Psyao\Kami\Schema\ContentMigrator final class
 class Psyao\Kami\Schema\ContentMigrator::dropLocale() public static function dropLocale(string $locale): void
 class Psyao\Kami\Schema\ContentMigrator::dropType() public static function dropType(string $type): void
@@ -211,6 +224,10 @@ command kami:make:type --singleton [--singleton]
 command kami:make:type --taxonomy [--taxonomy]
 command kami:make:type name <name>
 component x-kami::preview-banner
+config kami.media.max_pixels
+config kami.media.mimes.document
+config kami.media.mimes.image
+config kami.media.originals_disk
 config kami.resources.entry
 config kami.roles.administrator
 config kami.security.csp
@@ -235,6 +252,8 @@ permission kami.entries.{type}.view
 permission kami.health.view
 permission kami.users.manage
 table kami_entries
+table kami_media
+table kami_media_translations
 table kami_paths
 table kami_preview_links
 table kami_references

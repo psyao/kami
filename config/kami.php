@@ -40,6 +40,20 @@ return [
     ],
 
     /*
+    | The Media library (ADR 0017). `originals_disk`: any Laravel disk, local or remote; keep it private, as originals keep
+    | their metadata. `mimes`: the types accepted per family, read from the file's content; video and audio stay closed.
+    | `max_pixels`: an image above it is refused at upload, capping the cost of generating its Conversions.
+    */
+    'media' => [
+        'originals_disk' => 'local',
+        'mimes' => [
+            'image' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'],
+            'document' => ['application/pdf'],
+        ],
+        'max_pixels' => 40_000_000,
+    ],
+
+    /*
     | The front's Content Security Policy and headers (ADR 0018); the admin profile is fixed. Every option that weakens
     | them is off by default and raises a `kami:doctor` warning when on (docs/guide/security.md#weakening-options).
     |
