@@ -410,17 +410,20 @@ it('refuses text that is not valid UTF-8, which SQLite would store and the other
     'a RichText' => [Article::class, ['body' => ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => "\xff a"]]]]]], 'body'],
 ]);
 
-it('names the Field whose text is not valid UTF-8', function () {
+it('names the Field whose text is not valid UTF-8', function (string $handle, mixed $value) {
     try {
-        save(['title' => 'Bonjour', 'author' => "\xff a"]);
+        save(['title' => 'Bonjour', $handle => $value]);
     } catch (ValidationException $exception) {
-        expect($exception->errors()['author'][0])->toBe('The author field must be valid UTF-8 text.');
+        expect($exception->errors()[$handle][0])->toBe("The {$handle} field must be valid UTF-8 text.");
 
         return;
     }
 
     $this->fail('The value was accepted.');
-});
+})->with([
+    'a Text' => ['author', "\xff a"],
+    'a RichText' => ['body', ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => "\xff a"]]]]]],
+]);
 
 it('counts a number\'s characters against its column\'s limit, not its value', function () {
     config(['kami.types' => [Zipped::class]]);

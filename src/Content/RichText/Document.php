@@ -49,7 +49,7 @@ final readonly class Document implements Htmlable
     {
         // tiptap-php's parser throws a `TypeError` on it.
         if (! mb_check_encoding($html, 'UTF-8')) {
-            throw new InvalidArgumentException('HTML that is not valid UTF-8.');
+            throw new InvalidArgumentException('Unreadable HTML: not valid UTF-8.');
         }
 
         $parsed = new Editor(['extensions' => [...self::extensions(new Link(['allowedProtocols' => ['http', 'https', 'mailto', 'tel', 'kami']])), ...RichTextHtml::nodes()]])
