@@ -269,6 +269,10 @@ it('refuses a malformed Block marker, naming it', function (string $marker) {
     'data a list' => ['<kami-block handle="gallery" data="[1, 2]"></kami-block>'],
 ]);
 
+it('refuses HTML that is not valid UTF-8, as an importer bug', function () {
+    expect(fn () => Document::fromHtml("<p>\xff a</p>", RichText::make('body')))->toThrow(InvalidArgumentException::class, 'UTF-8');
+});
+
 it('keeps a safe link and reduces any other to its text', function (string $href, bool $kept) {
     expect(saveProse(doc(linkedPara($href)), RichText::make('body')))->toEqual(doc($kept ? linkedPara($href) : para('link')));
 })->with([

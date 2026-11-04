@@ -69,7 +69,7 @@ final class RichText extends Field
     /**
      * @internal
      *
-     * A document holding nothing is `null`, so `required()` and the Fallback read it as blank. A `Document`, from `Document::fromHtml()` for instance, is normalised as its content.
+     * A document holding nothing is `null`, so `required()` and the Fallback read it as blank. A `Document`, from `Document::fromHtml()` for instance, is normalised as its content. One that is not valid UTF-8 stays as given, for `encodingRule()` to refuse.
      */
     #[\Override]
     public function normalise(mixed $value): mixed
@@ -78,7 +78,8 @@ final class RichText extends Field
             $value = $value->content() ?? [];
         }
 
-        if (! is_array($value)) {
+        // @phpstan-ignore argument.type (it walks nested arrays, keys included, and passes any other scalar)
+        if (! is_array($value) || ! mb_check_encoding($value, 'UTF-8')) {
             return parent::normalise($value);
         }
 
@@ -98,7 +99,7 @@ final class RichText extends Field
     #[\Override]
     protected function baseRules(): array
     {
-        return ['array'];
+        return ['array', self::encodingRule()];
     }
 
     /** @internal */

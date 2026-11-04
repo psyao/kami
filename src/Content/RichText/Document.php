@@ -6,6 +6,7 @@ namespace Psyao\Kami\Content\RichText;
 
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Internal\RichTextHtml;
 use Tiptap\Core\Extension;
@@ -42,10 +43,15 @@ final readonly class Document implements Htmlable
      *
      * It reads `<pre><code class="language-x">`, `kami://` links and `<kami-block handle="..." data='{json}'>` markers.
      *
-     * @throws \InvalidArgumentException A `<kami-block>` with no handle, or data that is no JSON object.
+     * @throws InvalidArgumentException HTML that is not valid UTF-8, or a `<kami-block>` with no handle or data that is no JSON object.
      */
     public static function fromHtml(string $html, RichText $field): self
     {
+        // tiptap-php's parser throws a `TypeError` on it.
+        if (! mb_check_encoding($html, 'UTF-8')) {
+            throw new InvalidArgumentException('Unreadable HTML: not valid UTF-8.');
+        }
+
         $parsed = new Editor(['extensions' => [...self::extensions(new Link(['allowedProtocols' => ['http', 'https', 'mailto', 'tel', 'kami']])), ...RichTextHtml::nodes()]])
             ->setContent($html)
             ->getDocument();
