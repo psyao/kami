@@ -29,28 +29,32 @@ final class KamiGlobalSearchProvider extends DefaultGlobalSearchProvider
     {
         $builder = GlobalSearchResults::make();
         $types = $this->searchableTypes();
-        // lower() on both sides, as Filament's forced case-insensitive search: `like` alone follows MySQL's collation and is case-sensitive on PostgreSQL.
-        // ponytail: identical for ASCII only; SQLite's lower() leaves `É` as is, MySQL's default collation also ignores accents. V1 if an editor meets it.
-        $like = '%' . mb_strtolower($query) . '%';
-        $matching = fn (Builder | HasMany $translations): Builder | HasMany => $translations->where(fn (Builder $where): Builder => $where
-            ->whereRaw('lower(title) like ?', [$like])
-            ->orWhereRaw('lower(slug) like ?', [$like]));
+        $site = Site::current();
+        // As the table's search: `whereLike()` is `ilike` on PostgreSQL and `like` elsewhere. A Locale the Site dropped has no screen to lead to.
+        // ponytail: identical for ASCII only; SQLite's `like` tells `é` from `É`, MySQL's default collation also ignores accents. V1 if an editor meets it.
+        $matching = fn (Builder | HasMany $translations): Builder | HasMany => $translations
+            ->whereIn('locale', [...$site->locales, '*'])
+            ->where(fn (Builder $where): Builder => $where->whereLike('title', "%{$query}%")->orWhereLike('slug', "%{$query}%"));
 
+        // Ordered, so a search past the limit returns the same Entries on every engine.
         $entries = Entry::query()->withUnpublished()
             ->whereIn('type', $types)
             ->whereHas('translations', $matching)
             ->with(['translations' => $matching])
+            ->latest('updated_at')
+            ->orderBy('id')
             ->limit(self::LIMIT)
             ->get();
-        $order = array_flip(Site::current()->locales);
+        $order = array_flip($site->locales);
+        $default = $site->defaultLocale();
 
         foreach ($types as $type) {
-            EntryResource::withConfiguration($type, function () use ($builder, $entries, $type, $order): void {
+            EntryResource::withConfiguration($type, function () use ($builder, $entries, $type, $order, $default): void {
                 $results = $entries->where('type', $type)->flatMap(fn (Entry $entry): array => $entry->translations
-                    ->sortBy(fn (Translation $translation): int => $order[$translation->locale] ?? count($order))
+                    ->sortBy(fn (Translation $translation): int => $order[$translation->locale] ?? 0)
                     ->map(fn (Translation $translation): GlobalSearchResult => new GlobalSearchResult(
                         title: $translation->title ?? __('kami::admin.fields.untitled'),
-                        url: EntryResource::editUrl($entry, in_array($translation->locale, ['*', Site::current()->defaultLocale()], true) ? null : $translation->locale),
+                        url: EntryResource::editUrl($entry, in_array($translation->locale, ['*', $default], true) ? null : $translation->locale),
                         details: $translation->locale === '*' ? [] : [__('kami::admin.search.locale') => Str::upper($translation->locale)],
                     ))->all());
 

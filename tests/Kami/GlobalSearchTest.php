@@ -10,8 +10,6 @@ use Filament\GlobalSearch\Providers\DefaultGlobalSearchProvider;
 use Filament\Livewire\GlobalSearch;
 use Filament\Panel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Livewire\Features\SupportTesting\Testable;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\KamiPlugin;
@@ -21,7 +19,6 @@ use Psyao\Kami\Content\Entry;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Fields\Colour;
 use Workbench\App\Content\Tag;
-use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
 
@@ -30,7 +27,7 @@ uses(RefreshDatabase::class);
  *
  * @return array<string, list<array{string, string, array<string, string>}>>
  */
-function found(Testable $search, string $query): array
+function searchResults(Testable $search, string $query): array
 {
     // A request boots the panel through its middleware, which `Livewire::test()` skips.
     Filament::bootCurrentPanel();
@@ -52,7 +49,7 @@ it('finds Translations by title or slug in every Locale, whatever the case, each
 
     $search = entriesPage(GlobalSearch::class, type: null);
 
-    expect(found($search, 'vEvEy'))->toBe([
+    expect(searchResults($search, 'vEvEy'))->toBe([
         'Articles' => [
             ['Été à Vevey', "/admin/articles/{$entry->id}/edit", ['Locale' => 'FR']],
             ['Summer in Vevey', "/admin/articles/{$entry->id}/edit/en", ['Locale' => 'EN']],
@@ -61,7 +58,7 @@ it('finds Translations by title or slug in every Locale, whatever the case, each
             ['VEVEY', "/admin/tags/{$tag->id}/edit", []],
         ],
     ])
-        ->and(found($search, 'SUMMER-IN'))->toBe([
+        ->and(searchResults($search, 'SUMMER-IN'))->toBe([
             'Articles' => [['Summer in Vevey', "/admin/articles/{$entry->id}/edit/en", ['Locale' => 'EN']]],
         ]);
 });
@@ -71,7 +68,7 @@ it('skips the types the User may not list and leaves the Trash out', function ()
     $tag = resolve(SaveEntry::class)->handle(Tag::class, ['title' => 'Vevey']);
     resolve(TrashEntry::class)->handle(resolve(SaveEntry::class)->handle(Tag::class, ['title' => 'Vevey (old)']));
 
-    expect(found(entriesPage(GlobalSearch::class, ['kami.entries.tag.view'], type: null), 'vevey'))->toBe([
+    expect(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.tag.view'], type: null), 'vevey'))->toBe([
         'Tags' => [['Vevey', "/admin/tags/{$tag->id}/edit", []]],
     ]);
 });
@@ -90,14 +87,22 @@ it('sets its provider on Kami\'s panel only, after the host\'s own choice', func
 });
 
 it('shows the search field once to a User who may list a type, though Filament shows none for Resources registered per configuration', function (array $permissions, int $fields): void {
-    config(['kami.roles.custom' => $permissions, 'app.env' => 'local']);
-    $user = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
-    DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'custom']);
+    signInWith($permissions);
 
-    $page = (string) $this->actingAs($user)->get('/admin')->assertOk()->getContent();
+    $page = (string) $this->get('/admin')->assertOk()->getContent();
 
     expect(substr_count($page, 'fi-global-search-field'))->toBe($fields);
 })->with([
     'a type' => [['kami.entries.tag.view'], 1],
     'none' => [[], 0],
 ]);
+
+it('leaves out a Translation in a Locale the Site no longer has, which has no screen', function (): void {
+    $entry = searchedArticle('Vevey', 'vevey');
+    searchedArticle('Vevey in English', 'vevey-in-english', $entry, 'en');
+    config(['kami.sites.default.locales' => ['fr']]);
+
+    expect(searchResults(entriesPage(GlobalSearch::class, type: null), 'vevey'))->toBe([
+        'Articles' => [['Vevey', "/admin/articles/{$entry->id}/edit", ['Locale' => 'FR']]],
+    ]);
+});

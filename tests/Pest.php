@@ -21,7 +21,7 @@ use Workbench\App\Models\User;
 pest()->extend(TestCase::class)->in('Kami', 'Volume');
 // The browser loads Filament's scripts and Kami's stylesheet from the skeleton's public directory, as on a Site after `kami:install`.
 // For every test of the suite, whichever runs first: the browser's server may keep the first test's application.
-pest()->extend(TestCase::class)->beforeEach(function () {
+pest()->extend(TestCase::class)->beforeEach(function (): void {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
     // The suite's array sessions end with each request: signing in needs one that lasts.
@@ -59,8 +59,8 @@ function signIn(): mixed
         ->assertSee('Dashboard');
 }
 
-/** A page of the type's Entries in the admin, for a User holding the Role, or these Permissions under a Role of their own. */
-function entriesPage(string $page, string | array $role = 'administrator', array $parameters = [], ?string $type = 'article'): Testable
+/** Signs in a new User holding the Role, or these Permissions under a Role of their own; the panel admits them, as in the local environment. */
+function signInWith(string | array $role = 'administrator'): User
 {
     if (is_array($role)) {
         config(['kami.roles.custom' => $role]);
@@ -71,6 +71,14 @@ function entriesPage(string $page, string | array $role = 'administrator', array
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
     config(['app.env' => 'local']);
     test()->actingAs($user);
+
+    return $user;
+}
+
+/** A page of the type's Entries in the admin, for a User holding the Role, or these Permissions under a Role of their own. */
+function entriesPage(string $page, string | array $role = 'administrator', array $parameters = [], ?string $type = 'article'): Testable
+{
+    signInWith($role);
     Filament::setCurrentPanel('admin');
     Filament::setCurrentResourceConfigurationKey($type);
 
@@ -102,7 +110,7 @@ function headingAnchors(string $file): Collection
  */
 function kamiClasses(): Collection
 {
-    return collect(File::allFiles(dirname(__DIR__) . '/src'))
+    return collect(File::allFiles(__DIR__ . '/../src'))
         ->map(fn (SplFileInfo $file): ReflectionClass => new ReflectionClass('Psyao\\Kami\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname())));
 }
 
