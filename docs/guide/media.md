@@ -4,7 +4,7 @@ Each Site has one Media library: images and documents, stored once and reference
 
 ## Storing a file
 
-`SaveMedia` stores a file in the library, from an upload or a local path, the same way from a controller, a seeder or a command. It does not check Permissions: the caller does ([Users and roles](users-and-roles.md)).
+`SaveMedia` stores a file in the library, from an upload or a local path, the same way from a controller, a seeder or a command. It does not check Permissions: the caller does ([Users and roles](users-and-roles.md)). Nor does it restrict a path: it reads any local file the PHP process can, so never pass it a path a visitor chose.
 
 ```php
 use Psyao\Kami\Media\Actions\SaveMedia;
@@ -25,7 +25,7 @@ A refused file throws Laravel's `ValidationException` on `file`, naming the reas
 | Refused | Because |
 | --- | --- |
 | A type outside the [allowlist](#configuration) | `kami.media.mimes` does not list it |
-| Video and audio | not supported yet, whatever the configuration says |
+| Video and audio | not supported yet, whatever family the configuration lists them under |
 | An image that does not decode | the file is damaged, or is not the image it claims to be |
 | An image over the pixel limit | it would cost too much to resize on the host: 40 megapixels by default |
 

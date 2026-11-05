@@ -99,6 +99,8 @@ it('reads an SVG\'s dimensions from its size in pixels or its viewBox, and none 
     'pixels over viewBox' => ['<svg xmlns="http://www.w3.org/2000/svg" width="300px" height="200" viewBox="0 0 120 80"/>', 300, 200],
     'relative size, viewBox' => ['<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0,0,48.4,24"/>', 48, 24],
     'neither' => ['<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>', null, null],
+    'opening comment' => ['<!-- Generator: Adobe Illustrator --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>', 120, 80],
+    'leading whitespace' => ["\n  <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 80\"/>", 120, 80],
 ]);
 
 it('refuses a file whose content is not in the allowlist, whatever its name says', function (): void {
@@ -124,10 +126,17 @@ it('refuses an image over the pixel limit, which config raises', function (): vo
     expect(refusal(fixture('media/Holiday Photo.JPG')))->toBeNull();
 });
 
-it('refuses video and audio even when config lists them', function (): void {
-    config(['kami.media.mimes.video' => ['video/mp4']]);
+it('refuses video and audio even when config lists them, under any family', function (array $mimes): void {
+    config(['kami.media.mimes' => $mimes]);
 
-    expect(refusal(mediaFile("\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2", 'clip.mp4')))->toBe('Files of type video/mp4 are not accepted.');
+    expect(refusal(mediaFile("\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2", 'clip.mp4')))->toBe('Files of type video/mp4 are not supported yet.');
+})->with([
+    'as video' => [['video' => ['video/mp4']]],
+    'as a document' => [['document' => ['video/mp4']]],
+]);
+
+it('refuses a text file that is not an SVG', function (): void {
+    expect(refusal(mediaFile('Opening hours', 'hours.txt')))->toBe('Files of type text/plain are not accepted.');
 });
 
 it('accepts a type config adds to a family', function (): void {
@@ -178,6 +187,20 @@ it('writes credit and decorative for every Locale, keeping what a save leaves ou
         ->alt()->toBe('A red square')
         ->and(Media::query()->count())->toBe(1);
 });
+
+it('clears decorative with an empty value', function (): void {
+    $media = saveMedia(fixture('media/Holiday Photo.JPG'), ['decorative' => true]);
+
+    expect(saveMedia(null, ['decorative' => ''], $media))->isDecorative()->toBeFalse();
+});
+
+it('refuses a call it cannot honour', function (Closure $save, string $exception): void {
+    expect($save)->toThrow($exception);
+})->with([
+    'a file for an existing Media item' => [fn (): Media => saveMedia(fixture('media/pixel.png'), media: saveMedia(fixture('media/brochure.pdf'))), LogicException::class],
+    'an undeclared Locale' => [fn (): Media => saveMedia(fixture('media/brochure.pdf'), locale: 'de'), InvalidArgumentException::class],
+    'a new Media item without a file' => [fn (): Media => saveMedia(null, ['alt' => 'Nothing']), InvalidArgumentException::class],
+]);
 
 it('refuses a value it does not know', function (): void {
     expect(fn (): Media => saveMedia(fixture('media/brochure.pdf'), ['title' => 'Brochure']))

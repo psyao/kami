@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Media\Actions;
 
+use DOMDocument;
+use DOMElement;
 use finfo;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Image\Driver;
@@ -34,12 +36,18 @@ use Throwable;
  */
 final class SaveMedia
 {
-    /** Closed whatever `kami.media.mimes` says: nothing half-supported gets in (V1). */
+    /** Closed whatever `kami.media.mimes` says, as families and as MIME types: nothing half-supported gets in (V1). */
     private const array CLOSED_FAMILIES = ['video', 'audio'];
+
+    /** The attributes shared by every Locale. */
+    private const array SHARED = ['credit', 'decorative'];
+
+    /** What `fileinfo` reports for an SVG that does not open with `<svg` or an XML declaration. */
+    private const array SVG_AS_TEXT = ['text/plain', 'text/xml', 'application/xml'];
 
     /**
      * @param  UploadedFile|string|null  $file  An upload, or a local path; null to write the metadata of an existing Media item only.
-     * @param  array<string, mixed>  $values  `alt` and `caption`, in the Locale written; `credit` and `decorative`, shared by every Locale. A value left out keeps its stored one; `''` stores `null`.
+     * @param  array<string, mixed>  $values  `alt` and `caption`, in the Locale written; `credit` and `decorative`, shared by every Locale. A value left out keeps its stored one; `''` clears it (`false` for `decorative`).
      * @param  Media|null  $media  The Media item to update; a new one when null.
      * @param  string|null  $locale  The Locale `alt` and `caption` are written in, the default one when null.
      * @param  Authenticatable|null  $actor  Who saves; null for imports and the CLI.
@@ -61,19 +69,23 @@ final class SaveMedia
         }
 
         $values = array_map(fn (mixed $value): mixed => $value === '' ? null : $value, $values);
+        if (array_key_exists('decorative', $values)) {
+            $values['decorative'] ??= false;
+        }
+
         Validator::make($values, [
             'alt' => ['nullable', 'string'],
             'caption' => ['nullable', 'string'],
             'credit' => ['nullable', 'string', 'max:255'],
             'decorative' => ['boolean'],
-            ...array_fill_keys(array_keys(Arr::except($values, ['alt', 'caption', 'credit', 'decorative'])), 'prohibited'),
+            ...array_fill_keys(array_keys(Arr::except($values, [...MediaTranslation::ATTRIBUTES, ...self::SHARED])), 'prohibited'),
         ])->validate();
 
         $media ??= $this->newMedia($site, $file ?? throw new InvalidArgumentException('A new Media item needs a file.'));
         $created = ! $media->exists;
 
         $id = DB::transaction(function () use ($locale, $values, $media, $file, $created): string {
-            foreach (Arr::only($values, ['credit', 'decorative']) as $attribute => $value) {
+            foreach (Arr::only($values, self::SHARED) as $attribute => $value) {
                 $media->setAttribute($attribute, $value);
             }
 
@@ -92,7 +104,7 @@ final class SaveMedia
             // Last, so a row that fails to save leaves no file.
             if ($created && $file !== null) {
                 // ponytail: an outer transaction rolled back afterwards leaves the file behind; M9 cleans up after a failed import.
-                Storage::disk(Config::string('kami.media.originals_disk'))->putFileAs('media', is_string($file) ? new File($file) : $file, basename($media->file))
+                Storage::disk(Config::string('kami.media.originals_disk'))->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
                     ?: throw new RuntimeException("The original of Media [{$media->id}] could not be written.");
             }
 
@@ -113,17 +125,25 @@ final class SaveMedia
      */
     private function newMedia(Site $site, UploadedFile | string $file): Media
     {
-        $path = is_string($file) ? $file : $file->getRealPath();
+        [$path, $name] = is_string($file) ? [$file, $file] : [$file->getRealPath(), $file->getClientOriginalName()];
 
         if ($path === false || ! is_file($path)) {
-            throw new InvalidArgumentException('No readable file at [' . (is_string($file) ? $file : $file->getClientOriginalName()) . '].');
+            throw new InvalidArgumentException("No readable file at [{$name}].");
         }
 
         $mime = (string) new finfo(FILEINFO_MIME_TYPE)->file($path);
+        if (in_array($mime, self::SVG_AS_TEXT, true) && $this->svg($path) instanceof DOMElement) {
+            $mime = 'image/svg+xml';
+        }
+
+        if (in_array(Str::before($mime, '/'), self::CLOSED_FAMILIES, true)) {
+            throw $this->refused('unsupported', ['type' => $mime]);
+        }
+
         /** @var array<string, list<string>> $allowed */
         $allowed = Arr::except(Config::array('kami.media.mimes'), self::CLOSED_FAMILIES);
         $family = array_find_key($allowed, fn (array $mimes): bool => in_array($mime, $mimes, true))
-            ?? throw ValidationException::withMessages(['file' => __('kami::admin.media.refused.type', ['type' => $mime])]);
+            ?? throw $this->refused('type', ['type' => $mime]);
 
         [$width, $height] = match (true) {
             $family !== 'image' => [null, null],
@@ -138,7 +158,7 @@ final class SaveMedia
             'id' => $id,
             'site' => $site->handle,
             'file' => "media/{$id}." . (MimeTypes::getDefault()->getExtensions($mime)[0] ?? 'bin'),
-            'name' => Str::slug(pathinfo(is_string($file) ? $file : $file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'media',
+            'name' => Str::slug(pathinfo($name, PATHINFO_FILENAME)) ?: 'media',
             'mime' => $mime,
             'family' => $family,
             'size' => (int) filesize($path),
@@ -160,12 +180,12 @@ final class SaveMedia
         $size = @getimagesize($path);
 
         if ($size === false) {
-            throw ValidationException::withMessages(['file' => __('kami::admin.media.refused.undecodable')]);
+            throw $this->refused('undecodable');
         }
 
         $limit = Config::integer('kami.media.max_pixels');
         if ($limit < $size[0] * $size[1]) {
-            throw ValidationException::withMessages(['file' => __('kami::admin.media.refused.pixels', ['megapixels' => round($limit / 1_000_000, 3)])]);
+            throw $this->refused('pixels', ['megapixels' => round($limit / 1_000_000, 3)]);
         }
 
         $driver = Image::driver();
@@ -176,7 +196,7 @@ final class SaveMedia
         try {
             return $driver->dimensions((string) file_get_contents($path));
         } catch (Throwable) {
-            throw ValidationException::withMessages(['file' => __('kami::admin.media.refused.undecodable')]);
+            throw $this->refused('undecodable');
         }
     }
 
@@ -189,20 +209,31 @@ final class SaveMedia
      */
     private function svgDimensions(string $path): array
     {
-        $svg = @simplexml_load_file($path, options: LIBXML_NONET);
-
-        if ($svg === false || $svg->getName() !== 'svg') {
-            throw ValidationException::withMessages(['file' => __('kami::admin.media.refused.undecodable')]);
-        }
+        $svg = $this->svg($path) ?? throw $this->refused('undecodable');
 
         $pixels = fn (string $length): ?int => preg_match('/^\s*(\d+(?:\.\d+)?)\s*(px)?\s*$/', $length, $match) === 1 ? (int) round((float) $match[1]) : null;
-        $width = $pixels((string) $svg['width']);
-        $height = $pixels((string) $svg['height']);
+        $width = $pixels($svg->getAttribute('width'));
+        $height = $pixels($svg->getAttribute('height'));
 
-        if (($width === null || $height === null) && preg_match('/^\s*\S+[\s,]+\S+[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)\s*$/', (string) $svg['viewBox'], $box) === 1) {
+        if (($width === null || $height === null) && preg_match('/^\s*\S+[\s,]+\S+[\s,]+(\d+(?:\.\d+)?)[\s,]+(\d+(?:\.\d+)?)\s*$/', $svg->getAttribute('viewBox'), $box) === 1) {
             return [(int) round((float) $box[1]), (int) round((float) $box[2])];
         }
 
         return [$width, $height];
+    }
+
+    /** The root `<svg>` element of a well-formed SVG document; null for anything else. Network access stays off while parsing. */
+    private function svg(string $path): ?DOMElement
+    {
+        $document = new DOMDocument;
+        $root = @$document->load($path, LIBXML_NONET) ? $document->documentElement : null;
+
+        return $root?->localName === 'svg' ? $root : null;
+    }
+
+    /** @param  array<string, string|int|float>  $replace */
+    private function refused(string $reason, array $replace = []): ValidationException
+    {
+        return ValidationException::withMessages(['file' => __("kami::admin.media.refused.{$reason}", $replace)]);
     }
 }

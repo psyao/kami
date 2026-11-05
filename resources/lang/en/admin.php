@@ -193,6 +193,7 @@ return [
     'media' => [
         'refused' => [
             'type' => 'Files of type :type are not accepted.',
+            'unsupported' => 'Files of type :type are not supported yet.',
             'undecodable' => 'This image cannot be read: the file is damaged or not an image.',
             'pixels' => 'This image is larger than :megapixels megapixels: reduce it before uploading.',
         ],
