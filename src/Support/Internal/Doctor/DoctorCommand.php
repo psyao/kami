@@ -7,7 +7,9 @@ namespace Psyao\Kami\Support\Internal\Doctor;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
+use Psyao\Kami\Media\Internal\ImageFormats;
 use Throwable;
 
 /** @internal */
@@ -17,8 +19,9 @@ final class DoctorCommand extends Command
 {
     use PrintsProblems;
 
-    public function handle(Doctor $doctor): int
+    public function handle(Doctor $doctor, ImageFormats $formats): int
     {
+        $this->printFormats($formats);
         $problems = $doctor->problems();
 
         $this->printProblems($problems);
@@ -46,6 +49,25 @@ final class DoctorCommand extends Command
         $failing = array_filter($problems, fn (Problem $problem): bool => $problem->severity === Severity::Error || ($problem->severity === Severity::Warning && $this->option('strict')));
 
         return $failing === [] ? self::SUCCESS : self::FAILURE;
+    }
+
+    /** What visitors are offered, not a Problem: a host without AVIF or WebP still serves every image (ADR 0017). */
+    private function printFormats(ImageFormats $formats): void
+    {
+        // The command line may load other extensions than the web: tested afresh, never read from the web's cache.
+        $tested = $formats->test();
+        $this->components->twoColumnDetail('<options=bold>Image formats</>', 'on the command line');
+
+        foreach (ImageFormats::FORMATS as $format => $name) {
+            $this->components->twoColumnDetail($name, match (true) {
+                $format === 'avif' && ! Config::boolean('kami.media.avif') => 'off (kami.media.avif)',
+                isset($tested[$format]) => $tested[$format],
+                default => 'not available',
+            });
+        }
+
+        $this->components->twoColumnDetail('JPEG, PNG', Config::string('images.default', 'gd') . ', the fallback');
+        $this->newLine();
     }
 
     /** Where the last result lies, for the admin's "Needs attention" widget. */

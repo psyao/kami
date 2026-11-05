@@ -35,8 +35,7 @@ final readonly class Conversion
         $presets = resolve(ImagePresets::class);
         $declared = $presets->find($preset);
 
-        // ponytail: the fallback format only; #298 adds AVIF and WebP where a real encode test passes.
-        if (! $declared instanceof ImagePreset || $width < 1 || ! self::isConvertible($media) || $format !== self::fallbackFormat($media) || ! in_array($width, $presets->widths($declared, $media), true)) {
+        if (! $declared instanceof ImagePreset || $width < 1 || ! self::isConvertible($media) || ! in_array($width, $presets->widths($declared, $media), true) || ! in_array($format, $presets->formats($declared, $media), true)) {
             return null;
         }
 
@@ -52,11 +51,18 @@ final readonly class Conversion
     /**
      * What every browser reads: JPEG for a JPEG, PNG for anything else, which may hold transparency.
      *
-     * ponytail: by MIME type, not by the image's own alpha channel, so a WebP photo falls back to a larger PNG; AVIF and WebP come first in `<picture>` (#298).
+     * ponytail: by MIME type, not by the image's own alpha channel, so an opaque WebP or AVIF original falls back to a larger PNG,
+     * which only browsers reading neither format get; V1 records transparency in `SaveMedia` if that weight matters.
      */
     public static function fallbackFormat(Media $media): string
     {
         return $media->mime === 'image/jpeg' ? 'jpg' : 'png';
+    }
+
+    /** The same Conversion in the format every browser reads. */
+    public function fallback(): self
+    {
+        return new self($this->media, $this->preset, $this->width, self::fallbackFormat($this->media));
     }
 
     /** Changes with the original and with what shapes its pixels, so a cached Conversion is never stale; a width or format is in the URL already. */
@@ -99,12 +105,14 @@ final readonly class Conversion
 
     /**
      * Oriented, cropped around the centre, never upscaled, stripped of its metadata, then moved into place whole: a visitor never reads half a file.
-     *
-     * ponytail: a failure throws, a 500; #298 logs it and answers 302 to the fallback format at the same width (ADR 0017).
+     * A failure throws before anything is written, so the next request retries.
      */
     private function generate(Filesystem $disk, string $path): void
     {
-        $image = Image::fromBytes((string) Storage::disk(Config::string('kami.media.originals_disk'))->get($this->media->file))->orient();
+        $image = Image::fromBytes((string) Storage::disk(Config::string('kami.media.originals_disk'))->get($this->media->file));
+        // AVIF and WebP through the driver that passed the encode test; the fallback format through `images.default`.
+        $driver = resolve(ImageFormats::class)->available()[$this->format] ?? null;
+        $image = ($driver === null ? $image : $image->using($driver))->orient();
         // Stored as decoded, so already oriented.
         [$width, $height] = [max(1, (int) $this->media->width), max(1, (int) $this->media->height)];
 

@@ -234,6 +234,7 @@ command kami:make:type --singleton [--singleton]
 command kami:make:type --taxonomy [--taxonomy]
 command kami:make:type name <name>
 component x-kami::preview-banner
+config kami.media.avif
 config kami.media.max_pixels
 config kami.media.mimes.document
 config kami.media.mimes.image

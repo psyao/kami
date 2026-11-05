@@ -3,11 +3,17 @@
 declare(strict_types=1);
 
 use Filament\Facades\Filament;
+use Illuminate\Contracts\Image\Driver;
+use Illuminate\Image\Drivers\GdDriver;
+use Illuminate\Image\Drivers\ImagickDriver;
+use Illuminate\Image\ImageException;
+use Illuminate\Image\ImagePipeline;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Image;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Livewire\Features\SupportTesting\Testable;
@@ -105,6 +111,44 @@ function withConversionsServed(): void
         'Cache-Control' => 'public, max-age=31536000, immutable',
         'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
     ]))]);
+}
+
+/** Both Image drivers failing to write these formats, as a library without their encoder, or a generation out of memory, does; none restores them. */
+function failingToEncode(string ...$formats): void
+{
+    Image::forgetDrivers();
+
+    foreach (['gd' => GdDriver::class, 'imagick' => ImagickDriver::class] as $name => $class) {
+        Image::extend($name, fn (): Driver => new class(new $class, $formats) implements Driver
+        {
+            /** @param list<string> $formats */
+            public function __construct(private readonly Driver $driver, private readonly array $formats) {}
+
+            public function process(string $contents, ImagePipeline $pipeline): string
+            {
+                return in_array($pipeline->output->format, $this->formats, true)
+                    ? throw new ImageException("No encoder for {$pipeline->output->format}.")
+                    : $this->driver->process($contents, $pipeline);
+            }
+
+            public function dimensions(string $contents): array
+            {
+                return $this->driver->dimensions($contents);
+            }
+
+            public function dominantColor(string $contents): string
+            {
+                return $this->driver->dominantColor($contents);
+            }
+
+            public function transformUsing(string $transformation, callable $callback): static
+            {
+                $this->driver->transformUsing($transformation, $callback);
+
+                return $this;
+            }
+        });
+    }
 }
 
 /** `kami:install` as a deploy runs it, with the first administrator's inputs. */
