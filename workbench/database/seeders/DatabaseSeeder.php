@@ -77,10 +77,6 @@ class DatabaseSeeder extends Seeder
         $laravel = $save->handle(Tag::class, ['title' => 'Laravel'], actor: $admin);
         $filament = $save->handle(Tag::class, ['title' => 'Filament', 'parent' => $laravel->id], actor: $admin);
 
-        // Tabs, a section, conditions, a Repeater, a Group, relations.
-        $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id], 'tags' => [$filament->id, $laravel->id]], locale: 'fr', actor: $admin);
-        $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
-
         // A Singleton at the root, one page in the admin.
         $home = $save->handle(Home::class, [...$published, 'title' => 'Accueil', 'intro' => 'Bienvenue sur le Site de démonstration.'], locale: 'fr', actor: $admin);
         $save->handle(Home::class, [...$published, 'title' => 'Home', 'intro' => 'Welcome to the demo Site.'], $home, 'en', $admin);
@@ -95,9 +91,13 @@ class DatabaseSeeder extends Seeder
 
         // The Media library: a described photo, an image missing its alt text, a document, which needs none.
         $fixtures = dirname(__DIR__, 3) . '/tests/Fixtures/media';
-        $media->handle("{$fixtures}/Holiday Photo.JPG", ['alt' => 'Une photo de vacances', 'credit' => 'Ada'], locale: 'fr', actor: $admin);
-        $media->handle("{$fixtures}/pixel.png", actor: $admin);
-        $media->handle("{$fixtures}/brochure.pdf", actor: $admin);
+        $photo = $media->handle("{$fixtures}/Holiday Photo.JPG", ['alt' => 'Une photo de vacances', 'credit' => 'Ada'], locale: 'fr', actor: $admin);
+        $pixel = $media->handle("{$fixtures}/pixel.png", actor: $admin);
+        $brochure = $media->handle("{$fixtures}/brochure.pdf", actor: $admin);
+
+        // Tabs, a section, conditions, a Repeater, a Group, relations, and Media Fields picking from the library: a cover, a gallery in pick order.
+        $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id], 'tags' => [$filament->id, $laravel->id], 'cover' => $photo->id, 'gallery' => [$pixel->id, $photo->id, $brochure->id]], locale: 'fr', actor: $admin);
+        $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
     }
 
     private function user(string $name, string $email, string $role): User

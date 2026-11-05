@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Fields\RelationField;
+use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -46,7 +46,7 @@ final class EntryBuilder extends Builder
         // A relation Field's handle is no method: it stays away from Eloquent, which would look for one.
         $requested = $this->eagerLoad;
         $handles = collect($models)->flatMap(fn (Entry $entry): array => $entry->contentType()?->relationFields() ?? [])
-            ->map(fn (RelationField $field): string => $field->handle)
+            ->map(fn (Field $field): string => $field->handle)
             ->filter(fn (string $handle): bool => array_key_exists($handle, $requested))->unique()->values()->all();
         $this->eagerLoad = array_diff_key($requested, array_flip($handles));
         $models = parent::eagerLoadRelations($models);

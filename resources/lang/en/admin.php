@@ -219,6 +219,11 @@ return [
             'refused' => '{1} :count file refused|[2,*] :count files refused',
             'failed' => "This file could not be saved: try again, or tell the site's administrator.",
         ],
+        'picker' => [
+            'upload' => 'Upload a file for :field',
+            'file' => 'File',
+            'limit' => 'Up to :size.',
+        ],
         'refused' => [
             'type' => 'Files of type :type are not accepted.',
             'unsupported' => 'Files of type :type are not supported yet.',

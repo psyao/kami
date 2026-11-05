@@ -127,6 +127,9 @@ class Psyao\Kami\Content\Fields\Field::visibleWhen() public function visibleWhen
 class Psyao\Kami\Content\Fields\Field::visibleWhenFilled() public function visibleWhenFilled(string $field): static
 class Psyao\Kami\Content\Fields\Group final class extends Psyao\Kami\Content\Fields\StructuredField
 class Psyao\Kami\Content\Fields\Group::make() public static function make(string $handle, array $fields = []): static
+class Psyao\Kami\Content\Fields\Media final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\Media::images() public function images(bool $images = true): static
+class Psyao\Kami\Content\Fields\Media::multiple() public function multiple(bool $multiple = true): static
 class Psyao\Kami\Content\Fields\Number final class extends Psyao\Kami\Content\Fields\Field
 class Psyao\Kami\Content\Fields\Number::column() public function column(): string
 class Psyao\Kami\Content\Fields\Number::decimal() public function decimal(): Psyao\Kami\Content\Fields\Number

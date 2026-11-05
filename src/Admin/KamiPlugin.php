@@ -47,6 +47,7 @@ use Psyao\Kami\Content\Fields\DateTime;
 use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Fields\Number;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
@@ -80,6 +81,7 @@ final class KamiPlugin implements Plugin
             Date::class => fn (Date $field): DatePicker => DatePicker::make($field->handle),
             DateTime::class => fn (DateTime $field): DateTimePicker => DateTimePicker::make($field->handle)->timezone(Site::current()->timezone)->suffix(Site::current()->timezone),
             Entries::class => EntryResource::picker(...),
+            MediaField::class => MediaResource::picker(...),
             Email::class => fn (Email $field): TextInput => TextInput::make($field->handle)->email(),
             Number::class => fn (Number $field): TextInput => TextInput::make($field->handle)->numeric()->step($field->column() === 'decimal' ? 0.01 : 1),
             Select::class => fn (Select $field): SelectInput => SelectInput::make($field->handle)->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => EntryResource::type()->optionLabel($field->handle, $option), $field->optionKeys()))),

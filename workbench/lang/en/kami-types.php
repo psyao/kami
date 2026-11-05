@@ -84,6 +84,8 @@ return [
             ]],
             'related' => ['label' => 'Related content'],
             'tags' => ['label' => 'Tags'],
+            'cover' => ['label' => 'Cover image'],
+            'gallery' => ['label' => 'Gallery'],
             'address' => ['label' => 'Address', 'fields' => [
                 'street' => ['label' => 'Street'],
                 'city' => ['label' => 'City'],

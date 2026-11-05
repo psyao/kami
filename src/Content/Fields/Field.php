@@ -231,6 +231,12 @@ abstract class Field
         return is_array($decoded) ? $decoded : null;
     }
 
+    /** @internal Its values are rows of `kami_references` (ADR 0005), in pick order, not a column of the type's table. */
+    public function isReference(): bool
+    {
+        return false;
+    }
+
     /** @internal */
     public function isInlineMarkdown(): bool
     {

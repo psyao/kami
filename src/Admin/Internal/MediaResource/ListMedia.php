@@ -13,12 +13,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
-use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Throwable;
-
-use function Illuminate\Support\defer;
 
 /** @internal */
 final class ListMedia extends ListRecords
@@ -31,7 +28,7 @@ final class ListMedia extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        $limit = $this->uploadLimit();
+        $limit = MediaResource::uploadLimit();
 
         return [
             Action::make('upload')
@@ -52,20 +49,6 @@ final class ListMedia extends ListRecords
                 ->modalSubmitActionLabel(__('kami::admin.media.upload.submit'))
                 ->action(fn (array $data) => $this->upload(array_filter(Arr::wrap($data['files'] ?? null), fn (mixed $file): bool => $file instanceof UploadedFile))),
         ];
-    }
-
-    /** In bytes, per file: the lowest of PHP's `upload_max_filesize` and `post_max_size` and Livewire's rule for temporary uploads, which every upload passes first. */
-    private function uploadLimit(): int
-    {
-        $limit = UploadedFile::getMaxFilesize();
-
-        foreach (Arr::wrap(FileUploadConfiguration::rules()) as $rule) {
-            if (is_string($rule) && preg_match('/^max:(\d+)$/', $rule, $match) === 1) {
-                $limit = min($limit, (int) $match[1] * 1024);
-            }
-        }
-
-        return (int) $limit;
     }
 
     private function refusal(UploadedFile $file, string $reason): string
@@ -91,16 +74,7 @@ final class ListMedia extends ListRecords
             }
         }
 
-        // After the response, so the editor does not wait for them; one that fails is generated on its first request instead.
-        defer(function () use ($saved): void {
-            foreach ($saved as $media) {
-                try {
-                    MediaResource::thumbnail($media)?->write();
-                } catch (Throwable $exception) {
-                    report($exception);
-                }
-            }
-        });
+        MediaResource::thumbnailsAfterResponse($saved);
 
         if ($saved !== []) {
             Notification::make()->success()->title(trans_choice('kami::admin.media.upload.saved', count($saved)))->send();

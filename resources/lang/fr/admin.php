@@ -219,6 +219,11 @@ return [
             'refused' => '{1} :count fichier refusé|[2,*] :count fichiers refusés',
             'failed' => 'Ce fichier n’a pas pu être enregistré : réessayez, ou prévenez l’administrateur du site.',
         ],
+        'picker' => [
+            'upload' => 'Ajouter un fichier : :field',
+            'file' => 'Fichier',
+            'limit' => 'Jusqu’à :size.',
+        ],
         'refused' => [
             'type' => 'Les fichiers de type :type ne sont pas acceptés.',
             'unsupported' => 'Les fichiers de type :type ne sont pas encore pris en charge.',

@@ -62,7 +62,7 @@ The [Media library](media.md#the-library-in-the-admin) has four, shared by every
 | Permission | Lets a User |
 | --- | --- |
 | `kami.media.view` | list the library |
-| `kami.media.create` | upload files to it |
+| `kami.media.create` | upload files to it, from the library or from a Media Field |
 | `kami.media.update` | edit a Media item's alt text, caption, credit and file |
 | `kami.media.delete` | delete a Media item |
 

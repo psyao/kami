@@ -8,6 +8,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Media;
 use Psyao\Kami\Content\Fields\RelationField;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -73,17 +74,20 @@ abstract class ContentType
      */
     final public function columnFields(): array
     {
-        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => ! $field instanceof RelationField));
+        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => ! $field->isReference()));
     }
 
     /**
      * @internal
      *
-     * @return list<RelationField>
+     * The Fields stored in `kami_references`: relation and Media Fields.
+     *
+     * @return list<RelationField|Media>
      */
     final public function relationFields(): array
     {
-        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => $field instanceof RelationField));
+        /** @var list<RelationField|Media> */
+        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => $field->isReference()));
     }
 
     /**

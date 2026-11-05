@@ -136,6 +136,10 @@ final class ContentTypes
                     $this->validateRelation($class, $field, $types);
                 }
 
+                if ($field->isReference()) {
+                    $this->validateReference($class, $field);
+                }
+
                 if ($field->isIndexed() && in_array($field->column(), ['text', 'json'], true)) {
                     throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot be filterable or sortable: no engine indexes its {$field->column()} column whole.");
                 }
@@ -199,13 +203,17 @@ final class ContentTypes
         if ($field->isCreatable()) {
             $this->validateQuickCreate($class, $field, $types);
         }
+    }
 
+    /** A relation or Media Field has no column, and no target is known when the type is declared. */
+    private function validateReference(string $class, Field $field): void
+    {
         if ($field->isIndexed()) {
             throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot be filterable or sortable: it has no column.");
         }
 
         if ($field->defaultValue() !== null) {
-            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot take a default: no Entry id is known when the type is declared.");
+            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot take a default: no target id is known when the type is declared.");
         }
     }
 
@@ -258,7 +266,7 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the layout \"{$field->handle}\": arrange it around the Field instead.");
             }
 
-            if ($field instanceof RelationField) {
+            if ($field->isReference()) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the relation \"{$field->handle}\": its rows live in kami_references, which cannot see inside a document.");
             }
 
@@ -306,7 +314,7 @@ final class ContentTypes
         }
 
         foreach ($type->flatFields() as $field) {
-            if ($field instanceof RelationField && $field->isRequired()) {
+            if ($field->isReference() && $field->isRequired()) {
                 throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" is required; a Global Set is always published and a relation takes no default, so kami:install could not create it. Remove ->required().");
             }
 
@@ -378,7 +386,7 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the inline Markdown \"{$target->handle}\", whose value a condition cannot read.");
             }
 
-            if ($target instanceof RelationField) {
+            if ($target->isReference()) {
                 throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the relation \"{$target->handle}\", whose value a condition cannot read.");
             }
 
