@@ -34,6 +34,7 @@ use Livewire\Livewire;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
+use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
@@ -182,6 +183,14 @@ final class KamiPlugin implements Plugin
                 $panel->resources([$resource::configure($type)]);
             }
         }
+
+        $media = Config::string('kami.resources.media', MediaResource::class);
+
+        if (! is_a($media, MediaResource::class, true)) {
+            throw new LogicException('kami.resources.media names ' . MediaResource::class . '.');
+        }
+
+        $panel->resources([$media]);
 
         // A front page, so the front's headers in place of the panel's (ADR 0018); but for the admin's opener policy,
         // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.

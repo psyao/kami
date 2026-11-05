@@ -5,13 +5,16 @@ declare(strict_types=1);
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Media\Media;
 use Workbench\App\Models\User;
 use Workbench\Database\Seeders\DatabaseSeeder;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    Storage::fake('local');
     Kami::routes();
     $this->seed(DatabaseSeeder::class);
 });
@@ -45,4 +48,12 @@ it('seeds an administrator and an editor who may update but not publish', functi
         ->and(Gate::forUser($user('admin@example.test'))->allows('kami.entries.article.publish'))->toBeTrue()
         ->and(Gate::forUser($editor)->allows('kami.entries.article.update'))->toBeTrue()
         ->and(Gate::forUser($editor)->allows('kami.entries.article.publish'))->toBeFalse();
+});
+
+it('seeds a Media library holding a described photo, an image without alt text and a document', function () {
+    expect(Media::query()->orderBy('name')->get()->map(fn (Media $media): array => [$media->name, $media->family, $media->alt()])->all())->toBe([
+        ['brochure', 'document', null],
+        ['holiday-photo', 'image', 'Une photo de vacances'],
+        ['pixel', 'image', null],
+    ]);
 });

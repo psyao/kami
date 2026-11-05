@@ -191,6 +191,33 @@ return [
     ],
 
     'media' => [
+        'label' => 'Media item',
+        'plural_label' => 'Media',
+        'columns' => [
+            'thumbnail' => 'Preview',
+            'name' => 'Name',
+            'family' => 'Type',
+            'size' => 'Size',
+            'alt' => 'Alt text',
+        ],
+        'families' => [
+            'image' => 'Image',
+            'document' => 'Document',
+        ],
+        'alt' => [
+            'described' => 'Described',
+            'missing' => 'Missing',
+            'decorative' => 'Decorative',
+            'not_needed' => 'Not needed',
+        ],
+        'upload' => [
+            'label' => 'Upload',
+            'files' => 'Files',
+            'limits' => 'Up to :count files, :size each.',
+            'submit' => 'Upload',
+            'saved' => '{1} :count file uploaded.|[2,*] :count files uploaded.',
+            'refused' => '{1} :count file refused|[2,*] :count files refused',
+        ],
         'refused' => [
             'type' => 'Files of type :type are not accepted.',
             'unsupported' => 'Files of type :type are not supported yet.',

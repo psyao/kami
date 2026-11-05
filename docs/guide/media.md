@@ -51,6 +51,23 @@ $media = app(SaveMedia::class)->handle(null, ['credit' => 'Ada Lovelace', 'decor
 
 A value left out keeps its stored one, and `''` clears it. Any other key is refused. Alt text is never required here: an upload, a seeder or an import may leave it missing, to be filled in later.
 
+## The library in the admin
+
+The admin's **Media** page lists the library, newest first, with a thumbnail of each raster image, its name, type, size and alt text state: **Described**, **Missing** (an image, not decorative, with no alt text in the default Locale), **Decorative**, or **Not needed** for a document. A filter narrows it to images or documents. Opening it takes `kami.media.view` ([Users and roles](users-and-roles.md#permissions)).
+
+**Upload** takes up to 20 files at once, dropped onto the form or picked from the computer, under `kami.media.create`. Each one goes through `SaveMedia`: the files it accepts are saved, and those it refuses are listed with their reason in a message kept until dismissed, without costing the others. Twenty files per upload keeps the request within shared hosting's time limit, as each image is decoded in full to read its dimensions.
+
+Each file may weigh up to the lowest of PHP's `upload_max_filesize` and `post_max_size` and Livewire's rule for temporary uploads, `livewire.temporary_file_upload.rules`, whose default is 12 MB. The form states that limit, and refuses a larger file before it is sent. To let PHP's limit alone decide, publish Livewire's configuration and drop `max` from the rule:
+
+```php
+// config/livewire.php
+'temporary_file_upload' => [
+    'rules' => ['required', 'file'],
+],
+```
+
+Each image's `admin-thumb` Conversion is generated once the upload's response is sent, so the editor does not wait for it. One that fails is reported to the log and generated on its first request instead.
+
 ## Reading Media
 
 `Media` is an Eloquent model of the library:

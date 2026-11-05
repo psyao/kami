@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\MediaResource;
 
 return [
 
@@ -20,11 +21,12 @@ return [
     ],
 
     /*
-    | The Filament Resource that edits Entries, registered once per type. Only Kami's own is supported in the MVP:
+    | The Filament Resources that edit Entries, registered once per type, and the Media library. Only Kami's own are supported in the MVP:
     | this key is the door for overridable core Resources, deferred to V1 (roadmap, feature 82; ADR 0029).
     */
     'resources' => [
         'entry' => EntryResource::class,
+        'media' => MediaResource::class,
     ],
 
     /*

@@ -17,6 +17,9 @@ use Psyao\Kami\Media\Media;
  */
 final class ImagePresets
 {
+    /** The admin's thumbnails, generated after an upload. */
+    public const string ADMIN_THUMB = 'admin-thumb';
+
     /** `original` has one width, the original's own. */
     public const string ORIGINAL = 'original';
 
@@ -76,7 +79,7 @@ final class ImagePresets
     private function validate(array $declared): array
     {
         $presets = array_column([
-            ImagePreset::make('admin-thumb')->ratio(1, 1)->widths([320]),
+            ImagePreset::make(self::ADMIN_THUMB)->ratio(1, 1)->widths([320]),
             ImagePreset::make(self::ORIGINAL),
             ImagePreset::make(self::SOCIAL)->ratio(1.91, 1)->widths([1200]),
         ], null, 'handle');
