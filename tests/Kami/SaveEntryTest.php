@@ -458,6 +458,14 @@ it('refuses a slug that cannot answer at its URL', function (string $slug) {
     expect(failures(fn () => save(['title' => 'Hello', 'slug' => $slug])))->toBe(['slug']);
 })->with(['a?b#c d', 'a b', 'a?b', 'a#b', '100%25', 'a\\b', 'a//b', '../a', 'a/..', '.', "a\u{7f}b", "\xff"]);
 
+it('refuses a root type\'s slug starting with media, where Media Conversions answer', function () {
+    $page = fn (string $slug) => failures(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug]));
+
+    expect($page('media'))->toBe(['slug'])
+        ->and($page('Media/photos'))->toBe(['slug'])
+        ->and($page('medias'))->toBe([]);
+});
+
 it('accepts accents, dots and nested segments in a slug', function (string $slug) {
     expect(save(['title' => 'Hello', 'slug' => $slug])->slug)->toBe($slug);
 })->with(["caf\u{e9}", 'a.b', '.well-known', 'a/b', 'a_b-c']);

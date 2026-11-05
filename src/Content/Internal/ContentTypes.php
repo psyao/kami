@@ -22,6 +22,7 @@ use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Content\Term;
+use Psyao\Kami\Routing\Internal\Path;
 
 /**
  * The Content Types listed in `config/kami.php`, found by class or handle, validated when first built (ADR 0007).
@@ -109,6 +110,10 @@ final class ContentTypes
 
             $handles[$type->handle()] = $class;
             $this->validateModel($class, $type);
+
+            if (explode('/', Path::of($type, 'slug') ?? '')[0] === Path::MEDIA) {
+                throw new InvalidArgumentException("{$class}: the Prefix \"{$type->prefix()}\" is reserved for Media Conversions; set another \$prefix.");
+            }
             $fields = [];
 
             foreach ($type->flatFields() as $field) {

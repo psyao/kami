@@ -32,6 +32,9 @@ final class Path extends Model
 {
     use HasUlids;
 
+    /** The first segment Media Conversions answer under: no Path starts with it (ADR 0017). */
+    public const string MEDIA = 'media';
+
     /** The Path of a Translation: its type's Prefix, then its slug; a Singleton's is its Prefix; none with no URL or no slug yet. */
     public static function of(ContentType $type, ?string $slug): ?string
     {

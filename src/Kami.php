@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami;
 
 use Illuminate\Support\Facades\Route;
+use Psyao\Kami\Media\Internal\RenderConversion;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Routing\Internal\RenderPreviewLink;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -13,9 +14,9 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 final class Kami
 {
     /**
-     * Registers Kami's front: one fallback route, so the site's own routes always win, and `/kami/share/{token}` for Preview links.
+     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions.
      *
-     * Both run without the `web` group's session, cookies and CSRF, even when called inside it; the fallback in the `kami` middleware group.
+     * The fallback lets the site's own routes always win. All run without the `web` group's session, cookies and CSRF, even when called inside it; the fallback in the `kami` middleware group.
      */
     public function routes(): void
     {
@@ -23,6 +24,7 @@ final class Kami
         Route::get('kami/share/{token}', RenderPreviewLink::class)
             ->middleware(FrontSecurityHeaders::class . ':Referrer-Policy=no-referrer')
             ->withoutMiddleware('web');
+        Route::get('media/{media}/{version}/{file}', RenderConversion::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::fallback(RenderEntry::class)->middleware('kami')->withoutMiddleware('web');
     }
 }

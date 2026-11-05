@@ -67,7 +67,7 @@ it('registers no route and runs no middleware until the host calls Kami::routes(
 
     Kami::routes();
 
-    expect($routes()->filter($definedByKami)->map->uri()->values()->all())->toBe(['kami/share/{token}', '{fallbackPlaceholder}']);
+    expect($routes()->filter($definedByKami)->map->uri()->values()->all())->toBe(['kami/share/{token}', 'media/{media}/{version}/{file}', '{fallbackPlaceholder}']);
 });
 
 it('runs in UTC whatever the host time zone', function () {
