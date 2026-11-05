@@ -16,13 +16,16 @@ use Illuminate\Support\Facades\Storage;
  */
 final class PublicMedia
 {
-    /** The headers every file Apache serves from `public/media` carries, as `RenderConversion` sends them (ADRs 0017, 0018). */
-    public const string NOSNIFF = 'nosniff';
+    /** On every file Apache serves from `public/media`, as `RenderConversion` and the front headers send them (ADRs 0017, 0018). */
+    public const array HEADERS = [
+        'X-Content-Type-Options' => 'nosniff',
+        'Cache-Control' => 'public, max-age=31536000, immutable',
+    ];
 
-    public const string CACHE_CONTROL = 'public, max-age=31536000, immutable';
-
-    /** An SVG opened directly runs no script and loads nothing. */
-    public const string SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:";
+    /** On an SVG too: opened directly, it runs no script and loads nothing. */
+    public const array SVG_HEADERS = [
+        'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+    ];
 
     public static function link(): string
     {
@@ -36,12 +39,20 @@ final class PublicMedia
     }
 
     /** Why the link cannot exist, or null: Apache's `!-f` needs the files on this machine. */
-    public static function nonLocalDisk(): ?string
+    public static function localDiskRefusal(): ?string
     {
         $disk = Config::string('kami.media.public_disk');
         $driver = config("filesystems.disks.{$disk}.driver");
 
         return $driver === 'local' ? null : "kami.media.public_disk is {$disk}, whose driver is " . (is_string($driver) ? $driver : 'not declared') . ': Conversions need a local disk, which public/media links to.';
+    }
+
+    /** Resolved, so a relative link to the same directory counts. */
+    public static function isLinked(): bool
+    {
+        $target = realpath(self::target());
+
+        return is_link(self::link()) && $target !== false && realpath(self::link()) === $target;
     }
 
     /**
@@ -51,7 +62,7 @@ final class PublicMedia
      */
     public static function install(): ?string
     {
-        if (($refusal = self::nonLocalDisk()) !== null) {
+        if (($refusal = self::localDiskRefusal()) !== null) {
             return $refusal;
         }
 
@@ -64,7 +75,7 @@ final class PublicMedia
 
         File::ensureDirectoryExists($target);
 
-        if (is_link($link) && readlink($link) !== $target) {
+        if (is_link($link) && ! self::isLinked()) {
             File::delete($link);
         }
 
@@ -82,7 +93,7 @@ final class PublicMedia
     private static function htaccess(): string
     {
         return sprintf(<<<'APACHE'
-            # Written by kami:install at each run: edits are lost. The headers Laravel sends on a Conversion's first request.
+            # Written by kami:install at each run: edits are lost.
             <IfModule mod_headers.c>
                 Header always set X-Content-Type-Options "%s"
                 Header set Cache-Control "%s"
@@ -91,6 +102,6 @@ final class PublicMedia
                 </FilesMatch>
             </IfModule>
 
-            APACHE, self::NOSNIFF, self::CACHE_CONTROL, self::SVG_CSP);
+            APACHE, self::HEADERS['X-Content-Type-Options'], self::HEADERS['Cache-Control'], self::SVG_HEADERS['Content-Security-Policy']);
     }
 }

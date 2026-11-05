@@ -19,7 +19,6 @@ use Workbench\App\Content\Testimonial;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    withConversionsServed();
     Kami::routes();
 });
 
@@ -156,6 +155,7 @@ it('falls back without a query of its own', function () {
 });
 
 it('warns that Paths lag behind the declarations until the next kami:install', function () {
+    withConversionsServed();
     translate('*', ['title' => 'Urgent'], type: Label::class);
     config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
 
@@ -169,6 +169,7 @@ it('warns that Paths lag behind the declarations until the next kami:install', f
 });
 
 it('warns about content in an undeclared Locale or of an undeclared type, and keeps it', function () {
+    withConversionsServed();
     $entry = translate('fr', ['title' => 'Bonjour', 'summary' => 'Un article.']);
     translate('en', ['title' => 'Hello', 'summary' => 'An article.'], $entry);
     $gone = translate('*', ['title' => 'Urgent'], type: Label::class);

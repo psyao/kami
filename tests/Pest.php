@@ -100,11 +100,11 @@ function withConversionsServed(): void
     Http::preventStrayRequests();
     // A second Http::fake() would come after this one.
     test()->served = null;
-    Http::fake(fn () => value(test()->served ?? Http::response('<svg/>', 200, [
+    Http::fake(['*/media/kami-doctor.svg' => fn () => value(test()->served ?? Http::response('<svg/>', 200, [
         'X-Content-Type-Options' => 'nosniff',
         'Cache-Control' => 'public, max-age=31536000, immutable',
         'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
-    ])));
+    ]))]);
 }
 
 /** `kami:install` as a deploy runs it, with the first administrator's inputs. */

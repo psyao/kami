@@ -456,8 +456,11 @@ describe('Conversions', function () {
     it('fails on a missing public/media link, naming kami:install', function () {
         unlink(public_path('media'));
 
-        expect(mediaProblems())->toEqual([[Severity::Error, 'public/media does not link to the public disk\'s media directory (' . Storage::disk('public')->path('media') . '): every Conversion goes through PHP.']])
-            ->and(collect(resolve(Doctor::class)->problems())->firstWhere('guide', 'hosting.md#conversions')->fix)->toContain('php artisan kami:install');
+        $problem = collect(resolve(Doctor::class)->problems())->firstWhere('guide', 'hosting.md#conversions');
+
+        expect($problem->severity)->toBe(Severity::Error)
+            ->and($problem->message)->toBe('public/media does not link to the public disk\'s media directory (' . Storage::disk('public')->path('media') . '): every Conversion goes through PHP.')
+            ->and($problem->fix)->toContain('php artisan kami:install');
         Http::assertNothingSent();
     });
 
@@ -465,46 +468,89 @@ describe('Conversions', function () {
         unlink(public_path('media'));
         File::link(temporaryPath(), public_path('media'));
 
-        expect(mediaProblems())->toHaveCount(1)->{0}->{0}->toBe(Severity::Error);
+        $problems = mediaProblems();
+
+        expect($problems)->toHaveCount(1)->{0}->{0}->toBe(Severity::Error);
+    });
+
+    it('accepts a relative link to the media directory, as a deploy tool may write one', function () {
+        unlink(public_path('media'));
+        // public/ and the disk's root are siblings under the temporary directory.
+        symlink('../' . basename(config('filesystems.disks.public.root')) . '/media', public_path('media'));
+
+        $problems = mediaProblems();
+
+        expect($problems)->toBeEmpty();
     });
 
     it('fails on a public disk that is not local', function () {
         config(['filesystems.disks.remote' => ['driver' => 's3'], 'kami.media.public_disk' => 'remote']);
 
-        expect(mediaProblems())->toEqual([[Severity::Error, 'kami.media.public_disk is remote, whose driver is s3: Conversions need a local disk, which public/media links to.']]);
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Error, 'kami.media.public_disk is remote, whose driver is s3: Conversions need a local disk, which public/media links to.']]);
         Http::assertNothingSent();
     });
 
     it('fails on a lock store each PHP worker keeps to itself, without blocking kami:install', function (string $driver) {
         config(['cache.stores.mine' => ['driver' => $driver], 'cache.default' => 'mine']);
 
-        expect(mediaProblems())->toEqual([[Severity::Error, "The default cache store, mine, uses the {$driver} driver: its locks hold within one PHP worker, so two visitors can generate the same Conversion at once."]])
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Error, "The default cache store, mine, uses the {$driver} driver: its locks hold within one PHP worker, so two visitors can generate the same Conversion at once."]])
             ->and(resolve(Doctor::class)->blocking())->toBeEmpty();
     })->with(['array', 'null']);
 
     it('requests a probe file at the Site\'s URL, and deletes it', function () {
-        expect(mediaProblems())->toBeEmpty();
+        $problems = mediaProblems();
 
+        expect($problems)->toBeEmpty()
+            ->and(Storage::disk('public')->allFiles('media'))->toBe(['media/.htaccess']);
         Http::assertSent(fn (Request $request) => $request->url() === 'http://localhost/media/kami-doctor.svg');
-        expect(Storage::disk('public')->allFiles('media'))->toBe(['media/.htaccess']);
+    });
+
+    it('reads Cache-Control\'s directives in any order, as Laravel sends them', function () {
+        $this->served = Http::response('<svg/>', 200, [
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'immutable, max-age=31536000, public',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+        ]);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toBeEmpty();
     });
 
     it('warns about each header the server does not send, as nginx does not without its configuration', function () {
         $this->served = Http::response('<svg/>', 200, ['Cache-Control' => 'max-age=3600']);
 
-        expect(mediaProblems())->toEqual([[Severity::Warning, 'Files under public/media go out without X-Content-Type-Options: nosniff, Cache-Control: public, max-age=31536000, immutable, Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; img-src data:.']]);
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Warning, 'Files under public/media go out without X-Content-Type-Options: nosniff, Cache-Control: public, max-age=31536000, immutable, Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; img-src data:.']]);
     });
 
     it('warns when the probe file is not served', function () {
         $this->served = Http::response('Not Found', 404);
 
-        expect(mediaProblems())->toEqual([[Severity::Warning, 'http://localhost/media/kami-doctor.svg answers 404: the server does not serve public/media.']]);
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Warning, 'http://localhost/media/kami-doctor.svg answers 404: the server does not serve public/media.']]);
     });
+
+    it('only informs when the Site sits behind a password', function (int $status) {
+        $this->served = Http::response('', $status);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Info, "The headers of public/media were not checked: http://localhost/media/kami-doctor.svg answers {$status}, behind a password or a firewall."]]);
+    })->with([401, 403]);
 
     it('only informs when the Site\'s URL cannot be reached from here', function () {
         $this->served = fn () => throw new ConnectionException('Could not resolve host');
 
-        expect(mediaProblems())->toEqual([[Severity::Info, 'The headers of public/media were not checked: http://localhost cannot be reached from here (Could not resolve host).']])
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Info, 'The headers of public/media were not checked: http://localhost cannot be reached from here (Could not resolve host).']])
             ->and(Storage::disk('public')->allFiles('media'))->toBe(['media/.htaccess']);
     });
 });

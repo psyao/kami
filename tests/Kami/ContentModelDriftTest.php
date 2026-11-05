@@ -43,7 +43,6 @@ final class DriftedNote extends ContentType
 }
 
 beforeEach(function () {
-    withConversionsServed();
     // Every Workbench table has its type: the suite migrates them all.
     config(['kami.types' => [Article::class, Footer::class, Home::class, Label::class, Page::class, Project::class, Tag::class, Testimonial::class]]);
 });
@@ -112,6 +111,7 @@ it('runs every check under a table prefix', function () {
 });
 
 it('warns about a value left on the row a Field no longer reads, without failing', function () {
+    withConversionsServed();
     $page = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'About', 'slug' => 'about', 'body' => 'Kept'], locale: 'en');
     DB::table('kami_type_page')->where('entry_id', $page->id)->update(['locale' => '*']);
 
@@ -122,6 +122,7 @@ it('warns about a value left on the row a Field no longer reads, without failing
 });
 
 it('warns about a link under a handle no relation Field declares, as a mistyped renameField leaves', function () {
+    withConversionsServed();
     $save = resolve(SaveEntry::class);
     $project = $save->handle(Project::class, ['title' => 'Kami', 'slug' => 'kami']);
     $page = $save->handle(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');
@@ -134,6 +135,7 @@ it('warns about a link under a handle no relation Field declares, as a mistyped 
 });
 
 it('warns about a relation Field flipped without conversion', function () {
+    withConversionsServed();
     $save = resolve(SaveEntry::class);
     $project = $save->handle(Project::class, ['title' => 'Kami', 'slug' => 'kami']);
     $page = $save->handle(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');

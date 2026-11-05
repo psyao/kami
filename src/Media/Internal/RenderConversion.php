@@ -39,7 +39,7 @@ final class RenderConversion
 
         return response()->file($path, [
             'Content-Type' => MimeTypes::getDefault()->getMimeTypes($conversion->format)[0],
-            'Cache-Control' => PublicMedia::CACHE_CONTROL,
+            'Cache-Control' => PublicMedia::HEADERS['Cache-Control'],
         ]);
     }
 }

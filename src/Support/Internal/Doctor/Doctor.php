@@ -600,16 +600,14 @@ final readonly class Doctor
     /** `kami:install`'s link, then the headers the server sends on it, checked over HTTP: the command line cannot tell Apache from nginx. */
     private function publicMedia(): ?Problem
     {
-        if (($refusal = PublicMedia::nonLocalDisk()) !== null) {
+        if (($refusal = PublicMedia::localDiskRefusal()) !== null) {
             return new Problem(Severity::Error, $refusal, 'set kami.media.public_disk to a local disk, such as public.', 'hosting.md#conversions');
         }
 
-        $target = PublicMedia::target();
-
-        if (! is_link(PublicMedia::link()) || readlink(PublicMedia::link()) !== $target) {
+        if (! PublicMedia::isLinked()) {
             return new Problem(
                 Severity::Error,
-                "public/media does not link to the public disk's media directory ({$target}): every Conversion goes through PHP.",
+                "public/media does not link to the public disk's media directory (" . PublicMedia::target() . '): every Conversion goes through PHP.',
                 'run php artisan kami:install, which links it, as every deploy does.',
                 'hosting.md#conversions',
             );
@@ -639,6 +637,16 @@ final readonly class Doctor
             $disk->delete('media/kami-doctor.svg');
         }
 
+        // A staging site behind a password: as unreachable as one with no server.
+        if (in_array($response->status(), [401, 403], true)) {
+            return new Problem(
+                Severity::Info,
+                "The headers of public/media were not checked: {$url} answers {$response->status()}, behind a password or a firewall.",
+                'compare its headers with the guide by hand.',
+                'hosting.md#nginx',
+            );
+        }
+
         if (! $response->successful()) {
             return new Problem(
                 Severity::Warning,
@@ -648,8 +656,9 @@ final readonly class Doctor
             );
         }
 
-        $expected = ['X-Content-Type-Options' => PublicMedia::NOSNIFF, 'Cache-Control' => PublicMedia::CACHE_CONTROL, 'Content-Security-Policy' => PublicMedia::SVG_CSP];
-        $missing = array_filter($expected, fn (string $value, string $name): bool => $response->header($name) !== $value, ARRAY_FILTER_USE_BOTH);
+        // In any order: Symfony sorts Cache-Control's directives, nginx keeps them as written.
+        $directives = fn (string $value): array => collect(preg_split('/\s*[,;]\s*/', strtolower(trim($value))) ?: [])->sort()->values()->all();
+        $missing = array_filter([...PublicMedia::HEADERS, ...PublicMedia::SVG_HEADERS], fn (string $value, string $name): bool => $directives($response->header($name)) !== $directives($value), ARRAY_FILTER_USE_BOTH);
 
         return $missing === [] ? null : new Problem(
             Severity::Warning,
