@@ -65,6 +65,7 @@ final class ImagePresets
         foreach ([
             ImagePreset::make('admin-thumb')->ratio(1, 1)->widths([320]),
             ImagePreset::make(self::ORIGINAL),
+            // ponytail: fallback format only because every preset is today; #298 keeps it so once AVIF and WebP come.
             ImagePreset::make('kami-social')->ratio(1.91, 1)->widths([1200]),
         ] as $shipped) {
             $presets[$shipped->handle] = $shipped;
@@ -94,8 +95,9 @@ final class ImagePresets
             }
 
             foreach ($preset->widths as $width) {
-                if ($width < 1) {
-                    throw new InvalidArgumentException("{$name}: every width is a positive number of pixels.");
+                // Six digits at most, as the route reads them.
+                if ($width < 1 || $width > 999_999) {
+                    throw new InvalidArgumentException("{$name}: every width is between 1 and 999999 pixels.");
                 }
             }
 

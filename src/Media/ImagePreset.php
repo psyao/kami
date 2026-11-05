@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Psyao\Kami\Media;
 
 /**
- * A named way of showing images, listed in `config/kami.php` under `media.presets` (ADR 0017): its Conversions are generated
- * at these widths only, cropped around the centre to its ratio when it has one, never upscaled.
+ * A named way of showing images, listed in `config/kami.php` under `media.presets` (ADR 0017).
+ *
+ * Its Conversions are generated at these widths only, cropped around the centre to its ratio when it has one, never upscaled.
  */
 final class ImagePreset
 {

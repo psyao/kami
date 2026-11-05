@@ -14,10 +14,9 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 final class Kami
 {
     /**
-     * Registers Kami's front: one fallback route, so the site's own routes always win, `/kami/share/{token}` for Preview links
-     * and `/media/{ulid}/{v}/{file}` for Media Conversions.
+     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions.
      *
-     * All run without the `web` group's session, cookies and CSRF, even when called inside it; the fallback in the `kami` middleware group.
+     * The fallback lets the site's own routes always win. All run without the `web` group's session, cookies and CSRF, even when called inside it; the fallback in the `kami` middleware group.
      */
     public function routes(): void
     {

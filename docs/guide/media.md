@@ -74,7 +74,7 @@ $media->credit;
 
 ## Conversions
 
-Visitors never receive an original. They receive Conversions: an image re-encoded at one width, in one format, through an Image Preset. A Conversion is generated on the first request for it, written to `kami.media.public_disk` under `media/`, and served as a static file from then on ([ADR 0017](../adr/0017-conversions-generated-on-first-request.md)). Every Conversion is:
+Visitors never receive an original. They receive Conversions: an image re-encoded at one width, in one format, through an Image Preset. A Conversion is generated on the first request for it, written to `kami.media.public_disk` under `media/`, and served as a static file from then on ([ADR 0017](../adr/0017-conversions-generated-on-first-request.md)). Until `kami:install` links `public/media` to that disk, every request goes through PHP. Every Conversion is:
 
 - **oriented** as the camera's EXIF says, then stripped of all metadata: no EXIF, no GPS, no camera;
 - **cropped** to the preset's ratio around the centre, when it has one;
@@ -113,7 +113,7 @@ Kami ships three presets, whose handles yours cannot take:
 | `original` | the image's own proportions, at its own width |
 | `kami-social` | 1.91:1, 1200 wide, for social cards |
 
-A preset with no width, a width or ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
+A preset with no width, a width outside 1 to 999,999 pixels, a ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
 
 ### URLs
 

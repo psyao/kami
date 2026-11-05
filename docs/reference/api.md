@@ -379,7 +379,7 @@ Kami's entry point for sites.
 
 What a site calls on Kami through the `Kami` facade.
 
-- `public function routes(): void`: Registers Kami's front: one fallback route, so the site's own routes always win, `/kami/share/{token}` for Preview links
+- `public function routes(): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions.
 
 ## `Psyao\Kami\KamiServiceProvider`
 
@@ -403,7 +403,7 @@ Stores a file in the Site's Media library, or writes a Media item's alt text, ca
 
 `final class`
 
-A named way of showing images, listed in `config/kami.php` under `media.presets` (ADR 0017): its Conversions are generated
+A named way of showing images, listed in `config/kami.php` under `media.presets` (ADR 0017).
 
 - `public protected(set) readonly string $handle`
 - `final public private(set) ?array $ratio = NULL`
@@ -424,7 +424,7 @@ An image or a document of the Site's library (ADR 0017), written through `SaveMe
 - `public function caption(): ?string`: In the current Locale, or the default Locale's when blank there; null when both are.
 - `public function isDecorative(): bool`: Marked as adding nothing to the page: rendered with `alt=""`, never reported as missing its alt text.
 - `public function isImage(): bool`
-- `public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string`: The absolute URL of a Conversion: an Image Preset at one of its widths, in a format. Without a preset, the `original` one;
+- `public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string`: The absolute URL of a Conversion: an Image Preset at one of its widths, in a format.
 
 ## `Psyao\Kami\Schema\ContentMigrator`
 

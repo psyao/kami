@@ -65,10 +65,13 @@ final class Media extends Model
     }
 
     /**
-     * The absolute URL of a Conversion: an Image Preset at one of its widths, in a format. Without a preset, the `original` one;
-     * without a width, the preset's largest; without a format, the one every browser reads (JPEG, or PNG for any other original).
+     * The absolute URL of a Conversion: an Image Preset at one of its widths, in a format.
+     *
+     * Without a preset, the `original` one; without a width, the preset's largest; without a format, the one every browser
+     * reads (JPEG, or PNG for any other original).
      *
      * @throws InvalidArgumentException For a preset, width or format not declared for this Media item.
+     * @throws LogicException For a document or an SVG, which has no Conversion.
      */
     public function url(?string $preset = null, ?int $width = null, ?string $format = null): string
     {

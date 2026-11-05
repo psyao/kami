@@ -65,7 +65,11 @@ final readonly class Conversion
         return substr(hash('xxh3', $this->media->checksum . '|' . implode(':', $this->preset->ratio ?? [])), 0, 8);
     }
 
-    /** On `kami.media.public_disk`, which `public/media` links to. */
+    /**
+     * On `kami.media.public_disk`, which `public/media` links to.
+     *
+     * ponytail: nothing creates the link yet, so every request goes through PHP; #297 links it in `kami:install` with its `.htaccess`.
+     */
     public function path(): string
     {
         return "media/{$this->media->id}/{$this->version()}/{$this->preset->handle}-{$this->width}.{$this->format}";
@@ -97,7 +101,11 @@ final readonly class Conversion
         return $disk->path($path);
     }
 
-    /** Oriented, cropped around the centre, never upscaled, stripped of its metadata, then moved into place whole: a visitor never reads half a file. */
+    /**
+     * Oriented, cropped around the centre, never upscaled, stripped of its metadata, then moved into place whole: a visitor never reads half a file.
+     *
+     * ponytail: a failure throws, a 500; #298 logs it and answers 302 to the fallback format at the same width (ADR 0017).
+     */
     private function generate(Filesystem $disk, string $path): void
     {
         $image = Image::fromBytes((string) Storage::disk(Config::string('kami.media.originals_disk'))->get($this->media->file))->orient();
@@ -112,7 +120,8 @@ final readonly class Conversion
             $image = $image->crop($cropWidth, $cropHeight, intdiv($width - $cropWidth, 2), intdiv($height - $cropHeight, 2));
         }
 
-        $temporary = "{$path}." . Str::random(8) . '.tmp';
+        // Outside `media/`, so Apache never serves it half written, and on the same disk, so the move is a rename.
+        $temporary = '.kami-tmp/' . Str::random(16);
         $disk->put($temporary, $image->scale($this->width)->transform(new StripMetadata)->toFormat($this->format)->toBytes())
             ?: throw new RuntimeException("The Conversion [{$path}] could not be written.");
         $disk->move($temporary, $path);
