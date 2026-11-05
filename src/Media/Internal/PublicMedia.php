@@ -75,11 +75,9 @@ final class PublicMedia
 
         File::ensureDirectoryExists($target);
 
-        if (is_link($link) && ! self::isLinked()) {
+        // Any other path is a link by now, or nothing: delete is silent on a missing one.
+        if (! self::isLinked()) {
             File::delete($link);
-        }
-
-        if (! is_link($link)) {
             File::link($target, $link);
         }
 
