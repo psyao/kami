@@ -191,6 +191,34 @@ return [
     ],
 
     'media' => [
+        'label' => 'média',
+        'plural_label' => 'Médias',
+        'columns' => [
+            'thumbnail' => 'Aperçu',
+            'name' => 'Nom',
+            'family' => 'Type',
+            'size' => 'Taille',
+            'alt' => 'Texte alternatif',
+        ],
+        'families' => [
+            'image' => 'Image',
+            'document' => 'Document',
+        ],
+        'alt' => [
+            'described' => 'Rédigé',
+            'missing' => 'Manquant',
+            'decorative' => 'Décoratif',
+            'not_needed' => 'Non requis',
+        ],
+        'upload' => [
+            'label' => 'Ajouter des fichiers',
+            'files' => 'Fichiers',
+            'limits' => 'Jusqu’à :count fichiers, :size chacun.',
+            'submit' => 'Ajouter',
+            'saved' => '{1} :count fichier ajouté.|[2,*] :count fichiers ajoutés.',
+            'refused' => '{1} :count fichier refusé|[2,*] :count fichiers refusés',
+            'failed' => 'Ce fichier n’a pas pu être enregistré : réessayez, ou prévenez l’administrateur du site.',
+        ],
         'refused' => [
             'type' => 'Les fichiers de type :type ne sont pas acceptés.',
             'unsupported' => 'Les fichiers de type :type ne sont pas encore pris en charge.',

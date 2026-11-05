@@ -14,6 +14,7 @@ use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\SiteSettings;
+use Psyao\Kami\Media\Actions\SaveMedia;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
@@ -27,7 +28,7 @@ use Workbench\App\Models\User;
 /** What `composer serve` shows: known accounts and one Entry per state worth looking at. */
 class DatabaseSeeder extends Seeder
 {
-    public function run(SaveEntry $save, TrashEntry $trash, DeleteEntry $delete): void
+    public function run(SaveEntry $save, TrashEntry $trash, DeleteEntry $delete, SaveMedia $media): void
     {
         $admin = $this->user('Ada Admin', 'admin@example.test', 'administrator');
         $this->user('Eddie Editor', 'editor@example.test', 'editor');
@@ -91,6 +92,12 @@ class DatabaseSeeder extends Seeder
         $footer = $save->handle(Footer::class, ['tagline' => 'Un site de démonstration.', 'contact' => 'ada@example.test'], locale: 'fr', actor: $admin);
         $save->handle(Footer::class, ['tagline' => 'A demo Site.'], $footer, 'en', $admin);
         $save->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr', actor: $admin);
+
+        // The Media library: a described photo, an image missing its alt text, a document, which needs none.
+        $fixtures = dirname(__DIR__, 3) . '/tests/Fixtures/media';
+        $media->handle("{$fixtures}/Holiday Photo.JPG", ['alt' => 'Une photo de vacances', 'credit' => 'Ada'], locale: 'fr', actor: $admin);
+        $media->handle("{$fixtures}/pixel.png", actor: $admin);
+        $media->handle("{$fixtures}/brochure.pdf", actor: $admin);
     }
 
     private function user(string $name, string $email, string $role): User

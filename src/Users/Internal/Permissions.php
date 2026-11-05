@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Media\Media;
 use Psyao\Kami\Users\KamiUser;
 
 /**
@@ -23,6 +24,9 @@ final class Permissions
     /** What a User may do with a Content Type's Entries; ADR 0014's other actions join with their features. */
     private const array ENTRY_ACTIONS = ['view', 'create', 'update', 'reorder', 'publish', 'delete', 'restore', 'force-delete', 'share-preview'];
 
+    /** What a User may do with the Media library, shared by every Content Type. */
+    private const array MEDIA_ACTIONS = ['view', 'create', 'update', 'delete'];
+
     /**
      * No `Gate::before`: it would answer the host's own abilities too.
      */
@@ -33,6 +37,7 @@ final class Permissions
         }
 
         $gate->policy(Entry::class, EntryPolicy::class);
+        $gate->policy(Media::class, MediaPolicy::class);
     }
 
     /** @return list<string> */
@@ -41,7 +46,7 @@ final class Permissions
         $entries = collect(resolve(ContentTypes::class)->all())
             ->flatMap(fn (ContentType $type): array => array_map(fn (string $action): string => "kami.entries.{$type->handle()}.{$action}", self::ENTRY_ACTIONS));
 
-        return [...$entries, 'kami.health.view', 'kami.users.manage'];
+        return [...$entries, ...array_map(fn (string $action): string => "kami.media.{$action}", self::MEDIA_ACTIONS), 'kami.health.view', 'kami.users.manage'];
     }
 
     /**

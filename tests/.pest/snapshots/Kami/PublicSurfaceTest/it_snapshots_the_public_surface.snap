@@ -242,6 +242,7 @@ config kami.media.originals_disk
 config kami.media.presets
 config kami.media.public_disk
 config kami.resources.entry
+config kami.resources.media
 config kami.roles.administrator
 config kami.security.csp
 config kami.security.csp_report_only
@@ -263,6 +264,10 @@ permission kami.entries.{type}.share-preview
 permission kami.entries.{type}.update
 permission kami.entries.{type}.view
 permission kami.health.view
+permission kami.media.create
+permission kami.media.delete
+permission kami.media.update
+permission kami.media.view
 permission kami.users.manage
 table kami_entries
 table kami_media
