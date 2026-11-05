@@ -19,6 +19,7 @@ use Workbench\App\Content\Testimonial;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    withConversionsServed();
     Kami::routes();
 });
 

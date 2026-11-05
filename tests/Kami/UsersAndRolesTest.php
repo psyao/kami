@@ -15,6 +15,8 @@ use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
 
+beforeEach(fn () => withConversionsServed());
+
 function userWithRoles(string ...$roles): User
 {
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);

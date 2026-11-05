@@ -9,12 +9,15 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
@@ -26,6 +29,7 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
+use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
@@ -86,6 +90,7 @@ final readonly class Doctor
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
+            ...array_filter([$this->lockStore(), $this->publicMedia()]),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
         ];
@@ -576,5 +581,81 @@ final readonly class Doctor
         }
 
         return $problems;
+    }
+
+    /** A Conversion is generated once across PHP workers only under a lock they share (ADR 0017). */
+    private function lockStore(): ?Problem
+    {
+        $store = Config::string('cache.default');
+        $driver = config("cache.stores.{$store}.driver");
+
+        return in_array($driver, ['array', 'null'], true) ? new Problem(
+            Severity::Error,
+            "The default cache store, {$store}, uses the {$driver} driver: its locks hold within one PHP worker, so two visitors can generate the same Conversion at once.",
+            'set CACHE_STORE to file or database in .env, as the starter kit does.',
+            'hosting.md#conversions',
+        ) : null;
+    }
+
+    /** `kami:install`'s link, then the headers the server sends on it, checked over HTTP: the command line cannot tell Apache from nginx. */
+    private function publicMedia(): ?Problem
+    {
+        if (($refusal = PublicMedia::nonLocalDisk()) !== null) {
+            return new Problem(Severity::Error, $refusal, 'set kami.media.public_disk to a local disk, such as public.', 'hosting.md#conversions');
+        }
+
+        $target = PublicMedia::target();
+
+        if (! is_link(PublicMedia::link()) || readlink(PublicMedia::link()) !== $target) {
+            return new Problem(
+                Severity::Error,
+                "public/media does not link to the public disk's media directory ({$target}): every Conversion goes through PHP.",
+                'run php artisan kami:install, which links it, as every deploy does.',
+                'hosting.md#conversions',
+            );
+        }
+
+        return $this->conversionHeaders();
+    }
+
+    /** An SVG, so one request shows every header Kami's `.htaccess` sets; written for the check and deleted after it. */
+    private function conversionHeaders(): ?Problem
+    {
+        $disk = Storage::disk(Config::string('kami.media.public_disk'));
+        $base = rtrim(Site::current()->url, '/');
+        $url = "{$base}/media/kami-doctor.svg";
+        $disk->put('media/kami-doctor.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+
+        try {
+            $response = Http::connectTimeout(3)->timeout(5)->get($url);
+        } catch (ConnectionException $exception) {
+            return new Problem(
+                Severity::Info,
+                "The headers of public/media were not checked: {$base} cannot be reached from here ({$exception->getMessage()}).",
+                'run kami:doctor where the site\'s URL can be reached, or compare its headers with the guide by hand.',
+                'hosting.md#nginx',
+            );
+        } finally {
+            $disk->delete('media/kami-doctor.svg');
+        }
+
+        if (! $response->successful()) {
+            return new Problem(
+                Severity::Warning,
+                "{$url} answers {$response->status()}: the server does not serve public/media.",
+                'serve the files under public/media as they are, and hand a missing one to index.php.',
+                'hosting.md#nginx',
+            );
+        }
+
+        $expected = ['X-Content-Type-Options' => PublicMedia::NOSNIFF, 'Cache-Control' => PublicMedia::CACHE_CONTROL, 'Content-Security-Policy' => PublicMedia::SVG_CSP];
+        $missing = array_filter($expected, fn (string $value, string $name): bool => $response->header($name) !== $value, ARRAY_FILTER_USE_BOTH);
+
+        return $missing === [] ? null : new Problem(
+            Severity::Warning,
+            'Files under public/media go out without ' . implode(', ', array_map(fn (string $name, string $value): string => "{$name}: {$value}", array_keys($missing), $missing)) . '.',
+            'send them from the server\'s configuration, as public/media/.htaccess does on Apache.',
+            'hosting.md#nginx',
+        );
     }
 }

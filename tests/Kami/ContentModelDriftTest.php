@@ -43,6 +43,7 @@ final class DriftedNote extends ContentType
 }
 
 beforeEach(function () {
+    withConversionsServed();
     // Every Workbench table has its type: the suite migrates them all.
     config(['kami.types' => [Article::class, Footer::class, Home::class, Label::class, Page::class, Project::class, Tag::class, Testimonial::class]]);
 });

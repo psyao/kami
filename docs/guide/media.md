@@ -74,7 +74,7 @@ $media->credit;
 
 ## Conversions
 
-Visitors never receive an original. They receive Conversions: an image re-encoded at one width, in one format, through an Image Preset. A Conversion is generated on the first request for it, written to `kami.media.public_disk` under `media/`, and served as a static file from then on ([ADR 0017](../adr/0017-conversions-generated-on-first-request.md)). Until `kami:install` links `public/media` to that disk, every request goes through PHP. Every Conversion is:
+Visitors never receive an original. They receive Conversions: an image re-encoded at one width, in one format, through an Image Preset. A Conversion is generated on the first request for it, written to `kami.media.public_disk` under `media/`, and served as a static file from then on ([ADR 0017](../adr/0017-conversions-generated-on-first-request.md)). `kami:install` links `public/media` to that directory, so Apache serves every later request without PHP ([Hosting](hosting.md#conversions)). Every Conversion is:
 
 - **oriented** as the camera's EXIF says, then stripped of all metadata: no EXIF, no GPS, no camera;
 - **cropped** to the preset's ratio around the centre, when it has one;

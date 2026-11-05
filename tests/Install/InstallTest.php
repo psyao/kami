@@ -209,6 +209,65 @@ it('writes no file of the host\'s, only Filament\'s public assets', function () 
         ->and(array_filter($added, fn (string $path) => ! str_starts_with($path, 'public/')))->toBeEmpty();
 });
 
+describe('public/media', function () {
+    beforeEach(function () {
+        $this->bootWithKamiOnAPanel();
+        config(['filesystems.disks.public.root' => $this->disk = temporaryPath()]);
+    });
+
+    it('links public/media to the public disk\'s media directory, with Kami\'s headers for Apache', function () {
+        install()->assertSuccessful();
+
+        expect(readlink(public_path('media')))->toBe("{$this->disk}/media")
+            ->and(File::get(public_path('media/.htaccess')))
+            ->toContain('Header always set X-Content-Type-Options "nosniff"')
+            ->toContain('Header set Cache-Control "public, max-age=31536000, immutable"')
+            ->toContain('<FilesMatch "\.svg$">')
+            ->toContain("Header always set Content-Security-Policy \"default-src 'none'; style-src 'unsafe-inline'; img-src data:\"")
+            ->not->toContain('RewriteEngine');
+    });
+
+    it('writes its .htaccess again at each run, as Kami\'s file', function () {
+        install()->assertSuccessful();
+        File::put(public_path('media/.htaccess'), 'edited');
+        File::put(public_path('media/kept.jpg'), 'a Conversion');
+
+        install()->assertSuccessful();
+
+        expect(File::get(public_path('media/.htaccess')))->toContain('nosniff')
+            ->and(File::get("{$this->disk}/media/kept.jpg"))->toBe('a Conversion');
+    });
+
+    it('moves a link that points elsewhere, leaving its former target alone', function () {
+        File::ensureDirectoryExists($former = temporaryPath());
+        File::put("{$former}/old.jpg", 'old');
+        File::link($former, public_path('media'));
+
+        install()->assertSuccessful();
+
+        expect(readlink(public_path('media')))->toBe("{$this->disk}/media")
+            ->and("{$former}/old.jpg")->toBeFile();
+    });
+
+    it('fails, touching nothing, on a public/media that is no link', function () {
+        File::ensureDirectoryExists(public_path('media'));
+        File::put(public_path('media/old.jpg'), 'old');
+
+        install()->expectsOutputToContain('public/media is a directory, not a link')->assertFailed();
+
+        expect(is_link(public_path('media')))->toBeFalse()
+            ->and(File::files(public_path('media')))->toHaveCount(1);
+    });
+
+    it('fails on a public disk that is not local, which Apache cannot serve from', function () {
+        config(['filesystems.disks.remote' => ['driver' => 's3', 'bucket' => 'b', 'region' => 'eu-west-1'], 'kami.media.public_disk' => 'remote']);
+
+        install()->expectsOutputToContain('kami.media.public_disk is remote, whose driver is s3')->assertFailed();
+
+        expect(file_exists(public_path('media')))->toBeFalse();
+    });
+});
+
 it('has no kami:upgrade: kami:install serves every deploy', function () {
     expect(Artisan::all())->toHaveKey('kami:install')->not->toHaveKey('kami:upgrade');
 });

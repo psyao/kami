@@ -7,11 +7,13 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -83,6 +85,26 @@ function entriesPage(string $page, string | array $role = 'administrator', array
     Filament::setCurrentResourceConfigurationKey($type);
 
     return Livewire::test($page, $parameters);
+}
+
+/**
+ * Conversions as `kami:install` leaves a site, for a test that expects `kami:doctor` clean: a shared lock store, `public/`
+ * and the public disk the test's own, linked, and served with Kami's headers. A test changes the answer through `$this->served`.
+ */
+function withConversionsServed(): void
+{
+    config(['cache.default' => 'file', 'filesystems.disks.public.root' => temporaryPath()]);
+    app()->usePublicPath(temporaryPath());
+    File::ensureDirectoryExists(public_path());
+    PublicMedia::install();
+    Http::preventStrayRequests();
+    // A second Http::fake() would come after this one.
+    test()->served = null;
+    Http::fake(fn () => value(test()->served ?? Http::response('<svg/>', 200, [
+        'X-Content-Type-Options' => 'nosniff',
+        'Cache-Control' => 'public, max-age=31536000, immutable',
+        'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+    ])));
 }
 
 /** `kami:install` as a deploy runs it, with the first administrator's inputs. */
