@@ -11,6 +11,7 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 ## 0.5.0
 
 1. **`media` is reserved for Media Conversions.** Kami answers `/media/{id}/{version}/{file}` itself. A Content Type whose Prefix starts with `media`, a type with no `$prefix` whose handle is `media` included, now fails the first time the types are read: set another `$prefix`; its Entries move on the next `kami:install`, and their former addresses answer 404. A root slug `media` is refused at its next save; the stored Path keeps answering until then ([Prefix](docs/guide/content-types.md#prefix)).
+2. **`kami:install` links `public/media`, and `kami:doctor` checks it.** Apache now serves Conversions without PHP ([Conversions](docs/guide/hosting.md#conversions)). `kami:install` fails when `kami.media.public_disk` is not a local disk, or when `public/media` already exists as a directory or a file: move it out of `public/` first. `kami:doctor` now exits with 1 on a missing link, a non-local public disk, or an `array` or `null` default cache store. A CI job running it runs `kami:install` first, on the `file` or `database` cache store. On nginx, add the configuration from [nginx](docs/guide/hosting.md#nginx).
 
 ## 0.4.0
 
