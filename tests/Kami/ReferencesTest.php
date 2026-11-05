@@ -337,7 +337,7 @@ it('refuses what a relation cannot honour, at first read', function (Closure $fi
 it('refuses a required relation on a Global Set', function () {
     config(['kami.types' => [Article::class, LinkedSet::class]]);
 
-    expect(fn () => resolve(ContentTypes::class)->all())->toThrow(InvalidArgumentException::class, 'a relation takes no default');
+    expect(fn () => resolve(ContentTypes::class)->all())->toThrow(InvalidArgumentException::class, 'a link takes no default');
 });
 
 it('gives a relation Field no column in kami:make:migration', function () {

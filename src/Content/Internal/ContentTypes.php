@@ -10,6 +10,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\Media;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
@@ -205,15 +206,21 @@ final class ContentTypes
         }
     }
 
+    /** How an error names a Field kept in `kami_references`. */
+    private function kindOf(Field $field): string
+    {
+        return $field instanceof Media ? 'the Media Field' : 'the relation';
+    }
+
     /** A relation or Media Field has no column, and no target is known when the type is declared. */
     private function validateReference(string $class, Field $field): void
     {
         if ($field->isIndexed()) {
-            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot be filterable or sortable: it has no column.");
+            throw new InvalidArgumentException("{$class}: {$this->kindOf($field)} \"{$field->handle}\" cannot be filterable or sortable: it has no column.");
         }
 
         if ($field->defaultValue() !== null) {
-            throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" cannot take a default: no target id is known when the type is declared.");
+            throw new InvalidArgumentException("{$class}: {$this->kindOf($field)} \"{$field->handle}\" cannot take a default: no target id is known when the type is declared.");
         }
     }
 
@@ -267,7 +274,7 @@ final class ContentTypes
             }
 
             if ($field->isReference()) {
-                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold the relation \"{$field->handle}\": its rows live in kami_references, which cannot see inside a document.");
+                throw new InvalidArgumentException("{$class}: the Field \"{$parent->handle}\" cannot hold {$this->kindOf($field)} \"{$field->handle}\": its rows live in kami_references, which cannot see inside a document.");
             }
 
             if ($field instanceof RichText) {
@@ -315,7 +322,7 @@ final class ContentTypes
 
         foreach ($type->flatFields() as $field) {
             if ($field->isReference() && $field->isRequired()) {
-                throw new InvalidArgumentException("{$class}: the relation \"{$field->handle}\" is required; a Global Set is always published and a relation takes no default, so kami:install could not create it. Remove ->required().");
+                throw new InvalidArgumentException("{$class}: {$this->kindOf($field)} \"{$field->handle}\" is required; a Global Set is always published and a link takes no default, so kami:install could not create it. Remove ->required().");
             }
 
             if ($this->lacksValue($field, $field->defaultValue())) {
@@ -387,7 +394,7 @@ final class ContentTypes
             }
 
             if ($target->isReference()) {
-                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to the relation \"{$target->handle}\", whose value a condition cannot read.");
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" is shown according to {$this->kindOf($target)} \"{$target->handle}\", whose value a condition cannot read.");
             }
 
             if ($type->isTranslatable($target)) {

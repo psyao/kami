@@ -92,9 +92,11 @@ final class DuplicateEntry
             }
 
             // Links to trashed targets too, as `SaveEntry` keeps them: restoring a target brings them back on both.
-            foreach ($snapshot['references'] as $locale => $byHandle) {
-                foreach ($type->relationFields() as $field) {
-                    References::replace($copy->id, $field, $locale === '*' ? null : $locale, $byHandle[$field->handle] ?? []);
+            $relations = array_column($type->relationFields(), null, 'handle');
+
+            foreach ($snapshot['references'] as $locale => $fields) {
+                foreach ($fields as $handle => $targets) {
+                    References::replace($copy->id, $relations[$handle], $locale === '*' ? null : $locale, $targets);
                 }
             }
 

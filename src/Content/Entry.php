@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
-use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\References;
@@ -176,9 +175,7 @@ class Entry extends Model
         }
 
         if ($field->isReference()) {
-            $targets = $this->relationField($field);
-
-            return $field instanceof MediaField && ! $field->isMultiple() ? $targets->first() : $targets;
+            return $field->read($this->relationField($field));
         }
 
         if (! $this->contentType()?->isTranslatable($field)) {

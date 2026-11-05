@@ -101,6 +101,23 @@ it('reads an empty single Field as null and an empty multiple one as an empty Co
         ->and($read->gallery)->toBeEmpty();
 });
 
+it('keeps one pick per Locale on a translatable Field, a blank Locale falling back to the default one', function (): void {
+    Illustrated::$declared = [MediaField::make('cover')->translatable()];
+    [$photo, $pixel] = [storedMedia('media/Holiday Photo.JPG'), storedMedia()];
+    $entry = saveIllustrated(['cover' => $photo->id]);
+    resolve(SaveEntry::class)->handle(Illustrated::class, ['title' => 'Source', 'status' => 'published'], $entry, 'en');
+
+    $read = fn (string $locale) => Entry::query()->ofType('illustrated')->inLocale($locale)->with('cover')->sole();
+
+    expect($read('en')->cover?->id)->toBe($photo->id)
+        ->and($read('en')->fallbackLocale('cover'))->toBe('fr');
+
+    resolve(SaveEntry::class)->handle(Illustrated::class, ['cover' => $pixel->id], $entry, 'en');
+
+    expect($read('en')->cover?->id)->toBe($pixel->id)
+        ->and($read('fr')->cover?->id)->toBe($photo->id);
+});
+
 it('refuses an unknown id, another Site, a document under images(), a duplicate and a second id on a single Field, on the Field', function (Closure $given): void {
     [$handle, $value] = $given();
 
@@ -170,10 +187,10 @@ it('refuses what a Media Field cannot honour, at first read', function (Closure 
 
     expect(fn () => resolve(ContentTypes::class)->all())->toThrow(InvalidArgumentException::class, $message);
 })->with([
-    'filterable' => [fn () => [MediaField::make('cover')->filterable()], 'cannot be filterable'],
+    'filterable' => [fn () => [MediaField::make('cover')->filterable()], 'the Media Field "cover" cannot be filterable'],
     'default' => [fn () => [MediaField::make('cover')->default('x')], 'cannot take a default'],
-    'in a Group' => [fn () => [Group::make('rows', [MediaField::make('cover')])], 'cannot hold the relation'],
-    'as a target' => [fn () => [MediaField::make('cover'), Text::make('note')->visibleWhenFilled('cover')], 'according to the relation'],
+    'in a Group' => [fn () => [Group::make('rows', [MediaField::make('cover')])], 'cannot hold the Media Field "cover"'],
+    'as a target' => [fn () => [MediaField::make('cover'), Text::make('note')->visibleWhenFilled('cover')], 'according to the Media Field "cover"'],
 ]);
 
 it('keeps a Media item an Entry links, through an indexed foreign key', function (): void {
@@ -266,6 +283,16 @@ describe('picker', function (): void {
 
         app(DeferredCallbackCollection::class)->invoke();
         expect(Storage::disk('public')->exists(MediaResource::thumbnail($media)->path()))->toBeTrue();
+    });
+
+    it('adds a file uploaded from a multiple picker after the picks', function (): void {
+        $pixel = storedMedia();
+
+        $page = illustratedProject()->set('data.gallery', [$pixel->id])
+            ->callAction(pickerUpload('gallery'), ['file' => UploadedFile::fake()->createWithContent('brochure.pdf', (string) file_get_contents(fixture('media/brochure.pdf')))])
+            ->assertHasNoErrors();
+
+        expect($page->get('data.gallery'))->toBe([$pixel->id, Media::query()->where('name', 'brochure')->sole()->id]);
     });
 
     it('shows a refused upload as an error on the file', function (): void {

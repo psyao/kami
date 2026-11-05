@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Fields;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Media\Media as MediaItem;
 use Psyao\Kami\Sites\Internal\Site;
@@ -101,5 +102,12 @@ final class Media extends Field
     protected function baseRules(): array
     {
         return ['array', ...$this->multiple ? [] : ['max:1'], References::targetsRule($this->linkable(...))];
+    }
+
+    /** Its targets, as `Entry` loads them: the first alone on a single Field. */
+    #[\Override]
+    protected function cast(mixed $value): mixed
+    {
+        return $this->multiple || ! $value instanceof Collection ? $value : $value->first();
     }
 }
