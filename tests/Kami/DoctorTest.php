@@ -12,6 +12,7 @@ use Illuminate\Foundation\Auth\User as PlainUser;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -25,6 +26,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\Severity;
 use Psyao\Kami\Support\SecurityHeaders;
@@ -75,6 +77,30 @@ function withUnreachableDatabase(): void
     File::ensureDirectoryExists($directory = temporaryPath());
     withSqliteDatabase($directory);
 }
+
+it('lists the image formats the command line encodes, tested afresh, or why one is missing', function () {
+    // Cached while WebP still encodes: the doctor must probe again, not read this.
+    resolve(ImageFormats::class)->available();
+    config(['images.default' => 'gd', 'kami.media.avif' => false]);
+    failingToEncode('webp');
+
+    Artisan::call('kami:doctor');
+
+    expect(Artisan::output())->toContain('Image formats')
+        ->toMatch('/AVIF\W+off \(kami\.media\.avif\)/')
+        ->toMatch('/WebP\W+not available/')
+        ->toMatch('/JPEG, PNG\W+gd, the fallback/');
+});
+
+it('names the driver that encodes a format', function () {
+    if (! array_key_exists('webp', resolve(ImageFormats::class)->probe())) {
+        $this->markTestSkipped('No Image driver encodes WebP on this host.');
+    }
+
+    Artisan::call('kami:doctor');
+
+    expect(Artisan::output())->toMatch('/WebP\W+(gd|imagick) *\n/');
+});
 
 it('finds no problem in a sound environment, without a terminal', function () {
     $this->artisan('kami:doctor', ['--no-interaction' => true])

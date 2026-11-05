@@ -79,9 +79,21 @@ Visitors never receive an original. They receive Conversions: an image re-encode
 - **oriented** as the camera's EXIF says, then stripped of all metadata: no EXIF, no GPS, no camera;
 - **cropped** to the preset's ratio around the centre, when it has one;
 - **never upscaled**: a width above the original's gives the original's;
-- **in the fallback format**: JPEG for a JPEG original, PNG for any other.
+- **in one [format](#formats)**: AVIF, WebP or the fallback format.
 
 An SVG or a document has no Conversion.
+
+### Formats
+
+Conversions are offered in AVIF, then WebP, then the fallback format, which every browser reads: JPEG for a JPEG original, PNG for any other. AVIF and WebP are offered only where this host really encodes them. For each, Kami encodes a 1 × 1 image and reads it back, through the `images.default` driver first, then the other one (GD or Imagick), and generates that format with the first driver that passes. The result is cached for a day on the default cache store, apart for the command line and the web, which may load different extensions.
+
+A host where neither driver encodes AVIF or WebP offers the fallback format alone: a URL in either answers 404 and generates nothing, and every image still shows. The fallback format is never tested.
+
+AVIF costs the most to encode. Set `kami.media.avif` to `false` to offer WebP and the fallback format only; it applies on the next request, without clearing the cache.
+
+When an AVIF or WebP Conversion fails to generate, Kami reports the error, writes nothing, and answers 302 to the fallback-format Conversion at the same width, without the immutable cache: the next request for it tries again. A failure of the fallback format itself answers 500.
+
+`kami:doctor` lists each format with the driver that encodes it on the command line, `not available`, or `off (kami.media.avif)`.
 
 ### Image Presets
 
@@ -111,7 +123,7 @@ Kami ships three presets, whose handles yours cannot take:
 | --- | --- |
 | `admin-thumb` | 1:1, 320 wide, for the admin |
 | `original` | the image's own proportions, at its own width |
-| `kami-social` | 1.91:1, 1200 wide, for social cards |
+| `kami-social` | 1.91:1, 1200 wide, in the fallback format only, for social cards: link previews often read nothing else |
 
 A preset with no width, a width outside 1 to 999,999 pixels, a ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
 
@@ -121,15 +133,16 @@ A preset with no width, a width outside 1 to 999,999 pixels, a ratio side that i
 
 ```php
 $media->url('card', 640);   // https://example.com/media/01jd…/3f9a0c1e/card-640.jpg
+$media->url('card', 640, 'avif');   // …/card-640.avif, where this host encodes AVIF
 $media->url('card');        // the preset's largest width
 $media->url();              // the original preset
 ```
 
-A preset, width or format not declared for the Media item throws `InvalidArgumentException`, and an SVG or a document throws `LogicException`.
+A preset, width or format not declared for the Media item, or a format this host does not offer, throws `InvalidArgumentException`, and an SVG or a document throws `LogicException`.
 
 The URL is `/media/{id}/{version}/{preset}-{width}.{format}`. The version is a short hash of the original file and the preset's ratio: changing either gives new URLs, so a browser or a cache never keeps a stale image, and nothing needs purging. Adding or removing a width leaves the other widths' URLs as they are. The former files stay on disk.
 
-Kami answers 404, and generates nothing, for any Media item, preset, width or format not declared, and for a stale version: nobody can use the site to resize images. Two first requests for the same Conversion generate it once, under a lock of the default cache store; the second one waits and serves the file the first wrote, or answers 503 after 50 seconds. A Conversion carries `Cache-Control: public, max-age=31536000, immutable` and the [front's security headers](security.md#kamis-pages), and no session or cookie.
+Kami answers 404, and generates nothing, for any Media item, preset, width or format not declared or not offered, and for a stale version: nobody can use the site to resize images. Two first requests for the same Conversion generate it once, under a lock of the default cache store; the second one waits and serves the file the first wrote, or answers 503 after 50 seconds. A Conversion carries `Cache-Control: public, max-age=31536000, immutable` and the [front's security headers](security.md#kamis-pages), and no session or cookie.
 
 `media` is reserved: no Prefix or Path starts with it ([Content Types](content-types.md#prefix)).
 
@@ -147,6 +160,7 @@ The `media` key of `config/kami.php`:
         'document' => ['application/pdf'],
     ],
     'max_pixels' => 40_000_000,
+    'avif' => true,
 ],
 ```
 
@@ -155,6 +169,7 @@ The `media` key of `config/kami.php`:
 - `originals_disk` takes any disk of `config/filesystems.php`, local or remote, such as an S3-compatible bucket. Keep it private: originals keep their metadata.
 - `mimes` lists the types accepted per family, as `fileinfo` reports them. Add a type to a family to accept it, for instance `'text/plain'` under `document`. The `video` and `audio` families stay closed.
 - `max_pixels` caps an image's width × height. A server with more memory than shared hosting can raise it.
+- `avif` set to `false` stops offering AVIF ([Formats](#formats)).
 
 ## Reacting to Media
 

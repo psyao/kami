@@ -20,6 +20,9 @@ final class ImagePresets
     /** `original` has one width, the original's own. */
     public const string ORIGINAL = 'original';
 
+    /** Read by link previews, many of which read JPEG and PNG only: the fallback format alone. */
+    public const string SOCIAL = 'kami-social';
+
     /** @var array<mixed>|null The `kami.media.presets` last found valid. */
     private ?array $validated = null;
 
@@ -39,6 +42,18 @@ final class ImagePresets
     public function widths(ImagePreset $preset, Media $media): array
     {
         return $preset->handle === self::ORIGINAL ? [(int) $media->width] : $preset->widths;
+    }
+
+    /**
+     * The formats a Media item's Conversions of the preset are offered in, in a `<picture>`'s order, the fallback last.
+     *
+     * @return list<string>
+     */
+    public function formats(ImagePreset $preset, Media $media): array
+    {
+        $fallback = Conversion::fallbackFormat($media);
+
+        return $preset->handle === self::SOCIAL ? [$fallback] : [...array_keys(resolve(ImageFormats::class)->available()), $fallback];
     }
 
     /** @return array<string, ImagePreset> Keyed by handle. */
@@ -63,8 +78,7 @@ final class ImagePresets
         $presets = array_column([
             ImagePreset::make('admin-thumb')->ratio(1, 1)->widths([320]),
             ImagePreset::make(self::ORIGINAL),
-            // ponytail: fallback format only because every preset is today; #298 keeps it so once AVIF and WebP come.
-            ImagePreset::make('kami-social')->ratio(1.91, 1)->widths([1200]),
+            ImagePreset::make(self::SOCIAL)->ratio(1.91, 1)->widths([1200]),
         ], null, 'handle');
 
         $shipped = array_keys($presets);

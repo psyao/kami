@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Image\ImageException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Image;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -11,6 +14,7 @@ use Illuminate\Testing\TestResponse;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
+use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Media\Media;
 
 uses(RefreshDatabase::class);
@@ -116,6 +120,68 @@ it('orients, strips the metadata, crops around the centre and never upscales', f
     expect([imagesx($large), imagesy($large)])->toBe([40, 60]);
 })->with(['gd', 'imagick']);
 
+it('serves AVIF and WebP where this host encodes them, in that format', function (string $format): void {
+    if (! array_key_exists($format, resolve(ImageFormats::class)->available())) {
+        // CI's images encode WebP at least: there, a missing one fails rather than skips.
+        if ($format === 'webp' && getenv('CI') !== false) {
+            $this->fail('No Image driver encodes WebP on this CI image.');
+        }
+
+        $this->markTestSkipped("No Image driver encodes {$format} on this host.");
+    }
+
+    $response = $this->get(rotatedPhoto()->url('card', 40, $format))->assertOk()->assertHeader('Content-Type', "image/{$format}");
+
+    expect(getimagesize($response->baseResponse->getFile()->getPathname()))->toMatchArray([0 => 40, 1 => 30, 'mime' => "image/{$format}"]);
+})->with(['avif', 'webp']);
+
+it('answers 404 and generates nothing for a format this host fails to encode, or kami.media.avif switches off', function (string $format, Closure $unavailable): void {
+    $unavailable();
+    $media = rotatedPhoto();
+    $url = str_replace('.jpg', ".{$format}", $media->url('card', 40));
+
+    $this->get($url)->assertNotFound();
+
+    expect(Storage::disk('public')->allFiles())->toBe([])
+        ->and(fn () => $media->url('card', 40, $format))->toThrow(InvalidArgumentException::class, 'has no Conversion');
+})->with([
+    'WebP failing its encode test' => ['webp', fn () => failingToEncode('webp')],
+    'AVIF switched off' => ['avif', fn () => config(['kami.media.avif' => false])],
+]);
+
+it('offers kami-social in the fallback format only', function (): void {
+    $media = rotatedPhoto();
+
+    expect(fn () => $media->url('kami-social', 1200, 'webp'))->toThrow(InvalidArgumentException::class, 'has no Conversion')
+        ->and($media->url('kami-social'))->toEndWith('/kami-social-1200.jpg');
+});
+
+it('answers 302 to the fallback format at the same width when a generation fails, logs it, writes nothing, and retries later', function (): void {
+    $format = array_key_first(resolve(ImageFormats::class)->available()) ?? $this->markTestSkipped('No Image driver encodes AVIF or WebP on this host.');
+    Exceptions::fake();
+    $media = rotatedPhoto();
+    $url = $media->url('card', 40, $format);
+    failingToEncode($format);
+
+    $response = $this->get($url)->assertRedirect($media->url('card', 40));
+
+    // Symfony sorts the directives: compare them one by one.
+    expect(explode(', ', (string) $response->headers->get('Cache-Control')))->not->toContain('immutable')->toContain('no-cache')
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+    Exceptions::assertReported(ImageException::class);
+
+    failingToEncode();
+    $this->get($url)->assertOk()->assertHeader('Content-Type', "image/{$format}");
+});
+
+it('answers 500 when the fallback format itself fails to generate', function (): void {
+    $media = rotatedPhoto();
+    failingToEncode('jpg');
+
+    $this->get($media->url('card', 40))->assertInternalServerError();
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+});
+
 it('answers 404 and writes nothing for anything not declared', function (int $segment, string $value): void {
     $this->get(tampered(rotatedPhoto()->url('card', 40), $segment, $value))->assertNotFound();
 
@@ -126,7 +192,7 @@ it('answers 404 and writes nothing for anything not declared', function (int $se
     'unknown preset' => [6, 'banner-40.jpg'],
     'undeclared width' => [6, 'card-30.jpg'],
     'width with a leading zero' => [6, 'card-040.jpg'],
-    'other format' => [6, 'card-40.webp'],
+    'format never offered' => [6, 'card-40.gif'],
     'unknown format' => [6, 'card-40.exe'],
 ]);
 
