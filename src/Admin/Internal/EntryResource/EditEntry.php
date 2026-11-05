@@ -33,6 +33,7 @@ use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
+use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -149,6 +150,7 @@ final class EditEntry extends EditRecord
             $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
             $values[$key] = match (true) {
                 $value instanceof Collection => $value->modelKeys(),
+                $value instanceof Media => $value->id,
                 $value instanceof Document => RichTextInput::fill($value),
                 $value instanceof InlineMarkdown => $value->raw(),
                 default => $value,

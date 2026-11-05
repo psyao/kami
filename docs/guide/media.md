@@ -70,7 +70,7 @@ Each image's `admin-thumb` Conversion is generated once the upload's response is
 
 ## Reading Media
 
-`Media` is an Eloquent model of the library:
+`Media` is an Eloquent model of the library. An Entry links it through a [Media Field](content-types.md#media), which loads it with its Translations:
 
 ```php
 use Psyao\Kami\Media\Media;

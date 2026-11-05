@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Internal;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -69,7 +69,7 @@ final class EntrySnapshot
 
             $scope = $type->isTranslatable($field) ? $locale : '*';
 
-            if ($field instanceof RelationField) {
+            if ($field->isReference()) {
                 /** @var list<string>|null $ids */
                 $ids = $data[$field->handle];
                 $references[$scope][$field->handle] = $ids ?? [];
@@ -96,9 +96,10 @@ final class EntrySnapshot
         $entry->readIn($snapshot['locale']);
 
         $relations = $type->relationFields();
-        $ids = collect($snapshot['references'])->flatten()->unique()->values()->all();
-        /** @var array<string, Entry> $targets */
-        $targets = $ids === [] ? [] : Entry::query()->readIn($snapshot['locale'])->whereIn('id', $ids)->get()->keyBy('id')->all();
+        $ids = References::split($snapshot['references'], $relations);
+        $entries = array_values(array_unique($ids['entries']));
+        /** @var array<string, Model> $targets */
+        $targets = [...$entries === [] ? [] : Entry::query()->readIn($snapshot['locale'])->whereIn('id', $entries)->get()->keyBy('id')->all(), ...References::media($ids['media'])];
 
         foreach ($relations as $field) {
             $entry->setReferences($field->handle, array_map(fn (array $fields): array => $fields[$field->handle] ?? [], $snapshot['references']), $targets);

@@ -211,6 +211,7 @@ A Field is built with `::make()` and its handle, which names its column:
 | `Repeater` | a list of rows of sub-Fields, read as a list of arrays, `null` with no row | `json` |
 | `Group` | one set of named sub-Fields, read as an array, `null` when all are blank or off | `json` |
 | `Entries` | links to other Entries, read as a Collection in pick order | none: [`kami_references`](#relations) |
+| `Media` | an image or a document of the [Media library](media.md), read as a `Media` or `null`; with `->multiple()`, a Collection in pick order | none: [`kami_references`](#media) |
 
 `Text`, `Textarea` and `RichText` are Translatable: one value per Locale. Every other type is Shared: one value for the whole Entry. `->shared()` and `->translatable()` override that; see [Multilingual](multilingual.md).
 
@@ -375,6 +376,41 @@ A relation can be conditional, and a save that gives its target and hides it rem
 Editors search targets by title and see them in pick order, Drafts included. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
 
 With `->creatable()`, editors holding the target type's `create` Permission also create a target from the picker, with a title alone, in the Locale they edit. It goes through `SaveEntry`, as a Draft. The first read of the declarations refuses it when the picker could not do so: several target types, a Singleton, or a target with a `->required()` Field its default does not fill.
+
+### Media
+
+`Media` links an Entry to items of the Site's [Media library](media.md). It holds one item, read as a `Media` or `null`, and `->multiple()` makes it an ordered list, read as a Collection. `->images()` accepts images only, so a cover is never a PDF:
+
+```php
+use Psyao\Kami\Content\Fields\Media;
+
+Media::make('cover')->images(),
+Media::make('attachments')->multiple(),
+```
+
+The Field's class shares its short name with the `Psyao\Kami\Media\Media` model it reads: alias one of them in a file that names both.
+
+`SaveEntry` takes a Media id, or `null`, for a single Field, and a list of ids in the order to keep for a multiple one. As for `Entries`, giving the Field replaces its links, a blank value removes them, and leaving it out keeps them. An unknown id, an item of another Site, a document under `->images()`, the same id twice or a second id on a single Field is a validation error on the Field, checked in one query per Field.
+
+```php
+app(SaveEntry::class)->handle(Project::class, ['cover' => $photo->id, 'attachments' => [$brochure->id, $plan->id]], $project);
+```
+
+```php
+$projects = Entry::query()->ofType(Project::class)->with('cover')->get();
+
+foreach ($projects as $project) {
+    $project->cover?->alt(); // ?Media, its Translations loaded
+}
+```
+
+`with()` loads it as it loads a relation: the rows' query, which relation Fields share, then the Media items and their Translations in two queries, whatever their number. Read without `with()` among several Entries, it throws under strict mode; a single Entry loads it on first read.
+
+A Media item an Entry links cannot be deleted: the database refuses it. Hard-deleting the Entry removes its links.
+
+It is Shared by default and takes `->translatable()`, `->required()` and conditions as a relation does, under the same rules at the first read of the declarations.
+
+In the admin, editors search the library by name and by alt text in any Locale, each item shown with its thumbnail, or an icon for an SVG or a document. A multiple Field reorders as `Entries` does. Editors holding `kami.media.create` also upload a file from the picker: it goes through `SaveMedia`, up to the [upload limit](media.md#the-library-in-the-admin), and is picked.
 
 ### Taxonomies
 

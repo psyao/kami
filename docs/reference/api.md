@@ -199,6 +199,15 @@ One set of named sub-Fields, read as an array, `null` when all are blank or off.
 
 - `public static function make(string $handle, array $fields = []): static`
 
+## `Psyao\Kami\Content\Fields\Media`
+
+`final class extends Psyao\Kami\Content\Fields\Field`
+
+Links to Media items of the Site's library, kept in `kami_references` with no column in the type's table (ADR 0005).
+
+- `public function images(): static`: Accepts image Media only, checked on save.
+- `public function multiple(): static`: Holds an ordered list, read as a Collection.
+
 ## `Psyao\Kami\Content\Fields\Number`
 
 `final class extends Psyao\Kami\Content\Fields\Field`

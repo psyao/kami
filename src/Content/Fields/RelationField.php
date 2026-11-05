@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Fields;
 
-use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -84,6 +84,13 @@ abstract class RelationField extends Field
         return array_map(fn (string $class): string => $types->find($class)?->handle() ?? $class, $this->targets);
     }
 
+    /** @internal */
+    #[\Override]
+    public function isReference(): bool
+    {
+        return true;
+    }
+
     /** @internal No column: every reader of the type's table goes through `ContentType::columnFields()`. */
     #[\Override]
     public function column(): string
@@ -110,30 +117,6 @@ abstract class RelationField extends Field
     #[\Override]
     protected function baseRules(): array
     {
-        return ['array', $this->targetsRule()];
-    }
-
-    /** On the Field itself, in one query: an error names the Field, not a row. */
-    private function targetsRule(): Closure
-    {
-        return function (string $attribute, mixed $value, Closure $fail): void {
-            if (! is_array($value)) {
-                return;
-            }
-
-            $ids = array_filter($value, is_string(...));
-
-            if (count(array_unique($ids)) !== count($value)) {
-                $fail(__(count($ids) === count($value) ? 'validation.distinct' : 'validation.exists'));
-
-                return;
-            }
-
-            $found = $this->linkable()->whereIn('id', $ids)->count();
-
-            if ($found !== count($ids)) {
-                $fail(__('validation.exists'));
-            }
-        };
+        return ['array', References::targetsRule($this->linkable(...))];
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
@@ -20,6 +21,7 @@ use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Media\Actions\SaveMedia;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
@@ -95,15 +97,17 @@ function readLinked(?string $locale = null): Entry
 
 it('allows exactly one target through the CHECK', function () {
     $entry = linkTarget('Target')->id;
+    Storage::fake('local');
+    $media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'))->id;
 
     // In a savepoint: a refused statement aborts PostgreSQL's whole transaction otherwise.
     $insert = fn (array $row) => DB::transaction(fn () => DB::table('kami_references')->insert(['id' => (string) str()->ulid(), 'source_entry_id' => $entry, 'field' => 'x', 'position' => 0, ...$row]));
 
     expect(fn () => $insert([]))->toThrow(QueryException::class)
-        ->and(fn () => $insert(['target_entry_id' => $entry, 'target_media_id' => (string) str()->ulid()]))->toThrow(QueryException::class);
+        ->and(fn () => $insert(['target_entry_id' => $entry, 'target_media_id' => $media]))->toThrow(QueryException::class);
 
     $insert(['target_entry_id' => $entry]);
-    $insert(['target_media_id' => (string) str()->ulid()]);
+    $insert(['target_media_id' => $media]);
 
     expect(DB::table('kami_references')->count())->toBe(2);
 });
@@ -333,7 +337,7 @@ it('refuses what a relation cannot honour, at first read', function (Closure $fi
 it('refuses a required relation on a Global Set', function () {
     config(['kami.types' => [Article::class, LinkedSet::class]]);
 
-    expect(fn () => resolve(ContentTypes::class)->all())->toThrow(InvalidArgumentException::class, 'a relation takes no default');
+    expect(fn () => resolve(ContentTypes::class)->all())->toThrow(InvalidArgumentException::class, 'a link takes no default');
 });
 
 it('gives a relation Field no column in kami:make:migration', function () {

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('field', 40);
             $table->string('locale', 20)->nullable();
             $table->foreignUlid('target_entry_id')->nullable()->constrained('kami_entries')->cascadeOnDelete();
-            // ponytail: no foreign key, as `kami_media` does not exist yet; M5 adds it along with the table.
+            // Its foreign key and index come with `kami_media`, in 2026_11_05_000000.
             $table->ulid('target_media_id')->nullable();
             $table->unsignedInteger('position');
         });

@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
-use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\References;
@@ -140,8 +139,8 @@ class Entry extends Model
     /**
      * @internal
      *
-     * @param  array<string, list<string>>  $byLocale  A relation Field's target ids, by Locale; they answer Fallback as a column's value does.
-     * @param  array<string, self>  $targets  What may be read, by id: an absent target is left out.
+     * @param  array<string, list<string>>  $byLocale  A relation or Media Field's target ids, by Locale; they answer Fallback as a column's value does.
+     * @param  array<string, Model>  $targets  What may be read, by id: an absent target is left out.
      */
     public function setReferences(string $handle, array $byLocale, array $targets): void
     {
@@ -159,7 +158,7 @@ class Entry extends Model
         /** @var list<string> $ids */
         $ids = $this->fieldRows[$locale][$handle] ?? [];
 
-        $this->setRelation($handle, $this->newCollection(array_values(array_filter(array_map(fn (string $id): ?self => $targets[$id] ?? null, $ids)))));
+        $this->setRelation($handle, new Collection(array_values(array_filter(array_map(fn (string $id): ?Model => $targets[$id] ?? null, $ids)))));
     }
 
     /** @internal */
@@ -175,8 +174,8 @@ class Entry extends Model
             return parent::getAttribute($key);
         }
 
-        if ($field instanceof RelationField) {
-            return $this->relationField($field);
+        if ($field->isReference()) {
+            return $field->read($this->relationField($field));
         }
 
         if (! $this->contentType()?->isTranslatable($field)) {
@@ -198,15 +197,15 @@ class Entry extends Model
     {
         $declared = $this->field($field);
 
-        if ($declared instanceof RelationField) {
+        if ($declared instanceof Field && $declared->isReference()) {
             $this->relationField($declared);
         }
 
         return $this->storedFallback($field);
     }
 
-    /** @return Collection<int, self> */
-    private function relationField(RelationField $field): Collection
+    /** @return Collection<int, Model> */
+    private function relationField(Field $field): Collection
     {
         if (! $this->relationLoaded($field->handle)) {
             if ($this->preventsLazyLoading) {
@@ -216,7 +215,7 @@ class Entry extends Model
             References::load([$this], [$field->handle]);
         }
 
-        /** @var Collection<int, self> */
+        /** @var Collection<int, Model> */
         return $this->getRelation($field->handle);
     }
 

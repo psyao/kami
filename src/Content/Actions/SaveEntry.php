@@ -98,10 +98,10 @@ final class SaveEntry
                     continue;
                 }
 
-                if ($field instanceof RelationField) {
+                if ($field->isReference()) {
                     /** @var list<string>|null $targets */
                     $targets = $values[$handle];
-                    References::replace($entry->id, $handle, $contentType->isTranslatable($field) ? $locale : null, $targets ?? []);
+                    References::replace($entry->id, $field, $contentType->isTranslatable($field) ? $locale : null, $targets ?? []);
                 } else {
                     $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $field->write($values[$handle]);
                 }
@@ -249,7 +249,7 @@ final class SaveEntry
         foreach ($fields as $handle => $field) {
             $scope = $contentType->isTranslatable($field) ? $locale : '*';
 
-            if ($field instanceof RelationField) {
+            if ($field->isReference()) {
                 $data[$handle] = array_values(array_diff($references[$scope][$handle] ?? [], $trashed)) ?: null;
 
                 continue;
@@ -335,7 +335,7 @@ final class SaveEntry
                     continue;
                 }
 
-                if ($field instanceof RelationField) {
+                if ($field->isReference()) {
                     $clearedReferences[] = $field->handle;
                 } else {
                     $cleared[$field->handle] = null;

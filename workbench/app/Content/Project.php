@@ -9,6 +9,7 @@ use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\Media;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Terms;
@@ -18,7 +19,7 @@ use Psyao\Kami\Content\Fields\Url;
 use Psyao\Kami\Content\Section;
 use Psyao\Kami\Content\Tab;
 
-/** A form arranged in tabs and a section, with Fields shown only when they apply, a list of rows and a set of named values. */
+/** A form arranged in tabs and a section, with Fields shown only when they apply, a list of rows, a set of named values, links and Media. */
 final class Project extends ContentType
 {
     #[\Override]
@@ -50,6 +51,8 @@ final class Project extends ContentType
             ])->default(['city' => 'Vevey']),
             Entries::make('related')->of(Article::class, Page::class),
             Terms::make('tags')->of(Tag::class),
+            Media::make('cover')->images(),
+            Media::make('gallery')->multiple(),
         ];
     }
 }
