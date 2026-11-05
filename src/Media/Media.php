@@ -71,7 +71,7 @@ final class Media extends Model
      * reads (JPEG, or PNG for any other original).
      *
      * @throws InvalidArgumentException For a preset, width or format not declared for this Media item.
-     * @throws LogicException For a document or an SVG, which has no Conversion.
+     * @throws LogicException For a document or an SVG, which is never converted.
      */
     public function url(?string $preset = null, ?int $width = null, ?string $format = null): string
     {
