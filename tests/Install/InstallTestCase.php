@@ -62,14 +62,24 @@ abstract class InstallTestCase extends Orchestra
         parent::setUp();
 
         // The skeleton ships `public/` without a directory: anything there was published by an earlier run.
-        File::deleteDirectories(public_path());
+        $this->deletePublicFiles();
         // What a deploy script exports for the first administrator; a test about its absence unsets it.
         $_SERVER['KAMI_ADMIN_PASSWORD'] = 'correct horse battery';
     }
 
+    /** The `public/media` link first: deleting it as a directory would empty its target and keep the link. */
+    private function deletePublicFiles(): void
+    {
+        if (is_link($media = public_path('media'))) {
+            unlink($media);
+        }
+
+        File::deleteDirectories(public_path());
+    }
+
     protected function tearDown(): void
     {
-        File::deleteDirectories(public_path());
+        $this->deletePublicFiles();
         unset($_SERVER['KAMI_ADMIN_PASSWORD']);
 
         parent::tearDown();

@@ -65,11 +65,7 @@ final readonly class Conversion
         return substr(hash('xxh3', $this->media->checksum . '|' . implode(':', $this->preset->ratio ?? [])), 0, 8);
     }
 
-    /**
-     * On `kami.media.public_disk`, which `public/media` links to.
-     *
-     * ponytail: nothing creates the link yet, so every request goes through PHP; #297 links it in `kami:install` with its `.htaccess`.
-     */
+    /** On `kami.media.public_disk`, which `kami:install` links `public/media` to: Apache serves the file once written. */
     public function path(): string
     {
         return "media/{$this->media->id}/{$this->version()}/{$this->preset->handle}-{$this->width}.{$this->format}";

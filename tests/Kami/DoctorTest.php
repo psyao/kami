@@ -10,8 +10,12 @@ use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as PlainUser;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Admin\InitialsAvatarProvider;
@@ -22,6 +26,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Psyao\Kami\Support\Internal\Doctor\Severity;
 use Psyao\Kami\Support\SecurityHeaders;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -49,6 +54,7 @@ final class Rendered extends ContentType
 // An empty database, whatever the engine: tables another test left on MySQL or MariaDB, which do not roll back, would read as drift. `ContentModelDriftTest` covers the engines.
 beforeEach(function () {
     config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty']);
+    withConversionsServed();
 });
 
 function withoutExtensions(string ...$missing): Doctor
@@ -287,6 +293,8 @@ it('links every problem to a section of the guide', function () {
     app('router')->middlewareGroup('web', []);
     File::put($hot = temporaryPath(), 'http://[::1]:5173');
     Vite::useHotFile($hot);
+    config(['cache.default' => 'array']);
+    $this->served = Http::response('', 404);
 
     foreach ($everything->problems() as $problem) {
         [$page, $anchor] = explode('#', $problem->guide);
@@ -433,4 +441,116 @@ it('warns about each missing label key, per language, leaving help texts optiona
         ->expectsOutputToContain('docs/guide/content-types.md#labels')
         ->doesntExpectOutputToContain('.help')
         ->assertSuccessful();
+});
+
+describe('Conversions', function () {
+    /** @return list<array{0: Severity, 1: string}> */
+    function mediaProblems(): array
+    {
+        return collect(resolve(Doctor::class)->problems())
+            ->filter(fn ($problem) => str_starts_with($problem->guide, 'hosting.md#'))
+            ->map(fn ($problem) => [$problem->severity, $problem->message])
+            ->values()->all();
+    }
+
+    it('fails on a missing public/media link, naming kami:install', function () {
+        unlink(public_path('media'));
+
+        $problem = collect(resolve(Doctor::class)->problems())->firstWhere('guide', 'hosting.md#conversions');
+
+        expect($problem->severity)->toBe(Severity::Error)
+            ->and($problem->message)->toBe('public/media does not link to the public disk\'s media directory (' . Storage::disk('public')->path('media') . '): every Conversion goes through PHP.')
+            ->and($problem->fix)->toContain('php artisan kami:install');
+        Http::assertNothingSent();
+    });
+
+    it('fails on a link to another directory', function () {
+        unlink(public_path('media'));
+        File::link(temporaryPath(), public_path('media'));
+
+        $problems = mediaProblems();
+
+        expect($problems)->toHaveCount(1)->{0}->{0}->toBe(Severity::Error);
+    });
+
+    it('accepts a relative link to the media directory, as a deploy tool may write one', function () {
+        unlink(public_path('media'));
+        // public/ and the disk's root are siblings under the temporary directory.
+        symlink('../' . basename(config('filesystems.disks.public.root')) . '/media', public_path('media'));
+
+        $problems = mediaProblems();
+
+        expect($problems)->toBeEmpty();
+    });
+
+    it('fails on a public disk that is not local', function () {
+        config(['filesystems.disks.remote' => ['driver' => 's3'], 'kami.media.public_disk' => 'remote']);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Error, 'kami.media.public_disk is remote, whose driver is s3: Conversions need a local disk, which public/media links to.']]);
+        Http::assertNothingSent();
+    });
+
+    it('fails on a lock store each PHP worker keeps to itself, without blocking kami:install', function (string $driver) {
+        config(['cache.stores.mine' => ['driver' => $driver], 'cache.default' => 'mine']);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Error, "The default cache store, mine, uses the {$driver} driver: its locks hold within one PHP worker, so two visitors can generate the same Conversion at once."]])
+            ->and(resolve(Doctor::class)->blocking())->toBeEmpty();
+    })->with(['array', 'null']);
+
+    it('requests a probe file at the Site\'s URL, and deletes it', function () {
+        $problems = mediaProblems();
+
+        expect($problems)->toBeEmpty()
+            ->and(Storage::disk('public')->allFiles('media'))->toBe(['media/.htaccess']);
+        Http::assertSent(fn (Request $request) => $request->url() === 'http://localhost/media/kami-doctor.svg');
+    });
+
+    it('reads Cache-Control\'s directives in any order, as Laravel sends them', function () {
+        $this->served = Http::response('<svg/>', 200, [
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'immutable, max-age=31536000, public',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+        ]);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toBeEmpty();
+    });
+
+    it('warns about each header the server does not send, as nginx does not without its configuration', function () {
+        $this->served = Http::response('<svg/>', 200, ['Cache-Control' => 'max-age=3600']);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Warning, 'Files under public/media go out without X-Content-Type-Options: nosniff, Cache-Control: public, max-age=31536000, immutable, Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; img-src data:.']]);
+    });
+
+    it('warns when the probe file is not served', function () {
+        $this->served = Http::response('Not Found', 404);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Warning, 'http://localhost/media/kami-doctor.svg answers 404: the server does not serve public/media.']]);
+    });
+
+    it('only informs when the Site sits behind a password', function (int $status) {
+        $this->served = Http::response('', $status);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Info, "The headers of public/media were not checked: http://localhost/media/kami-doctor.svg answers {$status}, behind a password or a firewall."]]);
+    })->with([401, 403]);
+
+    it('only informs when the Site\'s URL cannot be reached from here', function () {
+        $this->served = fn () => throw new ConnectionException('Could not resolve host');
+
+        $problems = mediaProblems();
+
+        expect($problems)->toEqual([[Severity::Info, 'The headers of public/media were not checked: http://localhost cannot be reached from here (Could not resolve host).']])
+            ->and(Storage::disk('public')->allFiles('media'))->toBe(['media/.htaccess']);
+    });
 });

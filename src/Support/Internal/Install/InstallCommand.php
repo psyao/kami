@@ -22,6 +22,7 @@ use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
+use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
@@ -82,6 +83,12 @@ final class InstallCommand extends Command
 
         // Filament's own command, present wherever Kami runs (ADR 0001): it copies the admin's assets to public/, so the server needs no Node.
         if ($this->call('filament:assets') !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        if (($refusal = PublicMedia::install()) !== null) {
+            $this->components->error("public/media cannot be linked: {$refusal} Then run kami:install again.");
+
             return self::FAILURE;
         }
 
