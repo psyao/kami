@@ -84,6 +84,13 @@ it('takes several files dragged onto the library at once', function () {
 
     expect(Media::query()->count())->toBe(2);
 
-    visit('/admin/media')->inDarkMode()->assertSee('logo')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
-    visit('/admin/media')->on()->mobile()->assertSee('logo')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+    // Under reduced motion, as `signIn()`: axe never measures the modal mid-fade.
+    foreach ([visit('/admin/media', ['reducedMotion' => 'reduce'])->inDarkMode(), visit('/admin/media', ['reducedMotion' => 'reduce'])->on()->mobile()] as $page) {
+        $page->assertSee('logo')
+            ->assertNoAccessibilityIssues()
+            ->click('internal:role=button[name="Upload"s]')
+            ->assertPresent('.filepond--drop-label')
+            ->assertNoAccessibilityIssues()
+            ->assertNoJavaScriptErrors();
+    }
 });

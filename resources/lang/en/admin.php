@@ -217,6 +217,7 @@ return [
             'submit' => 'Upload',
             'saved' => '{1} :count file uploaded.|[2,*] :count files uploaded.',
             'refused' => '{1} :count file refused|[2,*] :count files refused',
+            'failed' => "This file could not be saved: try again, or tell the site's administrator.",
         ],
         'refused' => [
             'type' => 'Files of type :type are not accepted.',

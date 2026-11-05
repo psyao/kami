@@ -217,6 +217,7 @@ return [
             'submit' => 'Ajouter',
             'saved' => '{1} :count fichier ajouté.|[2,*] :count fichiers ajoutés.',
             'refused' => '{1} :count fichier refusé|[2,*] :count fichiers refusés',
+            'failed' => 'Ce fichier n’a pas pu être enregistré : réessayez, ou prévenez l’administrateur du site.',
         ],
         'refused' => [
             'type' => 'Les fichiers de type :type ne sont pas acceptés.',

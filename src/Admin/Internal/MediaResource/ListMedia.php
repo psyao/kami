@@ -13,6 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Throwable;
@@ -30,7 +31,7 @@ final class ListMedia extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        $limit = MediaResource::uploadLimit();
+        $limit = $this->uploadLimit();
 
         return [
             Action::make('upload')
@@ -53,6 +54,25 @@ final class ListMedia extends ListRecords
         ];
     }
 
+    /** In bytes, per file: the lowest of PHP's `upload_max_filesize` and `post_max_size` and Livewire's rule for temporary uploads, which every upload passes first. */
+    private function uploadLimit(): int
+    {
+        $limit = UploadedFile::getMaxFilesize();
+
+        foreach (Arr::wrap(FileUploadConfiguration::rules()) as $rule) {
+            if (is_string($rule) && preg_match('/^max:(\d+)$/', $rule, $match) === 1) {
+                $limit = min($limit, (int) $match[1] * 1024);
+            }
+        }
+
+        return (int) $limit;
+    }
+
+    private function refusal(UploadedFile $file, string $reason): string
+    {
+        return '<strong>' . e($file->getClientOriginalName()) . '</strong>: ' . e($reason);
+    }
+
     /** @param  array<UploadedFile>  $files */
     private function upload(array $files): void
     {
@@ -63,7 +83,11 @@ final class ListMedia extends ListRecords
             try {
                 $saved[] = resolve(SaveMedia::class)->handle($file, actor: Filament::auth()->user());
             } catch (ValidationException $exception) {
-                $refused[] = '<strong>' . e($file->getClientOriginalName()) . '</strong>: ' . e($exception->validator->errors()->first());
+                $refused[] = $this->refusal($file, $exception->validator->errors()->first());
+            } catch (Throwable $exception) {
+                // Logged, never shown: one file that fails for another reason does not cost the editor the others.
+                report($exception);
+                $refused[] = $this->refusal($file, __('kami::admin.media.upload.failed'));
             }
         }
 

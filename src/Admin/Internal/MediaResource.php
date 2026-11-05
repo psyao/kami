@@ -9,10 +9,7 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Number;
-use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Psyao\Kami\Admin\Internal\MediaResource\ListMedia;
 use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Internal\Conversion;
@@ -83,7 +80,7 @@ final class MediaResource extends FilamentResource
             ->paginationPageOptions([10, 25, 50]);
     }
 
-    /** `missing` as `kami:doctor` and the publish warning count it: an image, not decorative, with a blank alt text in the default Locale. */
+    /** `missing`: an image, not decorative, with a blank alt text in the default Locale. */
     private static function altState(Media $media): string
     {
         $alt = $media->translations->firstWhere('locale', Site::current()->defaultLocale())?->alt;
@@ -106,20 +103,6 @@ final class MediaResource extends FilamentResource
         $preset = resolve(ImagePresets::class)->find(ImagePresets::ADMIN_THUMB);
 
         return $preset instanceof ImagePreset ? Conversion::find($media, $preset->handle, $preset->widths[0], Conversion::fallbackFormat($media)) : null;
-    }
-
-    /** In bytes, per file: the lowest of PHP's `upload_max_filesize` and `post_max_size` and Livewire's rule for temporary uploads, which every upload passes first. */
-    public static function uploadLimit(): int
-    {
-        $limit = UploadedFile::getMaxFilesize();
-
-        foreach (Arr::wrap(FileUploadConfiguration::rules()) as $rule) {
-            if (is_string($rule) && preg_match('/^max:(\d+)$/', $rule, $match) === 1) {
-                $limit = min($limit, (int) $match[1] * 1024);
-            }
-        }
-
-        return (int) $limit;
     }
 
     public static function getPages(): array
