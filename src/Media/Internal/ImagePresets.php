@@ -60,16 +60,12 @@ final class ImagePresets
      */
     private function validate(array $declared): array
     {
-        $presets = [];
-
-        foreach ([
+        $presets = array_column([
             ImagePreset::make('admin-thumb')->ratio(1, 1)->widths([320]),
             ImagePreset::make(self::ORIGINAL),
             // ponytail: fallback format only because every preset is today; #298 keeps it so once AVIF and WebP come.
             ImagePreset::make('kami-social')->ratio(1.91, 1)->widths([1200]),
-        ] as $shipped) {
-            $presets[$shipped->handle] = $shipped;
-        }
+        ], null, 'handle');
 
         $shipped = array_keys($presets);
 
