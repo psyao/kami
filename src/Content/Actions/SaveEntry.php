@@ -383,7 +383,7 @@ final class SaveEntry
     }
 
     /**
-     * The Path's characters, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
+     * The Path's characters, `media` as first segment, which Media Conversions answer under, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
      *
      * ponytail: at save only, so a Locale or Prefix declared later can still hide a stored Path; M7's reserved paths lift it.
      */
@@ -398,6 +398,8 @@ final class SaveEntry
 
             if (! Path::isAnswerable($path)) {
                 $fail(__('validation.regex'));
+            } elseif (explode('/', $path)[0] === Path::MEDIA) {
+                $fail(__('validation.not_in'));
             } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array(explode('/', $path)[0], array_slice($site->locales, 1), true)) {
                 $fail(__('validation.not_in'));
             }

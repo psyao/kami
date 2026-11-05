@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Psyao\Kami;
 
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Image\ImageManager;
 use Illuminate\Routing\Router;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
+use Psyao\Kami\Media\Internal\ImagePresets;
+use Psyao\Kami\Media\Internal\StripMetadata;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -35,6 +38,7 @@ final class KamiServiceProvider extends PackageServiceProvider
     {
         $this->app->singleton(PluginRegistration::class);
         $this->app->singleton(ContentTypes::class);
+        $this->app->singleton(ImagePresets::class);
 
         // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
         config(['app.timezone' => 'UTC']);
@@ -53,5 +57,9 @@ final class KamiServiceProvider extends PackageServiceProvider
 
         // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
         $this->callAfterResolving(Gate::class, Permissions::register(...));
+        $this->callAfterResolving('image', function (ImageManager $images): void {
+            $images->transformUsing('gd', StripMetadata::class, StripMetadata::handle(...));
+            $images->transformUsing('imagick', StripMetadata::class, StripMetadata::handle(...));
+        });
     }
 }

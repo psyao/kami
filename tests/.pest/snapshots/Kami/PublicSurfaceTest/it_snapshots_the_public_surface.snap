@@ -191,11 +191,21 @@ class Psyao\Kami\Media\Events\MediaSaved::$created public protected(set) readonl
 class Psyao\Kami\Media\Events\MediaSaved::$locale public protected(set) readonly string $locale
 class Psyao\Kami\Media\Events\MediaSaved::$media public protected(set) readonly Psyao\Kami\Media\Media $media
 class Psyao\Kami\Media\Events\MediaSaved::__construct() public function __construct(Psyao\Kami\Media\Media $media, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Media\ImagePreset final class
+class Psyao\Kami\Media\ImagePreset::$handle public protected(set) readonly string $handle
+class Psyao\Kami\Media\ImagePreset::$ratio final public private(set) ?array $ratio = NULL
+class Psyao\Kami\Media\ImagePreset::$sizes final public private(set) ?string $sizes = NULL
+class Psyao\Kami\Media\ImagePreset::$widths final public private(set) array $widths = []
+class Psyao\Kami\Media\ImagePreset::make() public static function make(string $handle): Psyao\Kami\Media\ImagePreset
+class Psyao\Kami\Media\ImagePreset::ratio() public function ratio(int|float $width, int|float $height): Psyao\Kami\Media\ImagePreset
+class Psyao\Kami\Media\ImagePreset::sizes() public function sizes(string $sizes): Psyao\Kami\Media\ImagePreset
+class Psyao\Kami\Media\ImagePreset::widths() public function widths(array $widths): Psyao\Kami\Media\ImagePreset
 class Psyao\Kami\Media\Media final class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Media\Media::alt() public function alt(): ?string
 class Psyao\Kami\Media\Media::caption() public function caption(): ?string
 class Psyao\Kami\Media\Media::isDecorative() public function isDecorative(): bool
 class Psyao\Kami\Media\Media::isImage() public function isImage(): bool
+class Psyao\Kami\Media\Media::url() public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string
 class Psyao\Kami\Schema\ContentMigrator final class
 class Psyao\Kami\Schema\ContentMigrator::dropLocale() public static function dropLocale(string $locale): void
 class Psyao\Kami\Schema\ContentMigrator::dropType() public static function dropType(string $type): void
@@ -228,6 +238,8 @@ config kami.media.max_pixels
 config kami.media.mimes.document
 config kami.media.mimes.image
 config kami.media.originals_disk
+config kami.media.presets
+config kami.media.public_disk
 config kami.resources.entry
 config kami.roles.administrator
 config kami.security.csp

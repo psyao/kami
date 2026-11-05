@@ -88,6 +88,7 @@ it('fails on an invalid declaration, naming the class and the handle', function 
     'type handle not snake_case' => ['NewsItem', [], [Declared::class], 'Declared: the handle "NewsItem" is not snake_case'],
     'type handle with a double underscore' => ['news__item', [], [Declared::class], 'Declared: the handle "news__item" is not snake_case'],
     'type handle too long' => [str_repeat('a', 41), [], [Declared::class], 'Declared: the handle "' . str_repeat('a', 41) . '" is longer than 40 characters'],
+    'Prefix reserved for Media' => ['media', [], [Declared::class], 'Declared: the Prefix "media" is reserved for Media Conversions'],
     'duplicate type handle' => ['declared', [], [Declared::class, Twin::class], 'Twin: the handle "declared" is already the handle of Declared'],
     'Field handle not snake_case' => ['declared', [Text::make('coverAlt')], [Declared::class], 'Declared: the Field handle "coverAlt" is not snake_case'],
     'Field handle too long' => ['declared', [Text::make(str_repeat('b', 41))], [Declared::class], 'Declared: the Field handle "' . str_repeat('b', 41) . '" is longer than 40 characters'],

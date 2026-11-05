@@ -72,13 +72,76 @@ $media->height;
 $media->credit;
 ```
 
+## Conversions
+
+Visitors never receive an original. They receive Conversions: an image re-encoded at one width, in one format, through an Image Preset. A Conversion is generated on the first request for it, written to `kami.media.public_disk` under `media/`, and served as a static file from then on ([ADR 0017](../adr/0017-conversions-generated-on-first-request.md)). Every Conversion is:
+
+- **oriented** as the camera's EXIF says, then stripped of all metadata: no EXIF, no GPS, no camera;
+- **cropped** to the preset's ratio around the centre, when it has one;
+- **never upscaled**: a width above the original's gives the original's;
+- **in the fallback format**: JPEG for a JPEG original, PNG for any other.
+
+An SVG or a document has no Conversion.
+
+### Image Presets
+
+A preset names a way of showing images. List yours in `config/kami.php`:
+
+```php
+use Psyao\Kami\Media\ImagePreset;
+
+'media' => [
+    'presets' => [
+        ImagePreset::make('card')->ratio(4, 3)->widths([320, 640, 960, 1280])->sizes('(min-width: 60rem) 33vw, 100vw'),
+        ImagePreset::make('content')->widths([640, 1280]),
+    ],
+],
+```
+
+| Method | Effect |
+| --- | --- |
+| `make($handle)` | Lowercase letters and digits, words joined by hyphens: `card`, `hero-wide`. It appears in the URL. |
+| `ratio($width, $height)` | Crops every Conversion to this ratio around the centre: `ratio(4, 3)`, `ratio(1.91, 1)`. Without it, each image keeps its own proportions. |
+| `widths([...])` | The only widths generated, in pixels. |
+| `sizes($sizes)` | The default `sizes` of the image's `srcset`. |
+
+Kami ships three presets, whose handles yours cannot take:
+
+| Handle | Conversions |
+| --- | --- |
+| `admin-thumb` | 1:1, 320 wide, for the admin |
+| `original` | the image's own proportions, at its own width |
+| `kami-social` | 1.91:1, 1200 wide, for social cards |
+
+A preset with no width, a width or ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
+
+### URLs
+
+`url()` gives the absolute URL of a Conversion:
+
+```php
+$media->url('card', 640);   // https://example.com/media/01jd…/3f9a0c1e/card-640.jpg
+$media->url('card');        // the preset's largest width
+$media->url();              // the original preset
+```
+
+A preset, width or format not declared for the Media item throws `InvalidArgumentException`, and an SVG or a document throws `LogicException`.
+
+The URL is `/media/{id}/{version}/{preset}-{width}.{format}`. The version is a short hash of the original file and the preset's ratio: changing either gives new URLs, so a browser or a cache never keeps a stale image, and nothing needs purging. Adding or removing a width leaves the other widths' URLs as they are. The former files stay on disk.
+
+Kami answers 404, and generates nothing, for any Media item, preset, width or format not declared, and for a stale version: nobody can use the site to resize images. Two first requests for the same Conversion generate it once, under a lock of the default cache store; the second one waits and serves the file the first wrote, or answers 503 after 50 seconds. A Conversion carries `Cache-Control: public, max-age=31536000, immutable` and the [front's security headers](security.md#kamis-pages), and no session or cookie.
+
+`media` is reserved: no Prefix or Path starts with it ([Content Types](content-types.md#prefix)).
+
 ## Configuration
 
 The `media` key of `config/kami.php`:
 
 ```php
 'media' => [
+    'presets' => [],
     'originals_disk' => 'local',
+    'public_disk' => 'public',
     'mimes' => [
         'image' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'],
         'document' => ['application/pdf'],
@@ -87,6 +150,8 @@ The `media` key of `config/kami.php`:
 ],
 ```
 
+- `presets` lists the site's [Image Presets](#image-presets).
+- `public_disk` is the local disk Conversions are written to, under `media/`.
 - `originals_disk` takes any disk of `config/filesystems.php`, local or remote, such as an S3-compatible bucket. Keep it private: originals keep their metadata.
 - `mimes` lists the types accepted per family, as `fileinfo` reports them. Add a type to a family to accept it, for instance `'text/plain'` under `document`. The `video` and `audio` families stay closed.
 - `max_pixels` caps an image's width × height. A server with more memory than shared hosting can raise it.

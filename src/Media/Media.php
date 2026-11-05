@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
+use LogicException;
+use Psyao\Kami\Media\Internal\Conversion;
+use Psyao\Kami\Media\Internal\ImagePresets;
 use Psyao\Kami\Media\Internal\MediaTranslation;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -58,6 +62,28 @@ final class Media extends Model
     public function isDecorative(): bool
     {
         return (bool) $this->decorative;
+    }
+
+    /**
+     * The absolute URL of a Conversion: an Image Preset at one of its widths, in a format. Without a preset, the `original` one;
+     * without a width, the preset's largest; without a format, the one every browser reads (JPEG, or PNG for any other original).
+     *
+     * @throws InvalidArgumentException For a preset, width or format not declared for this Media item.
+     */
+    public function url(?string $preset = null, ?int $width = null, ?string $format = null): string
+    {
+        // ponytail: raster images only; #300 gives documents and SVG the URL of their file.
+        if (! Conversion::isConvertible($this)) {
+            throw new LogicException("Media [{$this->id}] is a document or an SVG: it has no Conversion.");
+        }
+
+        $presets = resolve(ImagePresets::class);
+        $declared = $presets->find($preset ??= ImagePresets::ORIGINAL) ?? throw new InvalidArgumentException("No Image Preset [{$preset}] is declared.");
+        $width ??= max([0, ...$presets->widths($declared, $this)]);
+        $format ??= Conversion::fallbackFormat($this);
+
+        return Conversion::find($this, $preset, $width, $format)?->url()
+            ?? throw new InvalidArgumentException("The Image Preset [{$preset}] has no Conversion of Media [{$this->id}] {$width} pixels wide in {$format}.");
     }
 
     /** In the current Locale, or the default Locale's when blank there; null when both are. */

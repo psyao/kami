@@ -69,6 +69,8 @@ A handle is snake_case (lowercase letters and digits, words joined by single und
 | `'articles'` | `/articles/hello` |
 | `''` | `/hello` |
 
+`media` is reserved for [Media Conversions](media.md#conversions): a Prefix starting with it, or a type with no `$prefix` whose handle is `media`, fails like an invalid handle.
+
 Changing a Prefix moves the type's Entries on the next `kami:install` ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
 ### Types with no URL
