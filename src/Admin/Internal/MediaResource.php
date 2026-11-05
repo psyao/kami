@@ -32,9 +32,6 @@ final class MediaResource extends FilamentResource
     #[\Override]
     protected static ?string $slug = 'media';
 
-    #[\Override]
-    protected static ?string $recordTitleAttribute = 'name';
-
     public static function getModelLabel(): string
     {
         return __('kami::admin.media.label');
