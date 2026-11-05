@@ -1,6 +1,6 @@
 ---
 name: kami-development
-description: Builds, installs, deploys and checks sites on Kami, the CMS package in this Laravel application. Use when creating a Kami site or adding Kami to an application, declaring a Content Type or its Fields, writing or publishing Entries, adding a Locale, rendering a type, reacting to content changes, changing security headers, managing Roles and Permissions, deploying or updating a site, fixing a kami:doctor or kami:install problem, or choosing what runs on shared hosting.
+description: Builds, installs, deploys and checks sites on Kami, the CMS package in this Laravel application. Use when creating a Kami site or adding Kami to an application, declaring a Content Type or its Fields, writing or publishing Entries, storing Media, adding a Locale, rendering a type, reacting to content changes, changing security headers, managing Roles and Permissions, deploying or updating a site, fixing a kami:doctor or kami:install problem, or choosing what runs on shared hosting.
 ---
 
 # Kami development
@@ -27,6 +27,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Trash or restore Entries (`TrashEntry`, `RestoreEntry`) | `vendor/psyao/kami/docs/guide/content-types.md#the-trash` |
 | Act on selected rows, or add a row, header or bulk action of your own writing through a core action | `vendor/psyao/kami/docs/guide/content-types.md#your-own-actions` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
+| Store an image or a document (`SaveMedia`), write its alt text, or change what the library accepts | `vendor/psyao/kami/docs/guide/media.md` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |
 | Render a type, write its view, override `render()` or place `Kami::routes()` | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |
 | Load from another origin, extend the front CSP, or weigh an option that weakens it | `vendor/psyao/kami/docs/guide/security.md` |

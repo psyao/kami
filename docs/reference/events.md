@@ -93,3 +93,15 @@ A never-published Translation was deleted through `DeleteTranslation`, once the 
 - `public protected(set) readonly string $site`
 - `public protected(set) readonly string $type`
 - `public function __construct(string $entryId, string $type, string $site, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
+## `Psyao\Kami\Media\Events\MediaSaved`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Media item was saved through `SaveMedia`, once its transaction committed (ADR 0029).
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly bool $created`
+- `public protected(set) readonly string $locale`
+- `public protected(set) readonly Psyao\Kami\Media\Media $media`
+- `public function __construct(Psyao\Kami\Media\Media $media, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`

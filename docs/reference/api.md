@@ -391,6 +391,25 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 - `public function packageBooted(): void`
 - `public function packageRegistered(): void`
 
+## `Psyao\Kami\Media\Actions\SaveMedia`
+
+`final class`
+
+Stores a file in the Site's Media library, or writes a Media item's alt text, caption, credit and `decorative`: the one way Media is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
+
+- `public function handle(Illuminate\Http\UploadedFile|string|null $file, array $values = [], ?Psyao\Kami\Media\Media $media = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Media\Media`
+
+## `Psyao\Kami\Media\Media`
+
+`final class extends Illuminate\Database\Eloquent\Model`
+
+An image or a document of the Site's library (ADR 0017), written through `SaveMedia`. Its alt text and caption are per Locale; the file, the credit and `decorative` are shared (ADR 0013).
+
+- `public function alt(): ?string`: In the current Locale, or the default Locale's when blank there; null when both are.
+- `public function caption(): ?string`: In the current Locale, or the default Locale's when blank there; null when both are.
+- `public function isDecorative(): bool`: Marked as adding nothing to the page: rendered with `alt=""`, never reported as missing its alt text.
+- `public function isImage(): bool`
+
 ## `Psyao\Kami\Schema\ContentMigrator`
 
 `final class`

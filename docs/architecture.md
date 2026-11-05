@@ -167,11 +167,25 @@ erDiagram
     kami_media {
         ulid id PK
         string site
-        ulid folder_id FK
-        string file
-        float focal_x
-        float focal_y
+        ulid folder_id FK "M12"
+        string file "on the originals disk"
+        string name
+        string mime
+        string family "image | document"
+        int width
+        int height
+        string checksum
+        bool decorative
         string credit
+        float focal_x "M12"
+        float focal_y "M12"
+    }
+    kami_media_translations {
+        ulid id PK
+        ulid media_id FK
+        string locale "unique per Media"
+        text alt
+        text caption
     }
     kami_media_folders {
         ulid id PK
@@ -246,6 +260,7 @@ erDiagram
     kami_entries ||--o{ kami_references : "source"
     kami_references }o--o| kami_entries : "target"
     kami_references }o--o| kami_media : "target"
+    kami_media ||--o{ kami_media_translations : "per Locale"
     kami_media }o--o| kami_media_folders : "folder"
     kami_media_folders |o--o{ kami_media_folders : "parent"
     kami_entries |o--o{ kami_paths : "Path or Redirect"
@@ -263,7 +278,7 @@ Columns are indicative; the migrations are the truth and the schema is internal 
 - **Taxonomy, Singleton, Global Set** are Content Type presets, not tables. A Term is an Entry whose type is a Taxonomy, attached through References; a Taxonomy's `$model` extends `Term`, any other's `Entry`, hydrated per row. A picker creates a target from its title alone under `create`, as a Term published only with `publish`, and refuses several targets, a Singleton or a Field its default does not fill (ADR 0007). A Singleton has one Entry per Site, its Path being its Prefix, and a Global Set is a Singleton with no URL, always published, so a required Field needs a default. Any type may declare `$routable = false`: no Path, no slug, `url()` null (ADR 0007). The site settings are the package's `SiteSettings` Global Set (ADRs 0002, 0029).
 - **`kami_paths` rows with status 200 are derived** from Translations and declarations and rebuilt by `kami:install`. Redirects are primary data (ADR 0008).
 - **Deletion.** A Parent with children, an Entry with Paths or Menu items, and a Media item in use are `RESTRICT`. The core actions turn Paths into Redirects or 410s and remove Menu items first (ADRs 0005, 0008, 0025).
-- **Media.** One library per Site. Alt text and caption are per Locale and follow the same fallback; the file, Focal point and credit are shared (ADR 0013).
+- **Media.** One library per Site. Alt text and caption are per Locale in `kami_media_translations` and follow the same fallback; the file, credit, `decorative` and, from M12, the Focal point are shared (ADR 0013). "Alt text missing" is computed (an image, not decorative, with a blank default-Locale alt), never stored.
 - **Volumes.** 30,000 Entries and 50,000 Media guaranteed and measured on shared hosting; 1,000,000 Entries on a server with no schema change (ADR 0002).
 
 ## Declaring a Content Type
@@ -339,7 +354,7 @@ Each paragraph summarises; the ADR or resolution has the full decision.
 
 **Rich text.** The default allow-list is paragraphs, H2-H4, bold, italic, links, lists, quote, rule and hard break, plus code on request. Internal links are `kami://entry/<ulid>` and are indexed into References. `Document::fromHtml()` serves imports. A `RichText` is refused in a Repeater or a Group. M4 keeps Block nodes and `kami://` hrefs, and hands a Block to the editor as a Filament `customBlock` so that TipTap does not blank the document; M10 renders and offers them. Kami ships two Blocks: `Image`, and `Video` with click-to-load YouTube nocookie and Vimeo `dnt` ([ADR 0016](adr/0016-rich-text-is-a-kami-document-normalised-on-write.md)).
 
-**Media.** Conversions are served at `/media/{ulid}/{v}/{preset}-{width}.{format}`. `<x-kami::image>` emits a `<picture>` with AVIF, then WebP, then the original's format family, each format kept only when a real encode test passes. EXIF is stripped from Conversions, and originals stay private. SVG is served as is under its own CSP. Alt text is required on edit unless the image is marked decorative; imports leave reminders. Uploads above 40 MP are refused ([ADR 0017](adr/0017-conversions-generated-on-first-request.md)).
+**Media.** `SaveMedia` stores an upload or a local path after reading its MIME type from the content against a per-family allowlist (`kami.media.mimes`; video and audio closed), decoding an image and refusing it above the pixel limit; the original goes to `kami.media.originals_disk`, any Laravel disk, private `local` by default. Conversions are served at `/media/{ulid}/{v}/{preset}-{width}.{format}` from the public disk, linked as `public/media` by `kami:install`, and crop around the centre until M12's Focal point. `<x-kami::image>` emits a `<picture>` with AVIF, then WebP, then the original's format family, each format kept only when a real encode test passes. EXIF is stripped from Conversions, and originals stay private. SVG is served as is under its own CSP. Alt text is required on edit unless the image is marked decorative; uploads and imports leave it missing, and a missing one renders `alt=""`. Uploads above 40 MP are refused ([ADR 0017](adr/0017-conversions-generated-on-first-request.md)).
 
 **Cache and performance budget.** Only no-query GET/HEAD 200 responses on the Site's host are cached. Any core write, `kami:install` or the next scheduled visibility change makes every page stale. Site fragments use `Kami::remember()`, versioned the same way, and the starter kit sets `CACHE_STORE=file`. Budgets: at most 15 cold queries per page, constant with volume, with lazy loading forbidden; no JS required; HTML ≤ 30 KB and CSS ≤ 15 KB gzipped; TTFB ≤ 30 ms cached and ≤ 200 ms uncached. Query counts are asserted exactly in tests, and TTFB is measured with `kami:bench` on staging at the end of each rendering milestone, with the loop in `docs/development.md` before M7 ([ADR 0021](adr/0021-page-cache-served-before-boot-invalidated-by-one-content-version.md), [Cache and performance](https://github.com/psyao/kami/issues/20#issuecomment-6404371358)).
 
@@ -393,7 +408,7 @@ What Kami and its starter kit require, and what was rejected. Facts about the ca
 | `filament/filament` `^5.10.2` (official `filament/*` only) | Admin panel, through `KamiPlugin` | MIT | Filament, active (5.10.3, 2026-10) | Two majors at once; third-party Filament plugins (ADR 0023) | Yes: precompiled assets, no Node |
 | `spatie/laravel-package-tools` | Registers config, migrations, views, translations and commands | MIT | Spatie, active; already pulled by Filament | A plain `ServiceProvider`, about 20 more lines ([#10](https://github.com/psyao/kami/issues/10)) | Yes |
 | `ueberdosis/tiptap-php` `^2` | Parses, normalises and renders rich text in the core | MIT | Active (2.2.1, 2026-10); already required by `filament/forms` | HTML plus a sanitiser; Filament's `RichContentRenderer` (ADR 0016) | Yes, except `CodeBlockShiki` (`proc_open` + Node), never registered |
-| `intervention/image` `^4` | Engine behind Laravel 13's `Image` facade, for Conversions | MIT | Active (4.4.0, 2026-10) | `spatie/laravel-medialibrary`, Glide 4, `awcodes/filament-curator` (ADR 0017) | Yes, GD or Imagick |
+| `intervention/image` `^4.2` | Engine behind Laravel 13's `Image` facade, for Conversions; `^4.2` is the facade's floor | MIT | Active (4.4.1, 2026-10) | `spatie/laravel-medialibrary`, Glide 4, `awcodes/filament-curator` (ADR 0017) | Yes, GD or Imagick |
 
 Kami also calls one of Laravel's own dependencies directly: `dragonmantank/cron-expression` (the Tick's overdue rule). It requires another, at Laravel's own constraint, as it codes against its extension API: `league/commonmark` (BSD-3-Clause, active, pure PHP), for inline Markdown, since `Str::inlineMarkdown` adds GitHub's tables and strikethrough (ADR 0016).
 
