@@ -25,17 +25,17 @@ final class Media extends Field
     private bool $images = false;
 
     /** Holds an ordered list, read as a Collection. */
-    public function multiple(bool $multiple = true): static
+    public function multiple(): static
     {
-        $this->multiple = $multiple;
+        $this->multiple = true;
 
         return $this;
     }
 
     /** Accepts image Media only, checked on save. */
-    public function images(bool $images = true): static
+    public function images(): static
     {
-        $this->images = $images;
+        $this->images = true;
 
         return $this;
     }

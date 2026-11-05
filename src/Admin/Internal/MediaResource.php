@@ -122,9 +122,9 @@ final class MediaResource extends FilamentResource
             ->allowHtml()
             ->getSearchResultsUsing(fn (string $search): array => self::options($field->linkable()
                 ->where(fn (Builder $query) => $query->whereLike('name', "%{$search}%")->orWhereHas('translations', fn (Builder $translation) => $translation->whereLike('alt', "%{$search}%")))
-                ->orderBy('name')->limit(50)->get()->all()))
-            ->getOptionLabelsUsing(fn (array $values): array => self::options(Media::query()->whereKey($values)->get()->all()))
-            ->getOptionLabelUsing(fn (string $value): ?string => self::options(Media::query()->whereKey($value)->get()->all())[$value] ?? null)
+                ->orderBy('name')->limit(50)->get()))
+            ->getOptionLabelsUsing(fn (array $values): array => self::options(Media::query()->whereKey($values)->get()))
+            ->getOptionLabelUsing(fn (string $value): ?string => self::options(Media::query()->whereKey($value)->get())[$value] ?? null)
             ->createOptionForm([
                 FileUpload::make('file')
                     ->label(__('kami::admin.media.picker.file'))
@@ -189,10 +189,10 @@ final class MediaResource extends FilamentResource
     /**
      * Each Media item's thumbnail, decorative beside its name (WCAG 1.1.1), or a document icon for an SVG or a document, which have none.
      *
-     * @param  array<Media>  $media
+     * @param  iterable<Media>  $media
      * @return array<string, string>
      */
-    private static function options(array $media): array
+    private static function options(iterable $media): array
     {
         $options = [];
 
