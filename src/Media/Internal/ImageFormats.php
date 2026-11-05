@@ -20,7 +20,7 @@ final class ImageFormats
     public const array FORMATS = ['avif' => 'AVIF', 'webp' => 'WebP'];
 
     /** A 1 × 1 PNG, as small as an encode can be. */
-    private const string PROBE = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    private const string PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
     /**
      * Cached for a day per SAPI, as the command line and the web may load different extensions; `kami.media.avif` is read
@@ -30,7 +30,7 @@ final class ImageFormats
      */
     public function available(): array
     {
-        $tested = Cache::remember('kami-media:formats:' . PHP_SAPI, now()->addDay(), $this->test(...));
+        $tested = Cache::remember('kami-media:formats:' . PHP_SAPI, now()->addDay(), $this->probe(...));
 
         return Config::boolean('kami.media.avif') ? $tested : array_diff_key($tested, ['avif' => true]);
     }
@@ -40,7 +40,7 @@ final class ImageFormats
      *
      * @return array<string, string> The driver per format, in offering order.
      */
-    public function test(): array
+    public function probe(): array
     {
         $drivers = Config::string('images.default', 'gd') === 'imagick' ? ['imagick', 'gd'] : ['gd', 'imagick'];
         $found = [];
@@ -62,7 +62,7 @@ final class ImageFormats
     private function encodes(string $driver, string $format): bool
     {
         return rescue(function () use ($driver, $format): bool {
-            $encoded = Image::fromBytes(base64_decode(self::PROBE))->using($driver)->toFormat($format)->toBytes();
+            $encoded = Image::fromBytes(base64_decode(self::PIXEL))->using($driver)->toFormat($format)->toBytes();
 
             // PHP's own reader, not libmagic, which may not know AVIF yet.
             return ((getimagesizefromstring($encoded) ?: [])['mime'] ?? null) === "image/{$format}"

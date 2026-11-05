@@ -55,7 +55,7 @@ final class DoctorCommand extends Command
     private function printFormats(ImageFormats $formats): void
     {
         // The command line may load other extensions than the web: tested afresh, never read from the web's cache.
-        $tested = $formats->test();
+        $tested = $formats->probe();
         $this->components->twoColumnDetail('<options=bold>Image formats</>', 'on the command line');
 
         foreach (ImageFormats::FORMATS as $format => $name) {

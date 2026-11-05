@@ -79,6 +79,7 @@ function withUnreachableDatabase(): void
 }
 
 it('lists the image formats the command line encodes, tested afresh, or why one is missing', function () {
+    // Cached while WebP still encodes: the doctor must probe again, not read this.
     resolve(ImageFormats::class)->available();
     config(['images.default' => 'gd', 'kami.media.avif' => false]);
     failingToEncode('webp');
@@ -92,7 +93,7 @@ it('lists the image formats the command line encodes, tested afresh, or why one 
 });
 
 it('names the driver that encodes a format', function () {
-    if (! array_key_exists('webp', resolve(ImageFormats::class)->test())) {
+    if (! array_key_exists('webp', resolve(ImageFormats::class)->probe())) {
         $this->markTestSkipped('No Image driver encodes WebP on this host.');
     }
 

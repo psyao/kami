@@ -122,6 +122,11 @@ it('orients, strips the metadata, crops around the centre and never upscales', f
 
 it('serves AVIF and WebP where this host encodes them, in that format', function (string $format): void {
     if (! array_key_exists($format, resolve(ImageFormats::class)->available())) {
+        // CI's images encode WebP at least: there, a missing one fails rather than skips.
+        if ($format === 'webp' && getenv('CI') !== false) {
+            $this->fail('No Image driver encodes WebP on this CI image.');
+        }
+
         $this->markTestSkipped("No Image driver encodes {$format} on this host.");
     }
 
