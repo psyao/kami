@@ -91,9 +91,9 @@ final readonly class Conversion
     /**
      * Generates the file unless it exists, once across workers: a worker that waits for another's lock finds the file written.
      *
-     * @return string The file's local path.
+     * @return string|null The file's local path; null when the Media item's file was replaced since it was read, which writes nothing.
      */
-    public function write(): string
+    public function write(): ?string
     {
         $disk = Storage::disk(Config::string('kami.media.public_disk'));
         $path = $this->path();
@@ -106,7 +106,7 @@ final readonly class Conversion
             });
         }
 
-        return $disk->path($path);
+        return $disk->exists($path) ? $disk->path($path) : null;
     }
 
     /**
@@ -115,6 +115,11 @@ final readonly class Conversion
      */
     private function generate(Filesystem $disk, string $path): void
     {
+        // A replacement committed since this Media item was read has deleted its former original and this version's directory.
+        if (! $this->isCurrent()) {
+            return;
+        }
+
         $image = Image::fromBytes((string) Storage::disk(Config::string('kami.media.originals_disk'))->get($this->media->file));
         // AVIF and WebP through the driver that passed the encode test; the fallback format through `images.default`.
         $driver = resolve(ImageFormats::class)->available()[$this->format] ?? null;
@@ -134,6 +139,25 @@ final readonly class Conversion
         $temporary = '.kami-tmp/' . Str::random(16);
         $disk->put($temporary, $image->scale($this->width)->transform(new StripMetadata)->toFormat($this->format)->toBytes())
             ?: throw new RuntimeException("The Conversion [{$path}] could not be written.");
+
+        // Again, as generating takes time: moving now would serve the former picture at its former URL.
+        // ponytail: a replacement committing between this check and the move still slips through; `kami:media:prune` (#308) clears it.
+        if (! $this->isCurrent()) {
+            $disk->delete($temporary);
+
+            return;
+        }
+
         $disk->move($temporary, $path);
+    }
+
+    /**
+     * Whether the Media item still holds the file it was read with.
+     *
+     * @phpstan-impure
+     */
+    private function isCurrent(): bool
+    {
+        return Media::query()->whereKey($this->media->id)->toBase()->value('checksum') === $this->media->checksum;
     }
 }

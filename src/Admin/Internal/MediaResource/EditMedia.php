@@ -13,7 +13,6 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -71,7 +70,7 @@ final class EditMedia extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Media
     {
-        return resolve(SaveMedia::class)->handle(null, $data, $this->getRecord(), $this->locale, Filament::auth()->user());
+        return resolve(SaveMedia::class)->handle(null, $data, media: $this->getRecord(), locale: $this->locale, actor: Filament::auth()->user());
     }
 
     protected function getHeaderActions(): array
@@ -107,8 +106,7 @@ final class EditMedia extends EditRecord
                 try {
                     $this->record = resolve(SaveMedia::class)->handle($file instanceof UploadedFile ? $file : null, media: $this->getRecord(), actor: Filament::auth()->user());
                 } catch (ValidationException $exception) {
-                    // ponytail: Filament's internal state path of an action opened first, as `MediaResource::picker()`; V1 lifts both.
-                    throw ValidationException::withMessages(['mountedActions.0.data.file' => Arr::flatten($exception->errors())]);
+                    MediaResource::refuseUpload($exception);
                 }
 
                 MediaResource::thumbnailsAfterResponse([$this->getRecord()]);

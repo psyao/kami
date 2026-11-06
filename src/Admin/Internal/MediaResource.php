@@ -196,14 +196,23 @@ final class MediaResource extends FilamentResource
                 try {
                     $media = resolve(SaveMedia::class)->handle($file instanceof UploadedFile ? $file : null, actor: Filament::auth()->user());
                 } catch (ValidationException $exception) {
-                    // ponytail: Filament's internal state path of an action opened first, as `EntryResource::withQuickCreate()`; V1 lifts both.
-                    throw ValidationException::withMessages(['mountedActions.0.data.file' => Arr::flatten($exception->errors())]);
+                    self::refuseUpload($exception);
                 }
 
                 self::thumbnailsAfterResponse([$media]);
 
                 return $media->id;
             });
+    }
+
+    /**
+     * Shows `SaveMedia`'s refusal on the `file` input of the action open, the picker's or Replace file's.
+     *
+     * ponytail: Filament's internal state path of an action opened first, as `EntryResource::withQuickCreate()`; V1 lifts all three.
+     */
+    public static function refuseUpload(ValidationException $exception): never
+    {
+        throw ValidationException::withMessages(['mountedActions.0.data.file' => Arr::flatten($exception->errors())]);
     }
 
     /** In bytes, per file: the lowest of PHP's `upload_max_filesize` and `post_max_size` and Livewire's rule for temporary uploads, which every upload passes first. */

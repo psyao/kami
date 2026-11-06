@@ -266,6 +266,29 @@ it('keeps the former file and Conversions when the transaction around a replacem
         ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
 });
 
+it('changes nothing when the new file holds the same bytes', function (): void {
+    Storage::fake('public');
+    $media = saveMedia(fixture('media/Holiday Photo.JPG'));
+    Storage::disk('public')->put("media/{$media->id}/0ld0ld00/original-64.jpg", 'current');
+
+    $same = saveMedia(uploadedFixture('Holiday Photo.JPG', 'Other name.jpg'), media: $media);
+
+    expect($same)->name->toBe('holiday-photo')->file->toBe($media->file)
+        ->and(Storage::disk('local')->allFiles())->toBe([$media->file])
+        ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
+});
+
+it('trims alt text and caption, storing a blank one as none', function (): void {
+    $media = saveMedia(fixture('media/pixel.png'), ['alt' => "  A pixel\n", 'caption' => "\t\n"]);
+
+    expect($media->translations->sole())->alt->toBe('A pixel')->caption->toBeNull()
+        ->and(Media::query()->missingAlt()->exists())->toBeFalse();
+
+    saveMedia(null, ['alt' => "\n"], $media);
+
+    expect(Media::query()->missingAlt()->pluck('id')->all())->toBe([$media->id]);
+});
+
 it('refuses a value it does not know', function (): void {
     expect(fn (): Media => saveMedia(fixture('media/brochure.pdf'), ['title' => 'Brochure']))
         ->toThrow(ValidationException::class, 'The title field is prohibited.');

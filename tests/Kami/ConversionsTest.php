@@ -14,6 +14,7 @@ use Illuminate\Testing\TestResponse;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
+use Psyao\Kami\Media\Internal\Conversion;
 use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Media\Media;
 
@@ -72,6 +73,15 @@ it('generates a Conversion on its first request, writes it, then serves the file
 
     Storage::disk('public')->put($path, 'on disk');
     expect(file_get_contents($this->get($url)->baseResponse->getFile()->getPathname()))->toBe('on disk');
+});
+
+it('writes nothing for a Media item whose file was replaced since it was read, so the former picture never comes back', function (): void {
+    $read = resolve(SaveMedia::class)->handle(fixture('media/Holiday Photo.JPG'));
+    $stale = Conversion::find($read, 'original', 64, 'jpg');
+    resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), media: Media::query()->findOrFail($read->id));
+
+    expect($stale->write())->toBeNull()
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
 });
 
 it('builds Conversion URLs under the Site URL, defaulting to the largest width in the fallback format', function (): void {

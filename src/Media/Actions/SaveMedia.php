@@ -64,7 +64,8 @@ final class SaveMedia
             throw new InvalidArgumentException("No Locale [{$locale}] is declared in Site [{$site->handle}].");
         }
 
-        $values = array_map(fn (mixed $value): mixed => $value === '' ? null : $value, $values);
+        // Trimmed, so text holding only whitespace counts as none, as `Media::missingAlt()` reads it.
+        $values = array_map(fn (mixed $value): mixed => is_string($value) ? (trim($value) === '' ? null : trim($value)) : $value, $values);
         if (array_key_exists('decorative', $values)) {
             $values['decorative'] ??= false;
         }
@@ -101,7 +102,7 @@ final class SaveMedia
 
             // Last, so a row that fails to save leaves no file.
             if (($created || $former !== null) && $file !== null) {
-                // ponytail: an outer transaction rolled back afterwards leaves the file behind; M9 cleans up after a failed import.
+                // ponytail: an outer transaction rolled back afterwards leaves the new file behind, of a creation or a replacement; M9 cleans up after a failed import.
                 Storage::disk(Config::string('kami.media.originals_disk'))->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
                     ?: throw new RuntimeException("The original of Media [{$media->id}] could not be written.");
             }

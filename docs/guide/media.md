@@ -49,7 +49,7 @@ $media = app(SaveMedia::class)->handle(null, ['credit' => 'Ada Lovelace', 'decor
 | `credit` | shared by every Locale, up to 255 characters |
 | `decorative` | shared: the image adds nothing to the page, and is rendered with an empty `alt` |
 
-A value left out keeps its stored one, and `''` clears it. Any other key is refused. Alt text is never required here: an upload, a seeder or an import may leave it missing, to be filled in later. Only the admin's edit form asks for it ([Editing in the admin](#editing-in-the-admin)).
+A value left out keeps its stored one. Text is trimmed, and `''` or whitespace alone clears it. Any other key is refused. Alt text is never required here: an upload, a seeder or an import may leave it missing, to be filled in later. Only the admin's edit form asks for it ([Editing in the admin](#editing-in-the-admin)).
 
 An image is missing its alt text when it is not decorative and its alt text in the Site's default Locale is blank, whatever the other Locales hold. The `missingAlt` scope finds them:
 
