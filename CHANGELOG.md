@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.5.0](https://github.com/psyao/kami/compare/v0.4.0...v0.5.0) (2026-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* kami:install fails, and kami:doctor exits with 1, on an originals disk the web server can serve.
+* kami:install fails on a non-local kami.media.public_disk or an existing public/media directory, and kami:doctor exits with 1 on a missing public/media link or an array or null default cache store. See UPGRADING.md section 0.5.0.
+* generate a Conversion on its first request ([#312](https://github.com/psyao/kami/issues/312))
+
+### Features
+
+* add the Media Field ([#317](https://github.com/psyao/kami/issues/317)) ([bc692d2](https://github.com/psyao/kami/commit/bc692d2309adfe0e366ff94ee8e9daa746d3202f)), closes [#303](https://github.com/psyao/kami/issues/303)
+* add the Media library with multiple upload ([#316](https://github.com/psyao/kami/issues/316)) ([18c6016](https://github.com/psyao/kami/commit/18c6016f2e43ab27089c5f78d1549e6393670682)), closes [#301](https://github.com/psyao/kami/issues/301)
+* edit a Media item's alt text per Locale, decorative and file ([#318](https://github.com/psyao/kami/issues/318)) ([43b1b7d](https://github.com/psyao/kami/commit/43b1b7d3da9db5774cb39f8bd8a6c6113631369f))
+* generate a Conversion on its first request ([#312](https://github.com/psyao/kami/issues/312)) ([29112fb](https://github.com/psyao/kami/commit/29112fb6325531220f8a1781a506563c980dac5d)), closes [#296](https://github.com/psyao/kami/issues/296)
+* offer AVIF and WebP by a real encode test ([#315](https://github.com/psyao/kami/issues/315)) ([90ea127](https://github.com/psyao/kami/commit/90ea1271cd943a9b7a418607631456d854fb410e))
+* pre-generate and prune Media files with kami:media:warm and kami:media:prune ([#324](https://github.com/psyao/kami/issues/324)) ([6d13195](https://github.com/psyao/kami/commit/6d13195ba3726000a556a3e276296a506bece886))
+* refuse to delete Media in use ([#321](https://github.com/psyao/kami/issues/321)) ([30814dd](https://github.com/psyao/kami/commit/30814dde6943b3c93409315de9785ce8ca686018))
+* render images with x-kami::image ([#319](https://github.com/psyao/kami/issues/319)) ([6e01296](https://github.com/psyao/kami/commit/6e0129691ad15050abdec66b37ff2aa4debf3387))
+* serve Conversions from public/media through Apache, with nosniff ([#314](https://github.com/psyao/kami/issues/314)) ([7c930c9](https://github.com/psyao/kami/commit/7c930c9c51503497b246b7a1c46376de0f587e8c))
+* serve documents and SVG unchanged ([#320](https://github.com/psyao/kami/issues/320)) ([4ccb762](https://github.com/psyao/kami/commit/4ccb762f29ae02a53da121f900d14e448d6209eb))
+* store Media through SaveMedia ([#310](https://github.com/psyao/kami/issues/310)) ([8aa8623](https://github.com/psyao/kami/commit/8aa8623ef8ea5d3549a9fc945feb38c035e4d256))
+* surface missing alt text on publish, in kami:doctor and in search ([#322](https://github.com/psyao/kami/issues/322)) ([373c2cb](https://github.com/psyao/kami/commit/373c2cbb06e78646f976882b9ee99cfeda399ac5))
+
+
+### Bug Fixes
+
+* refuse public originals, 404 stale Conversions, fill media defaults ([#334](https://github.com/psyao/kami/issues/334)) ([fb07179](https://github.com/psyao/kami/commit/fb0717925f7765055fc418db7eb03dc73a3aaeed))
+
 ## [0.4.0](https://github.com/psyao/kami/compare/v0.3.0...v0.4.0) (2026-11-04)
 
 
