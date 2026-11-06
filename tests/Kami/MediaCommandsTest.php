@@ -29,7 +29,7 @@ beforeEach(function (): void {
 });
 
 /** A fixture saved as a Media item. */
-function saved(string $fixture): Media
+function mediaFixture(string $fixture): Media
 {
     return resolve(SaveMedia::class)->handle(fixture("media/{$fixture}"));
 }
@@ -50,10 +50,10 @@ describe('warm', function (): void {
     beforeEach(fn () => failingToEncode('avif', 'webp'));
 
     it('writes every declared Conversion of every image, and each document\'s and SVG\'s own file', function (): void {
-        $photo = saved('rotated-gps.jpg');
-        $pixel = saved('pixel.png');
-        $brochure = saved('brochure.pdf');
-        $logo = saved('logo.svg');
+        $photo = mediaFixture('rotated-gps.jpg');
+        $pixel = mediaFixture('pixel.png');
+        $brochure = mediaFixture('brochure.pdf');
+        $logo = mediaFixture('logo.svg');
 
         $this->artisan('kami:media:warm')
             ->expectsOutputToContain('4 Media items: 12 files written, 0 already there.')
@@ -68,7 +68,7 @@ describe('warm', function (): void {
     });
 
     it('skips the files already there, so running it again resumes', function (): void {
-        $photo = saved('rotated-gps.jpg');
+        $photo = mediaFixture('rotated-gps.jpg');
         $card = diskPath($photo->url('card', 40));
         Storage::disk('public')->put($card, 'on disk');
 
@@ -79,8 +79,8 @@ describe('warm', function (): void {
     });
 
     it('writes the chosen presets only, `file` meaning a document\'s or an SVG\'s own file', function (): void {
-        $photo = saved('rotated-gps.jpg');
-        $brochure = saved('brochure.pdf');
+        $photo = mediaFixture('rotated-gps.jpg');
+        $brochure = mediaFixture('brochure.pdf');
 
         $this->artisan('kami:media:warm', ['--preset' => ['card', 'card']])->expectsOutputToContain('2 files written, 0 already there.')->assertSuccessful();
 
@@ -94,7 +94,7 @@ describe('warm', function (): void {
     });
 
     it('refuses a preset that is not declared, writing nothing', function (): void {
-        saved('rotated-gps.jpg');
+        mediaFixture('rotated-gps.jpg');
 
         $this->artisan('kami:media:warm', ['--preset' => ['card', 'hero']])
             ->expectsOutputToContain('No Image Preset [hero] is declared.')
@@ -104,9 +104,9 @@ describe('warm', function (): void {
     });
 
     it('writes the Media items an Entry uses only, in any Locale, the Entry in the Trash too', function (): void {
-        $cover = saved('rotated-gps.jpg');
-        $gallery = saved('pixel.png');
-        $other = saved('brochure.pdf');
+        $cover = mediaFixture('rotated-gps.jpg');
+        $gallery = mediaFixture('pixel.png');
+        $other = mediaFixture('brochure.pdf');
         $entry = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $cover->id], locale: 'fr');
         resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'gallery' => [$gallery->id]], entry: $entry, locale: 'en');
         resolve(TrashEntry::class)->handle($entry);
@@ -132,8 +132,8 @@ describe('warm', function (): void {
 
     it('reports a Conversion that fails and goes on with the others, then fails', function (): void {
         Exceptions::fake();
-        $photo = saved('rotated-gps.jpg');
-        $pixel = saved('pixel.png');
+        $photo = mediaFixture('rotated-gps.jpg');
+        $pixel = mediaFixture('pixel.png');
         failingToEncode('avif', 'webp', 'jpg');
 
         $this->artisan('kami:media:warm', ['--preset' => ['card']])
@@ -155,7 +155,7 @@ it('warms every format this host encodes', function (): void {
         $this->markTestSkipped('No Image driver encodes WebP on this host.');
     }
 
-    $photo = saved('rotated-gps.jpg');
+    $photo = mediaFixture('rotated-gps.jpg');
 
     $this->artisan('kami:media:warm', ['--preset' => ['card']])->assertSuccessful();
 
@@ -165,9 +165,9 @@ it('warms every format this host encodes', function (): void {
 describe('prune', function (): void {
     it('deletes stale versions, removed presets, widths and formats, files of deleted Media and leftovers, and keeps valid ones', function (): void {
         config(['kami.media.avif' => false]);
-        $photo = saved('rotated-gps.jpg');
-        $brochure = saved('brochure.pdf');
-        $pixel = saved('pixel.png');
+        $photo = mediaFixture('rotated-gps.jpg');
+        $brochure = mediaFixture('brochure.pdf');
+        $pixel = mediaFixture('pixel.png');
         $disk = Storage::disk('public');
         $card = diskPath($photo->url('card', 40));
         $version = dirname($card);
@@ -217,7 +217,7 @@ describe('prune', function (): void {
     });
 
     it('keeps AVIF while kami.media.avif allows it', function (): void {
-        $photo = saved('rotated-gps.jpg');
+        $photo = mediaFixture('rotated-gps.jpg');
         $avif = preg_replace('/\.jpg$/', '.avif', diskPath($photo->url('card', 40)));
         Storage::disk('public')->put($avif, 'file');
 
@@ -227,7 +227,7 @@ describe('prune', function (): void {
     });
 
     it('deletes what a deleted Media item left, as a crash after its commit does', function (): void {
-        $photo = saved('rotated-gps.jpg');
+        $photo = mediaFixture('rotated-gps.jpg');
         $path = diskPath($photo->url('card', 40));
         Storage::disk('public')->put($path, 'file');
         // The row goes; a worker killed before the files' deletion leaves them.
@@ -254,8 +254,8 @@ it('runs both commands within a small, steady memory over a library of fixture i
         }
     }
 
-    saved('brochure.pdf');
-    saved('logo.svg');
+    mediaFixture('brochure.pdf');
+    mediaFixture('logo.svg');
 
     foreach (['kami:media:warm', 'kami:media:prune'] as $command) {
         gc_collect_cycles();
