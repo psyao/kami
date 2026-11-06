@@ -41,8 +41,9 @@ final class WarmMediaCommand extends Command
 
     public function handle(ImagePresets $registry): int
     {
-        /** @var list<string> $handles */
-        $handles = array_values(array_unique($this->option('preset')));
+        /** @var list<string> $option */
+        $option = $this->option('preset');
+        $handles = array_values(array_unique($option));
         $presets = $handles === [] ? array_values($registry->all()) : [];
 
         foreach (array_diff($handles, [ImagePresets::FILE]) as $handle) {
