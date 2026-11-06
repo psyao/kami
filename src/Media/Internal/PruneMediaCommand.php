@@ -23,7 +23,7 @@ use Psyao\Kami\Media\Media;
 #[Signature('kami:media:prune')]
 final class PruneMediaCommand extends Command
 {
-    /** Older than any write still running: a web request and a Conversion's lock last 60 s at most. */
+    /** Longer than any one file's write, by a request or by `kami:media:warm`: a leftover older than that belongs to no running write. */
     private const int LEFTOVER_SECONDS = 3600;
 
     public function handle(): int
@@ -32,7 +32,7 @@ final class PruneMediaCommand extends Command
         $deleted = 0;
 
         // What a worker killed between writing a file and moving it into place leaves.
-        foreach ($disk->files('.kami-tmp') as $path) {
+        foreach ($disk->files(Conversion::TEMPORARY) as $path) {
             if ($disk->lastModified($path) < now()->getTimestamp() - self::LEFTOVER_SECONDS) {
                 $disk->delete($path);
                 $deleted++;
@@ -40,12 +40,13 @@ final class PruneMediaCommand extends Command
         }
 
         foreach (array_chunk($disk->directories('media'), 100) as $directories) {
+            // Read once per chunk: a replacement committing meanwhile has its new files deleted as another version, and generated again on their next request.
             $items = Media::query()->without('translations')->whereKey(array_map(basename(...), $directories))->get()->keyBy('id');
 
             foreach ($directories as $directory) {
                 $item = $items->get(basename($directory));
                 // A deleted item keeps nothing.
-                $kept = array_flip($item instanceof Media ? Conversion::kept($item) : []);
+                $kept = array_flip($item instanceof Media ? Conversion::keptPaths($item) : []);
 
                 foreach ($disk->allFiles($directory) as $path) {
                     if (! isset($kept[$path])) {

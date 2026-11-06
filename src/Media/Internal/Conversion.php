@@ -25,6 +25,9 @@ use RuntimeException;
  */
 final readonly class Conversion
 {
+    /** Where a file is written before its move into place, outside `media/`, so Apache never serves it half written. */
+    public const string TEMPORARY = '.kami-tmp';
+
     /** Within shared hosting's 60 s budget: a worker that dies frees its lock by then. */
     private const int LOCK_SECONDS = 60;
 
@@ -50,9 +53,11 @@ final readonly class Conversion
      * @param  list<ImagePreset>  $presets
      * @return list<self>
      */
-    public static function of(Media $media, array $presets): array
+    public static function offered(Media $media, array $presets): array
     {
-        return self::each($media, $presets, resolve(ImagePresets::class)->formats(...));
+        $registry = resolve(ImagePresets::class);
+
+        return self::each($registry, $media, $presets, $registry->formats(...));
     }
 
     /**
@@ -61,7 +66,7 @@ final readonly class Conversion
      *
      * @return list<string>
      */
-    public static function kept(Media $media): array
+    public static function keptPaths(Media $media): array
     {
         if (! self::isConvertible($media)) {
             return [self::filePath($media)];
@@ -69,7 +74,7 @@ final readonly class Conversion
 
         $registry = resolve(ImagePresets::class);
 
-        return array_map(fn (self $conversion): string => $conversion->path(), self::each($media, array_values($registry->all()), $registry->keptFormats(...)));
+        return array_map(fn (self $conversion): string => $conversion->path(), self::each($registry, $media, array_values($registry->all()), $registry->keptFormats(...)));
     }
 
     /**
@@ -77,12 +82,12 @@ final readonly class Conversion
      * @param  Closure(ImagePreset, Media): list<string>  $formats
      * @return list<self>
      */
-    private static function each(Media $media, array $presets, Closure $formats): array
+    private static function each(ImagePresets $registry, Media $media, array $presets, Closure $formats): array
     {
         $conversions = [];
 
         foreach ($presets as $preset) {
-            foreach (resolve(ImagePresets::class)->widths($preset, $media) as $width) {
+            foreach ($registry->widths($preset, $media) as $width) {
                 foreach ($formats($preset, $media) as $format) {
                     $conversions[] = new self($media, $preset, max(1, $width), $format);
                 }
@@ -146,7 +151,7 @@ final readonly class Conversion
         if ($disk->missing($path) && self::isCurrent($media)) {
             $stream = Storage::disk(Config::string('kami.media.originals_disk'))->readStream($media->file)
                 ?? throw new RuntimeException("The original of Media [{$media->id}] could not be read.");
-            $temporary = '.kami-tmp/' . Str::random(16);
+            $temporary = self::TEMPORARY . '/' . Str::random(16);
 
             try {
                 $disk->writeStream($temporary, $stream) ?: throw new RuntimeException("The file [{$path}] could not be written.");
@@ -154,7 +159,8 @@ final readonly class Conversion
                 fclose($stream);
             }
 
-            // A replacement committing between this check and the move still slips through, as in `generate()`; `kami:media:prune` deletes it.
+            // ponytail: a replacement committing between this check and the move still slips through, as in `generate()`, and stays served until
+            // `kami:media:prune` runs, by hand until M8's Tick schedules it weekly.
             self::isCurrent($media) ? $disk->move($temporary, $path) : $disk->delete($temporary);
         }
 
@@ -249,12 +255,13 @@ final readonly class Conversion
         }
 
         // Outside `media/`, so Apache never serves it half written, and on the same disk, so the move is a rename.
-        $temporary = '.kami-tmp/' . Str::random(16);
+        $temporary = self::TEMPORARY . '/' . Str::random(16);
         $disk->put($temporary, $image->scale($this->width)->transform(new StripMetadata)->toFormat($this->format)->toBytes())
             ?: throw new RuntimeException("The Conversion [{$path}] could not be written.");
 
         // Again, as generating takes time: moving now would serve the former picture at its former URL.
-        // A replacement committing between this check and the move still slips through; `kami:media:prune` deletes it.
+        // ponytail: a replacement committing between this check and the move still slips through, and stays served until `kami:media:prune`
+        // runs, by hand until M8's Tick schedules it weekly.
         if (! self::isCurrent($this->media)) {
             $disk->delete($temporary);
 

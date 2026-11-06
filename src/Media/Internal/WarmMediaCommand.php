@@ -42,7 +42,7 @@ final class WarmMediaCommand extends Command
     public function handle(ImagePresets $registry): int
     {
         /** @var list<string> $handles */
-        $handles = $this->option('preset');
+        $handles = array_values(array_unique($this->option('preset')));
         $presets = $handles === [] ? array_values($registry->all()) : [];
 
         foreach (array_diff($handles, [ImagePresets::FILE]) as $handle) {
@@ -58,13 +58,14 @@ final class WarmMediaCommand extends Command
         }
 
         $entry = $this->option('entry');
-        $query = is_string($entry) ? References::mediaOf($entry) : Media::query();
 
         if (is_string($entry) && ! Entry::query()->withUnpublished()->withTrashed()->whereKey($entry)->exists()) {
             $this->components->error("No Entry [{$entry}] exists.");
 
             return self::FAILURE;
         }
+
+        $query = is_string($entry) ? References::mediaOf($entry) : Media::query();
 
         // Conversions read no alt text.
         $query->without('translations');
@@ -84,7 +85,7 @@ final class WarmMediaCommand extends Command
         // In chunks, so a large library never sits in memory.
         foreach ($query->lazyById(100) as $media) {
             if (Conversion::isConvertible($media)) {
-                foreach (Conversion::of($media, $presets) as $conversion) {
+                foreach (Conversion::offered($media, $presets) as $conversion) {
                     $this->warm($media, "{$conversion->preset->handle} {$conversion->width} {$conversion->format}", $conversion->path(), $conversion->write(...));
                 }
             } elseif ($files) {

@@ -7,6 +7,7 @@ use Illuminate\Image\ImageException;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Internal\ImageFormats;
@@ -81,7 +82,7 @@ describe('warm', function (): void {
         $photo = saved('rotated-gps.jpg');
         $brochure = saved('brochure.pdf');
 
-        $this->artisan('kami:media:warm', ['--preset' => ['card']])->assertSuccessful();
+        $this->artisan('kami:media:warm', ['--preset' => ['card', 'card']])->expectsOutputToContain('2 files written, 0 already there.')->assertSuccessful();
 
         expect(servedFiles($photo))->toBe(['card-20.jpg', 'card-40.jpg'])
             ->and(servedFiles($brochure))->toBe([]);
@@ -102,12 +103,13 @@ describe('warm', function (): void {
         expect(Storage::disk('public')->allFiles())->toBe([]);
     });
 
-    it('writes the Media items an Entry uses only, in any Locale and state', function (): void {
+    it('writes the Media items an Entry uses only, in any Locale, the Entry in the Trash too', function (): void {
         $cover = saved('rotated-gps.jpg');
         $gallery = saved('pixel.png');
         $other = saved('brochure.pdf');
         $entry = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $cover->id], locale: 'fr');
         resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'gallery' => [$gallery->id]], entry: $entry, locale: 'en');
+        resolve(TrashEntry::class)->handle($entry);
 
         $this->artisan('kami:media:warm', ['--entry' => $entry->id, '--preset' => ['original', 'file']])
             ->expectsOutputToContain('2 Media items: 2 files written, 0 already there.')
@@ -165,6 +167,7 @@ describe('prune', function (): void {
         config(['kami.media.avif' => false]);
         $photo = saved('rotated-gps.jpg');
         $brochure = saved('brochure.pdf');
+        $pixel = saved('pixel.png');
         $disk = Storage::disk('public');
         $card = diskPath($photo->url('card', 40));
         $version = dirname($card);
@@ -191,6 +194,8 @@ describe('prune', function (): void {
             preg_replace('/\.jpg$/', '.webp', diskPath($photo->url('kami-social'))),
             "media/{$brochure->id}/0123abcd/brochure.pdf",
             dirname(diskPath($brochure->url())) . '/former-name.pdf',
+            // An item whose files are all stale loses its directory.
+            "media/{$pixel->id}/0123abcd/card-20.png",
             'media/01JAAAAAAAAAAAAAAAAAAAAAAA/0123abcd/card-40.jpg',
             '.kami-tmp/killed',
         ];
@@ -202,12 +207,13 @@ describe('prune', function (): void {
         touch($disk->path('.kami-tmp/killed'), now()->subHours(2)->getTimestamp());
 
         $this->artisan('kami:media:prune')
-            ->expectsOutputToContain('Deleted 10 files.')
+            ->expectsOutputToContain('Deleted 11 files.')
             ->assertSuccessful();
 
         expect(collect($disk->allFiles())->sort()->values()->all())->toBe(collect($kept)->sort()->values()->all())
             ->and($disk->directories("media/{$photo->id}"))->not->toContain("media/{$photo->id}/0123abcd")
-            ->and($disk->directories('media'))->not->toContain('media/01JAAAAAAAAAAAAAAAAAAAAAAA');
+            ->and($disk->directories('media'))->not->toContain('media/01JAAAAAAAAAAAAAAAAAAAAAAA')
+            ->not->toContain("media/{$pixel->id}");
     });
 
     it('keeps AVIF while kami.media.avif allows it', function (): void {
