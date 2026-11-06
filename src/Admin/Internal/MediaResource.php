@@ -8,10 +8,17 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select as SelectInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Resources\Resource as FilamentResource;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +27,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Psyao\Kami\Admin\Internal\MediaResource\EditMedia;
 use Psyao\Kami\Admin\Internal\MediaResource\ListMedia;
 use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Media\Actions\SaveMedia;
@@ -48,6 +56,9 @@ final class MediaResource extends FilamentResource
     #[\Override]
     protected static ?string $slug = 'media';
 
+    #[\Override]
+    protected static ?string $recordTitleAttribute = 'name';
+
     public static function getModelLabel(): string
     {
         return __('kami::admin.media.label');
@@ -64,12 +75,49 @@ final class MediaResource extends FilamentResource
         return self::getPluralModelLabel();
     }
 
+    /**
+     * Alt text and caption in the Locale edited, with its `lang` (WCAG 3.1.2); credit and `decorative` shared. Alt text is required
+     * only here, on an image's default Locale, unless it is decorative: an upload or an import may leave it missing (ADR 0017).
+     */
+    public static function form(Schema $schema): Schema
+    {
+        $site = Site::current();
+        $livewire = $schema->getLivewire();
+        $locale = $livewire instanceof EditMedia ? $livewire->locale : $site->defaultLocale();
+        $lang = count($site->locales) > 1 ? ['lang' => $locale] : [];
+        $isImage = fn (?Media $record): bool => $record?->isImage() ?? false;
+
+        return $schema->columns(1)->components([
+            // Decorative: the page's heading names the file (WCAG 1.1.1).
+            ImageEntry::make('preview')
+                ->label(__('kami::admin.media.fields.preview'))
+                ->state(fn (Media $record): ?string => self::thumbnail($record)?->url())
+                ->visible(fn (Media $record): bool => self::thumbnail($record) instanceof Conversion)
+                ->imageSize(160),
+            TextInput::make('alt')
+                ->label(__('kami::admin.media.fields.alt'))
+                ->helperText(__('kami::admin.media.fields.alt_help'))
+                ->extraInputAttributes($lang)
+                ->maxLength(1000)
+                ->visible($isImage)
+                ->required(fn (Get $get): bool => $locale === $site->defaultLocale() && ! $get('decorative')),
+            Toggle::make('decorative')
+                ->label(__('kami::admin.media.fields.decorative'))
+                ->helperText(__('kami::admin.media.fields.decorative_help'))
+                ->visible($isImage)
+                ->live(),
+            Textarea::make('caption')->label(__('kami::admin.media.fields.caption'))->extraInputAttributes($lang)->rows(2),
+            TextInput::make('credit')->label(__('kami::admin.media.fields.credit'))->maxLength(255),
+        ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                // Decorative: the name beside it says what the row is (WCAG 1.1.1).
+                // Decorative: the name beside it says what the row is, and links to it; a link around the thumbnail alone would have no name (WCAG 1.1.1, 2.4.4).
                 ImageColumn::make('thumbnail')
+                    ->disabledClick()
                     ->label(__('kami::admin.media.columns.thumbnail'))
                     ->state(fn (Media $record): ?string => self::thumbnail($record)?->url())
                     ->square()
@@ -88,12 +136,16 @@ final class MediaResource extends FilamentResource
             ->filters([
                 SelectFilter::make('family')->label(__('kami::admin.media.columns.family'))
                     ->options(['image' => __('kami::admin.media.families.image'), 'document' => __('kami::admin.media.families.document')]),
+                Filter::make('alt_missing')->label(__('kami::admin.media.filters.alt_missing'))
+                    ->query(function (Builder $query): void {
+                        $query->scopes('missingAlt');
+                    }),
             ])
             ->defaultSort('created_at', 'desc')
             ->paginationPageOptions([10, 25, 50]);
     }
 
-    /** `missing`: an image, not decorative, with a blank alt text in the default Locale. */
+    /** `missing`: an image, not decorative, with a blank alt text in the default Locale, as `Media::missingAlt()` finds it. */
     private static function altState(Media $media): string
     {
         $alt = $media->translations->firstWhere('locale', Site::current()->defaultLocale())?->alt;
@@ -144,14 +196,23 @@ final class MediaResource extends FilamentResource
                 try {
                     $media = resolve(SaveMedia::class)->handle($file instanceof UploadedFile ? $file : null, actor: Filament::auth()->user());
                 } catch (ValidationException $exception) {
-                    // ponytail: Filament's internal state path of an action opened first, as `EntryResource::withQuickCreate()`; V1 lifts both.
-                    throw ValidationException::withMessages(['mountedActions.0.data.file' => Arr::flatten($exception->errors())]);
+                    self::refuseUpload($exception);
                 }
 
                 self::thumbnailsAfterResponse([$media]);
 
                 return $media->id;
             });
+    }
+
+    /**
+     * Shows `SaveMedia`'s refusal on the `file` input of the action open, the picker's or Replace file's.
+     *
+     * ponytail: Filament's internal state path of an action opened first, as `EntryResource::withQuickCreate()`; V1 lifts all three.
+     */
+    public static function refuseUpload(ValidationException $exception): never
+    {
+        throw ValidationException::withMessages(['mountedActions.0.data.file' => Arr::flatten($exception->errors())]);
     }
 
     /** In bytes, per file: the lowest of PHP's `upload_max_filesize` and `post_max_size` and Livewire's rule for temporary uploads, which every upload passes first. */
@@ -221,6 +282,10 @@ final class MediaResource extends FilamentResource
 
     public static function getPages(): array
     {
-        return ['index' => ListMedia::route('/')];
+        return [
+            'index' => ListMedia::route('/'),
+            // The default Locale's at `/edit`, another's at `/edit/fr`, as for Entries.
+            'edit' => EditMedia::route('/{record}/edit/{locale?}'),
+        ];
     }
 }

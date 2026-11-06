@@ -50,10 +50,12 @@ it('seeds an administrator and an editor who may update but not publish', functi
         ->and(Gate::forUser($editor)->allows('kami.entries.article.publish'))->toBeFalse();
 });
 
-it('seeds a Media library holding a described photo, an image without alt text and a document', function () {
-    expect(Media::query()->orderBy('name')->get()->map(fn (Media $media): array => [$media->name, $media->family, $media->alt()])->all())->toBe([
-        ['brochure', 'document', null],
-        ['holiday-photo', 'image', 'Une photo de vacances'],
-        ['pixel', 'image', null],
-    ]);
+it('seeds a Media library holding a photo described in both Locales, an image without alt text, a decorative one and a document', function () {
+    expect(Media::query()->orderBy('name')->get()->map(fn (Media $media): array => [$media->name, $media->family, $media->alt(), $media->isDecorative()])->all())->toBe([
+        ['brochure', 'document', null, false],
+        ['holiday-photo', 'image', 'Une photo de vacances', false],
+        ['pixel', 'image', null, false],
+        ['rotated-gps', 'image', null, true],
+    ])
+        ->and(Media::query()->where('name', 'holiday-photo')->sole()->translations->pluck('alt', 'locale')->sortKeys()->all())->toBe(['en' => 'A holiday photo', 'fr' => 'Une photo de vacances']);
 });

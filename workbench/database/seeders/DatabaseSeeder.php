@@ -89,9 +89,11 @@ class DatabaseSeeder extends Seeder
         $save->handle(Footer::class, ['tagline' => 'A demo Site.'], $footer, 'en', $admin);
         $save->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr', actor: $admin);
 
-        // The Media library: a described photo, an image missing its alt text, a document, which needs none.
+        // The Media library: a photo described in both Locales, an image missing its alt text, a decorative one, a document, which needs none.
         $fixtures = dirname(__DIR__, 3) . '/tests/Fixtures/media';
-        $photo = $media->handle("{$fixtures}/Holiday Photo.JPG", ['alt' => 'Une photo de vacances', 'credit' => 'Ada'], locale: 'fr', actor: $admin);
+        $photo = $media->handle("{$fixtures}/Holiday Photo.JPG", ['alt' => 'Une photo de vacances', 'caption' => 'Vacances au bord du lac', 'credit' => 'Ada'], locale: 'fr', actor: $admin);
+        $media->handle(null, ['alt' => 'A holiday photo', 'caption' => 'Holidays by the lake'], $photo, 'en', $admin);
+        $media->handle("{$fixtures}/rotated-gps.jpg", ['decorative' => true], actor: $admin);
         $pixel = $media->handle("{$fixtures}/pixel.png", actor: $admin);
         $brochure = $media->handle("{$fixtures}/brochure.pdf", actor: $admin);
 

@@ -404,7 +404,7 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 
 `final class`
 
-Stores a file in the Site's Media library, or writes a Media item's alt text, caption, credit and `decorative`: the one way Media is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
+Stores a file in the Site's Media library, replaces a Media item's file within its family, or writes its alt text, caption, credit and `decorative`: the one way Media is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
 
 - `public function handle(Illuminate\Http\UploadedFile|string|null $file, array $values = [], ?Psyao\Kami\Media\Media $media = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Media\Media`
 

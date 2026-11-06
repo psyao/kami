@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Media;
 
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -87,6 +89,22 @@ final class Media extends Model
 
         return Conversion::find($this, $preset, $width, $format)?->url()
             ?? throw new InvalidArgumentException("The Image Preset [{$preset}] has no Conversion of Media [{$this->id}] {$width} pixels wide in {$format}.");
+    }
+
+    /**
+     * Images that need alt text and have none: not decorative, with a blank alt text in the Site's default Locale, whatever the others hold.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function missingAlt(Builder $query): void
+    {
+        $query->where('family', 'image')
+            ->where('decorative', false)
+            ->whereDoesntHave('translations', fn (Builder $translation) => $translation
+                ->where('locale', Site::current()->defaultLocale())
+                // Standard SQL on every engine; `SaveMedia` stores no empty string, but may store spaces.
+                ->whereRaw("TRIM(alt) <> ''"));
     }
 
     /** In the current Locale, or the default Locale's when blank there; null when both are. */

@@ -22,6 +22,7 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use LogicException;
 use Psyao\Kami\Media\Events\MediaSaved;
+use Psyao\Kami\Media\Internal\Conversion;
 use Psyao\Kami\Media\Internal\MediaTranslation;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
@@ -30,7 +31,7 @@ use Symfony\Component\Mime\MimeTypes;
 use Throwable;
 
 /**
- * Stores a file in the Site's Media library, or writes a Media item's alt text, caption, credit and `decorative`: the one way Media is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
+ * Stores a file in the Site's Media library, replaces a Media item's file within its family, or writes its alt text, caption, credit and `decorative`: the one way Media is written, from the admin, seeders or imports alike. It does not authorise: the caller checks the actor's Permissions first (ADR 0011).
  *
  * The file's MIME type is read from its content against `kami.media.mimes`, and the stored extension follows it; an image must decode and stay within `kami.media.max_pixels`. Refusals throw Laravel's `ValidationException` on `file`, naming the reason.
  */
@@ -48,7 +49,7 @@ final class SaveMedia
     /**
      * @param  UploadedFile|string|null  $file  An upload, or a local path; null to write the metadata of an existing Media item only.
      * @param  array<string, mixed>  $values  `alt` and `caption`, in the Locale written; `credit` and `decorative`, shared by every Locale. A value left out keeps its stored one; `''` clears it (`false` for `decorative`).
-     * @param  Media|null  $media  The Media item to update; a new one when null.
+     * @param  Media|null  $media  The Media item to update, its file replaced when one is given; a new one when null.
      * @param  string|null  $locale  The Locale `alt` and `caption` are written in, the default one when null.
      * @param  Authenticatable|null  $actor  Who saves; null for imports and the CLI.
      *
@@ -63,12 +64,8 @@ final class SaveMedia
             throw new InvalidArgumentException("No Locale [{$locale}] is declared in Site [{$site->handle}].");
         }
 
-        // ponytail: no replacement yet; #302 replaces the file of an existing Media item within its family.
-        if ($file !== null && $media instanceof Media) {
-            throw new LogicException('Replacing a Media item\'s file is not supported yet.');
-        }
-
-        $values = array_map(fn (mixed $value): mixed => $value === '' ? null : $value, $values);
+        // Trimmed, so text holding only whitespace counts as none, as `Media::missingAlt()` reads it.
+        $values = array_map(fn (mixed $value): mixed => is_string($value) ? (trim($value) === '' ? null : trim($value)) : $value, $values);
         if (array_key_exists('decorative', $values)) {
             $values['decorative'] ??= false;
         }
@@ -81,10 +78,12 @@ final class SaveMedia
             ...array_fill_keys(array_keys(Arr::except($values, [...MediaTranslation::ATTRIBUTES, ...self::SHARED])), 'prohibited'),
         ])->validate();
 
+        // The file a replacement leaves behind; none when the new one holds the same bytes.
+        $former = $media instanceof Media && $file !== null ? $this->replace($site, $media, $file) : null;
         $media ??= $this->newMedia($site, $file ?? throw new InvalidArgumentException('A new Media item needs a file.'));
         $created = ! $media->exists;
 
-        $id = DB::transaction(function () use ($locale, $values, $media, $file, $created): string {
+        $id = DB::transaction(function () use ($locale, $values, $media, $file, $created, $former): string {
             foreach (Arr::only($values, self::SHARED) as $attribute => $value) {
                 $media->setAttribute($attribute, $value);
             }
@@ -102,10 +101,19 @@ final class SaveMedia
             }
 
             // Last, so a row that fails to save leaves no file.
-            if ($created && $file !== null) {
-                // ponytail: an outer transaction rolled back afterwards leaves the file behind; M9 cleans up after a failed import.
+            if (($created || $former !== null) && $file !== null) {
+                // ponytail: an outer transaction rolled back afterwards leaves the new file behind, of a creation or a replacement; M9 cleans up after a failed import.
                 Storage::disk(Config::string('kami.media.originals_disk'))->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
                     ?: throw new RuntimeException("The original of Media [{$media->id}] could not be written.");
+            }
+
+            // Once committed, so a rollback keeps what the row still points to. The former Conversions go at once, not at the next
+            // prune: Apache would serve the former picture at its former URLs until then (Privacy over Simplicity, ADR 0017).
+            if ($former !== null) {
+                DB::afterCommit(function () use ($media, $former): void {
+                    Storage::disk(Config::string('kami.media.originals_disk'))->delete($former);
+                    Conversion::forget($media);
+                });
             }
 
             return $media->id;
@@ -116,6 +124,39 @@ final class SaveMedia
         event(new MediaSaved($saved, $locale, $created, $actor));
 
         return $saved;
+    }
+
+    /**
+     * Fills the Media item with what Kami reads from its new file, under a path of its own so the former file stays until commit.
+     *
+     * @return string|null The former file's path; null when the new file holds the same bytes, which changes nothing.
+     *
+     * @throws ValidationException When the new file is of another family.
+     */
+    private function replace(Site $site, Media $media, UploadedFile | string $file): ?string
+    {
+        $new = $this->newMedia($site, $file);
+
+        if ($new->family !== $media->family) {
+            throw $this->refused("family.{$media->family}");
+        }
+
+        if ($new->checksum === $media->checksum) {
+            return null;
+        }
+
+        $former = $media->file;
+        $media->forceFill([
+            'name' => $new->name,
+            'mime' => $new->mime,
+            'size' => $new->size,
+            'width' => $new->width,
+            'height' => $new->height,
+            'checksum' => $new->checksum,
+            'file' => "media/{$media->id}-" . substr($new->checksum, 0, 8) . '.' . pathinfo($new->file, PATHINFO_EXTENSION),
+        ]);
+
+        return $former;
     }
 
     /**

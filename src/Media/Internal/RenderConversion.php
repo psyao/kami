@@ -35,7 +35,8 @@ final class RenderConversion
         }
 
         try {
-            $path = $conversion->write();
+            // The file was replaced since this request read it: its version is stale.
+            $path = $conversion->write() ?? abort(404);
         } catch (LockTimeoutException) {
             abort(503, headers: ['Retry-After' => '5']);
         } catch (Throwable $exception) {

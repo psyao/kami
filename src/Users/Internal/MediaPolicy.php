@@ -23,4 +23,10 @@ final class MediaPolicy
     {
         return Gate::forUser($user)->allows('kami.media.create');
     }
+
+    /** Its alt text, caption, credit, `decorative` and file. */
+    public function update(Authenticatable $user): bool
+    {
+        return Gate::forUser($user)->allows('kami.media.update');
+    }
 }
