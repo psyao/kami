@@ -50,6 +50,13 @@ final class KamiServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        // `mergeConfigFrom()` merges the top level only: a site's `media` block with `presets` alone, as the guide shows it, keeps Kami's other keys.
+        if (! $this->app->configurationIsCached()) {
+            /** @var array{media: array<string, mixed>} $defaults */
+            $defaults = require __DIR__ . '/../config/kami.php';
+            config(['kami.media' => [...$defaults['media'], ...config()->array('kami.media')]]);
+        }
+
         // Run from the package, never published: a copy in the site would drift from the append-only history (ADR 0035).
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 

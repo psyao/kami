@@ -39,8 +39,7 @@ final class RenderConversion
         }
 
         try {
-            // The file was replaced since this request read it: its version is stale.
-            $path = $conversion->write() ?? abort(404);
+            $path = $conversion->write();
         } catch (LockTimeoutException) {
             abort(503, headers: ['Retry-After' => '5']);
         } catch (Throwable $exception) {
@@ -56,7 +55,8 @@ final class RenderConversion
             return redirect()->to($fallback->url());
         }
 
-        return response()->file($path, [
+        // Replaced since this request read it: a stale version, a 404 in every format, so outside the `try`, never redirected.
+        return response()->file($path ?? abort(404), [
             'Content-Type' => MimeTypes::getDefault()->getMimeTypes($conversion->format)[0],
             'Cache-Control' => PublicMedia::HEADERS['Cache-Control'],
         ]);

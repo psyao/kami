@@ -47,6 +47,50 @@ final class PublicMedia
         return $driver === 'local' ? null : "kami.media.public_disk is {$disk}, whose driver is " . (is_string($driver) ? $driver : 'not declared') . ': Conversions need a local disk, which public/media links to.';
     }
 
+    /**
+     * Why the originals could be served, EXIF and GPS included, or null: a local `kami.media.originals_disk` whose `media/` lies
+     * under `public/`, under the public disk's `media/` (which `public/media` links to) or under a `filesystems.links` target
+     * (which `storage:link` exposes). Compared once resolved through symlinks, so a site root linking to `public/`, as one
+     * Infomaniak layout does, counts. A remote disk's visibility is the site's to keep private.
+     */
+    public static function exposedOriginalsRefusal(): ?string
+    {
+        $disk = Config::string('kami.media.originals_disk');
+        $root = config("filesystems.disks.{$disk}.driver") === 'local' ? config("filesystems.disks.{$disk}.root") : null;
+
+        if (! is_string($root)) {
+            return null;
+        }
+
+        $publicRoot = config('filesystems.disks.' . Config::string('kami.media.public_disk') . '.root');
+        /** @var array<string, string> $links */
+        $links = config('filesystems.links', []);
+        $originals = self::resolved("{$root}/media");
+
+        foreach ([public_path(), ...(is_string($publicRoot) ? ["{$publicRoot}/media"] : []), ...array_values($links)] as $served) {
+            $served = self::resolved($served);
+
+            if ($originals === $served || str_starts_with($originals, $served . DIRECTORY_SEPARATOR)) {
+                return "kami.media.originals_disk is {$disk}, whose media/ ({$originals}) can be served from public/: originals keep their metadata, GPS included.";
+            }
+        }
+
+        return null;
+    }
+
+    /** `realpath()` of the nearest existing parent, with the missing rest appended: a disk's `media/` may not exist yet. */
+    private static function resolved(string $path): string
+    {
+        $missing = '';
+
+        while (($real = realpath($path)) === false && dirname($path) !== $path) {
+            $missing = DIRECTORY_SEPARATOR . basename($path) . $missing;
+            $path = dirname($path);
+        }
+
+        return ($real === false ? $path : $real) . $missing;
+    }
+
     /** Resolved, so a relative link to the same directory counts. */
     public static function isLinked(): bool
     {

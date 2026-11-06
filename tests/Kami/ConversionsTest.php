@@ -187,6 +187,21 @@ it('answers 302 to the fallback format at the same width when a generation fails
     $this->get($url)->assertOk()->assertHeader('Content-Type', "image/{$format}");
 });
 
+it('answers 404 in every format, reporting nothing, for a Media item replaced since the request read it', function (): void {
+    Exceptions::fake();
+    $media = rotatedPhoto();
+    $urls = array_map(fn (string $format): string => $media->url('card', 40, $format), [...array_keys(resolve(ImageFormats::class)->available()), 'jpg']);
+    // A replacement committing between the request's read and its write.
+    Media::retrieved(fn (Media $read) => DB::table('kami_media')->where('id', $read->id)->update(['checksum' => str_repeat('0', 64)]));
+
+    foreach ($urls as $url) {
+        $this->get($url)->assertNotFound();
+    }
+
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+    Exceptions::assertNothingReported();
+});
+
 it('answers 500 when the fallback format itself fails to generate', function (): void {
     $media = rotatedPhoto();
     failingToEncode('jpg');

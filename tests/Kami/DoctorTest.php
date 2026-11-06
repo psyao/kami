@@ -518,6 +518,31 @@ describe('Conversions', function () {
         Http::assertNothingSent();
     });
 
+    it('fails on an originals disk the web server can serve, as originals keep their GPS', function (Closure $exposed) {
+        $exposed();
+
+        $problems = mediaProblems();
+
+        expect($problems)->toHaveCount(1)->{0}->{0}->toBe(Severity::Error)
+            ->and($problems[0][1])->toStartWith('kami.media.originals_disk is ')->toContain('can be served from public/');
+    })->with([
+        'the public disk' => [fn () => config(['kami.media.originals_disk' => 'public'])],
+        'a disk under public/' => [fn () => config(['filesystems.disks.inside' => ['driver' => 'local', 'root' => public_path('uploads')], 'kami.media.originals_disk' => 'inside'])],
+        'a disk storage:link exposes' => [function () {
+            config(['filesystems.disks.linked' => ['driver' => 'local', 'root' => $root = temporaryPath()], 'kami.media.originals_disk' => 'linked']);
+            config(['filesystems.links' => [public_path('storage') => $root]]);
+        }],
+        'the same directory under another name' => [fn () => config(['filesystems.disks.alias' => ['driver' => 'local', 'root' => config('filesystems.disks.public.root')], 'kami.media.originals_disk' => 'alias'])],
+    ]);
+
+    it('accepts a private local disk, and a remote one', function (string $disk) {
+        config(['filesystems.disks.remote' => ['driver' => 's3'], 'kami.media.originals_disk' => $disk]);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toBeEmpty();
+    })->with(['local', 'remote']);
+
     it('fails on a lock store each PHP worker keeps to itself, without blocking kami:install', function (string $driver) {
         config(['cache.stores.mine' => ['driver' => $driver], 'cache.default' => 'mine']);
 
@@ -553,6 +578,15 @@ describe('Conversions', function () {
         $problems = mediaProblems();
 
         expect($problems)->toEqual([[Severity::Warning, 'Files under public/media go out without X-Content-Type-Options: nosniff, Cache-Control: public, max-age=31536000, immutable, Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; img-src data:.']]);
+    });
+
+    it('only informs about the headers on a developer\'s machine, whose local server, such as Herd\'s nginx, the site never runs on', function () {
+        app()->detectEnvironment(fn () => 'local');
+        $this->served = Http::response('<svg/>', 200, ['Cache-Control' => 'max-age=3600']);
+
+        $problems = mediaProblems();
+
+        expect($problems)->toHaveCount(1)->{0}->{0}->toBe(Severity::Info);
     });
 
     it('warns when the probe file is not served', function () {

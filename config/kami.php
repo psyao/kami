@@ -43,7 +43,8 @@ return [
 
     /*
     | The Media library (ADR 0017). `originals_disk`: any Laravel disk, local or remote; keep it private, as originals keep
-    | their metadata. `mimes`: the types accepted per family, read from the file's content; video and audio stay closed.
+    | their metadata: a local disk under `public/` is refused (docs/guide/hosting.md#conversions). `mimes`: the types
+    | accepted per family, read from the file's content; video and audio stay closed.
     | `max_pixels`: an image above it is refused at upload, capping the cost of generating its Conversions.
     | `public_disk`: a local disk the Conversions are written to, under `media/`. `presets`: the site's `Psyao\Kami\Media\ImagePreset`s,
     | next to Kami's own `admin-thumb`, `original` and `kami-social`. `avif`: off, Conversions are offered in WebP and the
