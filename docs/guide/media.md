@@ -57,6 +57,12 @@ An image is missing its alt text when it is not decorative and its alt text in t
 Media::query()->missingAlt()->count();
 ```
 
+A missing alt text never blocks anything, but it stays in sight:
+
+- **Publishing** a Translation, from its form or the list's bulk **Publish**, and saving one that is published or Scheduled, warn of the images its Media Fields show without alt text, by name, on a message kept until dismissed. A Draft is never warned about.
+- **`kami:doctor`** counts the images missing their alt text as a warning, which the dashboard's **Needs attention** shows after its next run.
+- The library's **Alt text missing** filter lists them ([The library in the admin](#the-library-in-the-admin)).
+
 ## Replacing a file
 
 Pass a file and the Media item to replace its file. The item keeps its id, so every Entry referencing it keeps it, along with its alt text, caption, credit and `decorative`:
@@ -95,6 +101,8 @@ Each file may weigh up to the lowest of PHP's `upload_max_filesize` and `post_ma
 Each image's `admin-thumb` Conversion is generated once the upload's response is sent, so the editor does not wait for it. One that fails is reported to the log and generated on its first request instead.
 
 A filter, **Alt text missing**, narrows the list to the images [missing their alt text](#alt-text-caption-and-credit).
+
+The list searches by name. The admin's global search finds Media items by name, or by alt text in any Locale, under `kami.media.view`: a result opens the edit page under `kami.media.update`, and the list searched for its name otherwise.
 
 ### Editing in the admin
 
@@ -156,7 +164,7 @@ Any other attribute, such as `class` or `id`, goes on the `<img>`; the `<picture
 - **a `<source>` per format** this host encodes, AVIF then WebP, and the `<img>` in the [fallback format](#formats);
 - **a `srcset`** of the preset's widths up to the original's, or up to the narrower width its ratio crops a wider original to, never upscaled; when none fits, the smallest alone, at that width;
 - **`width` and `height`** from the preset's ratio, or the image's own proportions, so the page does not shift while it loads;
-- **the alt text** in the current Locale. When it falls back to the default Locale's, the `<img>` carries `lang` with that Locale, so assistive technology reads it in the right language. A decorative image, and one missing its alt text, get `alt=""`: the component never makes one up from the filename. The library's **Alt text missing** filter lists what needs describing.
+- **the alt text** in the current Locale. When it falls back to the default Locale's, the `<img>` carries `lang` with that Locale, so assistive technology reads it in the right language. A decorative image, and one missing its alt text, get `alt=""`: the component never makes one up from the filename. Publishing warns of the images shown without one, `kami:doctor` counts them, and the library's **Alt text missing** filter lists them ([Alt text, caption and credit](#alt-text-caption-and-credit)).
 
 It runs no query when the Media item and its Translations are loaded, as a [Media Field](content-types.md#media) loads them: a listing of covers costs the queries of its Entries alone. A document renders nothing.
 

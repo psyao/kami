@@ -23,6 +23,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
@@ -75,6 +76,27 @@ final class MediaResource extends FilamentResource
     public static function getPluralModelLabel(): string
     {
         return __('kami::admin.media.plural_label');
+    }
+
+    /**
+     * Its alt text in any Locale too: the words an editor remembers an image by. A `LIKE` with a leading wildcard, unindexed, as the Entries'
+     * search: a scan of `kami_media` and `kami_media_translations`, the same on shared hosting and on a server.
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'translations.alt'];
+    }
+
+    /** Ordered, so a search past Filament's limit returns the same items on every engine. */
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->orderBy('name')->orderBy('id');
+    }
+
+    /** The edit page under `kami.media.update`; otherwise the library searched for its name, as no page shows one item read-only. */
+    public static function getGlobalSearchResultUrl(Model $record): string
+    {
+        return self::canEdit($record) ? self::getUrl('edit', ['record' => $record]) : self::getUrl(parameters: ['search' => $record->getAttribute('name')]);
     }
 
     /** As translated: Filament would title-case it. */
@@ -157,7 +179,7 @@ final class MediaResource extends FilamentResource
                     ->state(fn (Media $record): ?string => self::preview($record))
                     ->square()
                     ->imageSize(48),
-                TextColumn::make('name')->label(__('kami::admin.media.columns.name')),
+                TextColumn::make('name')->label(__('kami::admin.media.columns.name'))->searchable(),
                 // From `md` up: on a phone the rows would scroll sideways, a region a keyboard cannot reach with no link in it (WCAG 2.1.1).
                 TextColumn::make('family')->label(__('kami::admin.media.columns.family'))->visibleFrom('md')
                     ->formatStateUsing(fn (string $state): string => __("kami::admin.media.families.{$state}")),

@@ -189,6 +189,8 @@ return [
         'skipped_level' => 'Un titre passe de H:from à H:to et saute un niveau.',
         'empty_heading' => 'Un titre est vide.',
         'empty_link' => 'Un lien n’a pas de texte.',
+        'alt_title' => 'Images sans texte alternatif',
+        'alt_body' => 'Les lecteurs d’écran n’en disent rien : décrivez-les sous Médias, ou marquez-les comme décoratives.',
     ],
 
     'media' => [
