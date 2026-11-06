@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Media\Internal;
 
+use Closure;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -41,6 +42,54 @@ final readonly class Conversion
         }
 
         return new self($media, $declared, $width, $format);
+    }
+
+    /**
+     * Every Conversion of the Media item in these presets, at each width, in each format this host offers: what `kami:media:warm` writes.
+     *
+     * @param  list<ImagePreset>  $presets
+     * @return list<self>
+     */
+    public static function of(Media $media, array $presets): array
+    {
+        return self::each($media, $presets, resolve(ImagePresets::class)->formats(...));
+    }
+
+    /**
+     * Every path the Media item's files may sit at on the public disk, in every preset and in any format a host may offer:
+     * what `kami:media:prune` keeps.
+     *
+     * @return list<string>
+     */
+    public static function kept(Media $media): array
+    {
+        if (! self::isConvertible($media)) {
+            return [self::filePath($media)];
+        }
+
+        $registry = resolve(ImagePresets::class);
+
+        return array_map(fn (self $conversion): string => $conversion->path(), self::each($media, array_values($registry->all()), $registry->keptFormats(...)));
+    }
+
+    /**
+     * @param  list<ImagePreset>  $presets
+     * @param  Closure(ImagePreset, Media): list<string>  $formats
+     * @return list<self>
+     */
+    private static function each(Media $media, array $presets, Closure $formats): array
+    {
+        $conversions = [];
+
+        foreach ($presets as $preset) {
+            foreach (resolve(ImagePresets::class)->widths($preset, $media) as $width) {
+                foreach ($formats($preset, $media) as $format) {
+                    $conversions[] = new self($media, $preset, max(1, $width), $format);
+                }
+            }
+        }
+
+        return $conversions;
     }
 
     /** A raster image: a document or an SVG is served as it is, never converted. */
@@ -105,7 +154,7 @@ final readonly class Conversion
                 fclose($stream);
             }
 
-            // ponytail: a replacement committing between this check and the move still slips through, as in `generate()`; `kami:media:prune` (#308) clears it.
+            // A replacement committing between this check and the move still slips through, as in `generate()`; `kami:media:prune` deletes it.
             self::isCurrent($media) ? $disk->move($temporary, $path) : $disk->delete($temporary);
         }
 
@@ -205,7 +254,7 @@ final readonly class Conversion
             ?: throw new RuntimeException("The Conversion [{$path}] could not be written.");
 
         // Again, as generating takes time: moving now would serve the former picture at its former URL.
-        // ponytail: a replacement committing between this check and the move still slips through; `kami:media:prune` (#308) clears it.
+        // A replacement committing between this check and the move still slips through; `kami:media:prune` deletes it.
         if (! self::isCurrent($this->media)) {
             $disk->delete($temporary);
 

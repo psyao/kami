@@ -33,7 +33,17 @@ final class ImageFormats
     {
         $tested = Cache::memo()->remember('kami-media:formats:' . PHP_SAPI, now()->addDay(), $this->probe(...));
 
-        return Config::boolean('kami.media.avif') ? $tested : array_diff_key($tested, ['avif' => true]);
+        return array_intersect_key($tested, array_flip(self::allowed()));
+    }
+
+    /**
+     * The formats offered wherever a host encodes them, as `kami.media.avif` allows: a Conversion in any other is stale.
+     *
+     * @return list<string>
+     */
+    public static function allowed(): array
+    {
+        return array_keys(Config::boolean('kami.media.avif') ? self::FORMATS : array_diff_key(self::FORMATS, ['avif' => true]));
     }
 
     /**

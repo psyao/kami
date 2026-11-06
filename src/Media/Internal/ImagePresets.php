@@ -57,13 +57,33 @@ final class ImagePresets
      */
     public function formats(ImagePreset $preset, Media $media): array
     {
+        return $this->offered($preset, $media, array_keys(resolve(ImageFormats::class)->available()));
+    }
+
+    /**
+     * The formats a Media item's Conversions of the preset may have been written in on any host: the web may encode one the
+     * command line does not, and a probe that failed once is cached for a day. What `kami:media:prune` keeps.
+     *
+     * @return list<string>
+     */
+    public function keptFormats(ImagePreset $preset, Media $media): array
+    {
+        return $this->offered($preset, $media, ImageFormats::allowed());
+    }
+
+    /**
+     * @param  list<string>  $formats
+     * @return list<string>
+     */
+    private function offered(ImagePreset $preset, Media $media, array $formats): array
+    {
         $fallback = Conversion::fallbackFormat($media);
 
-        return $preset->handle === self::SOCIAL ? [$fallback] : [...array_keys(resolve(ImageFormats::class)->available()), $fallback];
+        return $preset->handle === self::SOCIAL ? [$fallback] : [...$formats, $fallback];
     }
 
     /** @return array<string, ImagePreset> Keyed by handle. */
-    private function all(): array
+    public function all(): array
     {
         $declared = Config::array('kami.media.presets');
 
