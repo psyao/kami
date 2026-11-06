@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Psyao\Kami\Media\Internal;
 
 use InvalidArgumentException;
-use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -35,27 +34,28 @@ final readonly class Picture
     ) {}
 
     /**
-     * Null for what is not a raster image.
+     * Null for no Media item, and for what is not a raster image.
      *
      * @throws InvalidArgumentException For a preset not declared.
      */
-    public static function of(Media $media, string $preset, ?string $sizes = null): ?self
+    public static function of(?Media $media, string $preset, ?string $sizes = null): ?self
     {
         // ponytail: an SVG renders nothing until #300 gives it the URL of its file, then a plain `<img>` of it.
-        if (! Conversion::isConvertible($media)) {
+        if (! $media instanceof Media || ! Conversion::isConvertible($media)) {
             return null;
         }
 
         $presets = resolve(ImagePresets::class);
         $declared = $presets->find($preset) ?? throw new InvalidArgumentException("No Image Preset [{$preset}] is declared.");
-        $original = (int) $media->width;
+        [$widest, $tallest] = Conversion::cropped($declared, $media);
         /** @var non-empty-list<int> $widths A preset declares one at least. */
         $widths = $presets->widths($declared, $media);
-        // Never upscaled: a width above the original's is generated at the original's.
-        $fitting = array_filter($widths, fn (int $width): bool => $width <= $original) ?: [min($widths)];
+        // Each declared width a file is generated at, never upscaled: one above the widest gives the widest. None fits: the smallest alone.
+        $shown = array_filter(array_combine($widths, $widths), fn (int $width): bool => $width <= $widest) ?: [min($widths) => $widest];
         $srcset = fn (string $format): string => implode(', ', array_map(
-            fn (int $width): string => $media->url($preset, $width, $format) . ' ' . min($width, $original) . 'w',
-            $fitting,
+            fn (int $generated, int $shownAt): string => $media->url($preset, $generated, $format) . " {$shownAt}w",
+            array_keys($shown),
+            $shown,
         ));
         $fallback = Conversion::fallbackFormat($media);
         $sources = [];
@@ -65,35 +65,19 @@ final readonly class Picture
             $sources[self::TYPES[$format]] = $srcset($format);
         }
 
-        $width = min(max($fitting), $original);
-        [$alt, $lang] = self::alt($media);
+        $width = max($shown);
+        $alt = $media->isDecorative() ? '' : (string) $media->alt();
+        $locale = $media->altLocale();
 
         return new self(
             $sources,
-            $media->url($preset, max($fitting), $fallback),
+            $media->url($preset, array_key_last($shown), $fallback),
             $srcset($fallback),
             $sizes ?? $declared->sizes,
             $width,
-            self::height($declared, $media, $width),
+            max(1, (int) round($width * $tallest / $widest)),
             $alt,
-            $lang,
+            $alt !== '' && $locale !== Site::current()->currentLocale() ? $locale : null,
         );
-    }
-
-    private static function height(ImagePreset $preset, Media $media, int $width): int
-    {
-        [$ratioWidth, $ratioHeight] = $preset->ratio ?? [(int) $media->width, (int) $media->height];
-
-        return max(1, (int) round($width * $ratioHeight / max(1, $ratioWidth)));
-    }
-
-    /** @return array{string, string|null} */
-    private static function alt(Media $media): array
-    {
-        $alt = $media->isDecorative() ? '' : (string) $media->alt();
-        $site = Site::current();
-        $own = $media->translations->firstWhere('locale', $site->currentLocale())?->getAttribute('alt');
-
-        return [$alt, $alt !== '' && (! is_string($own) || trim($own) === '') ? $site->defaultLocale() : null];
     }
 }

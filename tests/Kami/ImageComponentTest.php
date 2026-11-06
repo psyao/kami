@@ -13,6 +13,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
+use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Project;
@@ -49,7 +50,7 @@ function renderImage(?Media $media, string $attributes = 'preset="card"'): strin
 it('renders a picture whose srcset stops at the original\'s width, sized from the preset\'s ratio', function (): void {
     $media = photo(['alt' => 'A red and blue flag']);
 
-    expect(renderImage($media))->toBe('<picture>'
+    expect(renderImage($media))->toBe('<picture class="kami-image">'
         . '<img src="' . $media->url('card', 40) . '"'
         . ' srcset="' . $media->url('card', 20) . ' 20w, ' . $media->url('card', 40) . ' 40w"'
         . ' sizes="(min-width: 60rem) 33vw, 100vw" width="40" height="30" alt="A red and blue flag" loading="lazy" decoding="async">'
@@ -69,6 +70,29 @@ it('keeps the image\'s own proportions without a ratio, and offers the smallest 
     'none that fits' => ['hero', 'hero-80 40w', 'width="40" height="60"'],
 ]);
 
+it('stops at the width a ratio crops a wider original to', function (): void {
+    // 20 × 10, cropped to 13 × 10 in 4:3: every declared width gives a file 13 pixels wide.
+    $media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'));
+
+    expect(renderImage($media))->toContain(' srcset="' . $media->url('card', 20) . ' 13w" sizes="(min-width: 60rem) 33vw, 100vw" width="13" height="10"');
+});
+
+it('offers AVIF before WebP where this host encodes it, unless kami.media.avif is off', function (): void {
+    failingToEncode();
+    $media = photo();
+    $offered = renderImage($media);
+
+    if (! str_contains($offered, 'image/avif')) {
+        $this->markTestSkipped('No Image driver encodes AVIF on this host.');
+    }
+
+    expect($offered)->toContain('<picture class="kami-image"><source type="image/avif" srcset="' . $media->url('card', 20, 'avif') . ' 20w, ' . $media->url('card', 40, 'avif') . ' 40w" sizes="(min-width: 60rem) 33vw, 100vw"><source type="image/webp"');
+
+    config(['kami.media.avif' => false]);
+
+    expect(renderImage($media))->not->toContain('image/avif')->toContain('image/webp');
+});
+
 it('offers AVIF and WebP before the fallback format, each only where this host encodes it', function (): void {
     failingToEncode('avif');
     $media = photo();
@@ -80,7 +104,7 @@ it('offers AVIF and WebP before the fallback format, each only where this host e
     }
 
     expect($offered)
-        ->toContain('<picture><source type="image/webp" srcset="' . $media->url('card', 20, 'webp') . ' 20w, ' . $media->url('card', 40, 'webp') . ' 40w" sizes="(min-width: 60rem) 33vw, 100vw"><img src="' . $media->url('card', 40, 'jpg') . '"')
+        ->toContain('<picture class="kami-image"><source type="image/webp" srcset="' . $media->url('card', 20, 'webp') . ' 20w, ' . $media->url('card', 40, 'webp') . ' 40w" sizes="(min-width: 60rem) 33vw, 100vw"><img src="' . $media->url('card', 40, 'jpg') . '"')
         ->not->toContain('image/avif');
 });
 
@@ -144,17 +168,18 @@ it('renders a listing\'s covers with no query once the Entries are loaded with t
     }
 
     Model::shouldBeStrict();
-    // Shared hosting's store, where every cache read is a query: formats are read once per request, here before the page is counted.
+    // Shared hosting's store, where every cache read is a query. The formats are probed before the page is counted.
     config(['cache.default' => 'database']);
-    renderImage(photo());
+    resolve(ImageFormats::class)->available();
     DB::enableQueryLog();
     $entries = Entry::query()->ofType('project')->with('cover')->get();
     $loading = count(DB::getQueryLog());
 
     $markup = Blade::render('@foreach ($entries as $entry)<x-kami::image :media="$entry->cover" preset="card" />@endforeach', ['entries' => $entries]);
 
-    // Entries, their Translations, their Field values, references, Media items, their Translations: none while rendering.
+    // Entries, their Translations, their Field values, references, Media items, their Translations; while rendering, the
+    // formats' one cache read, whatever the number of images.
     expect($loading)->toBe(6)
-        ->and(DB::getQueryLog())->toHaveCount(6)
-        ->and(substr_count($markup, '<picture>'))->toBe(3);
+        ->and(DB::getQueryLog())->toHaveCount(7)
+        ->and(substr_count($markup, '<picture class="kami-image">'))->toBe(3);
 });

@@ -124,7 +124,7 @@ $media->credit;
 ```
 
 ```html
-<picture>
+<picture class="kami-image">
     <source type="image/avif" srcset="…/card-320.avif 320w, …/card-640.avif 640w" sizes="(min-width: 60rem) 33vw, 100vw">
     <source type="image/webp" srcset="…/card-320.webp 320w, …/card-640.webp 640w" sizes="(min-width: 60rem) 33vw, 100vw">
     <img src="…/card-640.jpg" srcset="…/card-320.jpg 320w, …/card-640.jpg 640w" sizes="(min-width: 60rem) 33vw, 100vw"
@@ -139,10 +139,10 @@ $media->credit;
 | `sizes` | Replaces the preset's `sizes`. Without either, the attribute is left out. |
 | `eager` | For the image that is the page's largest paint, such as a hero: drops `loading="lazy"` and adds `fetchpriority="high"`. |
 
-Any other attribute, such as `class` or `id`, goes on the `<img>`. What it prints:
+Any other attribute, such as `class` or `id`, goes on the `<img>`; the `<picture>` carries `kami-image`, and no CSS. What it prints:
 
 - **a `<source>` per format** this host encodes, AVIF then WebP, and the `<img>` in the [fallback format](#formats);
-- **a `srcset`** of the preset's widths up to the original's, never upscaled; when none fits, the smallest alone, at the original's width;
+- **a `srcset`** of the preset's widths up to the original's, or up to the narrower width its ratio crops a wider original to, never upscaled; when none fits, the smallest alone, at that width;
 - **`width` and `height`** from the preset's ratio, or the image's own proportions, so the page does not shift while it loads;
 - **the alt text** in the current Locale. When it falls back to the default Locale's, the `<img>` carries `lang` with that Locale, so assistive technology reads it in the right language. A decorative image, and one missing its alt text, get `alt=""`: the component never makes one up from the filename. The library's **Alt text missing** filter lists what needs describing.
 

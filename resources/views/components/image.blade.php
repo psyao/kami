@@ -1,7 +1,8 @@
 @props(['media', 'preset', 'sizes' => null, 'eager' => false])
 {{-- Nothing for a null Media item, so an empty optional Field needs no @if. --}}
-@if ($media && ($picture = \Psyao\Kami\Media\Internal\Picture::of($media, $preset, $sizes)))
-    <picture>
+@php($picture = \Psyao\Kami\Media\Internal\Picture::of($media, $preset, $sizes))
+@if ($picture)
+    <picture class="kami-image">
         @foreach ($picture->sources as $type => $srcset)
             <source type="{{ $type }}" srcset="{{ $srcset }}"@if ($picture->sizes !== null) sizes="{{ $picture->sizes }}"@endif>
         @endforeach
