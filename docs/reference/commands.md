@@ -29,3 +29,14 @@ Start a Content Type: write its class into app/Content and print the lines to ad
 - `[--singleton]`: One Entry per Site, such as a home page
 - `[--taxonomy]`: Terms classifying other types
 - `<name>`: The class name, such as NewsItem
+
+## `kami:media:prune`
+
+Delete the Media files no longer served: former versions, removed presets, widths and formats, deleted items, interrupted writes
+
+## `kami:media:warm`
+
+Generate the Conversions of every Media item, or of those an Entry uses, skipping the files already written
+
+- `[--entry [ENTRY]]`: Only the Media items this Entry uses, by its id
+- `[--preset [PRESET]]`: Only these Image Presets; file for a document's or an SVG's own file

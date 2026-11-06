@@ -11,7 +11,9 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
 use Psyao\Kami\Media\Internal\ImagePresets;
+use Psyao\Kami\Media\Internal\PruneMediaCommand;
 use Psyao\Kami\Media\Internal\StripMetadata;
+use Psyao\Kami\Media\Internal\WarmMediaCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -31,7 +33,8 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class]);
+            // ponytail: `kami:media:prune` runs when an operator starts it; M8's Tick schedules it weekly.
+            ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneMediaCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void

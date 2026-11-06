@@ -243,6 +243,10 @@ command kami:make:type --global-set [--global-set]
 command kami:make:type --singleton [--singleton]
 command kami:make:type --taxonomy [--taxonomy]
 command kami:make:type name <name>
+command kami:media:prune
+command kami:media:warm
+command kami:media:warm --entry [--entry [ENTRY]]
+command kami:media:warm --preset [--preset [PRESET]]
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::preview-banner
 config kami.media.avif

@@ -27,7 +27,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Trash or restore Entries (`TrashEntry`, `RestoreEntry`) | `vendor/psyao/kami/docs/guide/content-types.md#the-trash` |
 | Act on selected rows, or add a row, header or bulk action of your own writing through a core action | `vendor/psyao/kami/docs/guide/content-types.md#your-own-actions` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
-| Store or delete an image or a document (`SaveMedia`, `DeleteMedia`), write its alt text, or change what the library accepts | `vendor/psyao/kami/docs/guide/media.md` |
+| Store or delete an image or a document (`SaveMedia`, `DeleteMedia`), write its alt text, change what the library accepts, or pre-generate and prune Conversions (`kami:media:warm`, `kami:media:prune`) | `vendor/psyao/kami/docs/guide/media.md` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |
 | Render a type, write its view, override `render()` or place `Kami::routes()` | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |
 | Load from another origin, extend the front CSP, or weigh an option that weakens it | `vendor/psyao/kami/docs/guide/security.md` |

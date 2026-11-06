@@ -151,6 +151,16 @@ final class References
     }
 
     /**
+     * The Media items an Entry uses, in any Locale.
+     *
+     * @return Builder<Media>
+     */
+    public static function mediaOf(string $entry): Builder
+    {
+        return Media::query()->whereIn('id', DB::table(self::TABLE)->where('source_entry_id', $entry)->whereNotNull('target_media_id')->select('target_media_id'));
+    }
+
+    /**
      * Gives Entries their relation and Media Fields: one query for the rows, then one Entry query per way of reading them, with its usual queries, and one for the Media items with their Translations.
      *
      * @param  array<Entry>  $entries

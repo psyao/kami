@@ -132,6 +132,17 @@ When `php -v` prints another version than 8.5, put PHP 8.5 first on the `PATH` b
 
 When a step fails, `kami:install` included, the deploy stops before `php artisan up` and the site stays in maintenance mode: fix the problem it prints, then run the chained command again, from `git pull`.
 
+## Media files
+
+After migrating a site's images or importing Media, generate their Conversions before visitors ask for them, then delete those no longer served once you change the presets:
+
+```bash
+php artisan kami:media:warm
+php artisan kami:media:prune
+```
+
+Both run over SSH and can be started again when cut short: `warm` skips the files already written, `prune` deletes only what no Media item serves. Neither is needed for the site to work ([Media](media.md#pre-generating-conversions)).
+
 ## A staging copy
 
 A staging copy runs the same steps on its own subdomain, with its own database and `.env`. Kami has no indexing switch yet, so keep a staging copy out of search engines by putting the whole site behind a password. Protect it before its root folder points at `public/`, or the subdomain answers publicly, with Laravel's error page until Kami is installed.
