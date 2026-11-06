@@ -42,13 +42,10 @@ it('warns in kami:doctor with the count of images missing their alt text, which 
     entriesPage(NeedsAttention::class, ['kami.health.view'], type: null)->assertSee('2 images have no alt text.');
 });
 
-it('says nothing of alt text once every image has one, or before the Media table exists', function () {
+// Before the Media table exists: `DoctorTest` runs on an empty database.
+it('says nothing of alt text once every image has one', function () {
     withConversionsServed();
     resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), ['decorative' => true]);
-
-    expect((new Doctor)->problems())->toBeEmpty();
-
-    config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty']);
 
     expect((new Doctor)->problems())->toBeEmpty();
 });
