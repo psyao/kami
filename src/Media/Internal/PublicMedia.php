@@ -65,13 +65,12 @@ final class PublicMedia
         $publicRoot = config('filesystems.disks.' . Config::string('kami.media.public_disk') . '.root');
         /** @var array<string, string> $links */
         $links = config('filesystems.links', []);
-        $originals = self::resolved("{$root}/media");
+        $originals = self::resolved("{$root}/media") . DIRECTORY_SEPARATOR;
 
         foreach ([public_path(), ...(is_string($publicRoot) ? ["{$publicRoot}/media"] : []), ...array_values($links)] as $served) {
-            $served = self::resolved($served);
-
-            if ($originals === $served || str_starts_with($originals, $served . DIRECTORY_SEPARATOR)) {
-                return "kami.media.originals_disk is {$disk}, whose media/ ({$originals}) can be served from public/: originals keep their metadata, GPS included.";
+            // Both ending with a separator: equal paths match, and `public-old/` does not count as under `public/`.
+            if (str_starts_with($originals, self::resolved($served) . DIRECTORY_SEPARATOR)) {
+                return "kami.media.originals_disk is {$disk}, whose media/ (" . rtrim($originals, DIRECTORY_SEPARATOR) . ') can be served from public/: originals keep their metadata, GPS included.';
             }
         }
 
