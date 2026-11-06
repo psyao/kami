@@ -7,6 +7,7 @@ namespace Workbench\App\Providers;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Support\SecurityHeaders;
 
 /** The host's own wiring outside the panel, as a site's `bootstrap/app.php` declares it. */
@@ -19,6 +20,9 @@ class WorkbenchServiceProvider extends ServiceProvider
 
         // The site's lang/<locale>/kami-types.php: Testbench's skeleton keeps its own lang directory.
         $this->loadTranslationsFrom(dirname(__DIR__, 2) . '/lang');
+
+        // A site's `media.presets` in config/kami.php: Testbench's workbench/config would replace the whole `media` key.
+        config(['kami.media.presets' => [ImagePreset::make('card')->ratio(4, 3)->widths([320, 640, 960, 1280])->sizes('(min-width: 60rem) 50vw, 100vw')]]);
 
         // `composer serve` shows the front, its links at `app.url`, the address it serves. Tests call Kami::routes() themselves and keep the declared URL.
         if (! $this->app->runningUnitTests()) {

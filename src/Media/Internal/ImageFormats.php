@@ -23,14 +23,15 @@ final class ImageFormats
     private const string PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
     /**
-     * Cached for a day per SAPI, as the command line and the web may load different extensions; `kami.media.avif` is read
-     * each time, so switching it needs no cache clear.
+     * Cached for a day per SAPI, as the command line and the web may load different extensions, and memoised for the request,
+     * as every Conversion URL asks: one cache read per request, a query on a `database` store. `kami.media.avif` is read each
+     * time, so switching it needs no cache clear.
      *
      * @return array<string, string> The driver per format, in offering order.
      */
     public function available(): array
     {
-        $tested = Cache::remember('kami-media:formats:' . PHP_SAPI, now()->addDay(), $this->probe(...));
+        $tested = Cache::memo()->remember('kami-media:formats:' . PHP_SAPI, now()->addDay(), $this->probe(...));
 
         return Config::boolean('kami.media.avif') ? $tested : array_diff_key($tested, ['avif' => true]);
     }

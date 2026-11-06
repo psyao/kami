@@ -8,6 +8,7 @@
     <x-kami::preview-banner />
     <main>
         <h1>{{ $entry->title }}</h1>
+        <x-kami::image :media="$entry->cover" preset="card" eager />
         <p>{{ $entry->client }}</p>
         @if ($entry->links)
             <ul>
