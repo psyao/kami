@@ -23,6 +23,9 @@ final class ImagePresets
     /** `original` has one width, the original's own. */
     public const string ORIGINAL = 'original';
 
+    /** Not a preset: a document's or an SVG's own file, served unchanged. Reserved, so `url('file')` never means another. */
+    public const string FILE = 'file';
+
     /** Read by link previews, many of which read JPEG and PNG only: the fallback format alone. */
     public const string SOCIAL = 'kami-social';
 
@@ -84,7 +87,7 @@ final class ImagePresets
             ImagePreset::make(self::SOCIAL)->ratio(1.91, 1)->widths([1200]),
         ], null, 'handle');
 
-        $shipped = array_keys($presets);
+        $shipped = [...array_keys($presets), self::FILE];
 
         foreach ($declared as $preset) {
             if (! $preset instanceof ImagePreset) {
@@ -97,7 +100,7 @@ final class ImagePresets
                 throw new InvalidArgumentException("{$name}: a handle is lowercase letters and digits, words joined by hyphens, starting with a letter.");
             }
 
-            if (isset($presets[$preset->handle])) {
+            if (isset($presets[$preset->handle]) || $preset->handle === self::FILE) {
                 throw new InvalidArgumentException(in_array($preset->handle, $shipped, true)
                     ? "{$name}: the handle is one of Kami's own presets; rename yours."
                     : "{$name}: the handle appears twice.");

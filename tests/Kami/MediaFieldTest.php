@@ -260,7 +260,14 @@ describe('picker', function (): void {
             ->and($cover->getSearchResults('pixel'))->toBe([])
             ->and(array_keys($gallery->getSearchResults('brochure')))->toBe([$brochure->id])
             ->and($cover->getSearchResults('plage')[$photo->id])->toContain(MediaResource::thumbnail($photo)->url(), 'holiday-photo')
-            ->and($gallery->getSearchResults('brochure')[$brochure->id])->toContain('brochure');
+            ->and($gallery->getSearchResults('brochure')[$brochure->id])->toContain('brochure')->not->toContain('<img');
+    });
+
+    it('labels an SVG with its own file', function (): void {
+        $logo = resolve(SaveMedia::class)->handle(UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>'));
+
+        expect(illustratedProject()->instance()->getSchema('form')->getComponent('cover')->getSearchResults('logo')[$logo->id])
+            ->toContain('<img src="' . e($logo->url()) . '"');
     });
 
     it('escapes a name in its label', function (): void {

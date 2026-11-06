@@ -13,7 +13,7 @@ use Throwable;
 
 /**
  * `/media/{ulid}/{v}/{preset}-{width}.{format}`: generates the Conversion on its first request and serves it with the headers
- * Apache sends once the file is on disk (ADR 0017). Anything not declared, or a stale `{v}`, is a 404 that generates nothing.
+ * Apache sends once the file is on disk (ADR 0017); `/media/{ulid}/{v}/{name}.{ext}` copies a document's or an SVG's file unchanged. Anything not declared, or a stale `{v}`, is a 404 that generates nothing.
  * An AVIF or WebP Conversion that fails to generate redirects to the fallback format, which every browser reads.
  *
  * @internal
@@ -22,13 +22,16 @@ final class RenderConversion
 {
     public function __invoke(string $media, string $version, string $file): BinaryFileResponse | RedirectResponse
     {
-        // No leading zero: one URL per file, so Apache serves every later request.
-        if (preg_match('/^([a-z][a-z0-9-]*)-([1-9]\d{0,5})\.([a-z0-9]+)$/', $file, $match) !== 1) {
-            abort(404);
+        $model = Media::query()->find($media);
+
+        if ($model instanceof Media && ! Conversion::isConvertible($model)) {
+            return $this->file($model, "media/{$media}/{$version}/{$file}");
         }
 
-        $model = Media::query()->find($media);
-        $conversion = $model instanceof Media ? Conversion::find($model, $match[1], (int) $match[2], $match[3]) : null;
+        // No leading zero: one URL per file, so Apache serves every later request.
+        $conversion = $model instanceof Media && preg_match('/^([a-z][a-z0-9-]*)-([1-9]\d{0,5})\.([a-z0-9]+)$/', $file, $match) === 1
+            ? Conversion::find($model, $match[1], (int) $match[2], $match[3])
+            : null;
 
         if (! $conversion instanceof Conversion || $conversion->version() !== $version) {
             abort(404);
@@ -54,6 +57,18 @@ final class RenderConversion
 
         return response()->file($path, [
             'Content-Type' => MimeTypes::getDefault()->getMimeTypes($conversion->format)[0],
+            'Cache-Control' => PublicMedia::HEADERS['Cache-Control'],
+        ]);
+    }
+
+    /** A document or an SVG at its one URL, unchanged; any other name, extension or version is a 404 that writes nothing. */
+    private function file(Media $media, string $requested): BinaryFileResponse
+    {
+        // The file was replaced since this request read it: its version is stale.
+        $path = $requested === Conversion::filePath($media) ? Conversion::writeFile($media) : null;
+
+        return response()->file($path ?? abort(404), [
+            'Content-Type' => $media->mime,
             'Cache-Control' => PublicMedia::HEADERS['Cache-Control'],
         ]);
     }

@@ -51,6 +51,18 @@ it('lists Media with their name, family, size and alt text state, filtered by fa
         ->assertCanNotSeeTableRecords([$photo, $pixel]);
 });
 
+it('shows a raster image\'s thumbnail, an SVG\'s own file, and nothing for a document', function () {
+    $save = resolve(SaveMedia::class);
+    $photo = $save->handle(fixture('media/pixel.png'));
+    $logo = $save->handle(UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>'));
+    $brochure = $save->handle(fixture('media/brochure.pdf'));
+
+    mediaLibrary(['kami.media.view'])
+        ->assertTableColumnStateSet('thumbnail', MediaResource::thumbnail($photo)->url(), $photo)
+        ->assertTableColumnStateSet('thumbnail', $logo->url(), $logo)
+        ->assertTableColumnStateNotSet('thumbnail', $logo->url(), $brochure);
+});
+
 it('filters on missing alt text: an image, not decorative, with a blank alt text in the default Locale', function () {
     config(['kami.sites.default.locales' => ['en', 'fr']]);
     $save = resolve(SaveMedia::class);

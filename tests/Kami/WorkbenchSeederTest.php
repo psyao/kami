@@ -50,10 +50,11 @@ it('seeds an administrator and an editor who may update but not publish', functi
         ->and(Gate::forUser($editor)->allows('kami.entries.article.publish'))->toBeFalse();
 });
 
-it('seeds a Media library holding a photo described in both Locales, an image without alt text, a decorative one and a document', function () {
+it('seeds a Media library holding a photo described in both Locales, an image without alt text, a decorative one, an SVG and a document', function () {
     expect(Media::query()->orderBy('name')->get()->map(fn (Media $media): array => [$media->name, $media->family, $media->alt(), $media->isDecorative()])->all())->toBe([
         ['brochure', 'document', null, false],
         ['holiday-photo', 'image', 'Une photo de vacances', false],
+        ['logo', 'image', 'Un cercle blanc sur fond vert', false],
         ['pixel', 'image', null, false],
         ['rotated-gps', 'image', null, true],
     ])

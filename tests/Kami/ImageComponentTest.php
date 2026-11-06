@@ -150,12 +150,21 @@ it('escapes the alt text', function (): void {
         ->not->toContain('<script>');
 });
 
-it('renders nothing for a null Media item, a document, or an SVG until it has a URL of its own', function (?Closure $media): void {
+it('renders nothing for a null Media item or a document', function (?Closure $media): void {
     expect(renderImage($media?->__invoke()))->toBe('');
 })->with([
     'null' => [null],
     'a document' => [fn (): Media => resolve(SaveMedia::class)->handle(fixture('media/brochure.pdf'))],
-    'an SVG' => [fn (): Media => resolve(SaveMedia::class)->handle(UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>'))],
+]);
+
+it('renders an SVG as a plain img of its own file, sized when it states its size, with the same alt text rules', function (string $svg, array $values, string $attributes): void {
+    $media = resolve(SaveMedia::class)->handle(UploadedFile::fake()->createWithContent('logo.svg', $svg), $values);
+
+    expect(renderImage($media, 'preset="card" eager'))
+        ->toBe('<picture class="kami-image"><img src="' . $media->url() . '"' . $attributes . ' decoding="async" fetchpriority="high"></picture>');
+})->with([
+    'sized, described' => ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>', ['alt' => 'Kami'], ' width="120" height="80" alt="Kami"'],
+    'unsized, decorative' => ['<svg xmlns="http://www.w3.org/2000/svg"/>', ['alt' => 'Kami', 'decorative' => true], ' alt=""'],
 ]);
 
 it('refuses a preset not declared', function (): void {

@@ -388,7 +388,7 @@ Kami's entry point for sites.
 
 What a site calls on Kami through the `Kami` facade.
 
-- `public function routes(): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions.
+- `public function routes(): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG.
 
 ## `Psyao\Kami\KamiServiceProvider`
 
@@ -433,7 +433,7 @@ An image or a document of the Site's library (ADR 0017), written through `SaveMe
 - `public function caption(): ?string`: In the current Locale, or the default Locale's when blank there; null when both are.
 - `public function isDecorative(): bool`: Marked as adding nothing to the page: rendered with `alt=""`, never reported as missing its alt text.
 - `public function isImage(): bool`
-- `public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string`: The absolute URL of a Conversion: an Image Preset at one of its widths, in a format.
+- `public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string`: The absolute URL of a Conversion: an Image Preset at one of its widths, in a format; for a document or an SVG, of its own file.
 
 ## `Psyao\Kami\Schema\ContentMigrator`
 

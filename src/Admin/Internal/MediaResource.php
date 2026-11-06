@@ -91,8 +91,8 @@ final class MediaResource extends FilamentResource
             // Decorative: the page's heading names the file (WCAG 1.1.1).
             ImageEntry::make('preview')
                 ->label(__('kami::admin.media.fields.preview'))
-                ->state(fn (Media $record): ?string => self::thumbnail($record)?->url())
-                ->visible(fn (Media $record): bool => self::thumbnail($record) instanceof Conversion)
+                ->state(fn (Media $record): ?string => self::preview($record))
+                ->visible(fn (Media $record): bool => self::preview($record) !== null)
                 ->imageSize(160),
             TextInput::make('alt')
                 ->label(__('kami::admin.media.fields.alt'))
@@ -119,7 +119,7 @@ final class MediaResource extends FilamentResource
                 ImageColumn::make('thumbnail')
                     ->disabledClick()
                     ->label(__('kami::admin.media.columns.thumbnail'))
-                    ->state(fn (Media $record): ?string => self::thumbnail($record)?->url())
+                    ->state(fn (Media $record): ?string => self::preview($record))
                     ->square()
                     ->imageSize(48),
                 TextColumn::make('name')->label(__('kami::admin.media.columns.name')),
@@ -248,7 +248,7 @@ final class MediaResource extends FilamentResource
     }
 
     /**
-     * Each Media item's thumbnail, decorative beside its name (WCAG 1.1.1), or a document icon for an SVG or a document, which have none.
+     * Each Media item's preview, decorative beside its name (WCAG 1.1.1), or a document icon for a document, which has none.
      *
      * @param  iterable<Media>  $media
      * @return array<string, string>
@@ -258,7 +258,7 @@ final class MediaResource extends FilamentResource
         $options = [];
 
         foreach ($media as $item) {
-            $thumbnail = self::thumbnail($item)?->url();
+            $thumbnail = self::preview($item);
             $preview = $thumbnail === null
                 ? (string) generate_icon_html(Heroicon::OutlinedDocument)?->toHtml()
                 : '<img src="' . e($thumbnail) . '" alt="" width="32" height="32" style="object-fit: cover; border-radius: 0.25rem">';
@@ -268,11 +268,13 @@ final class MediaResource extends FilamentResource
         return $options;
     }
 
-    /**
-     * The `admin-thumb` Conversion of a raster image.
-     *
-     * ponytail: none for an SVG, whose file has no URL yet; #300 serves it as it is.
-     */
+    /** The URL of what the admin shows of a Media item: a raster image's `admin-thumb`, an SVG's own file, none for a document. */
+    public static function preview(Media $media): ?string
+    {
+        return $media->isImage() && ! Conversion::isConvertible($media) ? $media->url() : self::thumbnail($media)?->url();
+    }
+
+    /** The `admin-thumb` Conversion of a raster image. */
     public static function thumbnail(Media $media): ?Conversion
     {
         $preset = resolve(ImagePresets::class)->find(ImagePresets::ADMIN_THUMB);

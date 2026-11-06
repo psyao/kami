@@ -410,7 +410,7 @@ A Media item an Entry links cannot be deleted: the database refuses it. Hard-del
 
 It is Shared by default and takes `->translatable()`, `->required()` and conditions as a relation does, under the same rules at the first read of the declarations.
 
-In the admin, editors search the library by name and by alt text in any Locale, each item shown with its thumbnail, or an icon for an SVG or a document. A multiple Field reorders as `Entries` does. Editors holding `kami.media.create` also upload a file from the picker: it goes through `SaveMedia`, up to the [upload limit](media.md#the-library-in-the-admin), and is picked.
+In the admin, editors search the library by name and by alt text in any Locale, each item shown with its thumbnail, its own file for an SVG, or an icon for a document. A multiple Field reorders as `Entries` does. Editors holding `kami.media.create` also upload a file from the picker: it goes through `SaveMedia`, up to the [upload limit](media.md#the-library-in-the-admin), and is picked.
 
 ### Taxonomies
 

@@ -67,19 +67,26 @@ final class Media extends Model
     }
 
     /**
-     * The absolute URL of a Conversion: an Image Preset at one of its widths, in a format.
+     * The absolute URL of a Conversion: an Image Preset at one of its widths, in a format; for a document or an SVG, of its own file.
      *
-     * Without a preset, the `original` one; without a width, the preset's largest; without a format, the one every browser
+     * A document or an SVG takes no preset, or `file`, and is served unchanged at `/media/{id}/{v}/{name}.{ext}`. For an image, without a preset, the `original` one; without a width, the preset's largest; without a format, the one every browser
      * reads (JPEG, or PNG for any other original). AVIF and WebP only where this host encodes them, and never for `kami-social`.
      *
-     * @throws InvalidArgumentException For a preset, width or format not declared for this Media item, or not offered on this host.
-     * @throws LogicException For a document or an SVG, which is never converted.
+     * @throws InvalidArgumentException For a preset, width or format not declared for this Media item, or not offered on this host; for `file` on a raster image.
+     * @throws LogicException For another preset on a document or an SVG, which is never converted.
      */
     public function url(?string $preset = null, ?int $width = null, ?string $format = null): string
     {
-        // ponytail: raster images only; #300 gives documents and SVG the URL of their file.
         if (! Conversion::isConvertible($this)) {
-            throw new LogicException("Media [{$this->id}] is a document or an SVG: it has no Conversion.");
+            return match (true) {
+                ! in_array($preset, [null, ImagePresets::FILE], true) => throw new LogicException("Media [{$this->id}] is a document or an SVG: it has no Conversion."),
+                $width !== null || $format !== null => throw new InvalidArgumentException("Media [{$this->id}] is served as its own file: it takes no width or format."),
+                default => Conversion::fileUrl($this),
+            };
+        }
+
+        if ($preset === ImagePresets::FILE) {
+            throw new InvalidArgumentException("Media [{$this->id}] is a raster image: its original is never served, only its Conversions.");
         }
 
         $presets = resolve(ImagePresets::class);
