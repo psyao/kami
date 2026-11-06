@@ -200,7 +200,7 @@ A named way to show images, declared in code by the developer: an optional aspec
 _Avoid_: Variant, size, style, transformation
 
 **Conversion**:
-One file derived from an image Media item for one Image Preset, at one width and in one format. Visitors only ever receive Conversions, never the original image.
+One file derived from a raster image Media item for one Image Preset, at one width and in one format. Visitors only ever receive Conversions of a raster image, never its original; a document or an SVG has none and is served unchanged as its own file.
 _Avoid_: Variant, thumbnail (as the general word), derivative
 
 **Focal point**:

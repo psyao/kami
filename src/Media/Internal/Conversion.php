@@ -17,7 +17,8 @@ use RuntimeException;
 
 /**
  * One file a Media item can be shown as: an Image Preset at one of its widths, in one format (ADR 0017). The one place
- * a Conversion's URL and path are built, so a remote URL builder can replace it (V1).
+ * every Media URL and path are built, a Conversion's and a document's or an SVG's own file, so a remote URL builder can
+ * replace it (V1).
  *
  * @internal
  */
@@ -104,6 +105,7 @@ final readonly class Conversion
                 fclose($stream);
             }
 
+            // ponytail: a replacement committing between this check and the move still slips through, as in `generate()`; `kami:media:prune` (#308) clears it.
             self::isCurrent($media) ? $disk->move($temporary, $path) : $disk->delete($temporary);
         }
 

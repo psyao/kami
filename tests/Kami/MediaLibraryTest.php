@@ -54,7 +54,7 @@ it('lists Media with their name, family, size and alt text state, filtered by fa
 it('shows a raster image\'s thumbnail, an SVG\'s own file, and nothing for a document', function () {
     $save = resolve(SaveMedia::class);
     $photo = $save->handle(fixture('media/pixel.png'));
-    $logo = $save->handle(UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>'));
+    $logo = $save->handle(fixture('media/logo.svg'));
     $brochure = $save->handle(fixture('media/brochure.pdf'));
 
     mediaLibrary(['kami.media.view'])

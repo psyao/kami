@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * `public/media`, linked to `kami.media.public_disk`'s `media/`, from which Apache serves every Conversion written so
- * far without PHP; a missing file falls through `public/.htaccess`'s `!-f` to `RenderConversion` (ADR 0017).
+ * `public/media`, linked to `kami.media.public_disk`'s `media/`, from which Apache serves every Conversion, and every
+ * document's or SVG's file, written so far without PHP; a missing file falls through `public/.htaccess`'s `!-f` to `RenderConversion` (ADR 0017).
  *
  * @internal
  */

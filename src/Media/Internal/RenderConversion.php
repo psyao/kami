@@ -13,7 +13,8 @@ use Throwable;
 
 /**
  * `/media/{ulid}/{v}/{preset}-{width}.{format}`: generates the Conversion on its first request and serves it with the headers
- * Apache sends once the file is on disk (ADR 0017); `/media/{ulid}/{v}/{name}.{ext}` copies a document's or an SVG's file unchanged. Anything not declared, or a stale `{v}`, is a 404 that generates nothing.
+ * Apache sends once the file is on disk (ADR 0017). `/media/{ulid}/{v}/{name}.{ext}` copies a document's or an SVG's own
+ * file unchanged, the same way. Anything not declared, or a stale `{v}`, is a 404 that generates nothing.
  * An AVIF or WebP Conversion that fails to generate redirects to the fallback format, which every browser reads.
  *
  * @internal
@@ -64,8 +65,10 @@ final class RenderConversion
     /** A document or an SVG at its one URL, unchanged; any other name, extension or version is a 404 that writes nothing. */
     private function file(Media $media, string $requested): BinaryFileResponse
     {
+        // Only through the route sending the SVG CSP: one reaching the other route is refused rather than served without it.
+        $guarded = $media->mime !== 'image/svg+xml' || request()->route('svg') !== null;
         // The file was replaced since this request read it: its version is stale.
-        $path = $requested === Conversion::filePath($media) ? Conversion::writeFile($media) : null;
+        $path = $guarded && $requested === Conversion::filePath($media) ? Conversion::writeFile($media) : null;
 
         return response()->file($path ?? abort(404), [
             'Content-Type' => $media->mime,

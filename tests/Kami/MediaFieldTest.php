@@ -264,7 +264,7 @@ describe('picker', function (): void {
     });
 
     it('labels an SVG with its own file', function (): void {
-        $logo = resolve(SaveMedia::class)->handle(UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"/>'));
+        $logo = resolve(SaveMedia::class)->handle(fixture('media/logo.svg'));
 
         expect(illustratedProject()->instance()->getSchema('form')->getComponent('cover')->getSearchResults('logo')[$logo->id])
             ->toContain('<img src="' . e($logo->url()) . '"');

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Image\ImageException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Image;
 use Illuminate\Support\Facades\Route;
@@ -255,6 +256,14 @@ it('answers 404 and writes nothing for a document or an SVG under another name, 
     'a Conversion' => [6, 'original-120.png'],
     'read as a Conversion' => [6, 'my-logo-2.svg.png'],
 ]);
+
+it('refuses an SVG rather than serve it without its CSP, should its name ever escape the SVG route', function (): void {
+    $logo = logo();
+    DB::table('kami_media')->where('id', $logo->id)->update(['name' => 'My_Logo']);
+
+    $this->get(Media::query()->findOrFail($logo->id)->url())->assertNotFound();
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+});
 
 it('follows a replacement: the former file stops being served and the new one is served at its new URL', function (): void {
     $former = logo();

@@ -148,7 +148,7 @@ Any other attribute, such as `class` or `id`, goes on the `<img>`; the `<picture
 
 It runs no query when the Media item and its Translations are loaded, as a [Media Field](content-types.md#media) loads them: a listing of covers costs the queries of its Entries alone. A document renders nothing.
 
-An SVG is never rasterised: it renders as a plain `<img>` of [its own file](#documents-and-svg), with no `<source>` or `srcset`, `width` and `height` when the SVG states its size, and the same alt text rules. The preset must still be declared; it shapes nothing.
+An SVG is never rasterised: its `<picture>` holds a plain `<img>` of [its own file](#documents-and-svg), with no `<source>` or `srcset`, `width` and `height` when the SVG states its size, and the same alt text rules. The preset must still be declared; it shapes nothing.
 
 ## Conversions
 
