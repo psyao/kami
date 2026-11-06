@@ -90,6 +90,7 @@ return [
 
     'titles' => [
         'more' => ':titles and :count more',
+        'trashed' => ':title (in the Trash)',
     ],
 
     'users' => [
@@ -210,6 +211,14 @@ return [
             'file' => 'New file',
             'submit' => 'Replace',
             'done' => 'File replaced',
+        ],
+        'used_by' => [
+            'label' => 'Used by',
+            'none' => 'No Entry uses it.',
+        ],
+        'delete' => [
+            'description' => 'It is deleted for good, with its file, in every language. There is no Media trash.',
+            'used' => 'Entries use this item: :entries. Remove it from them, or delete those in the Trash for good, first.',
         ],
         'fields' => [
             'preview' => 'Preview',

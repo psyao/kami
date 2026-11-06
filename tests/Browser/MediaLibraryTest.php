@@ -6,8 +6,11 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
+use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
 
@@ -96,13 +99,17 @@ it('takes several files dragged onto the library at once', function () {
     }
 });
 
-it('edits a Media item\'s alt text in each Locale, asking for it in the default one', function () {
+it('edits a Media item\'s alt text in each Locale, asking for it in the default one, and lists the Entries using it', function () {
     $media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'));
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $media->id]);
+    resolve(TrashEntry::class)->handle(resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Velox', 'gallery' => [$media->id]]));
 
     $page = signIn()
         ->navigate('/admin/media')
         ->click('pixel')
         ->assertSee('Replace file')
+        ->assertSee('Velox (in the Trash)')
+        ->assertPresent('internal:role=link[name="Kami"s]')
         ->assertNoAccessibilityIssues()
         ->assertAttribute('[id="form.alt"]', 'required', 'required')
         ->fill('[id="form.alt"]', 'Un pixel')

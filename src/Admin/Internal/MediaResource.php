@@ -12,6 +12,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\ImageEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -24,12 +25,16 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Psyao\Kami\Admin\Internal\MediaResource\EditMedia;
 use Psyao\Kami\Admin\Internal\MediaResource\ListMedia;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Media as MediaField;
+use Psyao\Kami\Content\Internal\EntryTitles;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Internal\Conversion;
@@ -108,7 +113,23 @@ final class MediaResource extends FilamentResource
                 ->live(),
             Textarea::make('caption')->label(__('kami::admin.media.fields.caption'))->extraInputAttributes($lang)->rows(2),
             TextInput::make('credit')->label(__('kami::admin.media.fields.credit'))->maxLength(255),
+            TextEntry::make('used_by')
+                ->label(__('kami::admin.media.used_by.label'))
+                ->state(fn (Media $record): HtmlString => self::usedBy($record))
+                ->prose(),
         ]);
+    }
+
+    /** Every Entry using it, each linked to its edit page; one in the Trash has none, and is marked so. */
+    private static function usedBy(Media $media): HtmlString
+    {
+        $items = References::mediaSources($media->id)->get()->map(function (Entry $entry): string {
+            $title = e(EntryTitles::marked($entry));
+
+            return $entry->trashed() ? "<li>{$title}</li>" : '<li><a href="' . e(EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))) . "\">{$title}</a></li>";
+        });
+
+        return new HtmlString($items->isEmpty() ? e(__('kami::admin.media.used_by.none')) : "<ul>{$items->implode('')}</ul>");
     }
 
     public static function table(Table $table): Table

@@ -406,7 +406,7 @@ foreach ($projects as $project) {
 
 `with()` loads it as it loads a relation: the rows' query, which relation Fields share, then the Media items and their Translations in two queries, whatever their number. Read without `with()` among several Entries, it throws under strict mode; a single Entry loads it on first read.
 
-A Media item an Entry links cannot be deleted: the database refuses it. Hard-deleting the Entry removes its links.
+A Media item an Entry links cannot be deleted, even while the Entry is in the Trash: `DeleteMedia` refuses it, naming the Entries ([Deleting a Media item](media.md#deleting-a-media-item)), and the database refuses it too. Deleting the Entry for good removes its links.
 
 It is Shared by default and takes `->translatable()`, `->required()` and conditions as a relation does, under the same rules at the first read of the declarations.
 

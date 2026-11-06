@@ -90,6 +90,7 @@ return [
 
     'titles' => [
         'more' => ':titles et :count autres',
+        'trashed' => ':title (dans la corbeille)',
     ],
 
     'users' => [
@@ -210,6 +211,14 @@ return [
             'file' => 'Nouveau fichier',
             'submit' => 'Remplacer',
             'done' => 'Fichier remplacé',
+        ],
+        'used_by' => [
+            'label' => 'Utilisé par',
+            'none' => 'Aucune Entry ne l’utilise.',
+        ],
+        'delete' => [
+            'description' => 'Il est supprimé définitivement, avec son fichier, dans toutes les langues. Les médias n’ont pas de corbeille.',
+            'used' => 'Des Entries utilisent cet élément : :entries. Retirez-le d’abord de celles-ci, ou supprimez définitivement celles qui sont à la corbeille.',
         ],
         'fields' => [
             'preview' => 'Aperçu',

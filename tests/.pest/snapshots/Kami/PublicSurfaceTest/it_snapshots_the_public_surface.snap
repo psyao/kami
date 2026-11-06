@@ -186,8 +186,15 @@ class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTo
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
 class Psyao\Kami\KamiServiceProvider::packageBooted() public function packageBooted(): void
 class Psyao\Kami\KamiServiceProvider::packageRegistered() public function packageRegistered(): void
+class Psyao\Kami\Media\Actions\DeleteMedia final class
+class Psyao\Kami\Media\Actions\DeleteMedia::handle() public function handle(Psyao\Kami\Media\Media $media, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Media\Actions\SaveMedia final class
 class Psyao\Kami\Media\Actions\SaveMedia::handle() public function handle(Illuminate\Http\UploadedFile|string|null $file, array $values = [], ?Psyao\Kami\Media\Media $media = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Media\Media
+class Psyao\Kami\Media\Events\MediaDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Media\Events\MediaDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Media\Events\MediaDeleted::$mediaId public protected(set) readonly string $mediaId
+class Psyao\Kami\Media\Events\MediaDeleted::$site public protected(set) readonly string $site
+class Psyao\Kami\Media\Events\MediaDeleted::__construct() public function __construct(string $mediaId, string $site, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Media\Events\MediaSaved final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Media\Events\MediaSaved::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
 class Psyao\Kami\Media\Events\MediaSaved::$created public protected(set) readonly bool $created
