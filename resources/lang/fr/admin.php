@@ -204,6 +204,25 @@ return [
             'image' => 'Image',
             'document' => 'Document',
         ],
+        'replace' => [
+            'label' => 'Remplacer le fichier',
+            'description' => 'Chaque page qui utilise cet élément le garde et affiche le nouveau fichier.',
+            'file' => 'Nouveau fichier',
+            'submit' => 'Remplacer',
+            'done' => 'Fichier remplacé',
+        ],
+        'fields' => [
+            'preview' => 'Aperçu',
+            'alt' => 'Texte alternatif',
+            'alt_help' => 'Ce que montre l’image, pour qui ne peut pas la voir. Obligatoire dans la langue par défaut, sauf si l’image est décorative.',
+            'decorative' => 'Décorative',
+            'decorative_help' => 'L’image n’apporte rien à la page : les lecteurs d’écran l’ignorent.',
+            'caption' => 'Légende',
+            'credit' => 'Crédit',
+        ],
+        'filters' => [
+            'alt_missing' => 'Texte alternatif manquant',
+        ],
         'alt' => [
             'described' => 'Rédigé',
             'missing' => 'Manquant',
@@ -229,6 +248,10 @@ return [
             'unsupported' => 'Les fichiers de type :type ne sont pas encore pris en charge.',
             'undecodable' => 'Cette image est illisible : le fichier est endommagé ou n’est pas une image.',
             'pixels' => 'Cette image dépasse :megapixels mégapixels : réduisez-la avant de l’envoyer.',
+            'family' => [
+                'image' => 'Seule une autre image peut remplacer celle-ci.',
+                'document' => 'Seul un autre document peut remplacer celui-ci.',
+            ],
         ],
     ],
 ];

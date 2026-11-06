@@ -6,6 +6,7 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
 
 uses(RefreshDatabase::class);
@@ -92,5 +93,33 @@ it('takes several files dragged onto the library at once', function () {
             ->assertPresent('.filepond--drop-label')
             ->assertNoAccessibilityIssues()
             ->assertNoJavaScriptErrors();
+    }
+});
+
+it('edits a Media item\'s alt text in each Locale, asking for it in the default one', function () {
+    $media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'));
+
+    $page = signIn()
+        ->navigate('/admin/media')
+        ->click('pixel')
+        ->assertSee('Replace file')
+        ->assertNoAccessibilityIssues()
+        ->assertAttribute('[id="form.alt"]', 'required', 'required')
+        ->fill('[id="form.alt"]', 'Un pixel')
+        ->press('internal:role=button[name="Save changes"s]')
+        ->assertSee('Saved')
+        ->press('internal:role=button[name="FR"s]')
+        ->click('internal:role=menuitem[name="EN"s]')
+        ->assertSee('Translation: EN')
+        ->assertNoAccessibilityIssues()
+        ->click('internal:role=button[name="Replace file"s]')
+        ->assertPresent('.filepond--drop-label')
+        ->assertNoAccessibilityIssues()
+        ->assertNoJavaScriptErrors();
+
+    expect(Media::query()->sole()->alt())->toBe('Un pixel');
+
+    foreach ([visit("/admin/media/{$media->id}/edit", ['reducedMotion' => 'reduce'])->inDarkMode(), visit("/admin/media/{$media->id}/edit/en", ['reducedMotion' => 'reduce'])->on()->mobile()] as $page) {
+        $page->assertSee('Alt text')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
     }
 });

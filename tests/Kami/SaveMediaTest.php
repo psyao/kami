@@ -197,10 +197,74 @@ it('clears decorative with an empty value', function (): void {
 it('refuses a call it cannot honour', function (Closure $save, string $exception): void {
     expect($save)->toThrow($exception);
 })->with([
-    'a file for an existing Media item' => [fn (): Media => saveMedia(fixture('media/pixel.png'), media: saveMedia(fixture('media/brochure.pdf'))), LogicException::class],
     'an undeclared Locale' => [fn (): Media => saveMedia(fixture('media/brochure.pdf'), locale: 'de'), InvalidArgumentException::class],
     'a new Media item without a file' => [fn (): Media => saveMedia(null, ['alt' => 'Nothing']), InvalidArgumentException::class],
 ]);
+
+it('replaces the file of a Media item within its family, keeping its id and text and changing its Conversion URLs', function (): void {
+    Storage::fake('public');
+    $media = saveMedia(fixture('media/Holiday Photo.JPG'), ['alt' => 'A red square', 'credit' => 'Ada']);
+    $url = $media->url();
+    Storage::disk('public')->put("media/{$media->id}/0ld0ld00/original-64.jpg", 'stale');
+
+    $replaced = saveMedia(uploadedFixture('rotated-gps.jpg', 'Terrace.jpg'), media: $media);
+
+    expect($replaced)
+        ->id->toBe($media->id)
+        ->name->toBe('terrace')
+        ->mime->toBe('image/jpeg')
+        ->size->toBe(filesize(fixture('media/rotated-gps.jpg')))
+        ->checksum->toBe(hash_file('sha256', fixture('media/rotated-gps.jpg')))
+        // Oriented, as crops read them: the fixture is 60 × 40 turned a quarter.
+        ->width->toBe(40)
+        ->height->toBe(60)
+        ->alt()->toBe('A red square')
+        ->credit->toBe('Ada')
+        ->and($replaced->url())->not->toBe($url)
+        ->and(Storage::disk('local')->get($replaced->file))->toBe(file_get_contents(fixture('media/rotated-gps.jpg')))
+        ->and(Storage::disk('local')->allFiles())->toBe([$replaced->file])
+        ->and(Storage::disk('public')->allFiles())->toBe([])
+        ->and(Media::query()->count())->toBe(1);
+});
+
+it('stores a replacement under the extension its content implies', function (): void {
+    $media = saveMedia(fixture('media/Holiday Photo.JPG'));
+
+    $replaced = saveMedia(fixture('media/pixel.png'), media: $media);
+
+    expect($replaced)->mime->toBe('image/png')->file->toEndWith('.png')
+        ->and(Storage::disk('local')->allFiles())->toBe([$replaced->file]);
+});
+
+it('refuses a replacement of another family, changing nothing', function (): void {
+    Storage::fake('public');
+    $media = saveMedia(fixture('media/Holiday Photo.JPG'));
+    Storage::disk('public')->put("media/{$media->id}/0ld0ld00/original-64.jpg", 'stale');
+
+    expect(fn (): Media => saveMedia(fixture('media/brochure.pdf'), media: $media))
+        ->toThrow(ValidationException::class, 'Only another image can replace this one.');
+
+    expect($media->fresh())->checksum->toBe($media->checksum)->file->toBe($media->file)
+        ->and(Storage::disk('local')->allFiles())->toBe([$media->file])
+        ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
+});
+
+it('keeps the former file and Conversions when the transaction around a replacement rolls back', function (): void {
+    Storage::fake('public');
+    $media = saveMedia(fixture('media/Holiday Photo.JPG'));
+    $original = $media->file;
+    Storage::disk('public')->put("media/{$media->id}/0ld0ld00/original-64.jpg", 'stale');
+
+    rescue(fn () => DB::transaction(function () use ($media): never {
+        saveMedia(fixture('media/rotated-gps.jpg'), media: $media);
+
+        throw new RuntimeException('Rolled back');
+    }), report: false);
+
+    expect(Media::query()->findOrFail($media->id))->file->toBe($original)
+        ->and(Storage::disk('local')->get($original))->toBe(file_get_contents(fixture('media/Holiday Photo.JPG')))
+        ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
+});
 
 it('refuses a value it does not know', function (): void {
     expect(fn (): Media => saveMedia(fixture('media/brochure.pdf'), ['title' => 'Brochure']))

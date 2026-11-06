@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Filament\Facades\Filament;
 use Illuminate\Contracts\Image\Driver;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Image\Drivers\GdDriver;
 use Illuminate\Image\Drivers\ImagickDriver;
 use Illuminate\Image\ImageException;
@@ -199,4 +200,10 @@ function isMarkedInternal(ReflectionClass | ReflectionClassConstant | Reflection
 function publicClasses(): Collection
 {
     return kamiClasses()->reject(isInternal(...))->values();
+}
+
+/** A file as the browser sends it, named as the editor's own. */
+function uploadedFixture(string $fixture, ?string $name = null): UploadedFile
+{
+    return UploadedFile::fake()->createWithContent($name ?? basename($fixture), (string) file_get_contents(fixture("media/{$fixture}")));
 }

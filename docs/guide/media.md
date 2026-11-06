@@ -49,7 +49,23 @@ $media = app(SaveMedia::class)->handle(null, ['credit' => 'Ada Lovelace', 'decor
 | `credit` | shared by every Locale, up to 255 characters |
 | `decorative` | shared: the image adds nothing to the page, and is rendered with an empty `alt` |
 
-A value left out keeps its stored one, and `''` clears it. Any other key is refused. Alt text is never required here: an upload, a seeder or an import may leave it missing, to be filled in later.
+A value left out keeps its stored one, and `''` clears it. Any other key is refused. Alt text is never required here: an upload, a seeder or an import may leave it missing, to be filled in later. Only the admin's edit form asks for it ([Editing in the admin](#editing-in-the-admin)).
+
+An image is missing its alt text when it is not decorative and its alt text in the Site's default Locale is blank, whatever the other Locales hold. The `missingAlt` scope finds them:
+
+```php
+Media::query()->missingAlt()->count();
+```
+
+## Replacing a file
+
+Pass a file and the Media item to replace its file. The item keeps its id, so every Entry referencing it keeps it, along with its alt text, caption, credit and `decorative`:
+
+```php
+$media = app(SaveMedia::class)->handle($request->file('photo'), media: $media, actor: $request->user());
+```
+
+The new file goes through the same checks as an upload, and must be of the same family: an image replaces an image, a document a document. Another family is refused on `file`, changing nothing. Kami reads the name, type, size, dimensions and checksum from the new file, so the Conversions get new URLs ([URLs](#urls)): browsers and caches never keep the former picture. Once the change is committed, the former original and every former Conversion are deleted at once rather than left to `kami:media:prune`, so the former picture stops being served at its former URLs straight away. A file holding the same bytes as the current one changes nothing.
 
 ## The library in the admin
 
@@ -67,6 +83,16 @@ Each file may weigh up to the lowest of PHP's `upload_max_filesize` and `post_ma
 ```
 
 Each image's `admin-thumb` Conversion is generated once the upload's response is sent, so the editor does not wait for it. One that fails is reported to the log and generated on its first request instead.
+
+A filter, **Alt text missing**, narrows the list to the images [missing their alt text](#alt-text-caption-and-credit).
+
+### Editing in the admin
+
+Opening a row edits the Media item, under `kami.media.update`. The page edits the alt text and caption of one Locale, with the same Locale switcher as an Entry's edit page: the default Locale at `/admin/media/{id}/edit`, another at `/admin/media/{id}/edit/fr`. Each Locale shows its own values only, never the default Locale's fallback. The credit and **Decorative** are shared by every Locale.
+
+Saving an image in the default Locale requires its alt text, unless it is marked decorative: describing images is part of the job. Other Locales, documents and uploads never require it.
+
+**Replace file** takes a new file of the same family through `SaveMedia` ([Replacing a file](#replacing-a-file)). The form states the upload limit, and a file of another family is refused with its reason. The new `admin-thumb` is generated once the response is sent.
 
 ## Reading Media
 

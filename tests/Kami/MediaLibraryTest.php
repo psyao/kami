@@ -51,11 +51,28 @@ it('lists Media with their name, family, size and alt text state, filtered by fa
         ->assertCanNotSeeTableRecords([$photo, $pixel]);
 });
 
-/** A file as the browser sends it, named as the editor's own. */
-function uploadedFixture(string $fixture, ?string $name = null): UploadedFile
-{
-    return UploadedFile::fake()->createWithContent($name ?? basename($fixture), (string) file_get_contents(fixture("media/{$fixture}")));
-}
+it('filters on missing alt text: an image, not decorative, with a blank alt text in the default Locale', function () {
+    config(['kami.sites.default.locales' => ['en', 'fr']]);
+    $save = resolve(SaveMedia::class);
+    $missing = [
+        'none' => $save->handle(fixture('media/pixel.png')),
+        'blank' => $save->handle(fixture('media/pixel.png'), ['alt' => '   ']),
+        'in another Locale only' => $save->handle(fixture('media/pixel.png'), ['alt' => 'Un pixel'], locale: 'fr'),
+    ];
+    $notMissing = [
+        'described' => $save->handle(fixture('media/pixel.png'), ['alt' => 'A pixel']),
+        'decorative' => $save->handle(fixture('media/pixel.png'), ['decorative' => true]),
+        'a document' => $save->handle(fixture('media/brochure.pdf')),
+    ];
+
+    expect(Media::query()->missingAlt()->pluck('id')->sort()->values()->all())
+        ->toBe(collect($missing)->pluck('id')->sort()->values()->all());
+
+    mediaLibrary(['kami.media.view'])
+        ->filterTable('alt_missing')
+        ->assertCanSeeTableRecords($missing)
+        ->assertCanNotSeeTableRecords($notMissing);
+});
 
 it('saves each file of a multiple upload and reports a refused one with its reason, generating thumbnails after the response', function () {
     mediaLibrary(['kami.media.view', 'kami.media.create'])

@@ -71,6 +71,12 @@ final readonly class Conversion
         return substr(hash('xxh3', $this->media->checksum . '|' . implode(':', $this->preset->ratio ?? [])), 0, 8);
     }
 
+    /** Deletes every Conversion of the Media item, of any version: each is generated again on its first request. */
+    public static function forget(Media $media): void
+    {
+        Storage::disk(Config::string('kami.media.public_disk'))->deleteDirectory("media/{$media->id}");
+    }
+
     /** On `kami.media.public_disk`, which `kami:install` links `public/media` to: Apache serves the file once written. */
     public function path(): string
     {
