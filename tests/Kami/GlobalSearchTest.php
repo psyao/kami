@@ -10,12 +10,14 @@ use Filament\GlobalSearch\Providers\DefaultGlobalSearchProvider;
 use Filament\Livewire\GlobalSearch;
 use Filament\Panel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\KamiPlugin;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Media\Actions\SaveMedia;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Fields\Colour;
 use Workbench\App\Content\Tag;
@@ -105,4 +107,26 @@ it('leaves out a Translation in a Locale the Site no longer has, which has no sc
     expect(searchResults(entriesPage(GlobalSearch::class, type: null), 'vevey'))->toBe([
         'Articles' => [['Vevey', "/admin/articles/{$entry->id}/edit", ['Locale' => 'FR']]],
     ]);
+});
+
+it('finds Media by name or by alt text in any Locale, leading to the edit page, or to the library searched for it without update', function () {
+    Storage::fake('local');
+    $save = resolve(SaveMedia::class);
+    $beach = $save->handle(uploadedFixture('pixel.png', 'vevey-beach.png'));
+    $quay = $save->handle(fixture('media/pixel.png'), ['alt' => 'The quay at Vevey'], locale: 'en');
+    $save->handle(fixture('media/brochure.pdf'));
+
+    expect(searchResults(entriesPage(GlobalSearch::class, type: null), 'VEVEY'))->toBe([
+        'Media' => [
+            ['pixel', "/admin/media/{$quay->id}/edit", []],
+            ['vevey-beach', "/admin/media/{$beach->id}/edit", []],
+        ],
+    ]);
+
+    $viewer = entriesPage(GlobalSearch::class, ['kami.media.view'], type: null);
+    Filament::bootCurrentPanel();
+    $urls = $viewer->set('search', 'beach')->instance()->getResults()?->getCategories()->flatten()->map(fn (GlobalSearchResult $result): string => $result->url)->all();
+
+    expect($urls)->toBe([url('/admin/media?search=vevey-beach')])
+        ->and(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.tag.view'], type: null), 'vevey'))->toBe([]);
 });

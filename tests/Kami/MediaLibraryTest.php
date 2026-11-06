@@ -172,3 +172,16 @@ it('renders the library and its upload form in English and French with no raw tr
     expect([trans_choice('kami::admin.media.upload.saved', 2), trans_choice('kami::admin.media.upload.refused', 1), __('kami::admin.media.upload.limits'), __('kami::admin.media.upload.failed')])
         ->each->not->toContain('kami::');
 })->with(['en', 'fr']);
+
+it('searches by name from its URL, where global search leads a User who may not edit', function () {
+    $save = resolve(SaveMedia::class);
+    $beach = $save->handle(uploadedFixture('pixel.png', 'vevey-beach.png'));
+    $pixel = $save->handle(fixture('media/pixel.png'));
+
+    signInWith(['kami.media.view']);
+    Filament::setCurrentPanel('admin');
+
+    Livewire::withQueryParams(['search' => 'vevey-beach'])->test(ListMedia::class)
+        ->assertCanSeeTableRecords([$beach])
+        ->assertCanNotSeeTableRecords([$pixel]);
+});

@@ -72,6 +72,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Group;
+use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
@@ -90,6 +91,7 @@ use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Content\Taxonomy;
+use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
@@ -483,6 +485,14 @@ final class EntryResource extends FilamentResource
             ->authorizeIndividualRecords(fn (Entry $record): bool => self::can('update', $record) && self::can('publish', $record))
             ->successNotificationTitle(__("kami::admin.bulk.{$name}_done"))
             ->deselectRecordsAfterCompletion();
+        /** @var list<string> $written The rows this run wrote, whose images the warning reads once they all are. */
+        $written = [];
+
+        if ($status === Translation::PUBLISHED) {
+            $action->after(function (array $data) use (&$written, $locale): void {
+                self::remindAlt($written, $locale($data));
+            });
+        }
 
         return self::rowByRow(
             $action,
@@ -495,7 +505,10 @@ final class EntryResource extends FilamentResource
                     default => null,
                 };
             },
-            fn (Entry $record, array $data) => resolve(SaveEntry::class)->handle(self::type()->handle(), ['status' => $status], $record, $locale($data), $actor()),
+            function (Entry $record, array $data) use ($status, $locale, $actor, &$written): void {
+                resolve(SaveEntry::class)->handle(self::type()->handle(), ['status' => $status], $record, $locale($data), $actor());
+                $written[] = $record->id;
+            },
         );
     }
 
@@ -745,6 +758,7 @@ final class EntryResource extends FilamentResource
         $saved = self::onForm(fn (): Entry => resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt), $state);
 
         self::remind($data);
+        self::remindAlt([$saved->id], $locale);
 
         return $saved;
     }
@@ -823,6 +837,36 @@ final class EntryResource extends FilamentResource
                     ->body('<ul><li>' . implode('</li><li>', array_map(e(...), $reminders)) . '</li></ul>')
                     ->send();
             }
+        }
+    }
+
+    /**
+     * The images that the Entries' published or Scheduled Translations in that Locale show without alt text, by name, on one notification
+     * kept until dismissed: a warning, never a block (ADR 0017). Read as the front reads them, a blank translatable Field falling back.
+     *
+     * @param  array<string>  $entries
+     */
+    private static function remindAlt(array $entries, ?string $locale): void
+    {
+        $handles = array_column(array_filter(self::type()->relationFields(), fn (Field $field): bool => $field instanceof MediaField), 'handle');
+
+        if ($handles === [] || $entries === []) {
+            return;
+        }
+
+        $locale ??= Site::current()->defaultLocale();
+        $shown = Entry::query()->withUnpublished()->inLocale($locale)->whereKey($entries)->with($handles)->get()
+            ->filter(fn (Entry $entry): bool => $entry->translations->whereIn('locale', [$locale, '*'])->first()?->status === Translation::PUBLISHED)
+            ->flatMap(fn (Entry $entry): Collection => collect($handles)->flatMap(fn (string $handle): Collection => Collection::wrap($entry->getAttribute($handle))))
+            ->pluck('id')->all();
+        /** @var list<string> $names */
+        $names = $shown === [] ? [] : Media::query()->missingAlt()->whereKey($shown)->orderBy('name')->pluck('name')->all();
+
+        if ($names !== []) {
+            Notification::make()->warning()->persistent()
+                ->title(__('kami::admin.reminders.alt_title'))
+                ->body('<p>' . e(__('kami::admin.reminders.alt_body')) . '</p><ul><li>' . implode('</li><li>', array_map(e(...), $names)) . '</li></ul>')
+                ->send();
         }
     }
 

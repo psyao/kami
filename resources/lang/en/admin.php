@@ -189,6 +189,8 @@ return [
         'skipped_level' => 'A heading goes from H:from to H:to, skipping a level.',
         'empty_heading' => 'A heading is empty.',
         'empty_link' => 'A link has no text.',
+        'alt_title' => 'Images without alt text',
+        'alt_body' => 'Screen readers say nothing of them: describe them under Media, or mark them decorative.',
     ],
 
     'media' => [

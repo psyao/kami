@@ -30,6 +30,7 @@ use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Media\Internal\PublicMedia;
+use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
@@ -79,6 +80,7 @@ final readonly class Doctor
         // A database Kami cannot reach is already an error, and the table is missing until the first `kami:install`.
         $assignments = rescue(fn (): bool => Schema::hasTable('kami_role_user'), false, report: false);
         $paths = rescue(fn (): bool => Schema::hasTable('kami_paths'), false, report: false);
+        $media = rescue(fn (): bool => Schema::hasTable('kami_media'), false, report: false);
 
         return [
             ...$this->environment(),
@@ -93,6 +95,7 @@ final readonly class Doctor
             ...array_filter([$this->lockStore(), $this->publicMedia()]),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
+            ...($media ? array_filter([$this->missingAlt()]) : []),
         ];
     }
 
@@ -441,6 +444,19 @@ final readonly class Doctor
             'declare it in config/kami.php under roles, or delete its rows from kami_role_user: it grants nothing.',
             'users-and-roles.md#roles',
         )];
+    }
+
+    /** Never blocking: an upload or an import may leave alt text to be written later (ADR 0017). */
+    private function missingAlt(): ?Problem
+    {
+        $count = Media::query()->missingAlt()->count();
+
+        return $count === 0 ? null : new Problem(
+            Severity::Warning,
+            "{$count} " . Str::plural('image', $count) . ' ' . ($count === 1 ? 'has' : 'have') . ' no alt text.',
+            "describe them in the admin's Media library, its Alt text missing filter lists them, or mark them decorative: until then, screen readers say nothing of them.",
+            'media.md#alt-text-caption-and-credit',
+        );
     }
 
     /**
