@@ -259,6 +259,15 @@ describe('public/media', function () {
             ->and(File::files(public_path('media')))->toHaveCount(1);
     });
 
+    it('fails before migrating on an originals disk Apache would serve, metadata included', function () {
+        config(['kami.media.originals_disk' => 'public']);
+
+        install()->expectsOutputToContain('kami.media.originals_disk is public')->assertFailed();
+
+        expect(file_exists(public_path('media')))->toBeFalse()
+            ->and(Schema::hasTable('kami_media'))->toBeFalse();
+    });
+
     it('fails on a public disk that is not local, which Apache cannot serve from', function () {
         config(['filesystems.disks.remote' => ['driver' => 's3', 'bucket' => 'b', 'region' => 'eu-west-1'], 'kami.media.public_disk' => 'remote']);
 

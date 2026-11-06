@@ -47,7 +47,9 @@ Which formats a Conversion is offered in depends on the host's GD and Imagick: A
 
 Two visitors asking for the same new Conversion at once wait for each other through a lock on the default cache store. The `file` and `database` stores share it between PHP workers; `array` and `null` do not, so `kami:doctor` fails on them.
 
-`kami:doctor` fails when `public/media` is missing or links elsewhere, and when the public disk is not local. It then writes a probe SVG under `public/media`, asks for it at the Site's URL, deletes it, and warns about each header missing from the answer. Run it where that URL can be reached: when it cannot be, the check is skipped with an information.
+Originals keep their metadata, GPS included, so they never sit where the web server reaches them. `kami:install` and `kami:doctor` fail when `kami.media.originals_disk` is a local disk whose `media/` lies under `public/`, under the public disk's `media/`, or under a target of `filesystems.links`, which `storage:link` exposes. Paths are compared once symlinks are resolved, so a site root that links to `public/` counts. A remote originals disk is not checked: keep its bucket private.
+
+`kami:doctor` fails when `public/media` is missing or links elsewhere, and when the public disk is not local. It then writes a probe SVG under `public/media`, asks for it at the Site's URL, deletes it, and warns about each header missing from the answer. Run it where that URL can be reached: when it cannot be, the check is skipped with an information. With `APP_ENV=local`, a missing header or file is an information too: a local server, such as Herd's nginx, is not the one the site is deployed on.
 
 ## nginx
 

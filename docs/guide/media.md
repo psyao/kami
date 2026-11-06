@@ -290,7 +290,7 @@ It walks one Media item at a time, so a run cut short is simply started again. N
 
 ## Configuration
 
-The `media` key of `config/kami.php`:
+The `media` key of `config/kami.php`. A key of `media` the site leaves out keeps Kami's default; a key it declares, such as `mimes`, replaces Kami's whole value:
 
 ```php
 'media' => [
@@ -308,7 +308,7 @@ The `media` key of `config/kami.php`:
 
 - `presets` lists the site's [Image Presets](#image-presets).
 - `public_disk` is the local disk Conversions are written to, under `media/`.
-- `originals_disk` takes any disk of `config/filesystems.php`, local or remote, such as an S3-compatible bucket. Keep it private: originals keep their metadata.
+- `originals_disk` takes any disk of `config/filesystems.php`, local or remote, such as an S3-compatible bucket. Keep it private: originals keep their metadata. A local disk the web server can serve is refused ([Conversions](hosting.md#conversions)).
 - `mimes` lists the types accepted per family, as `fileinfo` reports them. Add a type to a family to accept it, for instance `'text/plain'` under `document`. The `video` and `audio` families stay closed.
 - `max_pixels` caps an image's width × height. A server with more memory than shared hosting can raise it.
 - `avif` set to `false` stops offering AVIF ([Formats](#formats)).

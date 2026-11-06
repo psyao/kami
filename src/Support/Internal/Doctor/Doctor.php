@@ -92,7 +92,7 @@ final readonly class Doctor
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
-            ...array_filter([$this->lockStore(), $this->publicMedia()]),
+            ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia()]),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
@@ -106,7 +106,7 @@ final readonly class Doctor
      */
     public function blocking(): array
     {
-        return array_values(array_filter([...$this->environment(), ...$this->userModels($this->panels())], fn (Problem $problem): bool => $problem->severity === Severity::Error));
+        return array_values(array_filter([...$this->environment(), ...$this->userModels($this->panels()), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
     }
 
     /** @return list<Problem> */
@@ -613,6 +613,19 @@ final readonly class Doctor
         ) : null;
     }
 
+    /** Originals keep their metadata: a disk the web server serves bypasses the stripping every Conversion goes through. */
+    private function exposedOriginals(): ?Problem
+    {
+        $refusal = PublicMedia::exposedOriginalsRefusal();
+
+        return $refusal === null ? null : new Problem(
+            Severity::Error,
+            $refusal,
+            'set kami.media.originals_disk to a private disk, such as local, then move its media/ files there.',
+            'hosting.md#conversions',
+        );
+    }
+
     /** `kami:install`'s link, then the headers the server sends on it, checked over HTTP: the command line cannot tell Apache from nginx. */
     private function publicMedia(): ?Problem
     {
@@ -663,9 +676,12 @@ final readonly class Doctor
             );
         }
 
+        // On a developer's machine, such as Herd's nginx, which no deploy configures: the server's own run decides.
+        $severity = app()->isLocal() ? Severity::Info : Severity::Warning;
+
         if (! $response->successful()) {
             return new Problem(
-                Severity::Warning,
+                $severity,
                 "{$url} answers {$response->status()}: the server does not serve public/media.",
                 'serve the files under public/media as they are, and hand a missing one to index.php.',
                 'hosting.md#nginx',
@@ -677,7 +693,7 @@ final readonly class Doctor
         $missing = array_filter([...PublicMedia::HEADERS, ...PublicMedia::SVG_HEADERS], fn (string $value, string $name): bool => $directives($response->header($name)) !== $directives($value), ARRAY_FILTER_USE_BOTH);
 
         return $missing === [] ? null : new Problem(
-            Severity::Warning,
+            $severity,
             'Files under public/media go out without ' . implode(', ', array_map(fn (string $name, string $value): string => "{$name}: {$value}", array_keys($missing), $missing)) . '.',
             'send them from the server\'s configuration, as public/media/.htaccess does on Apache.',
             'hosting.md#nginx',

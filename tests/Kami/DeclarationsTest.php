@@ -136,3 +136,13 @@ it('reserves every Translation attribute as a Field handle', function () {
 it('refuses a hierarchical Singleton', function () {
     expect(fn () => runWithTypes(HierarchicalSingleton::class))->toThrow(InvalidArgumentException::class, 'HierarchicalSingleton: a Singleton has one Entry');
 });
+
+it('keeps Kami\'s other media defaults when a site declares only some of the media keys, or none', function (?array $media, array $kept) {
+    $this->bootConfig = ['kami.media' => $media];
+    $this->refreshApplication();
+
+    expect(config('kami.media'))->toMatchArray(['public_disk' => 'public', 'originals_disk' => 'local', 'max_pixels' => 40_000_000, ...$kept]);
+})->with([
+    'some keys' => [['avif' => false], ['avif' => false]],
+    'null' => [null, ['avif' => true]],
+]);
