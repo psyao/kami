@@ -17,7 +17,8 @@ use RuntimeException;
 
 /**
  * One file a Media item can be shown as: an Image Preset at one of its widths, in one format (ADR 0017). The one place
- * a Conversion's URL and path are built, so a remote URL builder can replace it (V1).
+ * every Media URL and path are built, a Conversion's and a document's or an SVG's own file, so a remote URL builder can
+ * replace it (V1).
  *
  * @internal
  */
@@ -68,7 +69,52 @@ final readonly class Conversion
     /** Changes with the original and with what shapes its pixels, so a cached Conversion is never stale; a width or format is in the URL already. */
     public function version(): string
     {
-        return substr(hash('xxh3', $this->media->checksum . '|' . implode(':', $this->preset->ratio ?? [])), 0, 8);
+        return self::versionOf($this->media, implode(':', $this->preset->ratio ?? []));
+    }
+
+    /** A document's or an SVG's own file, served unchanged under its slugged name: `media/{id}/{v}/{name}.{ext}`. */
+    public static function filePath(Media $media): string
+    {
+        return "media/{$media->id}/" . self::versionOf($media, '') . "/{$media->name}." . pathinfo($media->file, PATHINFO_EXTENSION);
+    }
+
+    public static function fileUrl(Media $media): string
+    {
+        return rtrim(Site::current()->url, '/') . '/' . self::filePath($media);
+    }
+
+    /**
+     * Copies a document's or an SVG's original to the public disk unless it is there, as a stream: a large PDF never sits in memory,
+     * whatever disk holds it. No lock: two workers copy the same bytes, and each move is whole.
+     *
+     * @return string|null The file's local path; null when the Media item's file was replaced since it was read, which writes nothing.
+     */
+    public static function writeFile(Media $media): ?string
+    {
+        $disk = Storage::disk(Config::string('kami.media.public_disk'));
+        $path = self::filePath($media);
+
+        if ($disk->missing($path) && self::isCurrent($media)) {
+            $stream = Storage::disk(Config::string('kami.media.originals_disk'))->readStream($media->file)
+                ?? throw new RuntimeException("The original of Media [{$media->id}] could not be read.");
+            $temporary = '.kami-tmp/' . Str::random(16);
+
+            try {
+                $disk->writeStream($temporary, $stream) ?: throw new RuntimeException("The file [{$path}] could not be written.");
+            } finally {
+                fclose($stream);
+            }
+
+            // ponytail: a replacement committing between this check and the move still slips through, as in `generate()`; `kami:media:prune` (#308) clears it.
+            self::isCurrent($media) ? $disk->move($temporary, $path) : $disk->delete($temporary);
+        }
+
+        return $disk->exists($path) ? $disk->path($path) : null;
+    }
+
+    private static function versionOf(Media $media, string $shape): string
+    {
+        return substr(hash('xxh3', $media->checksum . '|' . $shape), 0, 8);
     }
 
     /** Deletes every Conversion of the Media item, of any version: each is generated again on its first request. */
@@ -137,7 +183,7 @@ final readonly class Conversion
     private function generate(Filesystem $disk, string $path): void
     {
         // A replacement committed since this Media item was read has deleted its former original and this version's directory.
-        if (! $this->isCurrent()) {
+        if (! self::isCurrent($this->media)) {
             return;
         }
 
@@ -160,7 +206,7 @@ final readonly class Conversion
 
         // Again, as generating takes time: moving now would serve the former picture at its former URL.
         // ponytail: a replacement committing between this check and the move still slips through; `kami:media:prune` (#308) clears it.
-        if (! $this->isCurrent()) {
+        if (! self::isCurrent($this->media)) {
             $disk->delete($temporary);
 
             return;
@@ -174,8 +220,8 @@ final readonly class Conversion
      *
      * @phpstan-impure
      */
-    private function isCurrent(): bool
+    private static function isCurrent(Media $media): bool
     {
-        return Media::query()->whereKey($this->media->id)->toBase()->value('checksum') === $this->media->checksum;
+        return Media::query()->whereKey($media->id)->toBase()->value('checksum') === $media->checksum;
     }
 }

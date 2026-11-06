@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Image\ImageException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Image;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +18,7 @@ use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Internal\Conversion;
 use Psyao\Kami\Media\Internal\ImageFormats;
+use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Media;
 
 uses(RefreshDatabase::class);
@@ -206,18 +209,91 @@ it('answers 404 and writes nothing for anything not declared', function (int $se
     'unknown format' => [6, 'card-40.exe'],
 ]);
 
-it('answers 404 for a Conversion of an SVG or a document', function (string $contents): void {
-    $path = temporaryPath() . '/file';
-    mkdir(dirname($path));
-    file_put_contents($path, $contents);
-    $media = resolve(SaveMedia::class)->handle($path);
+/** An SVG uploaded as `My Logo 2.svg`: its name reads like a Conversion's, and it carries a script the CSP must stop. */
+function logo(string $contents = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"><script>alert(1)</script></svg>'): Media
+{
+    return resolve(SaveMedia::class)->handle(UploadedFile::fake()->createWithContent('My Logo 2.svg', $contents));
+}
 
-    $this->get("/media/{$media->id}/00000000/original-10.png")->assertNotFound();
-    expect(fn () => $media->url())->toThrow(LogicException::class);
+it('serves a document or an SVG unchanged on its first request, writes it, then serves the file on disk', function (Closure $media, string $file, string $type): void {
+    $media = $media();
+    $url = $media->url();
+    $path = ltrim((string) parse_url($url, PHP_URL_PATH), '/');
+
+    expect($url)->toMatch("~^http://localhost/media/{$media->id}/[0-9a-f]{8}/{$file}$~");
+    $response = $this->get($url)
+        ->assertOk()
+        ->assertHeader('Content-Type', $type)
+        ->assertHeader('Cache-Control', 'immutable, max-age=31536000, public')
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeaderMissing('Set-Cookie');
+    expect(file_get_contents($response->baseResponse->getFile()->getPathname()))->toBe(Storage::disk('local')->get($media->file));
+    Storage::disk('public')->assertExists($path);
+
+    Storage::disk('public')->put($path, 'on disk');
+    expect(file_get_contents($this->get($url)->baseResponse->getFile()->getPathname()))->toBe('on disk');
 })->with([
-    'SVG' => ['<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>'],
-    'PDF' => [(string) file_get_contents(fixture('media/brochure.pdf'))],
+    'PDF' => [fn (): Media => resolve(SaveMedia::class)->handle(fixture('media/brochure.pdf')), 'brochure\\.pdf', 'application/pdf'],
+    'SVG' => [fn (): Media => logo(), 'my-logo-2\\.svg', 'image/svg+xml'],
 ]);
+
+it('serves an SVG under a CSP that runs no script and loads nothing, a document under the front\'s', function (): void {
+    $svg = PublicMedia::SVG_HEADERS['Content-Security-Policy'];
+
+    $this->get(logo()->url())->assertHeader('Content-Security-Policy', $svg);
+    expect($this->get(resolve(SaveMedia::class)->handle(fixture('media/brochure.pdf'))->url())->headers->get('Content-Security-Policy'))
+        ->not->toBeEmpty()->not->toBe($svg);
+});
+
+it('answers 404 and writes nothing for a document or an SVG under another name, extension or version', function (int $segment, string $value): void {
+    $this->get(tampered(logo()->url(), $segment, $value))->assertNotFound();
+
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+})->with([
+    'stale version' => [5, '00000000'],
+    'another name' => [6, 'logo.svg'],
+    'another extension' => [6, 'my-logo-2.png'],
+    'a Conversion' => [6, 'original-120.png'],
+    'read as a Conversion' => [6, 'my-logo-2.svg.png'],
+]);
+
+it('refuses an SVG rather than serve it without its CSP, should its name ever escape the SVG route', function (): void {
+    $logo = logo();
+    DB::table('kami_media')->where('id', $logo->id)->update(['name' => 'My_Logo']);
+
+    $this->get(Media::query()->findOrFail($logo->id)->url())->assertNotFound();
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+});
+
+it('follows a replacement: the former file stops being served and the new one is served at its new URL', function (): void {
+    $former = logo();
+    $formerUrl = $former->url();
+    $this->get($formerUrl)->assertOk();
+
+    $replaced = resolve(SaveMedia::class)->handle(UploadedFile::fake()->createWithContent('Mark.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'), media: $former);
+
+    $this->get($formerUrl)->assertNotFound();
+    expect($replaced->url())->toEndWith('/mark.svg')
+        ->and(file_get_contents($this->get($replaced->url())->baseResponse->getFile()->getPathname()))->toBe('<svg xmlns="http://www.w3.org/2000/svg"/>')
+        ->and(Storage::disk('public')->allFiles("media/{$former->id}"))->toBe([ltrim((string) parse_url($replaced->url(), PHP_URL_PATH), '/')]);
+});
+
+it('builds a document\'s or an SVG\'s URL with no preset or file, and refuses anything else', function (?string $preset, ?int $width, string $exception): void {
+    expect(fn () => logo()->url($preset, $width))->toThrow($exception);
+})->with([
+    'a preset' => ['card', null, LogicException::class],
+    'a width' => [null, 120, InvalidArgumentException::class],
+    'file with a width' => ['file', 120, InvalidArgumentException::class],
+]);
+
+it('never serves a raster image\'s original', function (): void {
+    $photo = rotatedPhoto();
+    $logo = logo();
+
+    expect(fn () => $photo->url('file'))->toThrow(InvalidArgumentException::class, 'its original is never served')
+        ->and($logo->url('file'))->toBe($logo->url());
+    $this->get(tampered($photo->url(), 6, 'rotated-gps.jpg'))->assertNotFound();
+});
 
 it('changes the version with the original and the ratio, not with the widths', function (): void {
     $version = fn (Media $media): string => explode('/', $media->url('card', 40))[5];
@@ -282,5 +358,6 @@ it('fails on an invalid preset, naming it', function (ImagePreset | array | stri
     'width beyond the route' => [fn () => ImagePreset::make('card')->widths([1_000_000]), 'Image Preset "card": every width is between 1 and 999999 pixels.'],
     'non-positive ratio' => [fn () => ImagePreset::make('card')->ratio(4, 0)->widths([320]), 'Image Preset "card": both sides of the ratio are positive.'],
     'shipped handle' => [fn () => ImagePreset::make('original')->widths([320]), 'Image Preset "original": the handle is one of Kami\'s own presets'],
+    'file' => [fn () => ImagePreset::make('file')->widths([320]), 'Image Preset "file": the handle is one of Kami\'s own presets'],
     'twice' => [fn () => [ImagePreset::make('card')->widths([1]), ImagePreset::make('card')->widths([2])], 'Image Preset "card": the handle appears twice.'],
 ]);

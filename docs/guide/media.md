@@ -69,7 +69,7 @@ The new file goes through the same checks as an upload, and must be of the same 
 
 ## The library in the admin
 
-The admin's **Media** page lists the library, newest first, with a thumbnail of each raster image, its name, type, size and alt text state: **Described**, **Missing** (an image, not decorative, with no alt text in the default Locale), **Decorative**, or **Not needed** for a document. A filter narrows it to images or documents. Opening it takes `kami.media.view` ([Users and roles](users-and-roles.md#permissions)).
+The admin's **Media** page lists the library, newest first, with a thumbnail of each raster image, or an SVG's own file, its name, type, size and alt text state: **Described**, **Missing** (an image, not decorative, with no alt text in the default Locale), **Decorative**, or **Not needed** for a document. A filter narrows it to images or documents. Opening it takes `kami.media.view` ([Users and roles](users-and-roles.md#permissions)).
 
 **Upload** takes up to 20 files at once, dropped onto the form or picked from the computer, under `kami.media.create`. Each one goes through `SaveMedia`: the files it accepts are saved, and those it refuses are listed with their reason in a message kept until dismissed, without costing the others. Twenty files per upload keeps the request within shared hosting's time limit, as each image is decoded in full to read its dimensions.
 
@@ -146,7 +146,9 @@ Any other attribute, such as `class` or `id`, goes on the `<img>`; the `<picture
 - **`width` and `height`** from the preset's ratio, or the image's own proportions, so the page does not shift while it loads;
 - **the alt text** in the current Locale. When it falls back to the default Locale's, the `<img>` carries `lang` with that Locale, so assistive technology reads it in the right language. A decorative image, and one missing its alt text, get `alt=""`: the component never makes one up from the filename. The library's **Alt text missing** filter lists what needs describing.
 
-It runs no query when the Media item and its Translations are loaded, as a [Media Field](content-types.md#media) loads them: a listing of covers costs the queries of its Entries alone. A document renders nothing. An SVG renders nothing until it is served as its own file.
+It runs no query when the Media item and its Translations are loaded, as a [Media Field](content-types.md#media) loads them: a listing of covers costs the queries of its Entries alone. A document renders nothing.
+
+An SVG is never rasterised: its `<picture>` holds a plain `<img>` of [its own file](#documents-and-svg), with no `<source>` or `srcset`, `width` and `height` when the SVG states its size, and the same alt text rules. The preset must still be declared; it shapes nothing.
 
 ## Conversions
 
@@ -157,7 +159,7 @@ Visitors never receive an original. They receive Conversions: an image re-encode
 - **never upscaled**: a width above the original's gives the original's;
 - **in one [format](#formats)**: AVIF, WebP or the fallback format.
 
-An SVG or a document has no Conversion.
+An SVG or a document has no Conversion: it is [served as its own file](#documents-and-svg).
 
 ### Formats
 
@@ -201,7 +203,7 @@ Kami ships three presets, whose handles yours cannot take:
 | `original` | the image's own proportions, at its own width |
 | `kami-social` | 1.91:1, 1200 wide, in the fallback format only, for social cards: link previews often read nothing else |
 
-A preset with no width, a width outside 1 to 999,999 pixels, a ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
+`file` is reserved too, for [documents and SVG](#documents-and-svg). A preset with no width, a width outside 1 to 999,999 pixels, a ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
 
 ### URLs
 
@@ -214,13 +216,26 @@ $media->url('card');        // the preset's largest width
 $media->url();              // the original preset
 ```
 
-A preset, width or format not declared for the Media item, or a format this host does not offer, throws `InvalidArgumentException`, and an SVG or a document throws `LogicException`.
+A preset, width or format not declared for the Media item, or a format this host does not offer, throws `InvalidArgumentException`. A document's or an SVG's `url()` is the URL of [its own file](#documents-and-svg).
 
 The URL is `/media/{id}/{version}/{preset}-{width}.{format}`. The version is a short hash of the original file and the preset's ratio: changing either gives new URLs, so a browser or a cache never keeps a stale image, and nothing needs purging. Adding or removing a width leaves the other widths' URLs as they are. The former files stay on disk.
 
 Kami answers 404, and generates nothing, for any Media item, preset, width or format not declared or not offered, and for a stale version: nobody can use the site to resize images. Two first requests for the same Conversion generate it once, under a lock of the default cache store; the second one waits and serves the file the first wrote, or answers 503 after 50 seconds. A Conversion carries `Cache-Control: public, max-age=31536000, immutable` and the [front's security headers](security.md#kamis-pages), and no session or cookie.
 
 `media` is reserved: no Prefix or Path starts with it ([Content Types](content-types.md#prefix)).
+
+### Documents and SVG
+
+A document, such as a PDF, and an SVG are served unchanged, byte for byte, under the name they were uploaded with, slugged:
+
+```php
+$brochure->url();           // https://example.com/media/01jd…/5e0c41a7/annual-report.pdf
+$brochure->url('file');     // the same
+```
+
+The URL is `/media/{id}/{version}/{name}.{extension}`, the version a short hash of the file. As for a Conversion, the first request copies the original to `kami.media.public_disk` under `media/`, then Apache serves it as a static file with the same headers: its MIME type, `nosniff` and the immutable cache. An SVG also carries a `Content-Security-Policy` that runs no script and loads nothing, so an SVG opened directly cannot attack its visitor, and is never decoded by GD or Imagick: it stays sharp at any size. Replacing the file gives it a new URL, under its new name, and stops the former one at once ([Replacing a file](#replacing-a-file)).
+
+Another name, extension or version answers 404 and writes nothing. `file` is not a preset of its own, but its handle is reserved: a preset named `file` fails like one reusing Kami's. A raster image is never served as its own file, since its original keeps its metadata: `url('file')` throws `InvalidArgumentException` for it, and any other preset on a document or an SVG throws `LogicException`.
 
 ## Configuration
 

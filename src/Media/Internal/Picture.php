@@ -23,28 +23,34 @@ final readonly class Picture
     private function __construct(
         public array $sources,
         public string $src,
-        public string $srcset,
+        public ?string $srcset,
         public ?string $sizes,
-        public int $width,
-        public int $height,
+        public ?int $width,
+        public ?int $height,
         public string $alt,
         public ?string $lang,
     ) {}
 
     /**
-     * Null for no Media item, and for what is not a raster image.
+     * Null for no Media item and for a document. An SVG is its own file alone, never rasterised: no source, no `srcset`,
+     * and its size when it states one.
      *
      * @throws InvalidArgumentException For a preset not declared.
      */
     public static function of(?Media $media, string $preset, ?string $sizes = null): ?self
     {
-        // ponytail: an SVG renders nothing until #300 gives it the URL of its file, then a plain `<img>` of it.
-        if (! $media instanceof Media || ! Conversion::isConvertible($media)) {
+        if (! $media instanceof Media || ! $media->isImage()) {
             return null;
         }
 
         $presets = resolve(ImagePresets::class);
         $declared = $presets->find($preset) ?? throw new InvalidArgumentException("No Image Preset [{$preset}] is declared.");
+        $alt = $media->isDecorative() ? '' : (string) $media->alt();
+        $lang = $alt !== '' && $media->altLocale() !== Site::current()->currentLocale() ? $media->altLocale() : null;
+
+        if (! Conversion::isConvertible($media)) {
+            return new self([], $media->url(), null, null, $media->width, $media->height, $alt, $lang);
+        }
         [$widest, $tallest] = Conversion::cropped($declared, $media);
         /** @var non-empty-list<int> $widths A preset declares one at least. */
         $widths = $presets->widths($declared, $media);
@@ -64,8 +70,6 @@ final readonly class Picture
         }
 
         $width = max($shown);
-        $alt = $media->isDecorative() ? '' : (string) $media->alt();
-        $locale = $media->altLocale();
 
         return new self(
             $sources,
@@ -75,7 +79,7 @@ final readonly class Picture
             $width,
             max(1, (int) round($width * $tallest / $widest)),
             $alt,
-            $alt !== '' && $locale !== Site::current()->currentLocale() ? $locale : null,
+            $lang,
         );
     }
 }
