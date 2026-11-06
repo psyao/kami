@@ -7,6 +7,7 @@ use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Defer\DeferredCallbackCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -17,10 +18,7 @@ use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
-use Workbench\App\Content\Article;
-use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
-use Workbench\App\Content\Tag;
 
 uses(RefreshDatabase::class);
 
@@ -121,7 +119,6 @@ it('refuses a Locale the Site does not declare, and the default Locale\'s own se
 
 describe('used by and delete', function () {
     beforeEach(function () {
-        config(['kami.types' => [Article::class, Page::class, Tag::class, Project::class]]);
         $this->media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), ['alt' => 'A pixel']);
     });
 
@@ -140,6 +137,26 @@ describe('used by and delete', function () {
             ->assertSeeHtml('href="' . url("admin/projects/{$kami->id}/edit") . '"')
             ->assertSee('Velox (in the Trash)')
             ->assertDontSeeHtml('>Velox (in the Trash)</a>');
+    });
+
+    it('names without a link an Entry the User cannot open, or of a type no longer declared', function () {
+        usedByProjects($this->media);
+
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update'])
+            ->assertSee('Kami')
+            ->assertDontSeeHtml('/admin/projects/');
+
+        // A type taken out of `kami.types`, its Entries left in the database.
+        DB::table('kami_entries')->update(['type' => 'retired']);
+        mediaPage($this->media)->assertSee('Kami')->assertDontSeeHtml('/admin/projects/');
+    });
+
+    it('lists the first 50 Entries, then how many more', function () {
+        foreach (range(1, 51) as $number) {
+            resolve(SaveEntry::class)->handle(Project::class, ['title' => "Project {$number}", 'cover' => $this->media->id], locale: 'en');
+        }
+
+        mediaPage($this->media)->assertSee('Project 50')->assertDontSee('Project 51')->assertSee('and 1 more');
     });
 
     it('says when no Entry uses it', function () {

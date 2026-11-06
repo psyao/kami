@@ -30,12 +30,13 @@ final class DeleteMedia
         // ponytail: read with no lock, so an Entry saved with it meanwhile reaches the caller as the foreign key's `QueryException`; V1 adds a lock if a friction shows it.
         $sources = References::mediaSources($media->id);
 
-        if ($sources->exists()) {
-            throw ValidationException::withMessages(['media' => __('kami::admin.media.delete.used', ['entries' => EntryTitles::list($sources)])]);
+        $count = $sources->count();
+        if ($count > 0) {
+            throw ValidationException::withMessages(['media' => trans_choice('kami::admin.media.delete.used', $count, ['entries' => EntryTitles::list($sources)])]);
         }
 
         // The Translations go with the row, by the foreign key.
-        $media->delete();
+        DB::transaction(fn () => $media->delete());
 
         // Once committed, so a rollback keeps what the row still points to; at once, not at the next prune, so nothing of it stays served (Privacy, ADR 0017).
         DB::afterCommit(function () use ($media): void {

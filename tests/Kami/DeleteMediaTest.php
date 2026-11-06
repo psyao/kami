@@ -41,6 +41,14 @@ it('refuses to delete a Media item an Entry uses, naming them, those in the Tras
     Event::assertNotDispatched(MediaDeleted::class);
 });
 
+it('names a single Entry in the singular', function (): void {
+    $media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'));
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $media->id], locale: 'fr');
+
+    expect(fn () => resolve(DeleteMedia::class)->handle($media))
+        ->toThrow(ValidationException::class, 'An Entry uses this item: Kami. Remove it from that Entry, or delete the Entry for good if it is in the Trash, first.');
+});
+
 it('deletes an unused Media item for good: its row, Translations, original and every file served', function (): void {
     Storage::fake('originals');
     config(['kami.media.originals_disk' => 'originals']);

@@ -55,6 +55,9 @@ use function Illuminate\Support\defer;
  */
 final class MediaResource extends FilamentResource
 {
+    /** Enough to find each one, within shared hosting's memory. */
+    private const int USED_BY_SHOWN = 50;
+
     #[\Override]
     protected static ?string $model = Media::class;
 
@@ -120,16 +123,27 @@ final class MediaResource extends FilamentResource
         ]);
     }
 
-    /** Every Entry using it, each linked to its edit page; one in the Trash has none, and is marked so. */
+    /**
+     * The first Entries using it, then how many more, each linked to its edit page. One in the Trash, of a type the User cannot open,
+     * or of a type no longer declared has no page to link to, and is named only: its title is in `DeleteMedia`'s refusal anyway.
+     */
     private static function usedBy(Media $media): HtmlString
     {
-        $items = References::mediaSources($media->id)->get()->map(function (Entry $entry): string {
+        $sources = References::mediaSources($media->id);
+        $count = $sources->count();
+        $linkable = EntryResource::accessibleTypes();
+
+        $items = $sources->limit(self::USED_BY_SHOWN)->get()->map(function (Entry $entry) use ($linkable): string {
             $title = e(EntryTitles::marked($entry));
 
-            return $entry->trashed() ? "<li>{$title}</li>" : '<li><a href="' . e(EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))) . "\">{$title}</a></li>";
+            return $entry->trashed() || ! in_array($entry->type, $linkable, true)
+                ? "<li>{$title}</li>"
+                : '<li><a href="' . e(EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))) . "\">{$title}</a></li>";
         });
 
-        return new HtmlString($items->isEmpty() ? e(__('kami::admin.media.used_by.none')) : "<ul>{$items->implode('')}</ul>");
+        $more = $count > self::USED_BY_SHOWN ? '<li>' . e(__('kami::admin.media.used_by.more', ['count' => $count - self::USED_BY_SHOWN])) . '</li>' : '';
+
+        return new HtmlString($items->isEmpty() ? e(__('kami::admin.media.used_by.none')) : "<ul>{$items->implode('')}{$more}</ul>");
     }
 
     public static function table(Table $table): Table
