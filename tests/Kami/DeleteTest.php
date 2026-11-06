@@ -20,6 +20,8 @@ use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Page;
@@ -167,6 +169,22 @@ it('lets a new Entry take an address left by a 410 or a Redirect', function () {
     $this->get('/articles/adieu')->assertOk();
     $this->get('/en/articles/hello')->assertNotFound();
     $this->get('/en/articles/bye')->assertGone();
+});
+
+it('keeps a deleted Entry\'s 301 and 410 when SyncPaths rebuilds the 200 rows, a trashed Entry\'s included', function () {
+    $replacement = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Salut', 'author' => 'Ada', 'status' => 'published']);
+    resolve(DeleteEntry::class)->handle(trashedArticle(), $replacement);
+    resolve(DeleteEntry::class)->handle(trashedArticle('Adieu', 'Bye'));
+    trashedArticle('Corbeille', 'Trash');
+    Path::query()->where('status', 200)->delete();
+
+    $result = resolve(SyncPaths::class)();
+
+    expect($result['created'])->toBe(3)
+        ->and(Path::query()->orderBy('path')->pluck('status', 'path')->all())->toBe([
+            'articles/adieu' => 410, 'articles/bonjour' => 301, 'articles/bye' => 410, 'articles/corbeille' => 200,
+            'articles/hello' => 301, 'articles/salut' => 200, 'articles/trash' => 200,
+        ]);
 });
 
 it('deletes a never-published Translation and frees its Path, keeping the others', function () {

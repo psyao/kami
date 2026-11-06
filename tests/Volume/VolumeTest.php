@@ -100,6 +100,8 @@ it('checks drift and reports stranded values', function () {
     expect(measure('ContentModelDrift::problems()', fn () => $drift->problems()))->toBe([])
         ->and(measure('ContentModelDrift::strandedValues()', fn () => $drift->strandedValues()))->toBe([]);
 
+    // The doctor expects the shared cache store and the `public/media` link `kami:install` leaves.
+    withConversionsServed();
     expect(measure('kami:doctor', fn () => Artisan::call('kami:doctor')))->toBe(0);
 });
 
@@ -109,8 +111,9 @@ it('completes SyncPaths, with nothing to do and with every row to write', functi
 
     expect(measure('SyncPaths, nothing to do', fn () => $sync()))->toBe($nothing);
 
-    $paths = Path::query()->count();
-    Path::query()->delete();
+    // SyncPaths owns the 200 rows: a deleted Entry's 301 or 410 has no Translation left to rebuild it from.
+    $paths = Path::query()->where('status', 200)->count();
+    Path::query()->where('status', 200)->delete();
 
     expect(measure('SyncPaths, every row to write', fn () => $sync())['created'])->toBe($paths)
         ->and($sync())->toBe($nothing);
