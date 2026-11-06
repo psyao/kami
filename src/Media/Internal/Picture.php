@@ -15,8 +15,6 @@ use Psyao\Kami\Sites\Internal\Site;
  */
 final readonly class Picture
 {
-    private const array TYPES = ['avif' => 'image/avif', 'webp' => 'image/webp'];
-
     /**
      * @param  array<string, string>  $sources  A `srcset` per MIME type, in the `<picture>`'s order, the fallback format left to the `<img>`.
      * @param  string  $alt  Empty for a decorative image and for one missing its alt text: never a filename.
@@ -62,7 +60,7 @@ final readonly class Picture
 
         // The fallback format comes last, and goes on the `<img>`.
         foreach (array_slice($presets->formats($declared, $media), 0, -1) as $format) {
-            $sources[self::TYPES[$format]] = $srcset($format);
+            $sources["image/{$format}"] = $srcset($format);
         }
 
         $width = max($shown);
