@@ -76,6 +76,10 @@ public function render(Entry $entry, ?EventCalendar $calendar = null): View | Re
 
 It may return any view or response: a redirect, JSON, or a controller's response called from there.
 
+### Images
+
+`<x-kami::image :media="$entry->cover" preset="card" />` renders a Media item as a `<picture>` with its formats, a `srcset`, its dimensions, lazy loading and its alt text ([Media](media.md#showing-an-image)). It renders nothing for a null Media item, so an empty optional Field needs no `@if`.
+
 ### The Preview banner
 
 The admin's Preview calls the same `render()` with an Entry that was never saved ([Publishing](publishing.md#preview)), and a [Preview link](publishing.md#preview-links) with a Draft or Scheduled one: `render()` must not assume its Entry is stored or visible. Put the banner at the top of your layout's `<body>`:

@@ -115,6 +115,39 @@ $media->height;
 $media->credit;
 ```
 
+## Showing an image
+
+`<x-kami::image>` renders a Media item through an [Image Preset](#image-presets):
+
+```blade
+<x-kami::image :media="$entry->cover" preset="card" />
+```
+
+```html
+<picture class="kami-image">
+    <source type="image/avif" srcset="…/card-320.avif 320w, …/card-640.avif 640w" sizes="(min-width: 60rem) 33vw, 100vw">
+    <source type="image/webp" srcset="…/card-320.webp 320w, …/card-640.webp 640w" sizes="(min-width: 60rem) 33vw, 100vw">
+    <img src="…/card-640.jpg" srcset="…/card-320.jpg 320w, …/card-640.jpg 640w" sizes="(min-width: 60rem) 33vw, 100vw"
+         width="640" height="480" alt="Our team on the lake shore" loading="lazy" decoding="async">
+</picture>
+```
+
+| Prop | Effect |
+| --- | --- |
+| `media` | A `Media` item, or null: the component then renders nothing, so an empty optional Field needs no `@if`. |
+| `preset` | The Image Preset's handle; one not declared throws. |
+| `sizes` | Replaces the preset's `sizes`. Without either, the attribute is left out. |
+| `eager` | For the image that is the page's largest paint, such as a hero: drops `loading="lazy"` and adds `fetchpriority="high"`. |
+
+Any other attribute, such as `class` or `id`, goes on the `<img>`; the `<picture>` carries `kami-image`, and no CSS. What it prints:
+
+- **a `<source>` per format** this host encodes, AVIF then WebP, and the `<img>` in the [fallback format](#formats);
+- **a `srcset`** of the preset's widths up to the original's, or up to the narrower width its ratio crops a wider original to, never upscaled; when none fits, the smallest alone, at that width;
+- **`width` and `height`** from the preset's ratio, or the image's own proportions, so the page does not shift while it loads;
+- **the alt text** in the current Locale. When it falls back to the default Locale's, the `<img>` carries `lang` with that Locale, so assistive technology reads it in the right language. A decorative image, and one missing its alt text, get `alt=""`: the component never makes one up from the filename. The library's **Alt text missing** filter lists what needs describing.
+
+It runs no query when the Media item and its Translations are loaded, as a [Media Field](content-types.md#media) loads them: a listing of covers costs the queries of its Entries alone. A document renders nothing. An SVG renders nothing until it is served as its own file.
+
 ## Conversions
 
 Visitors never receive an original. They receive Conversions: an image re-encoded at one width, in one format, through an Image Preset. A Conversion is generated on the first request for it, written to `kami.media.public_disk` under `media/`, and served as a static file from then on ([ADR 0017](../adr/0017-conversions-generated-on-first-request.md)). `kami:install` links `public/media` to that directory, so Apache serves every later request without PHP ([Hosting](hosting.md#conversions)). Every Conversion is:
@@ -128,7 +161,7 @@ An SVG or a document has no Conversion.
 
 ### Formats
 
-Conversions are offered in AVIF, then WebP, then the fallback format, which every browser reads: JPEG for a JPEG original, PNG for any other. AVIF and WebP are offered only where this host really encodes them. For each, Kami encodes a 1 × 1 image and reads it back, through the `images.default` driver first, then the other one (GD or Imagick), and generates that format with the first driver that passes. The result is cached for a day on the default cache store, apart for the command line and the web, which may load different extensions.
+Conversions are offered in AVIF, then WebP, then the fallback format, which every browser reads: JPEG for a JPEG original, PNG for any other. AVIF and WebP are offered only where this host really encodes them. For each, Kami encodes a 1 × 1 image and reads it back, through the `images.default` driver first, then the other one (GD or Imagick), and generates that format with the first driver that passes. The result is cached for a day on the default cache store, apart for the command line and the web, which may load different extensions, and read once per request.
 
 A host where neither driver encodes AVIF or WebP offers the fallback format alone: a URL in either answers 404 and generates nothing, and every image still shows. The fallback format is never tested.
 

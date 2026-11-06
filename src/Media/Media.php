@@ -110,16 +110,27 @@ final class Media extends Model
     /** In the current Locale, or the default Locale's when blank there; null when both are. */
     public function alt(): ?string
     {
-        return $this->translated('alt');
+        return $this->translated('alt')[0];
+    }
+
+    /**
+     * @internal
+     *
+     * The Locale `alt()` reads from, so `<x-kami::image>` marks a fallback with `lang`; null when it reads none.
+     */
+    public function altLocale(): ?string
+    {
+        return $this->translated('alt')[1];
     }
 
     /** In the current Locale, or the default Locale's when blank there; null when both are. */
     public function caption(): ?string
     {
-        return $this->translated('caption');
+        return $this->translated('caption')[0];
     }
 
-    private function translated(string $attribute): ?string
+    /** @return array{string, string}|array{null, null} The value and its Locale. */
+    private function translated(string $attribute): array
     {
         $site = Site::current();
 
@@ -127,11 +138,11 @@ final class Media extends Model
             $value = $this->translations->firstWhere('locale', $locale)?->getAttribute($attribute);
 
             if (is_string($value) && trim($value) !== '') {
-                return $value;
+                return [$value, $locale];
             }
         }
 
-        return null;
+        return [null, null];
     }
 
     protected function casts(): array

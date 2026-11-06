@@ -77,6 +77,27 @@ final readonly class Conversion
         Storage::disk(Config::string('kami.media.public_disk'))->deleteDirectory("media/{$media->id}");
     }
 
+    /**
+     * The size of the original once cropped to the preset's ratio, as Conversions are cut from it: the widest any can be.
+     *
+     * @return array{positive-int, positive-int}
+     */
+    public static function cropped(ImagePreset $preset, Media $media): array
+    {
+        // Stored as decoded, so already oriented.
+        [$width, $height] = [max(1, (int) $media->width), max(1, (int) $media->height)];
+
+        if ($preset->ratio === null) {
+            return [$width, $height];
+        }
+
+        [$ratioWidth, $ratioHeight] = $preset->ratio;
+
+        return $width * $ratioHeight > $height * $ratioWidth
+            ? [max(1, (int) round($height * $ratioWidth / $ratioHeight)), $height]
+            : [$width, max(1, (int) round($width * $ratioHeight / $ratioWidth))];
+    }
+
     /** On `kami.media.public_disk`, which `kami:install` links `public/media` to: Apache serves the file once written. */
     public function path(): string
     {
@@ -126,12 +147,9 @@ final readonly class Conversion
         $image = ($driver === null ? $image : $image->using($driver))->orient();
         // Stored as decoded, so already oriented.
         [$width, $height] = [max(1, (int) $this->media->width), max(1, (int) $this->media->height)];
+        [$cropWidth, $cropHeight] = self::cropped($this->preset, $this->media);
 
-        if ($this->preset->ratio !== null) {
-            [$ratioWidth, $ratioHeight] = $this->preset->ratio;
-            [$cropWidth, $cropHeight] = $width * $ratioHeight > $height * $ratioWidth
-                ? [max(1, (int) round($height * $ratioWidth / $ratioHeight)), $height]
-                : [$width, max(1, (int) round($width * $ratioHeight / $ratioWidth))];
+        if ([$cropWidth, $cropHeight] !== [$width, $height]) {
             $image = $image->crop($cropWidth, $cropHeight, intdiv($width - $cropWidth, 2), intdiv($height - $cropHeight, 2));
         }
 
