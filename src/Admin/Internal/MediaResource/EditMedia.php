@@ -6,6 +6,7 @@ namespace Psyao\Kami\Admin\Internal\MediaResource;
 
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\FileUpload;
 use Filament\Notifications\Notification;
@@ -17,7 +18,9 @@ use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use LogicException;
+use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\MediaResource;
+use Psyao\Kami\Media\Actions\DeleteMedia;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
@@ -78,6 +81,10 @@ final class EditMedia extends EditRecord
         return [
             ...(count(Site::current()->locales) > 1 ? [$this->localeSwitcher()] : []),
             $this->replaceAction(),
+            // Refused while an Entry uses it, on a notification naming them, as "Used by" lists them.
+            DeleteAction::make()
+                ->modalDescription(__('kami::admin.media.delete.description'))
+                ->using(fn (Media $record): bool => EntryResource::onNotification(fn () => resolve(DeleteMedia::class)->handle($record, Filament::auth()->user()))),
         ];
     }
 

@@ -141,6 +141,16 @@ final class References
     }
 
     /**
+     * What uses a Media item, in any state, the Trash included: "used by", and what keeps it from being deleted.
+     *
+     * @return Builder<Entry>
+     */
+    public static function mediaSources(string $media): Builder
+    {
+        return Entry::query()->withUnpublished()->withTrashed()->whereIn('id', DB::table(self::TABLE)->where('target_media_id', $media)->select('source_entry_id'))->orderBy('id');
+    }
+
+    /**
      * Gives Entries their relation and Media Fields: one query for the rows, then one Entry query per way of reading them, with its usual queries, and one for the Media items with their Translations.
      *
      * @param  array<Entry>  $entries

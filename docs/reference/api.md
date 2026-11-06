@@ -400,6 +400,14 @@ Registers Kami's core: config, translations, migrations and commands, and nothin
 - `public function packageBooted(): void`
 - `public function packageRegistered(): void`
 
+## `Psyao\Kami\Media\Actions\DeleteMedia`
+
+`final class`
+
+Deletes a Media item for good, with its Translations, its original and every file served from it; there is no Media trash. It refuses while any Entry uses it, one in the Trash too. It does not authorise: the caller checks the actor's `kami.media.delete` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Media\Media $media, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
 ## `Psyao\Kami\Media\Actions\SaveMedia`
 
 `final class`

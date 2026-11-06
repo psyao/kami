@@ -94,6 +94,17 @@ A never-published Translation was deleted through `DeleteTranslation`, once the 
 - `public protected(set) readonly string $type`
 - `public function __construct(string $entryId, string $type, string $site, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
+## `Psyao\Kami\Media\Events\MediaDeleted`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Media item was deleted for good through `DeleteMedia`, once the write committed (ADR 0029). It carries values: the row and its files are gone, so a queued listener has nothing to reload.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly string $mediaId`
+- `public protected(set) readonly string $site`
+- `public function __construct(string $mediaId, string $site, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
 ## `Psyao\Kami\Media\Events\MediaSaved`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`

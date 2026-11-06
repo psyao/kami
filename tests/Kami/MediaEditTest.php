@@ -2,16 +2,23 @@
 
 declare(strict_types=1);
 
+use Filament\Actions\DeleteAction;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Defer\DeferredCallbackCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\MediaResource\EditMedia;
+use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
+use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
 
@@ -109,3 +116,72 @@ it('refuses a Locale the Site does not declare, and the default Locale\'s own se
 
     mediaPage($media, $locale)->assertNotFound();
 })->with(['de', 'en']);
+
+describe('used by and delete', function () {
+    beforeEach(function () {
+        $this->media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), ['alt' => 'A pixel']);
+    });
+
+    /** Projects using the Media item: Kami as its cover, Velox in its gallery and in the Trash. */
+    function usedByProjects(Media $media): Entry
+    {
+        resolve(TrashEntry::class)->handle(resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Velox', 'gallery' => [$media->id]], locale: 'en'));
+
+        return resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $media->id], locale: 'en');
+    }
+
+    it('lists the Entries using it, each linked to its edit page, those in the Trash marked and not linked', function () {
+        $kami = usedByProjects($this->media);
+
+        mediaPage($this->media)
+            ->assertSeeHtml('href="' . url("admin/projects/{$kami->id}/edit") . '"')
+            ->assertSee('Velox (in the Trash)')
+            ->assertDontSeeHtml('>Velox (in the Trash)</a>');
+    });
+
+    it('names without a link an Entry the User cannot open, or of a type no longer declared', function () {
+        usedByProjects($this->media);
+
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update'])
+            ->assertSee('Kami')
+            ->assertDontSeeHtml('/admin/projects/');
+
+        // A type taken out of `kami.types`, its Entries left in the database.
+        DB::table('kami_entries')->update(['type' => 'retired']);
+        mediaPage($this->media)->assertSee('Kami')->assertDontSeeHtml('/admin/projects/');
+    });
+
+    it('lists the first 50 Entries, then how many more', function () {
+        foreach (range(1, 51) as $number) {
+            resolve(SaveEntry::class)->handle(Project::class, ['title' => "Project {$number}", 'cover' => $this->media->id], locale: 'en');
+        }
+
+        mediaPage($this->media)->assertSee('Project 50')->assertDontSee('Project 51')->assertSee('and 1 more');
+    });
+
+    it('says when no Entry uses it', function () {
+        mediaPage($this->media)->assertSee('No Entry uses it.');
+    });
+
+    it('refuses to delete a Media item in use on a notification naming the Entries', function () {
+        usedByProjects($this->media);
+
+        mediaPage($this->media)
+            ->callAction(DeleteAction::class)
+            ->assertNotified(Notification::make()->danger()->title('Entries use this item: Velox (in the Trash), Kami. Remove it from them, or delete those in the Trash for good, first.'));
+
+        expect(Media::query()->find($this->media->id))->not->toBeNull();
+    });
+
+    it('deletes an unused Media item, back to the library', function () {
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', 'kami.media.delete'])
+            ->callAction(DeleteAction::class)
+            ->assertRedirect(MediaResource::getUrl('index'));
+
+        expect(Media::query()->find($this->media->id))->toBeNull();
+    });
+
+    it('takes kami.media.delete to delete', function () {
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update'])->assertActionHidden(DeleteAction::class);
+    });
+});

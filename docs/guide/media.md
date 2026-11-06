@@ -67,6 +67,16 @@ $media = app(SaveMedia::class)->handle($request->file('photo'), media: $media, a
 
 The new file goes through the same checks as an upload, and must be of the same family: an image replaces an image, a document a document. Another family is refused on `file`, changing nothing. Kami reads the name, type, size, dimensions and checksum from the new file, so the Conversions get new URLs ([URLs](#urls)): browsers and caches never keep the former picture. Once the change is committed, the former original and every former Conversion are deleted at once rather than left to `kami:media:prune`, so the former picture stops being served at its former URLs straight away. A file holding the same bytes as the current one changes nothing.
 
+## Deleting a Media item
+
+`DeleteMedia` deletes a Media item for good: its row, its alt text and caption in every Locale, its original and every file served from it. There is no Media trash.
+
+```php
+app(DeleteMedia::class)->handle($media, actor: $request->user());
+```
+
+It refuses while any Entry uses the item through a [Media Field](content-types.md#media), an Entry in the Trash too: the `ValidationException` is on `media`, and its message names those Entries, marking the ones in the Trash. Remove the item from them, or delete those in the Trash for good, then delete it. The files go once the deletion is committed, at once rather than at the next `kami:media:prune`, so nothing of the item stays served; a transaction rolled back around it keeps them.
+
 ## The library in the admin
 
 The admin's **Media** page lists the library, newest first, with a thumbnail of each raster image, or an SVG's own file, its name, type, size and alt text state: **Described**, **Missing** (an image, not decorative, with no alt text in the default Locale), **Decorative**, or **Not needed** for a document. A filter narrows it to images or documents. Opening it takes `kami.media.view` ([Users and roles](users-and-roles.md#permissions)).
@@ -93,6 +103,8 @@ Opening a row edits the Media item, under `kami.media.update`. The page edits th
 Saving an image in the default Locale requires its alt text, unless it is marked decorative: describing images is part of the job. Other Locales, documents and uploads never require it.
 
 **Replace file** takes a new file of the same family through `SaveMedia` ([Replacing a file](#replacing-a-file)). The form states the upload limit, and a file of another family is refused with its reason. The new `admin-thumb` is generated once the response is sent.
+
+**Used by** lists the first 50 Entries using the item, then how many more, each linked to its edit page. One in the Trash is marked; it, and one of a type the editor cannot open, are named without a link. **Delete**, under `kami.media.delete`, goes through `DeleteMedia` ([Deleting a Media item](#deleting-a-media-item)): an item in use is refused on a message naming its Entries.
 
 ## Reading Media
 
@@ -264,4 +276,4 @@ The `media` key of `config/kami.php`:
 
 ## Reacting to Media
 
-`SaveMedia` dispatches `Psyao\Kami\Media\Events\MediaSaved` once its write is committed, with `media` (as saved), `locale` (the Locale written), `created` and `actor`, like the [Content events](publishing.md#reacting-to-content).
+`SaveMedia` dispatches `Psyao\Kami\Media\Events\MediaSaved` once its write is committed, with `media` (as saved), `locale` (the Locale written), `created` and `actor`, like the [Content events](publishing.md#reacting-to-content). `DeleteMedia` dispatches `Psyao\Kami\Media\Events\MediaDeleted` once its deletion is committed, with `mediaId`, `site` and `actor`: the row is gone, so it carries values only.

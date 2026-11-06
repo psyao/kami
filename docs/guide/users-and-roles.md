@@ -64,7 +64,7 @@ The [Media library](media.md#the-library-in-the-admin) has four, shared by every
 | `kami.media.view` | list the library |
 | `kami.media.create` | upload files to it, from the library or from a Media Field |
 | `kami.media.update` | edit a Media item's alt text, caption, credit and file |
-| `kami.media.delete` | delete a Media item |
+| `kami.media.delete` | [delete a Media item](media.md#deleting-a-media-item) no Entry uses |
 
 `kami.health.view` shows the dashboard's **Needs attention** widget, the last [`kami:doctor`](installation.md#checking-the-environment) result. `kami.users.manage` lets a User manage the others. [Permissions](../reference/permissions.md) lists the whole vocabulary.
 

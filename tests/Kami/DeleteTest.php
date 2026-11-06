@@ -252,7 +252,7 @@ it('shows a refusal on a notification, and deletes nothing', function () {
     entriesPage(ListEntries::class, type: 'page')
         ->filterTable('trashed', false)
         ->callAction(TestAction::make('forceDelete')->table($parent))
-        ->assertNotified(__('kami::admin.delete.children', ['children' => 'Child']));
+        ->assertNotified(__('kami::admin.delete.children', ['children' => 'Child (in the Trash)']));
 
     expect(Entry::query()->withUnpublished()->withTrashed()->whereKey($parent->id)->exists())->toBeTrue();
 });

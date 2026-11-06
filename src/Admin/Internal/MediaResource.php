@@ -12,6 +12,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\ImageEntry;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -24,12 +25,16 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Psyao\Kami\Admin\Internal\MediaResource\EditMedia;
 use Psyao\Kami\Admin\Internal\MediaResource\ListMedia;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Media as MediaField;
+use Psyao\Kami\Content\Internal\EntryTitles;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Internal\Conversion;
@@ -50,6 +55,9 @@ use function Illuminate\Support\defer;
  */
 final class MediaResource extends FilamentResource
 {
+    /** Enough to find each one, within shared hosting's memory. */
+    private const int USED_BY_SHOWN = 50;
+
     #[\Override]
     protected static ?string $model = Media::class;
 
@@ -108,7 +116,34 @@ final class MediaResource extends FilamentResource
                 ->live(),
             Textarea::make('caption')->label(__('kami::admin.media.fields.caption'))->extraInputAttributes($lang)->rows(2),
             TextInput::make('credit')->label(__('kami::admin.media.fields.credit'))->maxLength(255),
+            TextEntry::make('used_by')
+                ->label(__('kami::admin.media.used_by.label'))
+                ->state(fn (Media $record): HtmlString => self::usedBy($record))
+                ->prose(),
         ]);
+    }
+
+    /**
+     * The first Entries using it, then how many more, each linked to its edit page. One in the Trash, of a type the User cannot open,
+     * or of a type no longer declared has no page to link to, and is named only: its title is in `DeleteMedia`'s refusal anyway.
+     */
+    private static function usedBy(Media $media): HtmlString
+    {
+        $sources = References::mediaSources($media->id);
+        $count = $sources->count();
+        $linkable = EntryResource::accessibleTypes();
+
+        $items = $sources->limit(self::USED_BY_SHOWN)->get()->map(function (Entry $entry) use ($linkable): string {
+            $title = e(EntryTitles::marked($entry));
+
+            return $entry->trashed() || ! in_array($entry->type, $linkable, true)
+                ? "<li>{$title}</li>"
+                : '<li><a href="' . e(EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))) . "\">{$title}</a></li>";
+        });
+
+        $more = $count > self::USED_BY_SHOWN ? '<li>' . e(__('kami::admin.media.used_by.more', ['count' => $count - self::USED_BY_SHOWN])) . '</li>' : '';
+
+        return new HtmlString($items->isEmpty() ? e(__('kami::admin.media.used_by.none')) : "<ul>{$items->implode('')}{$more}</ul>");
     }
 
     public static function table(Table $table): Table

@@ -29,4 +29,10 @@ final class MediaPolicy
     {
         return Gate::forUser($user)->allows('kami.media.update');
     }
+
+    /** For good, when no Entry uses it (`DeleteMedia`). */
+    public function delete(Authenticatable $user): bool
+    {
+        return Gate::forUser($user)->allows('kami.media.delete');
+    }
 }

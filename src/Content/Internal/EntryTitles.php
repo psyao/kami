@@ -18,16 +18,22 @@ final class EntryTitles
     private const int SHOWN = 10;
 
     /**
-     * The first titles, then how many more: "A, B and 3 more".
+     * The first titles, then how many more: "A, B (in the Trash) and 3 more".
      *
      * @param  Builder<Entry>  $entries
      */
     public static function list(Builder $entries): string
     {
         $count = $entries->count();
-        $titles = $entries->limit(self::SHOWN)->get()->map(self::of(...))->implode(', ');
+        $titles = $entries->limit(self::SHOWN)->get()->map(self::marked(...))->implode(', ');
 
         return $count > self::SHOWN ? __('kami::admin.titles.more', ['titles' => $titles, 'count' => $count - self::SHOWN]) : $titles;
+    }
+
+    /** Its title, marked when it is in the Trash. */
+    public static function marked(Entry $entry): string
+    {
+        return $entry->trashed() ? __('kami::admin.titles.trashed', ['title' => self::of($entry)]) : self::of($entry);
     }
 
     /** Its title in the current Locale, else the default one's, else any. */
