@@ -485,7 +485,7 @@ final class EntryResource extends FilamentResource
             ->authorizeIndividualRecords(fn (Entry $record): bool => self::can('update', $record) && self::can('publish', $record))
             ->successNotificationTitle(__("kami::admin.bulk.{$name}_done"))
             ->deselectRecordsAfterCompletion();
-        /** @var list<string> $written The rows this run wrote, whose images the warning reads once they all are. */
+        /** @var list<string> $written The rows this run wrote: Filament calls `after()` once every row's `action()` has run. */
         $written = [];
 
         if ($status === Translation::PUBLISHED) {
@@ -842,7 +842,8 @@ final class EntryResource extends FilamentResource
 
     /**
      * The images that the Entries' published or Scheduled Translations in that Locale show without alt text, by name, on one notification
-     * kept until dismissed: a warning, never a block (ADR 0017). Read as the front reads them, a blank translatable Field falling back.
+     * kept until dismissed: a warning, never a block (ADR 0017). The Fields are read as the front reads them, a blank translatable one falling
+     * back; an image counts as missing its alt text as `Media::missingAlt()` says, from the default Locale's, whatever the Translation's Locale.
      *
      * @param  array<string>  $entries
      */

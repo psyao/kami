@@ -78,7 +78,10 @@ final class MediaResource extends FilamentResource
         return __('kami::admin.media.plural_label');
     }
 
-    /** Its alt text in any Locale too: the words an editor remembers an image by. */
+    /**
+     * Its alt text in any Locale too: the words an editor remembers an image by. A `LIKE` with a leading wildcard, unindexed, as the Entries'
+     * search: a scan of `kami_media` and `kami_media_translations`, the same on shared hosting and on a server.
+     */
     public static function getGloballySearchableAttributes(): array
     {
         return ['name', 'translations.alt'];
