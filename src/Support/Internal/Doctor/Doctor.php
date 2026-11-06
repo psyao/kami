@@ -106,7 +106,7 @@ final readonly class Doctor
      */
     public function blocking(): array
     {
-        return array_values(array_filter([...$this->environment(), ...$this->userModels($this->panels()), $this->exposedOriginals()], fn (?Problem $problem): bool => $problem?->severity === Severity::Error));
+        return array_values(array_filter([...$this->environment(), ...$this->userModels($this->panels()), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
     }
 
     /** @return list<Problem> */

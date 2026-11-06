@@ -290,7 +290,7 @@ It walks one Media item at a time, so a run cut short is simply started again. N
 
 ## Configuration
 
-The `media` key of `config/kami.php`. A key the site leaves out keeps Kami's default:
+The `media` key of `config/kami.php`. A key of `media` the site leaves out keeps Kami's default; a key it declares, such as `mimes`, replaces Kami's whole value:
 
 ```php
 'media' => [

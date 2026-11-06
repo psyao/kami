@@ -54,7 +54,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         if (! $this->app->configurationIsCached()) {
             /** @var array{media: array<string, mixed>} $defaults */
             $defaults = require __DIR__ . '/../config/kami.php';
-            config(['kami.media' => [...$defaults['media'], ...config()->array('kami.media')]]);
+            config(['kami.media' => [...$defaults['media'], ...(array) config('kami.media')]]);
         }
 
         // Run from the package, never published: a copy in the site would drift from the append-only history (ADR 0035).

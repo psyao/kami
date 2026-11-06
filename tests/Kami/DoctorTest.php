@@ -580,14 +580,14 @@ describe('Conversions', function () {
         expect($problems)->toEqual([[Severity::Warning, 'Files under public/media go out without X-Content-Type-Options: nosniff, Cache-Control: public, max-age=31536000, immutable, Content-Security-Policy: default-src \'none\'; style-src \'unsafe-inline\'; img-src data:.']]);
     });
 
-    it('only informs about the headers on a developer\'s machine, whose local server, such as Herd\'s nginx, the site never runs on', function () {
+    it('only informs about the headers on a developer\'s machine, whose local server, such as Herd\'s nginx, the site never runs on', function (int $status) {
         app()->detectEnvironment(fn () => 'local');
-        $this->served = Http::response('<svg/>', 200, ['Cache-Control' => 'max-age=3600']);
+        $this->served = Http::response('<svg/>', $status, ['Cache-Control' => 'max-age=3600']);
 
         $problems = mediaProblems();
 
         expect($problems)->toHaveCount(1)->{0}->{0}->toBe(Severity::Info);
-    });
+    })->with(['headers missing' => 200, 'not served' => 404]);
 
     it('warns when the probe file is not served', function () {
         $this->served = Http::response('Not Found', 404);

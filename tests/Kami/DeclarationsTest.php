@@ -9,7 +9,6 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Singleton;
-use Psyao\Kami\Media\ImagePreset;
 
 /** A type whose handle and Fields each test declares. */
 final class Declared extends ContentType
@@ -138,10 +137,12 @@ it('refuses a hierarchical Singleton', function () {
     expect(fn () => runWithTypes(HierarchicalSingleton::class))->toThrow(InvalidArgumentException::class, 'HierarchicalSingleton: a Singleton has one Entry');
 });
 
-it('keeps Kami\'s other media defaults when a site declares only some of the media keys, as a config published before 0.5 does', function () {
-    $this->bootConfig = ['kami.media' => ['presets' => [ImagePreset::make('card')->widths([640])], 'avif' => false]];
+it('keeps Kami\'s other media defaults when a site declares only some of the media keys, or none', function (?array $media, array $kept) {
+    $this->bootConfig = ['kami.media' => $media];
     $this->refreshApplication();
 
-    expect(config('kami.media'))->toMatchArray(['public_disk' => 'public', 'originals_disk' => 'local', 'max_pixels' => 40_000_000, 'avif' => false])
-        ->and(config('kami.media.presets'))->toHaveCount(1);
-});
+    expect(config('kami.media'))->toMatchArray(['public_disk' => 'public', 'originals_disk' => 'local', 'max_pixels' => 40_000_000, ...$kept]);
+})->with([
+    'some keys' => [['avif' => false], ['avif' => false]],
+    'null' => [null, ['avif' => true]],
+]);
