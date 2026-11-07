@@ -43,10 +43,10 @@ pest()->extend(TestCase::class)->beforeEach(function (): void {
 })->in('Browser');
 pest()->extend(InstallTestCase::class)->in('Install');
 
-/** A directory of the test's own, as parallel processes share the skeleton's `storage/`. */
+/** A directory of the test's own, as parallel processes share the skeleton's `storage/`. Random, not `uniqid()`: two processes reading the same microsecond would share it, and one's cleanup delete the other's files (#338). */
 function temporaryPath(): string
 {
-    return sys_get_temp_dir() . '/kami-' . uniqid();
+    return sys_get_temp_dir() . '/kami-' . bin2hex(random_bytes(8));
 }
 
 /** The authenticator secret of the Users `withMfa()` sets up. */
@@ -79,7 +79,9 @@ function signIn(): mixed
 function signInPassword(mixed $page, string $email): mixed
 {
     // Typed before the password field's lazy component loads or after, the password is kept (`Browser/SignInTest`, #128).
+    // Not before Alpine starts, which empties the email: after a redirect, such as signing out, the page may still be loading (#369).
     return $page
+        ->waitForEvent('load')
         ->fill('[id="form.email"]', $email)
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]');
@@ -88,8 +90,8 @@ function signInPassword(mixed $page, string $email): mixed
 /** Through the sign-in page: the password, then the authenticator's current code. A second sign-in within the same 30 seconds is refused: Filament accepts each code once. */
 function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mixed
 {
-    // The last digit submits the form.
-    return signInPassword($page, $email)->fill('[id="multiFactorChallengeForm.app.code"]', (new Google2FA)->getCurrentOtp($secret));
+    // The last digit submits the form, so the field is waited for first: Pest retries a `fill` that took over a second, and the retry finds the page signed in (#369).
+    return signInPassword($page, $email)->assertSee('Enter the 6-digit code from the authenticator app')->fill('[id="multiFactorChallengeForm.app.code"]', (new Google2FA)->getCurrentOtp($secret));
 }
 
 /** Signs in a new User holding the Role, or these Permissions under a Role of their own; the panel admits them, as in the local environment. */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -40,6 +41,17 @@ final class DriftedNote extends ContentType
     {
         return [Text::make('subject'), Text::make('colour')];
     }
+}
+
+/** `kami:doctor`'s output, once it exited 0; otherwise the failure shows the output, so a flaky Error names itself (#338). */
+function warningsOnly(): string
+{
+    $exit = Artisan::call('kami:doctor');
+    // Read once: it empties the buffer.
+    $output = Artisan::output();
+    expect($exit)->toBe(0, $output);
+
+    return $output;
 }
 
 beforeEach(function () {
@@ -115,10 +127,7 @@ it('warns about a value left on the row a Field no longer reads, without failing
     $page = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'About', 'slug' => 'about', 'body' => 'Kept'], locale: 'en');
     DB::table('kami_type_page')->where('entry_id', $page->id)->update(['locale' => '*']);
 
-    $this->artisan('kami:doctor')
-        ->expectsOutputToContain('The Field body of the type page is translatable, but holds Shared values')
-        ->expectsOutputToContain("makeTranslatable('page', 'body')")
-        ->assertSuccessful();
+    expect(warningsOnly())->toContain('The Field body of the type page is translatable, but holds Shared values', "makeTranslatable('page', 'body')");
 });
 
 it('warns about a link under a handle no relation Field declares, as a mistyped renameField leaves', function () {
@@ -128,10 +137,7 @@ it('warns about a link under a handle no relation Field declares, as a mistyped 
     $page = $save->handle(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');
     DB::table('kami_references')->insert(['id' => (string) Str::ulid(), 'source_entry_id' => $project->id, 'field' => 'relatd', 'target_entry_id' => $page->id, 'position' => 0]);
 
-    $this->artisan('kami:doctor')
-        ->expectsOutputToContain('are under relatd, which no relation Field declares')
-        ->expectsOutputToContain("ContentMigrator::renameField('project', 'relatd', '<handle>')")
-        ->assertSuccessful();
+    expect(warningsOnly())->toContain('are under relatd, which no relation Field declares', "ContentMigrator::renameField('project', 'relatd', '<handle>')");
 });
 
 it('warns about a relation Field flipped without conversion', function () {
@@ -141,8 +147,5 @@ it('warns about a relation Field flipped without conversion', function () {
     $page = $save->handle(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');
     DB::table('kami_references')->insert(['id' => (string) Str::ulid(), 'source_entry_id' => $project->id, 'field' => 'related', 'locale' => 'en', 'target_entry_id' => $page->id, 'position' => 0]);
 
-    $this->artisan('kami:doctor')
-        ->expectsOutputToContain('The Field related of the type project is Shared, but holds links in a Locale')
-        ->expectsOutputToContain("makeShared('project', 'related', keep:")
-        ->assertSuccessful();
+    expect(warningsOnly())->toContain('The Field related of the type project is Shared, but holds links in a Locale', "makeShared('project', 'related', keep:");
 });
