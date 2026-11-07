@@ -33,6 +33,7 @@ php artisan serve
 - [Multilingual](docs/guide/multilingual.md): Locales, Translations, Shared Fields and Fallback with `lang`
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
+- [Audit log](docs/guide/audit-log.md): what Kami records, privacy, recording your own events with `RecordAuditEvent`, and batches
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
 - [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server

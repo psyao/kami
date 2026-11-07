@@ -13,6 +13,7 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
+use Psyao\Kami\Schema\ContentMigrator;
 
 // Each test migrates for real, and DDL commits on MySQL: a transaction could not undo it.
 uses(DatabaseMigrations::class);
@@ -756,4 +757,26 @@ describe('what must not be lost', function () {
         expect(fn () => ($this->inMigration)("ContentMigrator::renameField('memo', 'related', '{$to}');"))->toThrow(InvalidArgumentException::class, $to)
             ->and(targets($entry, 'related'))->toBe(['*' => [$target]]);
     })->with(['taken', 'summary']);
+});
+
+it('records each operation as one Audit event from the CLI, and nothing for a refused one', function () {
+    ($this->declare)(Text::make('summary'));
+    memo();
+    memo();
+
+    ($this->inMigration)("ContentMigrator::renameField('memo', 'summary', 'abstract');");
+    expect(fn () => ContentMigrator::makeTypeTranslatable('memo', 'de'))->toThrow(InvalidArgumentException::class);
+
+    $event = DB::table('kami_audit_events')->sole(['event', 'actor', 'user_id', 'context']);
+    expect([$event->event, $event->actor, $event->user_id])->toBe(['kami.content.migrated', 'cli', null])
+        // `toEqual`: MySQL's JSON keeps no key order.
+        ->and(json_decode((string) $event->context, true))->toEqual(['operation' => 'renameField', 'type' => 'memo', 'from' => 'summary', 'to' => 'abstract']);
+});
+
+it('runs in a site migration older than the Audit log table, recording nothing', function () {
+    ($this->declare)(Text::make('summary'));
+    memo();
+    Schema::drop('kami_audit_events');
+
+    expect(fn () => ($this->inMigration)("ContentMigrator::renameField('memo', 'summary', 'abstract');"))->not->toThrow(Throwable::class);
 });

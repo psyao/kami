@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
@@ -63,6 +64,8 @@ final class ContentMigrator
         if ($hasTable || $hasNew) {
             self::renameConstraints($old, $new);
         }
+
+        self::migrated('renameType', ['from' => $from, 'to' => $to]);
     }
 
     /** Renames a Field: its column and that column's index when it has one, else a relation Field's rows in `kami_references`. */
@@ -88,6 +91,8 @@ final class ContentMigrator
 
             self::eachBatch($type, fn (array $ids) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $from)->update(['field' => $to]));
 
+            self::migrated('renameField', ['type' => $type, 'from' => $from, 'to' => $to]);
+
             return;
         }
 
@@ -99,6 +104,8 @@ final class ContentMigrator
         if ($indexed) {
             Schema::table($table, fn (Blueprint $blueprint) => $blueprint->renameIndex($index, MakeMigrationCommand::indexName($table, $to)));
         }
+
+        self::migrated('renameField', ['type' => $type, 'from' => $from, 'to' => $to]);
     }
 
     /** Destroys a type: its table, its Entries and what cascades from them, such as the links other types hold to them. A type still declared is refused. */
@@ -117,6 +124,8 @@ final class ContentMigrator
         });
 
         self::eachBatch($type, fn (array $ids) => DB::table('kami_entries')->whereIn('id', $ids)->delete());
+
+        self::migrated('dropType', ['type' => $type]);
     }
 
     /** Destroys a Locale: its translations, its rows in every type's table, its references and its paths. The Entries stay. A Locale still declared is refused, as is the Shared `'*'`. */
@@ -137,6 +146,8 @@ final class ContentMigrator
                 self::deleteRows(self::table($type), 'entry_id', $locale);
             }
         }
+
+        self::migrated('dropLocale', ['locale' => $locale]);
     }
 
     /**
@@ -199,6 +210,8 @@ final class ContentMigrator
                 DB::table(self::REFERENCES)->insert($chunk);
             }
         });
+
+        self::migrated('makeTranslatable', ['type' => $type, 'field' => $field]);
     }
 
     /**
@@ -222,6 +235,8 @@ final class ContentMigrator
                 $links($ids)->whereNotNull('locale')->delete();
             });
 
+            self::migrated('makeShared', ['type' => $type, 'field' => $field, 'keep' => $keep, 'discard_others' => $discardOthers]);
+
             return;
         }
 
@@ -232,6 +247,8 @@ final class ContentMigrator
             DB::table($table)->upsert($rows, ['entry_id', 'locale'], [$field]);
             DB::table($table)->whereIn('entry_id', $ids)->where('locale', '!=', self::SHARED)->update([$field => null]);
         });
+
+        self::migrated('makeShared', ['type' => $type, 'field' => $field, 'keep' => $keep, 'discard_others' => $discardOthers]);
     }
 
     /** Moves each shared translation to a Locale, for a type whose `$translatable` turned true. Field rows stay: `makeTranslatable()` moves them, Field by Field. */
@@ -242,6 +259,8 @@ final class ContentMigrator
         }
 
         self::eachBatch($type, fn (array $ids) => DB::table('kami_translations')->whereIn('entry_id', $ids)->where('locale', self::SHARED)->update(['locale' => $locale]));
+
+        self::migrated('makeTypeTranslatable', ['type' => $type, 'locale' => $locale]);
     }
 
     /**
@@ -262,6 +281,8 @@ final class ContentMigrator
             $translations($ids)->whereNotIn('locale', [$keep, self::SHARED])->delete();
             $translations($ids)->where('locale', $keep)->update(['locale' => self::SHARED]);
         });
+
+        self::migrated('makeTypeShared', ['type' => $type, 'keep' => $keep, 'discard_others' => $discardOthers]);
     }
 
     /**
@@ -457,6 +478,20 @@ final class ContentMigrator
     private static function table(string $type): string
     {
         return "kami_type_{$type}";
+    }
+
+    /**
+     * One Audit event per operation, once it is done: it writes with the query builder, so no core action records anything inside (ADR 0022). A site migration older than the Audit log's table runs before it exists on a fresh `migrate`, and records nothing.
+     *
+     * @param  array<string, scalar>  $arguments
+     */
+    private static function migrated(string $operation, array $arguments): void
+    {
+        if (! Schema::hasTable('kami_audit_events')) {
+            return;
+        }
+
+        resolve(RecordAuditEvent::class)->handle('kami.content.migrated', context: ['operation' => $operation, ...$arguments]);
     }
 
     /**

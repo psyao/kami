@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -51,13 +53,16 @@ final class PreviewLink extends Model
 
         $token = bin2hex(random_bytes(32));
 
-        self::query()->create([
-            'entry_id' => $entry->id,
-            'locale' => $locale,
-            'token_hash' => hash('sha256', $token),
-            'expires_at' => now()->addDays($days),
-            'created_by' => $user?->getAuthIdentifier(),
-        ]);
+        DB::transaction(function () use ($entry, $locale, $token, $days, $user): void {
+            $link = self::query()->create([
+                'entry_id' => $entry->id,
+                'locale' => $locale,
+                'token_hash' => hash('sha256', $token),
+                'expires_at' => now()->addDays($days),
+                'created_by' => $user?->getAuthIdentifier(),
+            ]);
+            resolve(RecordAuditEvent::class)->handle('kami.preview-links.created', $link, $link->auditContext(), $user);
+        });
 
         $site = Site::current();
 
@@ -65,9 +70,16 @@ final class PreviewLink extends Model
     }
 
     /** Deletes the link if it is one of this Translation's: the id comes from the browser. */
-    public static function revoke(string $id, Entry $entry, string $locale): void
+    public static function revoke(string $id, Entry $entry, string $locale, ?Authenticatable $user): void
     {
-        self::query()->whereKey($id)->where('entry_id', $entry->id)->where('locale', $locale)->delete();
+        DB::transaction(function () use ($id, $entry, $locale, $user): void {
+            $link = self::query()->whereKey($id)->where('entry_id', $entry->id)->where('locale', $locale)->first();
+
+            if ($link instanceof self) {
+                $link->delete();
+                resolve(RecordAuditEvent::class)->handle('kami.preview-links.revoked', $link, $link->auditContext(), $user);
+            }
+        });
     }
 
     /**
@@ -90,6 +102,12 @@ final class PreviewLink extends Model
     public function prunable(): Builder
     {
         return self::query()->where('expires_at', '<=', now());
+    }
+
+    /** @return array<string, string> */
+    private function auditContext(): array
+    {
+        return ['entry' => $this->entry_id, 'locale' => $this->locale, 'expires_at' => $this->expires_at->toIso8601String()];
     }
 
     protected function casts(): array

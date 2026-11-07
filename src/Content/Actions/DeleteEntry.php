@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryDeleted;
 use Psyao\Kami\Content\Internal\EntryTitles;
@@ -45,9 +46,10 @@ final class DeleteEntry
             throw ValidationException::withMessages(['entry' => __('kami::admin.delete.children', ['children' => EntryTitles::list($children)])]);
         }
 
-        DB::transaction(function () use ($entry, $replacement): void {
+        DB::transaction(function () use ($entry, $replacement, $actor): void {
             Path::query()->where('entry_id', $entry->id)->update($replacement instanceof Entry ? ['status' => 301, 'entry_id' => $replacement->id] : ['status' => 410, 'entry_id' => null]);
             $entry->forceDelete();
+            resolve(RecordAuditEvent::class)->handle('kami.entries.force-deleted', $entry, actor: $actor);
         });
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));

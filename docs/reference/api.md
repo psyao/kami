@@ -45,6 +45,22 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 - `public function register(Filament\Panel $panel): void`
 - `public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin`: A type's own table, in place of the generated one.
 
+## `Psyao\Kami\Audit\Actions\RecordAuditEvent`
+
+`final class`
+
+Records one Audit event, in the caller's transaction when there is one: a rolled back action leaves no row (ADR 0022). Kami's core actions call it for what changes visibility or loses data; a site calls it for its own sensitive actions. Inside `AuditContext::batch()` it only counts the event towards the batch's summary.
+
+- `public function handle(string $event, Illuminate\Database\Eloquent\Model|array|null $subject = NULL, array $context = [], ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
+## `Psyao\Kami\Audit\AuditContext`
+
+`final class`
+
+Groups the Audit events of a long run, such as an import, into one summary event (ADR 0022). Only the Audit log is grouped: Content events still fire for every item.
+
+- `public static function batch(string $event, callable $callback, array $context = []): mixed`: Runs the callback, recording no Audit event per item, then records one summary event with the context and the count of each event recorded inside. A callback that throws records nothing. A batch inside another counts as one event of the outer one.
+
 ## `Psyao\Kami\Content\Actions\DeleteEntry`
 
 `final class`

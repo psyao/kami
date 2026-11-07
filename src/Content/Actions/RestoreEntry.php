@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryRestored;
 use Psyao\Kami\Content\Internal\EntryTitles;
@@ -37,11 +38,14 @@ final class RestoreEntry
             throw ValidationException::withMessages(['entry' => __('kami::admin.restore.parent', ['parent' => EntryTitles::of($parent)])]);
         }
 
-        $entry->forceFill([
-            'updated_by' => $actor?->getAuthIdentifier(),
-            'updated_at' => $entry->freshTimestamp(),
-            'deleted_at' => null,
-        ])->save();
+        DB::transaction(function () use ($entry, $actor): void {
+            $entry->forceFill([
+                'updated_by' => $actor?->getAuthIdentifier(),
+                'updated_at' => $entry->freshTimestamp(),
+                'deleted_at' => null,
+            ])->save();
+            resolve(RecordAuditEvent::class)->handle('kami.entries.restored', $entry, actor: $actor);
+        });
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryRestored($entry, $actor));

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Internal\EntryTitles;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Media\Events\MediaDeleted;
@@ -36,7 +37,10 @@ final class DeleteMedia
         }
 
         // The Translations go with the row, by the foreign key.
-        DB::transaction(fn () => $media->delete());
+        DB::transaction(function () use ($media, $actor): void {
+            $media->delete();
+            resolve(RecordAuditEvent::class)->handle('kami.media.deleted', $media, ['name' => $media->name], $actor);
+        });
 
         // Once committed, so a rollback keeps what the row still points to; at once, not at the next prune, so nothing of it stays served (Privacy, ADR 0017).
         DB::afterCommit(function () use ($media): void {

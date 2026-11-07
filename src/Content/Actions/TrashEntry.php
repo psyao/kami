@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryTrashed;
 use Psyao\Kami\Content\Internal\EntryTitles;
@@ -42,11 +43,14 @@ final class TrashEntry
             throw ValidationException::withMessages(['entry' => __('kami::admin.trash.children', ['children' => EntryTitles::list($children)])]);
         }
 
-        $entry->forceFill([
-            'updated_by' => $actor?->getAuthIdentifier(),
-            'updated_at' => $now = $entry->freshTimestamp(),
-            'deleted_at' => $now,
-        ])->save();
+        DB::transaction(function () use ($entry, $actor): void {
+            $entry->forceFill([
+                'updated_by' => $actor?->getAuthIdentifier(),
+                'updated_at' => $now = $entry->freshTimestamp(),
+                'deleted_at' => $now,
+            ])->save();
+            resolve(RecordAuditEvent::class)->handle('kami.entries.trashed', $entry, actor: $actor);
+        });
 
         DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryTrashed($entry, $actor));

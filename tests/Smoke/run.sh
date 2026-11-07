@@ -88,6 +88,24 @@ else
     failed=1
 fi
 
+# The Audit log (psyao/kami#342): the editor's Page published above from the command line wrote one row per Locale,
+# inside the save's transaction on the host's MariaDB, from the CLI and so with no IP.
+audit=$(docker compose run -T --rm cli php -r '
+    require "vendor/autoload.php";
+    $app = require "bootstrap/app.php";
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    $page = Illuminate\Support\Facades\DB::table("kami_translations")->where("slug", "smoke")->value("entry_id");
+    echo Illuminate\Support\Facades\DB::table("kami_audit_events")
+        ->where(["event" => "kami.entries.published", "subject_type" => "entry", "subject_id" => $page, "actor" => "cli"])->whereNull("ip")
+        ->orderBy("id")->pluck("context")->implode(" ");
+' 2>&1 || true)
+if [ "$audit" = '{"locale":"fr"} {"locale":"en"}' ]; then
+    echo "Audit log: publication recorded"
+else
+    echo "Audit log: $audit"
+    failed=1
+fi
+
 # Rich text renders in pure PHP, on the host's PHP and its extensions: the starter kit declares no RichText yet.
 rich_text=$(docker compose run -T --rm cli php -r '
     require "vendor/autoload.php";
