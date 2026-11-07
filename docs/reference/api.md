@@ -57,7 +57,7 @@ Records one Audit event, in the caller's transaction when there is one: a rolled
 
 `final class`
 
-Groups the Audit events of a long run, an import or a `ContentMigrator` operation, into one summary event (ADR 0022). Only the Audit log is grouped: Content events still fire for every item.
+Groups the Audit events of a long run, such as an import, into one summary event (ADR 0022). Only the Audit log is grouped: Content events still fire for every item.
 
 - `public static function batch(string $event, callable $callback, array $context = []): mixed`: Runs the callback, recording no Audit event per item, then records one summary event with the context and the count of each event recorded inside. A callback that throws records nothing. A batch inside another counts as one event of the outer one.
 

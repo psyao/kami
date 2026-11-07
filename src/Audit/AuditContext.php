@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Psyao\Kami\Audit;
 
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 
 /**
- * Groups the Audit events of a long run, an import or a `ContentMigrator` operation, into one summary event (ADR 0022). Only the Audit log is grouped: Content events still fire for every item.
+ * Groups the Audit events of a long run, such as an import, into one summary event (ADR 0022). Only the Audit log is grouped: Content events still fire for every item.
  */
 final class AuditContext
 {
@@ -24,11 +25,15 @@ final class AuditContext
      *
      * @param  string  $event  The summary's name, such as `acme.import.completed`.
      * @param  callable(): T  $callback
-     * @param  array<string, scalar|null>  $context  As `RecordAuditEvent`'s.
+     * @param  array<string, scalar|null>  $context  As `RecordAuditEvent`'s, checked before the callback runs; the counts are not held to its 20 keys.
      * @return T
+     *
+     * @throws InvalidArgumentException When the context breaks `RecordAuditEvent`'s rules, before the callback runs.
      */
     public static function batch(string $event, callable $callback, array $context = []): mixed
     {
+        RecordAuditEvent::refuseLongContext($context);
+
         $outer = self::$current;
         $batch = self::$current = new self;
 
@@ -38,7 +43,7 @@ final class AuditContext
             self::$current = $outer;
         }
 
-        resolve(RecordAuditEvent::class)->handle($event, context: [...$context, ...array_filter($batch->counts)]);
+        resolve(RecordAuditEvent::class)->summarise($event, [...$context, ...array_filter($batch->counts)]);
 
         return $result;
     }

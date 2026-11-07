@@ -38,8 +38,52 @@ final class RecordAuditEvent
      */
     public function handle(string $event, Model | array | null $subject = null, array $context = [], ?Authenticatable $actor = null): void
     {
-        $this->refuseLongContext($context);
+        self::refuseLongContext($context);
+        $this->write($event, $subject, $context, $actor);
+    }
 
+    /**
+     * @internal
+     *
+     * A batch's summary: `AuditContext::batch()` checked its context before the batch ran, and its counts are not held to the limit.
+     *
+     * @param  array<string, scalar|null>  $context
+     */
+    public function summarise(string $event, array $context): void
+    {
+        $this->write($event, null, $context, null);
+    }
+
+    /**
+     * @internal
+     *
+     * @param  array<mixed>  $context
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function refuseLongContext(array $context): void
+    {
+        if (count($context) > self::MAX_CONTEXT_KEYS) {
+            throw new InvalidArgumentException('An Audit event’s context holds at most ' . self::MAX_CONTEXT_KEYS . ' keys.');
+        }
+
+        foreach ($context as $key => $value) {
+            if (! is_string($key) || ($value !== null && ! is_scalar($value))) {
+                throw new InvalidArgumentException("An Audit event’s context is a flat object of scalar values: [{$key}] is not.");
+            }
+
+            if (is_string($value) && mb_strlen($value) > self::MAX_CONTEXT_STRING) {
+                throw new InvalidArgumentException("An Audit event’s context value [{$key}] is over " . self::MAX_CONTEXT_STRING . ' characters.');
+            }
+        }
+    }
+
+    /**
+     * @param  Model|array{string, int|string}|null  $subject
+     * @param  array<string, scalar|null>  $context
+     */
+    private function write(string $event, Model | array | null $subject, array $context, ?Authenticatable $actor): void
+    {
         if (AuditContext::absorb($event)) {
             return;
         }
@@ -72,24 +116,6 @@ final class RecordAuditEvent
         ]);
 
         event(new AuditEventRecorded($event, $subjectType, $subjectId, $site, $context, $actor));
-    }
-
-    /** @param  array<mixed>  $context */
-    private function refuseLongContext(array $context): void
-    {
-        if (count($context) > self::MAX_CONTEXT_KEYS) {
-            throw new InvalidArgumentException('An Audit event’s context holds at most ' . self::MAX_CONTEXT_KEYS . ' keys.');
-        }
-
-        foreach ($context as $key => $value) {
-            if (! is_string($key) || ($value !== null && ! is_scalar($value))) {
-                throw new InvalidArgumentException("An Audit event’s context is a flat object of scalar values: [{$key}] is not.");
-            }
-
-            if (is_string($value) && mb_strlen($value) > self::MAX_CONTEXT_STRING) {
-                throw new InvalidArgumentException("An Audit event’s context value [{$key}] is over " . self::MAX_CONTEXT_STRING . ' characters.');
-            }
-        }
     }
 
     private function type(Model $subject): string

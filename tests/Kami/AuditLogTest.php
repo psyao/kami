@@ -283,6 +283,33 @@ it('records nothing for a batch whose callback throws', function () {
     expect(DB::table('kami_audit_events')->count())->toBe(0);
 });
 
+it('refuses a batch’s context before running it, and holds its counts to no limit', function () {
+    $ran = false;
+
+    expect(fn () => AuditContext::batch('acme.import.completed', function () use (&$ran): void {
+        $ran = true;
+    }, ['note' => str_repeat('a', 256)]))->toThrow(InvalidArgumentException::class);
+
+    $context = array_fill_keys(array_map(fn (int $i): string => "key{$i}", range(1, 20)), 'x');
+    AuditContext::batch('acme.import.completed', function (): void {
+        resolve(RecordAuditEvent::class)->handle('acme.rows.imported');
+    }, $context);
+
+    expect($ran)->toBeFalse()
+        ->and(auditTrail())->toEqual([['acme.import.completed', null, [...$context, 'acme.rows.imported' => 1]]]);
+});
+
+it('counts a batch inside another as one event of the outer one', function () {
+    AuditContext::batch('acme.sync.completed', function (): void {
+        AuditContext::batch('acme.import.completed', fn () => auditSave(['title' => 'One', 'status' => 'published'], locale: 'fr'));
+        auditSave(['title' => 'Two', 'status' => 'published'], locale: 'fr');
+    });
+
+    expect(auditTrail())->toBe([
+        ['acme.sync.completed', null, ['acme.import.completed' => 1, 'kami.entries.published' => 1]],
+    ]);
+});
+
 it('dispatches AuditEventRecorded once the row commits, for a batch’s summary only', function (): void {
     Event::fake([AuditEventRecorded::class]);
     $ada = auditUser();

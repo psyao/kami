@@ -772,3 +772,11 @@ it('records each operation as one Audit event from the CLI, and nothing for a re
         // `toEqual`: MySQL's JSON keeps no key order.
         ->and(json_decode((string) $event->context, true))->toEqual(['operation' => 'renameField', 'type' => 'memo', 'from' => 'summary', 'to' => 'abstract']);
 });
+
+it('runs in a site migration older than the Audit log table, recording nothing', function () {
+    ($this->declare)(Text::make('summary'));
+    memo();
+    Schema::drop('kami_audit_events');
+
+    expect(fn () => ($this->inMigration)("ContentMigrator::renameField('memo', 'summary', 'abstract');"))->not->toThrow(Throwable::class);
+});

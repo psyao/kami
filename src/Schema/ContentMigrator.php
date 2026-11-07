@@ -481,12 +481,16 @@ final class ContentMigrator
     }
 
     /**
-     * One Audit event per operation, once it is done: it writes with the query builder, so no core action records anything inside (ADR 0022).
+     * One Audit event per operation, once it is done: it writes with the query builder, so no core action records anything inside (ADR 0022). A site migration older than the Audit log's table runs before it exists on a fresh `migrate`, and records nothing.
      *
      * @param  array<string, scalar>  $arguments
      */
     private static function migrated(string $operation, array $arguments): void
     {
+        if (! Schema::hasTable('kami_audit_events')) {
+            return;
+        }
+
         resolve(RecordAuditEvent::class)->handle('kami.content.migrated', context: ['operation' => $operation, ...$arguments]);
     }
 

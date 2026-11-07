@@ -37,6 +37,7 @@ Each row holds:
 - Saving a Draft, or saving a published Translation without moving its date: the log is about what visitors see, not every keystroke.
 - A Preview link deleted with its Translation (`DeleteTranslation`) or its Entry (`DeleteEntry`): the deletion itself is the event.
 - Content: no title, no body, no diff. Revisions are a V1 feature.
+- A `ContentMigrator` operation in a site migration older than Kami's `kami_audit_events` table: on a fresh `migrate` it runs before the table exists.
 - Writes that bypass the core actions, with the query builder or Eloquent directly. Every write goes through a core action (ADR 0011).
 
 Recording is part of the actions, not a listener of Kami's Content events, so a site cannot unregister it by accident.
@@ -84,7 +85,7 @@ AuditContext::batch('acme.import.completed', function () use ($rows): void {
 }, ['source' => 'velox.csv']);
 ```
 
-Inside the callback, `RecordAuditEvent` records nothing per item. Once it returns, the batch records one summary event with your context and the count of each event, such as `{"source": "velox.csv", "kami.entries.published": 1200}`. An item rolled back inside the batch is not counted; a callback that throws records no summary. A batch inside another counts as one event of the outer one. `batch()` returns what the callback returns.
+Your context follows `RecordAuditEvent`'s rules and is checked before the callback runs; the counts are not held to its 20 keys. Inside the callback, `RecordAuditEvent` records nothing per item. Once it returns, the batch records one summary event with your context and the count of each event, such as `{"source": "velox.csv", "kami.entries.published": 1200}`. An item rolled back inside the batch is not counted; a callback that throws records no summary. A batch inside another counts as one event of the outer one. `batch()` returns what the callback returns.
 
 Only the Audit log is grouped: the [Content events](publishing.md#reacting-to-content) still fire for every item, so your listeners see each change.
 
