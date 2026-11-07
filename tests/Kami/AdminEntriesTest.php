@@ -23,6 +23,7 @@ use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
@@ -905,6 +906,11 @@ it('renders every Kami admin page in English and French with no raw translation 
             expect($html)->not->toContain('kami::', $url)->not->toContain('kami-types.', $url);
         }
     }
+
+    // A row naming a subject and a User gone since, each label of its own.
+    resolve(RecordAuditEvent::class)->handle('kami.roles.granted', ['user', 'gone'], ['role' => 'editor']);
+    resolve(RecordAuditEvent::class)->handle('kami.entries.trashed', $entries['article']);
+    expect((string) $this->get('/admin/audit-events')->assertOk()->getContent())->not->toContain('kami::');
 })->with(['en', 'fr']);
 
 it('throttles repeated failed sign-ins, as Filament does, refusing even the right password', function () {

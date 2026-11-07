@@ -889,6 +889,8 @@ final class EntryResource extends FilamentResource
     {
         $user = self::newUser();
 
+        // ponytail: a panel whose Users are not Eloquent names nobody, so the Audit log reads every actor as "Deleted User (id)"; none exists in the
+        // Workbench or the starter kit, V1 reads its provider one key at a time if a friction shows one.
         if ($user === null || $keys === []) {
             return [];
         }

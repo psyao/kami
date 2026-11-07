@@ -60,8 +60,8 @@ final class AuditEventResource extends FilamentResource
                 TextColumn::make('event')->label(__('kami::admin.audit.columns.event'))
                     ->formatStateUsing(fn (string $state): string => self::eventLabel($state)),
                 TextColumn::make('subject')->label(__('kami::admin.audit.columns.subject'))
-                    ->state(fn (AuditEvent $record, ListAuditEvents $livewire): ?string => $livewire->subjects()[self::subjectKey($record) ?? ''][0] ?? null)
-                    ->url(fn (AuditEvent $record, ListAuditEvents $livewire): ?string => $livewire->subjects()[self::subjectKey($record) ?? ''][1] ?? null),
+                    ->state(fn (AuditEvent $record, ListAuditEvents $livewire): ?string => $livewire->subject($record)[0] ?? null)
+                    ->url(fn (AuditEvent $record, ListAuditEvents $livewire): ?string => $livewire->subject($record)[1] ?? null),
                 // From `md` up, as the Media library's: on a phone the rows would scroll sideways.
                 TextColumn::make('site')->label(__('kami::admin.audit.columns.site'))->visibleFrom('md'),
                 TextColumn::make('ip')->label(__('kami::admin.audit.columns.ip'))->visibleFrom('md'),
@@ -142,7 +142,8 @@ final class AuditEventResource extends FilamentResource
     }
 
     /**
-     * Each subject of these events as `[label, url]`, by `subjectKey()`: an Entry or a Media item the User may open is linked, one gone or out of reach shows its id.
+     * The subjects of these events the reader may see, as `[label, url]` by `subjectKey()`: an Entry or a Media item the User may open is linked, a User named.
+     * One gone or out of reach is left out, for `ListAuditEvents::subject()` to show by its id.
      * One query per subject type, so a page of events costs the same whatever it holds.
      *
      * @param  iterable<AuditEvent>  $events
@@ -175,15 +176,7 @@ final class AuditEventResource extends FilamentResource
         }
 
         foreach ($ids['user'] ?? [] as $id) {
-            $described["user:{$id}"] = [self::subjectLabel('user', $names[$id] ?? __('kami::admin.audit.deleted_user', ['id' => $id])), null];
-        }
-
-        foreach ($events as $event) {
-            $key = self::subjectKey($event);
-
-            if ($key !== null && ! isset($described[$key])) {
-                $described[$key] = [self::subjectLabel((string) $event->subject_type, (string) $event->subject_id), null];
-            }
+            $described["user:{$id}"] = [self::subjectLabel('user', self::userName($names, $id)), null];
         }
 
         return $described;
@@ -194,16 +187,23 @@ final class AuditEventResource extends FilamentResource
         return $event->subject_type !== null && $event->subject_id !== null ? "{$event->subject_type}:{$event->subject_id}" : null;
     }
 
+    /**
+     * Its name, or "Deleted User (id)" once gone.
+     *
+     * @param  array<array-key, string>  $names
+     */
+    public static function userName(array $names, int | string | null $key): string
+    {
+        return $names[(string) $key] ?? __('kami::admin.audit.deleted_user', ['id' => $key]);
+    }
+
     /** @param  array<array-key, string>  $names */
     private static function actor(AuditEvent $event, array $names): string
     {
-        return match (true) {
-            $event->actor !== 'user' => __("kami::admin.audit.actors.{$event->actor}"),
-            default => $names[(string) $event->user_id] ?? __('kami::admin.audit.deleted_user', ['id' => $event->user_id]),
-        };
+        return $event->actor === 'user' ? self::userName($names, $event->user_id) : __("kami::admin.audit.actors.{$event->actor}");
     }
 
-    private static function subjectLabel(string $type, string $name): string
+    public static function subjectLabel(string $type, string $name): string
     {
         $key = "kami::admin.audit.subjects.{$type}";
 
@@ -244,7 +244,7 @@ final class AuditEventResource extends FilamentResource
         $names = EntryResource::userNames($keys);
 
         return collect($keys)
-            ->mapWithKeys(fn (string $key): array => [$key => $names[$key] ?? __('kami::admin.audit.deleted_user', ['id' => $key])])
+            ->mapWithKeys(fn (string $key): array => [$key => self::userName($names, $key)])
             ->sort()
             ->all();
     }

@@ -44,6 +44,18 @@ final class ListAuditEvents extends ListRecords
         return AuditEventResource::describeSubjects($this->events(), $this->names());
     }
 
+    /**
+     * The event's subject as `[label, url]`; one gone, or out of the reader's reach, by its id.
+     *
+     * @return array{string, ?string}|null
+     */
+    public function subject(AuditEvent $event): ?array
+    {
+        $key = AuditEventResource::subjectKey($event);
+
+        return $key === null ? null : $this->subjects()[$key] ?? [AuditEventResource::subjectLabel((string) $event->subject_type, (string) $event->subject_id), null];
+    }
+
     /** @return Collection<int, AuditEvent> */
     private function events(): Collection
     {
