@@ -6,6 +6,7 @@ namespace Psyao\Kami\Support\Internal\Install;
 
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\CanResetPassword;
 
 /**
  * What `KamiPlugin` reports about the host panels it sits on: the core never imports Filament, the plugin hands it booleans and callbacks (ADR 0011).
@@ -19,9 +20,10 @@ final class PluginRegistration
     /**
      * Keyed by panel object, one per panel carrying `KamiPlugin`, asked when the doctor runs, since the host may configure the panel after `->plugin()`.
      * `remoteAvatars` when it still draws avatars with Filament's `UiAvatarsProvider`; `admits` answers as Filament does when a User signs in;
-     * `middleware` lists the panel's own, by class or alias; `replacedResetPage` names the host's own reset request page, which keeps Kami's from serving.
+     * `middleware` lists the panel's own, by class or alias; `replacedResetPage` names the host's own reset request page, which keeps Kami's from serving;
+     * `setPasswordLink` makes a one-time link to set a User's password on the panel's reset page, `null` when the panel offers no password reset.
      *
-     * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string}>
+     * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null}>
      */
     public array $panels = [];
 

@@ -109,7 +109,7 @@ php artisan kami:install
 php artisan optimize
 ```
 
-`kami:install` stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). `optimize` caches the configuration, routes, events and views. A first install from a deploy script, with no terminal, takes `--no-interaction --email=... --name=...` and the password in the `KAMI_ADMIN_PASSWORD` environment variable, never as an argument ([Installation](installation.md#the-first-user)). Sign in at `https://example.com/admin`.
+`kami:install` stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). `optimize` caches the configuration, routes, events and views. A first install from a deploy script, with no terminal, takes `--no-interaction --email=... --name=...` and prints a one-time link to set the password, or reads it from the `KAMI_ADMIN_PASSWORD` environment variable, never from an argument ([Installation](installation.md#the-first-user)). Sign in at `https://example.com/admin`.
 
 Run `php artisan kami:doctor` once the site answers. It sees the command line's PHP, not the web's ([Hosting](hosting.md#infomaniak-shared-hosting)).
 
