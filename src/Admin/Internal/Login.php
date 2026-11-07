@@ -10,13 +10,12 @@ use Filament\Auth\Pages\Login as FilamentLogin;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 
 /**
- * Filament's sign-in page, throttled per lower-cased email as well as per IP address, so guessing a password is slow even from many addresses.
+ * Filament's sign-in page, throttled per lower-cased email as well as per IP address, so guessing a password is slow even from many addresses, and recording a failed MFA challenge after the right password in the Audit log.
  *
  * @internal
  */
@@ -32,10 +31,9 @@ final class Login extends FilamentLogin
         try {
             return parent::authenticate();
         } catch (ValidationException $exception) {
-            // A wrong password at the code step clears the challenge before it throws, and errs on the email instead.
+            // Errors under the challenge form's state path, Filament's `data.multiFactor`; a wrong password at the code step clears the challenge before it throws, and errs on the email instead.
             if (($user = $this->getUserUndertakingMultiFactorAuthentication()) instanceof Model
-                && array_any(array_keys($exception->errors()), fn (string $key): bool => str_starts_with($key, 'data.multiFactor.'))
-                && Schema::hasTable('kami_audit_events')) {
+                && array_any(array_keys($exception->errors()), fn (string $key): bool => str_starts_with($key, 'data.multiFactor.'))) {
                 resolve(RecordAuditEvent::class)->handle('kami.mfa.challenge-failed', $user);
             }
 

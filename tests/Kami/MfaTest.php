@@ -86,14 +86,14 @@ it('asks the code at every sign-in, after the password', function () {
     $this->assertAuthenticatedAs($user);
 });
 
-it('records a wrong code after the right password, with the User as subject and no actor', function () {
+it('records a wrong code after the right password, with the User as subject and no actor', function (string $code) {
     $user = mfaUser('editor', ['a-code']);
 
-    passwordStep($user)->set('data.multiFactor.app.code', '000000')->call('authenticate')->assertHasErrors();
+    passwordStep($user)->set('data.multiFactor.app.code', $code)->call('authenticate')->assertHasErrors();
 
     expect(auditEvents())->toHaveCount(1)
         ->and(auditEvents()[0])->toMatchArray(['event' => 'kami.mfa.challenge-failed', 'subject_type' => 'user', 'subject_id' => (string) $user->getKey(), 'user_id' => null]);
-});
+})->with(['wrong' => '000000', 'blank' => '']);
 
 it('records a wrong password at the code step as a failed sign-in, not a failed challenge', function () {
     $user = mfaUser('editor', ['a-code']);
