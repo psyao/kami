@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Filament\Auth\Pages\PasswordReset\RequestPasswordReset;
 use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Facades\Filament;
@@ -362,6 +363,23 @@ it('warns when a Kami panel does not authorize strictly, even when turned off af
         ->expectsOutputToContain('docs/guide/users-and-roles.md#strict-authorization')
         ->assertSuccessful();
 });
+
+it('warns without failing when a host replaced Kami\'s password reset page with its own', function () {
+    Filament::getPanel('admin')->passwordReset((new class extends RequestPasswordReset {})::class);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin replaces Kami\'s password reset page with')
+        ->expectsOutputToContain('docs/guide/security.md#password-reset')
+        ->assertSuccessful();
+
+    expect((new Doctor)->blocking())->toBeEmpty();
+});
+
+it('says nothing of a panel that keeps Filament\'s reset page, which Kami replaces, or offers none', function (bool $reset) {
+    Filament::getPanel('admin')->passwordReset($reset ? RequestPasswordReset::class : null);
+
+    $this->artisan('kami:doctor')->doesntExpectOutputToContain('password reset page');
+})->with(['Filament\'s page' => true, 'no reset' => false]);
 
 it('warns when the web group lacks SecurityHeaders', function () {
     app('router')->middlewareGroup('web', []);

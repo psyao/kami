@@ -65,6 +65,18 @@ object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 
 Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` and `X-Frame-Options: DENY`. The admin policy is fixed: the options below change the front only. `kami:doctor` warns when a panel carrying `KamiPlugin` lacks the middleware.
 
+## Password reset
+
+Enable reset on your panel with `->passwordReset()`, as the starter kit does. `KamiPlugin` then serves its own request page in place of Filament's, whatever the order of the two calls. Filament's page answers an unknown address with "We can't find a user with that email address", which tells a stranger who has an account. Kami's answers every address the same way: known, unknown, or asked for a second link within a minute (`Password::RESET_THROTTLED`), the page says "Check your email" and that a link went out if an account uses the address.
+
+The timing says nothing either. The page answers first; the password broker looks the address up and sends the email after the response, through Laravel's `defer()`. Under PHP-FPM, which Infomaniak runs, PHP finishes the request before the deferred work starts. Under Apache's `mod_php` there is no such finish: the email goes out before the response, and a known address answers more slowly.
+
+The email is sent then and there, not queued as Filament's notification asks, since a shared host runs no queue worker ([Hosting](hosting.md#what-kami-does-not-need)). Filament's limit of two requests per minute from one IP address stays, with its own message: it says nothing about the address typed.
+
+The link opens Filament's own page to choose the new password. A completed reset lands in the [Audit log](audit-log.md) as `kami.auth.password-reset`.
+
+A class of your own, `->passwordReset(MyRequestPage::class)`, wins over Kami's. Keeping it from revealing who has an account is then yours, and `kami:doctor` warns.
+
 ## Extending the policy
 
 A front that loads from another origin, such as images from a CDN, adds it under `security.csp` in `config/kami.php`, per directive:

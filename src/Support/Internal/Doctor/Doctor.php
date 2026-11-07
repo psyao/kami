@@ -45,7 +45,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string}
  */
 final readonly class Doctor
 {
@@ -89,6 +89,7 @@ final readonly class Doctor
             ...$this->remoteAvatars($panels),
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
+            ...$this->replacedResetPages($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
@@ -275,6 +276,20 @@ final readonly class Doctor
             "add ->defaultAvatarProvider(InitialsAvatarProvider::class) to the panel {$panel['id']}.",
             'installation.md#installing-and-deploying',
         ), array_filter($panels, fn (array $panel): bool => $panel['remoteAvatars'])));
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function replacedResetPages(array $panels): array
+    {
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
+            Severity::Warning,
+            "The panel {$panel['id']} replaces Kami's password reset page with {$panel['replacedResetPage']}: keeping it from revealing who has an account is then yours.",
+            "remove the class from ->passwordReset() on the panel {$panel['id']}, or make its page answer every address the same way, after the response.",
+            'security.md#password-reset',
+        ), array_filter($panels, fn (array $panel): bool => $panel['replacedResetPage'] !== null)));
     }
 
     /**

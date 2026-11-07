@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Admin;
 
 use Closure;
+use Filament\Auth\Pages\PasswordReset\RequestPasswordReset as FilamentRequestPasswordReset;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Contracts\Plugin;
 use Filament\Enums\GlobalSearchPosition;
@@ -36,6 +37,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\RenderPreview;
+use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
 use Psyao\Kami\Admin\Internal\Widgets\RecentlyEdited;
@@ -170,6 +172,7 @@ final class KamiPlugin implements Plugin
             'admits' => fn (Authenticatable $user): bool => $user instanceof FilamentUser ? $user->canAccessPanel($panel) : config('app.env') === 'local',
             // A panel does not run the `web` group, so it needs `SecurityHeaders` of its own (ADR 0018).
             'middleware' => array_values(array_filter($panel->getMiddleware(), is_string(...))),
+            'replacedResetPage' => $this->replacedResetPage($panel),
         ];
 
         // One registration per declared type, each with its own URL, navigation item and Permissions; the class comes from config, the door for overridable Resources in V1 (ADR 0029).
@@ -202,6 +205,15 @@ final class KamiPlugin implements Plugin
             ->withoutMiddleware([SecurityHeaders::class, SecurityHeaders::class . ':admin'])
             ->middleware(FrontSecurityHeaders::class . ':Cross-Origin-Opener-Policy=unsafe-none'));
 
+        // Kami's reset request page in place of Filament's, unless the host set its own: this runs mid-chain, before a later `->passwordReset()`,
+        // and `boot()` after the routes, so the swap waits for the panel's route callbacks, which Filament runs just before reading the page's class.
+        $panel->livewireComponents([RequestPasswordReset::class]);
+        $panel->routes(function (Panel $panel): void {
+            if ($panel->getRequestPasswordResetRouteAction() === FilamentRequestPasswordReset::class) {
+                $panel->passwordReset(RequestPasswordReset::class, $panel->getResetPasswordRouteAction());
+            }
+        });
+
         // Filament shows its search field for a searchable Resource of `getResources()` only, which leaves out those registered per configuration.
         // ponytail: in Filament's own hooks beside the field's place, no `x-show` on a collapsed sidebar; V1, or sooner once Filament counts configurations in `isGlobalSearchEnabled()`.
         $panel->renderHook(PanelsRenderHook::GLOBAL_SEARCH_AFTER, fn (): string => $this->searchField(GlobalSearchPosition::Topbar));
@@ -229,6 +241,19 @@ final class KamiPlugin implements Plugin
                 $this->requireComponent($field, $type);
             }
         }
+    }
+
+    /** The host's own reset request page, `null` while Kami's serves or the panel offers none. */
+    private function replacedResetPage(Panel $panel): ?string
+    {
+        $page = $panel->getRequestPasswordResetRouteAction();
+
+        // Filament's own page counts as Kami's: the route callback swaps it, and a cached route table keeps the swap.
+        if (! $panel->hasPasswordReset() || in_array($page, [FilamentRequestPasswordReset::class, RequestPasswordReset::class], true)) {
+            return null;
+        }
+
+        return is_string($page) ? $page : 'its own action';
     }
 
     /** Filament's search field where the panel places it, when Kami's provider serves it and Filament shows none. */

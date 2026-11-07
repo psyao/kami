@@ -93,7 +93,7 @@ final class RecordAuditEvent
             is_array($subject) => [$subject[0], (string) $subject[1], null],
             // Its Entry's Site: one Site until V1.
             $subject instanceof PreviewLink => ['preview-link', $subject->id, Site::current()->handle],
-            default => [$this->type($subject), is_scalar($key = $subject->getKey()) ? (string) $key : null, is_string($site = $subject->getAttribute('site')) ? $site : null],
+            default => [$this->type($subject), is_scalar($key = $subject->getKey()) ? (string) $key : null, $subject->hasAttribute('site') && is_string($site = $subject->getAttribute('site')) ? $site : null],
         };
 
         $console = App::runningInConsole();

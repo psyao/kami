@@ -93,6 +93,11 @@ return [
         'trashed' => ':title (dans la corbeille)',
     ],
 
+    'password_reset' => [
+        'sent' => 'Consultez vos e-mails',
+        'sent_body' => 'Si un compte utilise cette adresse, nous lui avons envoyé un lien pour réinitialiser son mot de passe.',
+    ],
+
     'users' => [
         'created_by' => 'Créé par :name',
         'last_modified_by' => 'Modifié en dernier par :name',
