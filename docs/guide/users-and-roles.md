@@ -159,6 +159,8 @@ The last User who may manage Users neither loses `kami.users.manage` nor is dele
 
 The guard only refuses a change that would take the right from its last holder: while nobody holds it yet, before `kami:install` for instance, a seeder may give `editor` to a User or delete one. Inside a transaction, the holders' rows stay locked until it ends, so two Users cannot take the right from each other at once. `AssignRoles` opens its own; `$user->delete()` opens none, so delete a User inside `DB::transaction()` to keep two deletions of the last two managers from both passing.
 
+Only Users your User model still finds count as holders: on a model with `SoftDeletes`, a soft-deleted manager keeps their Roles but no longer counts, so the last manager who can still sign in stays guarded. `kami:install` and `kami:doctor` count the same way: `kami:install` creates the first administrator when the only managers left are soft-deleted. Any other global scope on the model works alike: a User it hides is not a holder.
+
 ## From the command line
 
 `kami:user:grant` gives a Role to an existing User, to rescue a site nobody can manage any more:

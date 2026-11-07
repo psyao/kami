@@ -163,8 +163,11 @@ final class InstallCommand extends Command
     private function firstAdministrator(PluginRegistration $registration, AssignRoles $assign): bool
     {
         $granting = Permissions::rolesGranting('kami.users.manage');
+        /** @var class-string<Model&KamiUser> $users The model UsersByEmail reads. */
+        $users = config('auth.providers.users.model');
 
-        if (DB::table('kami_role_user')->whereIn('role', $granting)->exists()) {
+        // Asked of the host's model: a soft-deleted manager keeps its rows, yet signs in no more.
+        if ($users::query()->whereIn((new $users)->getKeyName(), DB::table('kami_role_user')->whereIn('role', $granting)->select('user_id'))->exists()) {
             return true;
         }
 
@@ -175,8 +178,6 @@ final class InstallCommand extends Command
             return false;
         }
 
-        /** @var class-string<Model&KamiUser> $users The model UsersByEmail reads. */
-        $users = config('auth.providers.users.model');
         $rules = [
             'email' => UsersByEmail::RULES,
             'name' => ['required', 'string', 'max:255'],
