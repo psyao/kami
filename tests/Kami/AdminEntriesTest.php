@@ -188,7 +188,7 @@ function userWithRole(string $role): User
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
 
-    return $user;
+    return withMfa($user);
 }
 
 /**
@@ -583,7 +583,8 @@ it('lists Entries in a fixed number of queries, whatever their number', function
     DB::enableQueryLog();
     $this->get('/admin/articles')->assertOk()->assertSee('Article 1');
 
-    expect(DB::getQueryLog())->toHaveCount(5);
+    // The manager's authenticator, read once by the MFA requirement, is one of them.
+    expect(DB::getQueryLog())->toHaveCount(6);
 })->with([1, 10]);
 
 it('loads the Creators and Last modifiers in one query each, whatever the number of Entries', function (int $entries) {
@@ -1407,7 +1408,8 @@ it('opens an Entry page in an exact number of queries, with relations', function
     DB::enableQueryLog();
     $this->get("/admin/projects/{$project->id}/edit")->assertOk();
 
-    expect(DB::getQueryLog())->toHaveCount(9);
+    // The manager's authenticator, read once by the MFA requirement, is one of them.
+    expect(DB::getQueryLog())->toHaveCount(10);
 })->with([1, 5]);
 
 function quickCreate(string $field): TestAction

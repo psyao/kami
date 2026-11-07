@@ -7,6 +7,12 @@ class Psyao\Kami\Admin\EntryTable::columns() public function columns(): array
 class Psyao\Kami\Admin\EntryTable::filters() public function filters(): array
 class Psyao\Kami\Admin\EntryTable::recordActions() public function recordActions(): array
 class Psyao\Kami\Admin\EntryTable::toolbarActions() public function toolbarActions(): array
+class Psyao\Kami\Admin\HasKamiMfa trait
+class Psyao\Kami\Admin\HasKamiMfa::getAppAuthenticationHolderName() public function getAppAuthenticationHolderName(): string
+class Psyao\Kami\Admin\HasKamiMfa::getAppAuthenticationRecoveryCodes() public function getAppAuthenticationRecoveryCodes(): ?array
+class Psyao\Kami\Admin\HasKamiMfa::getAppAuthenticationSecret() public function getAppAuthenticationSecret(): ?string
+class Psyao\Kami\Admin\HasKamiMfa::saveAppAuthenticationRecoveryCodes() public function saveAppAuthenticationRecoveryCodes(?array $codes): void
+class Psyao\Kami\Admin\HasKamiMfa::saveAppAuthenticationSecret() public function saveAppAuthenticationSecret(?string $secret): void
 class Psyao\Kami\Admin\InitialsAvatarProvider final class implements Filament\AvatarProviders\Contracts\AvatarProvider
 class Psyao\Kami\Admin\InitialsAvatarProvider::get() public function get(Illuminate\Database\Eloquent\Model|Illuminate\Contracts\Auth\Authenticatable $record): string
 class Psyao\Kami\Admin\KamiPlugin final class implements Filament\Contracts\Plugin
@@ -317,3 +323,4 @@ table kami_references
 table kami_role_user
 table kami_translations
 table kami_type_site_settings
+table kami_user_mfa

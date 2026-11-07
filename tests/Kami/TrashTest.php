@@ -299,5 +299,6 @@ it('lists the Trash in a fixed number of queries, whatever its size', function (
     DB::enableQueryLog();
     $this->get('/admin/articles?filters[trashed][value]=0')->assertOk()->assertSee('Article 1');
 
-    expect(DB::getQueryLog())->toHaveCount(4);
+    // The manager's authenticator, read once by the MFA requirement, is one of them.
+    expect(DB::getQueryLog())->toHaveCount(5);
 })->with([1, 10]);

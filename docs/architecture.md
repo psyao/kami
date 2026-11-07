@@ -242,6 +242,11 @@ erDiagram
         id user_id FK
         string role "declared handle"
     }
+    kami_user_mfa {
+        id user_id PK, FK
+        text secret "encrypted"
+        text recovery_codes "encrypted, hashed"
+    }
     kami_audit_events {
         ulid id PK
         datetime occurred_at
@@ -285,6 +290,7 @@ Columns are indicative; the migrations are the truth and the schema is internal 
 - **Deletion.** A Parent with children, an Entry with Paths or Menu items, and a Media item in use are `RESTRICT`. The core actions turn Paths into Redirects or 410s and remove Menu items first (ADRs 0005, 0008, 0025).
 - **Media.** One library per Site. Alt text and caption are per Locale in `kami_media_translations` and follow the same fallback; the file, credit, `decorative` and, from M12, the Focal point are shared (ADR 0013). "Alt text missing" is computed (an image, not decorative, with a blank default-Locale alt), never stored: `Media::missingAlt()`, required only by the admin's edit form, warned about on publish and counted by `kami:doctor`, never blocking. Replacing a file keeps the Media id, changes `{v}` and deletes the former original and Conversions after commit; deleting an item no Entry uses, trashed ones included, deletes its original and Conversions after commit too, with no Media trash (ADR 0017).
 - **Roles.** Every change to `kami_role_user` goes through `AssignRoles`, which records each Role granted or revoked and holds the lockout guard: the last User holding `kami.users.manage` keeps it and cannot be deleted, the deletion refused by `HasKamiRoles`' `deleting` hook (ADR 0014).
+- **MFA.** One `kami_user_mfa` row per User with an authenticator, written by `HasKamiMfa` behind Filament's app authentication; set-up, disabling and recovery-code use are recorded in the Audit log inside Filament's transaction. Required for `kami.users.manage` by a Kami middleware in place of Filament's (ADR 0014).
 - **Audit log.** One row per event, written by the core action inside its own transaction through `RecordAuditEvent`, so a rolled back action leaves none. The host's Users have no core action: model hooks on its User record their creation and deletion (ADR 0022). Neither `user_id` nor the subject has a foreign key: an event outlives its User and a force-deleted Entry. Inside `AuditContext::batch()` the events are only counted, into one summary row (ADR 0022).
 - **Volumes.** 30,000 Entries and 50,000 Media guaranteed and measured on shared hosting; 1,000,000 Entries on a server with no schema change (ADR 0002).
 

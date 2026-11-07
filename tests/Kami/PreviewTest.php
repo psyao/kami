@@ -35,10 +35,16 @@ function previewer(string $role = 'administrator'): User
     $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
 
-    return $user;
+    return withMfa($user);
 }
 
 /** @param  array<string, mixed>  $parameters */
+/** @return list<array<string, mixed>> The queries logged, but for the MFA requirement's read of the manager's authenticator. */
+function previewQueries(): array
+{
+    return array_values(array_filter(DB::getQueryLog(), fn (array $query): bool => ! str_contains($query['query'], 'kami_user_mfa')));
+}
+
 function previewPage(string $page, array $parameters = [], string $type = 'article'): Testable
 {
     Filament::setCurrentPanel('admin');
@@ -224,8 +230,8 @@ it('leaves a Draft target out and renders within an exact query count, under str
     DB::enableQueryLog();
     $this->get($url)->assertOk()->assertSee('Visible')->assertDontSee('Brouillon');
 
-    // The visible targets, their Translations and type rows: the Preview itself comes from the cache.
-    expect(DB::getQueryLog())->toHaveCount(3);
+    // The visible targets, their Translations and type rows: the Preview itself comes from the cache. The manager's authenticator, read by the MFA requirement, is not the Preview's.
+    expect(previewQueries())->toHaveCount(3);
 });
 
 it('renders a rich text Preview with no query, under strict mode', function () {
@@ -239,7 +245,7 @@ it('renders a rich text Preview with no query, under strict mode', function () {
     $this->get($url)->assertOk()->assertSee('<p>Du texte riche</p>', escape: false);
 
     // Everything comes from the cache.
-    expect(DB::getQueryLog())->toBeEmpty();
+    expect(previewQueries())->toBeEmpty();
 });
 
 it('shows the Preview banner in a Preview only', function () {

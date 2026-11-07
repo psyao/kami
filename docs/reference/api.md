@@ -23,6 +23,18 @@ A Content Type's table in the admin, registered with `KamiPlugin::make()->tables
 - `public function recordActions(): array`: Each row's actions: Edit, Children on a hierarchical type, Trash, and Restore in the Trash.
 - `public function toolbarActions(): array`: The actions above the table, bulk ones included: Move to Trash, Restore, Force delete, Publish and Unpublish, each row authorised on its own.
 
+## `Psyao\Kami\Admin\HasKamiMfa`
+
+`trait`
+
+Filament's `HasAppAuthentication` and `HasAppAuthenticationRecovery` for an Eloquent User model, which declares both contracts; stored in `kami_user_mfa`, so the host's `users` table gains no column.
+
+- `public function getAppAuthenticationHolderName(): string`
+- `public function getAppAuthenticationRecoveryCodes(): ?array`
+- `public function getAppAuthenticationSecret(): ?string`
+- `public function saveAppAuthenticationRecoveryCodes(?array $codes): void`
+- `public function saveAppAuthenticationSecret(?string $secret): void`: A secret sets MFA up or replaces it; `null` disables it, recovery codes included.
+
 ## `Psyao\Kami\Admin\InitialsAvatarProvider`
 
 `final class implements Filament\AvatarProviders\Contracts\AvatarProvider`

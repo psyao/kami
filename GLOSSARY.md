@@ -225,6 +225,10 @@ _Avoid_: Group, user type
 The right to perform one action, such as publishing Entries of one Content Type. Access is always checked against a Permission, never against a Role.
 _Avoid_: Capability, ability (as the domain term)
 
+**MFA**:
+The second factor a User gives after the password: a code from an authenticator app, or a single-use recovery code. Required of Users who may manage Users, offered to the others.
+_Avoid_: 2FA, two-factor, TOTP (as the domain term)
+
 **Creator** / **Last modifier**:
 The User who created an Entry, and the User who last changed it. They record who did what; they are not shown to visitors.
 _Avoid_: Owner, author (for this meaning)
