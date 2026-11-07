@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use Filament\Facades\Filament;
+use Filament\Notifications\Livewire\Notifications;
+use Filament\Notifications\Notification;
+use Filament\Notifications\NotificationMailbox;
 use Illuminate\Contracts\Image\Driver;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Image\Drivers\GdDriver;
@@ -117,6 +120,17 @@ function entriesPage(string $page, string | array $role = 'administrator', array
     Filament::setCurrentResourceConfigurationKey($type);
 
     return Livewire::test($page, $parameters);
+}
+
+/** How many notifications with that title the panel shows once every one sent so far reaches it: one sent again under the same id replaces the first. */
+function shownNotifications(string $title): int
+{
+    resolve(NotificationMailbox::class)->flush();
+    $panel = new Notifications;
+    $panel->mount();
+    $panel->pullNotifications();
+
+    return $panel->notifications->filter(fn (Notification $notification): bool => $notification->getTitle() === $title)->count();
 }
 
 /**

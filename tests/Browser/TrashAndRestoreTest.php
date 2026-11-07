@@ -26,7 +26,11 @@ it('trashes an Entry from its row, finds it through the Trash filter, and restor
         ->select('Trash', 'In the Trash')
         ->click('internal:role=button[name="Apply filters"s]')
         ->assertSee('Bonjour')
-        ->assertNoAccessibilityIssues()
+        // Applying keeps the dropdown open under the pointer: axe would measure the button's hover colours, or the panel mid-fade (#361).
+        ->keys('[data-table-filter-action="apply"]', 'Escape');
+    $page->script("() => new Promise((resolve) => { const hidden = () => document.querySelector('[data-table-filter-action=\"apply\"]').checkVisibility() ? requestAnimationFrame(hidden) : resolve(); hidden(); })");
+
+    $page->assertNoAccessibilityIssues()
         ->click('internal:role=button[name="Restore"s]')
         ->click('.fi-modal-footer-actions >> internal:role=button[name="Restore"s]')
         ->assertSee('Restored')

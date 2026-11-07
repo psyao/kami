@@ -39,6 +39,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\BaseFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -396,6 +397,8 @@ final class EntryResource extends FilamentResource
                 ->using(fn (Entry $record): bool => self::onNotification(fn () => resolve(RestoreEntry::class)->handle($record, Filament::auth()->user()))),
             // Its addresses go to an Entry of the same type outside the Trash, or answer 410 (ADR 0008); `DeleteEntry` itself takes any Entry.
             ForceDeleteAction::make()
+                ->label(__('kami::admin.actions.delete'))
+                ->modalHeading(fn (ForceDeleteAction $action): string => __('kami::admin.delete.heading', ['title' => $action->getRecordTitle()]))
                 ->modalDescription(__('kami::admin.delete.description'))
                 ->schema([
                     self::sameTypeInput('replacement')
@@ -452,7 +455,11 @@ final class EntryResource extends FilamentResource
             self::rowByRow(RestoreBulkAction::make()->authorizeIndividualRecords(), $notTrashed, fn (Entry $record) => resolve(RestoreEntry::class)->handle($record, $actor())),
             // No replacement row by row: every address answers 410 (ADR 0008); the row action offers one.
             self::rowByRow(
-                ForceDeleteBulkAction::make()->modalDescription(__('kami::admin.bulk.delete_description'))->authorizeIndividualRecords(),
+                ForceDeleteBulkAction::make()
+                    ->label(__('kami::admin.actions.delete_selected'))
+                    ->modalHeading(__('kami::admin.bulk.delete_heading'))
+                    ->modalDescription(__('kami::admin.bulk.delete_description'))
+                    ->authorizeIndividualRecords(),
                 $notTrashed,
                 fn (Entry $record) => resolve(DeleteEntry::class)->handle($record, actor: $actor()),
             ),
@@ -482,6 +489,8 @@ final class EntryResource extends FilamentResource
                 ->default(Site::current()->defaultLocale())
                 ->required()])
             ->authorize(fn (): bool => self::can('publish'))
+            // Hidden where every row would be refused, the Trash alone shown, as Filament's `DeleteBulkAction` is; a trashed row in a mixed selection is refused.
+            ->hidden(fn (HasTable $livewire): bool => filled($trash = $livewire->getTableFilterState(TrashedFilter::class)['value'] ?? null) && ! $trash)
             ->authorizeIndividualRecords(fn (Entry $record): bool => self::can('update', $record) && self::can('publish', $record))
             ->successNotificationTitle(__("kami::admin.bulk.{$name}_done"))
             ->deselectRecordsAfterCompletion();
@@ -757,7 +766,7 @@ final class EntryResource extends FilamentResource
 
         $saved = self::onForm(fn (): Entry => resolve(SaveEntry::class)->handle(self::type()->handle(), [...$data, ...array_filter(['status' => $status])], $entry, $locale, Filament::auth()->user(), $updatedAt), $state);
 
-        self::remind($data);
+        self::remind($data, $saved->id);
         self::remindAlt([$saved->id], $locale);
 
         return $saved;
@@ -823,16 +832,18 @@ final class EntryResource extends FilamentResource
     /**
      * Reminders on what was saved, never on what the User's Permissions kept out, kept until dismissed so the editor fixes them at their own pace (WCAG 2.2.1); they never stop a save (ADR 0016).
      *
+     * One per Entry and Field: a save again replaces it rather than stacking another.
+     *
      * @param  array<string, mixed>  $data
      */
-    private static function remind(array $data): void
+    private static function remind(array $data, string $entry): void
     {
         foreach (self::type()->flatFields() as $field) {
             $value = $field instanceof RichText && array_key_exists($field->handle, $data) ? $field->normalise($data[$field->handle]) : null;
             $reminders = is_array($value) ? RichTextInput::reminders($field, new Document($value)) : [];
 
             if ($reminders !== []) {
-                Notification::make()->warning()->persistent()
+                Notification::make("kami-reminders-{$entry}-{$field->handle}")->warning()->persistent()
                     ->title(__('kami::admin.reminders.title', ['field' => self::type()->fieldLabel($field->handle)]))
                     ->body('<ul><li>' . implode('</li><li>', array_map(e(...), $reminders)) . '</li></ul>')
                     ->send();
@@ -864,7 +875,9 @@ final class EntryResource extends FilamentResource
         $names = $shown === [] ? [] : Media::query()->missingAlt()->whereKey($shown)->orderBy('name')->pluck('name')->all();
 
         if ($names !== []) {
-            Notification::make()->warning()->persistent()
+            // One per set of Entries and Locale: saving the same Entry again replaces it.
+            sort($entries);
+            Notification::make('kami-reminders-alt-' . hash('xxh128', implode(',', $entries) . "|{$locale}"))->warning()->persistent()
                 ->title(__('kami::admin.reminders.alt_title'))
                 ->body('<p>' . e(__('kami::admin.reminders.alt_body')) . '</p><ul><li>' . implode('</li><li>', array_map(e(...), $names)) . '</li></ul>')
                 ->send();

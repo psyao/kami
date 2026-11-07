@@ -51,6 +51,7 @@ return [
         'trash_heading' => 'Move the selected entries to the Trash',
         'trash_description' => 'They leave the site in every language until someone restores them.',
         'trash_done' => 'Moved to the Trash',
+        'delete_heading' => 'Delete the selected entries for good',
         'delete_description' => 'They are deleted for good, in every language. Their addresses say the pages are gone (410).',
         'publish_heading' => 'Publish the selected entries',
         'unpublish_heading' => 'Unpublish the selected entries',
@@ -73,6 +74,7 @@ return [
     ],
 
     'delete' => [
+        'heading' => 'Delete :title for good',
         'children' => 'Delete its children first: :children.',
         'description' => 'It is deleted for good, in every language. Its addresses send visitors to the replacement, or say the page is gone.',
         'replacement' => 'Replacement',
@@ -163,6 +165,8 @@ return [
         'unpublish' => 'Unpublish',
         'view' => 'View on the site',
         'trash' => 'Move to Trash',
+        'delete' => 'Delete for good',
+        'delete_selected' => 'Delete selected for good',
         'duplicate' => 'Duplicate',
     ],
 
