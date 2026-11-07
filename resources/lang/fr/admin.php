@@ -112,6 +112,7 @@ return [
     ],
 
     'roles' => [
+        'label' => 'Rôles',
         'undeclared' => 'Aucun rôle n’est déclaré sous :roles dans config/kami.php.',
         'lockout' => 'C’est le dernier utilisateur qui peut gérer les utilisateurs : donnez d’abord ce droit à un autre utilisateur.',
         'lockout_delete' => 'C’est le dernier utilisateur qui peut gérer les utilisateurs, il ne peut donc pas être supprimé : donnez d’abord ce droit à un autre utilisateur.',

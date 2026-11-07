@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Psyao\Kami\Admin\Internal;
+namespace Psyao\Kami\Admin;
 
+use Filament\Facades\Filament;
 use Filament\Panel;
 use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Contracts\Auth\CanResetPassword;
@@ -12,16 +13,18 @@ use Illuminate\Support\Facades\Password;
 use LogicException;
 
 /**
- * A one-time link to set a User's password (ADR 0001): a token from the panel's password broker, opening the panel's reset page.
+ * A one-time link to set a User's password (ADR 0001), as `kami:install` prints and a Users screen offers: a token from the panel's password broker, opening the panel's reset page.
  * No password is chosen or sent by whoever creates the User; the token expires after the broker's `expire` minutes and is spent once used.
- *
- * @internal
  */
 final class SetPasswordLink
 {
-    /** @return array{url: string, minutes: int} */
-    public static function make(Panel $panel, CanResetPassword $user): array
+    /**
+     * @param  Panel|null  $panel  The panel whose reset page opens the link: the one serving the request by default.
+     * @return array{url: string, minutes: int}
+     */
+    public static function make(CanResetPassword $user, ?Panel $panel = null): array
     {
+        $panel ??= Filament::getCurrentOrDefaultPanel() ?? throw new LogicException('No Filament panel to open the link in.');
         $name = $panel->getAuthPasswordBroker() ?? Config::string('auth.defaults.passwords');
         $broker = Password::broker($name);
 

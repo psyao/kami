@@ -47,7 +47,6 @@ use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RequireMfa;
 use Psyao\Kami\Admin\Internal\RichTextInput;
-use Psyao\Kami\Admin\Internal\SetPasswordLink;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
 use Psyao\Kami\Admin\Internal\Widgets\RecentlyEdited;
 use Psyao\Kami\Admin\Internal\Widgets\Scheduled;
@@ -184,7 +183,7 @@ final class KamiPlugin implements Plugin
             'middleware' => array_values(array_filter($panel->getMiddleware(), is_string(...))),
             'replacedLoginPage' => $this->replacedPage($panel->hasLogin(), $panel->getLoginRouteAction(), [FilamentLogin::class, Login::class]),
             'replacedResetPage' => $this->replacedPage($panel->hasPasswordReset(), $panel->getRequestPasswordResetRouteAction(), [FilamentRequestPasswordReset::class, RequestPasswordReset::class]),
-            'setPasswordLink' => $panel->hasPasswordReset() ? fn (CanResetPassword $user): array => SetPasswordLink::make($panel, $user) : null,
+            'setPasswordLink' => $panel->hasPasswordReset() ? fn (CanResetPassword $user): array => SetPasswordLink::make($user, $panel) : null,
             // A provider or requirement set after the plugin replaces Kami's, and with it the rule for Users who may manage Users (ADR 0014).
             'requiresKamiMfa' => $panel->isMultiFactorAuthenticationRequired() && array_any($panel->getMultiFactorAuthenticationProviders(), fn (object $provider): bool => $provider instanceof AppAuthentication),
             'storesMfa' => fn (string $model): bool => is_a($model, HasAppAuthentication::class, true) && is_a($model, HasAppAuthenticationRecovery::class, true),

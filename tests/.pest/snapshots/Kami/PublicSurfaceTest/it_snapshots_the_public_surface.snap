@@ -23,6 +23,11 @@ class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
 class Psyao\Kami\Admin\KamiPlugin::tables() public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin
+class Psyao\Kami\Admin\KamiRoles final class extends Filament\Forms\Components\CheckboxList
+class Psyao\Kami\Admin\KamiRoles::getDefaultName() public static function getDefaultName(): string
+class Psyao\Kami\Admin\KamiRoles::roleLabel() public static function roleLabel(string $handle): string
+class Psyao\Kami\Admin\SetPasswordLink final class
+class Psyao\Kami\Admin\SetPasswordLink::make() public static function make(Illuminate\Contracts\Auth\CanResetPassword $user, ?Filament\Panel $panel = NULL): array
 class Psyao\Kami\Audit\Actions\RecordAuditEvent final class
 class Psyao\Kami\Audit\Actions\RecordAuditEvent::handle() public function handle(string $event, Illuminate\Database\Eloquent\Model|array|null $subject = NULL, array $context = [], ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Audit\AuditContext final class
