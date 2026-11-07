@@ -257,7 +257,7 @@ final class EditEntry extends EditRecord
                     ->link()
                     ->requiresConfirmation()
                     ->action(function (array $arguments): void {
-                        PreviewLink::revoke(is_string($arguments['link'] ?? null) ? $arguments['link'] : '', $this->getRecord(), $this->locale);
+                        PreviewLink::revoke(is_string($arguments['link'] ?? null) ? $arguments['link'] : '', $this->getRecord(), $this->locale, Filament::auth()->user());
                         Notification::make()->success()->title(__('kami::admin.preview_links.revoked'))->send();
                     }),
             ])

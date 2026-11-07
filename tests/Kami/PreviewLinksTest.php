@@ -109,6 +109,23 @@ it('lists the Translation\'s active links with their expiry and Creator, and rev
     expect(PreviewLink::query()->count())->toBe(2);
 });
 
+it('records a link created and revoked in the Audit log, with the Entry, Locale and expiry', function () {
+    $entry = draftArticle();
+    linksPage($entry)->callAction('previewLinks', ['days' => 3]);
+    $link = PreviewLink::query()->sole();
+
+    linksPage($entry)->callAction([TestAction::make('previewLinks'), TestAction::make('revokePreviewLink')->arguments(['link' => $link->id])]);
+    // A link of another Entry is not revoked, so nothing is recorded.
+    linksPage(draftArticle(['title' => 'Autre']))->callAction([TestAction::make('previewLinks'), TestAction::make('revokePreviewLink')->arguments(['link' => $link->id])]);
+
+    $context = ['entry' => $entry->id, 'locale' => 'fr', 'expires_at' => now()->addDays(3)->toIso8601String()];
+    // `toEqual`: MySQL's JSON keeps no key order.
+    expect(DB::table('kami_audit_events')->orderBy('id')->get(['event', 'user_id', 'subject_type', 'subject_id', 'site', 'context'])->map(fn (object $row): array => [...(array) $row, 'context' => json_decode((string) $row->context, true)])->all())->toEqual([
+        ['event' => 'kami.preview-links.created', 'user_id' => $this->user->getKey(), 'subject_type' => 'preview-link', 'subject_id' => $link->id, 'site' => 'default', 'context' => $context],
+        ['event' => 'kami.preview-links.revoked', 'user_id' => $this->user->getKey(), 'subject_type' => 'preview-link', 'subject_id' => $link->id, 'site' => 'default', 'context' => $context],
+    ]);
+});
+
 it('revokes only a link of the Entry and Locale edited', function () {
     $entry = draftArticle();
     $other = PreviewLink::issue(draftArticle(['title' => 'Autre']), 'fr', 7, $this->user);

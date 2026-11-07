@@ -33,7 +33,13 @@ The truncated IP trades part of security's forensic value (principle 1) for priv
   - **Sensitive data**: Redirect changes, Media deletion, and Submissions exported or deleted.
   
   Saving a Draft is not recorded, and neither is reading Submissions.
-- A core action run inside `AuditContext::batch(fn () => …)` records nothing per item. The batch records one summary event, such as `kami.import.completed` with its source and counts, with `actor: cli`. Imports and `ContentMigrator` run inside it, so a run of thousands of Entries writes one row.
+- Event names are `kami.<area>.<past participle>`, the subject stored under a short type name (`entry`, `media`, `user`, `preview-link`) so a renamed class never orphans a row (amended in #342):
+  - `kami.entries.published` when a Translation's status turns `published`, a Scheduled one included; `kami.entries.unpublished` when it turns back to `draft`; `kami.entries.publication-date-changed` when a published Translation's date moves (context: `locale`, and `from` and `to` for the date);
+  - `kami.entries.trashed`, `kami.entries.restored`, `kami.entries.force-deleted`;
+  - `kami.preview-links.created`, `kami.preview-links.revoked` (context: `entry`, `locale`, `expires_at`); a link deleted with its Translation or Entry records nothing of its own;
+  - `kami.media.deleted` (context: `name`);
+  - `kami.content.migrated`, one per `ContentMigrator` operation (context: `operation` and its arguments).
+- A core action run inside `AuditContext::batch($event, fn () => …, $context)` records nothing per item. The batch records one summary event, such as `kami.import.completed` with its source and the count of each event, with `actor: cli` in the console. A rolled back item is not counted. Imports run inside it, so a run of thousands of Entries writes one row. `ContentMigrator` writes with the query builder, calling no core action, so each operation records its one `kami.content.migrated` directly (amended in #342).
 - Recording is a side effect inside the actions, not a listener of Kami's public events (ADR 0029), so a site cannot unregister it. `AuditContext::batch()` only groups Audit events; the public events still fire for every item.
 - Site code records its own events through the public action `RecordAuditEvent`.
 - The admin shows a read-only `AuditEventResource`, filterable by User, event and date, behind a new Permission `kami.audit.view` (ADR 0014). The starter kit's `administrator` holds it through `kami.*`; `editor` does not. Nothing in the admin edits or deletes an event: only retention removes them.

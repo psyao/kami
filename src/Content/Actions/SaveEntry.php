@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Actions;
 
+use Carbon\CarbonImmutable;
 use Closure;
 use DateTimeInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryPublished;
@@ -62,8 +64,9 @@ final class SaveEntry
 
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
+        $publishedAt = $translation->published_at;
 
-        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences): string {
+        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences, $wasPublished, $publishedAt): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             // Touched by every save, one changing a Translation only too: the concurrent-edit check reads it.
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()]);
@@ -121,6 +124,7 @@ final class SaveEntry
 
             if ($writesTranslation) {
                 $this->reservePath($contentType, $site, $entry, $locale, $translation->slug);
+                $this->recordVisibility($entry, $translation, $wasPublished, $publishedAt, $actor);
             }
 
             return $entry->id;
@@ -358,6 +362,27 @@ final class SaveEntry
         }
 
         return ['contentType' => $contentType, 'site' => $site, 'locale' => $locale, 'values' => $values, 'writesTranslation' => $writesTranslation, 'translation' => $translation, 'data' => $data, 'fields' => $fields, 'cleared' => $cleared, 'clearedReferences' => $clearedReferences];
+    }
+
+    /** What visitors may see changed: a publication, a scheduled one too, an unpublication, or a published date moved (ADR 0019, ADR 0022). A Draft save records nothing. */
+    private function recordVisibility(Entry $entry, Translation $translation, bool $wasPublished, ?CarbonImmutable $publishedAt, ?Authenticatable $actor): void
+    {
+        $isPublished = $translation->status === Translation::PUBLISHED;
+        $date = $translation->published_at;
+        $context = ['locale' => $translation->locale];
+
+        if ($isPublished && ! $wasPublished) {
+            $event = 'kami.entries.published';
+        } elseif (! $isPublished && $wasPublished) {
+            $event = 'kami.entries.unpublished';
+        } elseif ($isPublished && $publishedAt instanceof CarbonImmutable && $date instanceof CarbonImmutable && ! $publishedAt->equalTo($date)) {
+            $event = 'kami.entries.publication-date-changed';
+            $context += ['from' => $publishedAt->toIso8601String(), 'to' => $date->toIso8601String()];
+        } else {
+            return;
+        }
+
+        resolve(RecordAuditEvent::class)->handle($event, $entry, $context, $actor);
     }
 
     /**

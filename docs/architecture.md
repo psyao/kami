@@ -244,10 +244,15 @@ erDiagram
     }
     kami_audit_events {
         ulid id PK
+        datetime occurred_at
+        id user_id "no FK: outlives its User"
+        string actor "user | cli | system"
         string event
-        string subject_type
+        string subject_type "short name, no FK"
         string subject_id
-        string ip "truncated"
+        string site
+        string ip "truncated /24 or /48"
+        json context "short, flat"
     }
     kami_task_runs {
         string mutex_name PK
@@ -279,6 +284,7 @@ Columns are indicative; the migrations are the truth and the schema is internal 
 - **`kami_paths` rows with status 200 are derived** from Translations and declarations and rebuilt by `kami:install`. Redirects are primary data (ADR 0008).
 - **Deletion.** A Parent with children, an Entry with Paths or Menu items, and a Media item in use are `RESTRICT`. The core actions turn Paths into Redirects or 410s and remove Menu items first (ADRs 0005, 0008, 0025).
 - **Media.** One library per Site. Alt text and caption are per Locale in `kami_media_translations` and follow the same fallback; the file, credit, `decorative` and, from M12, the Focal point are shared (ADR 0013). "Alt text missing" is computed (an image, not decorative, with a blank default-Locale alt), never stored: `Media::missingAlt()`, required only by the admin's edit form, warned about on publish and counted by `kami:doctor`, never blocking. Replacing a file keeps the Media id, changes `{v}` and deletes the former original and Conversions after commit; deleting an item no Entry uses, trashed ones included, deletes its original and Conversions after commit too, with no Media trash (ADR 0017).
+- **Audit log.** One row per event, written by the core action inside its own transaction through `RecordAuditEvent`, so a rolled back action leaves none. Neither `user_id` nor the subject has a foreign key: an event outlives its User and a force-deleted Entry. Inside `AuditContext::batch()` the events are only counted, into one summary row (ADR 0022).
 - **Volumes.** 30,000 Entries and 50,000 Media guaranteed and measured on shared hosting; 1,000,000 Entries on a server with no schema change (ADR 0002).
 
 ## Declaring a Content Type

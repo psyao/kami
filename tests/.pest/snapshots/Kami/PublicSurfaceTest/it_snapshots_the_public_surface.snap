@@ -17,6 +17,18 @@ class Psyao\Kami\Admin\KamiPlugin::getId() public function getId(): string
 class Psyao\Kami\Admin\KamiPlugin::make() public static function make(): Psyao\Kami\Admin\KamiPlugin
 class Psyao\Kami\Admin\KamiPlugin::register() public function register(Filament\Panel $panel): void
 class Psyao\Kami\Admin\KamiPlugin::tables() public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin
+class Psyao\Kami\Audit\Actions\RecordAuditEvent final class
+class Psyao\Kami\Audit\Actions\RecordAuditEvent::handle() public function handle(string $event, Illuminate\Database\Eloquent\Model|array|null $subject = NULL, array $context = [], ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Audit\AuditContext final class
+class Psyao\Kami\Audit\AuditContext::batch() public static function batch(string $event, callable $callback, array $context = []): mixed
+class Psyao\Kami\Audit\Events\AuditEventRecorded final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Audit\Events\AuditEventRecorded::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Audit\Events\AuditEventRecorded::$context public protected(set) readonly array $context
+class Psyao\Kami\Audit\Events\AuditEventRecorded::$event public protected(set) readonly string $event
+class Psyao\Kami\Audit\Events\AuditEventRecorded::$site public protected(set) readonly ?string $site
+class Psyao\Kami\Audit\Events\AuditEventRecorded::$subjectId public protected(set) readonly ?string $subjectId
+class Psyao\Kami\Audit\Events\AuditEventRecorded::$subjectType public protected(set) readonly ?string $subjectType
+class Psyao\Kami\Audit\Events\AuditEventRecorded::__construct() public function __construct(string $event, ?string $subjectType, ?string $subjectId, ?string $site, array $context, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Content\Actions\DeleteEntry final class
 class Psyao\Kami\Content\Actions\DeleteEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Psyao\Kami\Content\Entry $replacement = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\Actions\DeleteTranslation final class
@@ -284,6 +296,7 @@ permission kami.media.delete
 permission kami.media.update
 permission kami.media.view
 permission kami.users.manage
+table kami_audit_events
 table kami_entries
 table kami_media
 table kami_media_translations

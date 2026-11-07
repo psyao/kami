@@ -32,6 +32,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Render a type, write its view, override `render()` or place `Kami::routes()` | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |
 | Load from another origin, extend the front CSP, or weigh an option that weakens it | `vendor/psyao/kami/docs/guide/security.md` |
 | Give the User model Kami's Roles, declare a Role, or check a Permission | `vendor/psyao/kami/docs/guide/users-and-roles.md` |
+| Read what the Audit log records, record a site's own event (`RecordAuditEvent`), or group a long run into one event (`AuditContext::batch()`) | `vendor/psyao/kami/docs/guide/audit-log.md` |
 | Create the first administrator or give an existing User the Role, from a terminal or a deploy script | `vendor/psyao/kami/docs/guide/installation.md#the-first-user` |
 | Fix a problem `kami:doctor` or `kami:install` reports | The section of `vendor/psyao/kami/docs/guide/installation.md` the problem names |
 | Fix a Path clash, or Paths that do not follow the declarations | `vendor/psyao/kami/docs/guide/routing-and-rendering.md#after-a-deploy` |

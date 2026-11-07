@@ -233,6 +233,10 @@ _Avoid_: Owner, author (for this meaning)
 The record of security-sensitive actions on an installation, such as sign-ins, Role changes, publications and deletions: who did what, and when. It is kept for a limited time and is not a history of content changes.
 _Avoid_: Activity log, history, revisions
 
+**Audit event**:
+One row of the Audit log: what happened, to which subject, by which User, from the command line or by the system. A batch of many items records one summary Audit event.
+_Avoid_: Activity, log entry
+
 **Byline**:
 The people credited publicly for an Entry. A Byline points at Entries of a Content Type the site declares (for example a Person), not at Users, so a credited person needs no account.
 _Avoid_: Author (as a core concept)
