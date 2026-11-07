@@ -24,10 +24,11 @@ final class LockoutGuard
     public static function isLastManager(Model $user): bool
     {
         // pluck, not count: PostgreSQL refuses FOR UPDATE with an aggregate.
-        $holders = DB::table('kami_role_user')->whereIn('role', Permissions::rolesGranting('kami.users.manage'))->lockForUpdate()->pluck('user_id')->unique()->values()->all();
+        $holders = DB::table('kami_role_user')->whereIn('role', Permissions::rolesGranting('kami.users.manage'))->lockForUpdate()->pluck('user_id')->all();
         $id = fn (mixed $key): string => is_scalar($key) ? (string) $key : '';
 
-        return $user->newQuery()->whereKey($holders)->pluck($user->getKeyName())->map($id)->all() === [$id($user->getKey())];
+        // Locked too: on MySQL a plain read could answer from a snapshot taken before a concurrent soft delete committed.
+        return $user->newQuery()->whereKey($holders)->lockForUpdate()->pluck($user->getKeyName())->map($id)->all() === [$id($user->getKey())];
     }
 
     /**
