@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/psyao/kami/compare/v0.5.0...v0.6.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* deleting the only User holding kami.users.manage through Eloquent now throws a ValidationException.
+
+### Features
+
+* assign Roles through AssignRoles, with the lockout guard ([#360](https://github.com/psyao/kami/issues/360)) ([d8053ab](https://github.com/psyao/kami/commit/d8053abf97326dd7ae1a038e584450c9a47369a3))
+* print a one-time link to set the first administrator's password ([#359](https://github.com/psyao/kami/issues/359)) ([5ddf917](https://github.com/psyao/kami/commit/5ddf917cba9c637f974ca4efaf097581bb3013fb)), closes [#352](https://github.com/psyao/kami/issues/352)
+* record visibility and deletion events in the Audit log ([#356](https://github.com/psyao/kami/issues/356)) ([6b2c8cd](https://github.com/psyao/kami/commit/6b2c8cd766f3bca16403cf42eb29d67b96fac138))
+* serve a password reset page that reveals nothing ([#358](https://github.com/psyao/kami/issues/358)) ([507d5f2](https://github.com/psyao/kami/commit/507d5f246c4c13c16dcba1e7aac9dacaaf980200)), closes [#350](https://github.com/psyao/kami/issues/350)
+
 ## [0.5.0](https://github.com/psyao/kami/compare/v0.4.0...v0.5.0) (2026-11-06)
 
 
