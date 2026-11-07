@@ -25,8 +25,7 @@ final class UsersByEmail
      */
     public static function find(string $email): Collection
     {
-        // kami_role_user points at this model (its migration), whichever guard the panel signs in with.
-        // ponytail: a KamiUser because Doctor::blocking() requires it of the panel's guard model, assumed to be this one; #343 fails kami:doctor when it is not.
+        // kami_role_user points at this model (its migration). Doctor::blocking() requires it to be the panel's guard model, and a KamiUser.
         /** @var class-string<Model&KamiUser> $users */
         $users = config('auth.providers.users.model');
         $query = $users::query();

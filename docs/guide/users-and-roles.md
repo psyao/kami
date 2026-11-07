@@ -25,6 +25,8 @@ class User extends Authenticatable implements HasAppAuthentication, HasAppAuthen
 
 Until it does, `kami:install` stops before changing anything, and `kami:doctor` reports an error naming the model and what to add.
 
+That model is also `auth.providers.users.model`: `kami_role_user`, the authorship of Entries and `kami:install`'s first administrator all point at it. A panel whose guard signs in through another provider would give Roles to Users nobody signs in as, so `kami:install` stops and `kami:doctor` reports an error naming both models. A Role source of the host's own lifts this in a later version.
+
 A User's Roles are its rows in `kami_role_user`, which follow the User when it is deleted. `$user->kamiRoles()` lists their handles, read once per model instance.
 
 `HasKamiRoles` also adds model hooks to your User: creating or deleting a User through Eloquent records it in the [Audit log](audit-log.md), and deleting the last User who may manage Users is refused ([The lockout guard](#the-lockout-guard)). A query-builder delete, such as `User::query()->where(...)->delete()`, skips them, as it skips every Eloquent event: it records nothing and is not guarded. Until `kami:install` has created the Audit log's table, the hooks do nothing.

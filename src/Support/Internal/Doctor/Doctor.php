@@ -89,9 +89,11 @@ final readonly class Doctor
             ...$this->environment(),
             ...array_filter([$this->hotFile()]),
             ...$this->userModels($panels),
+            ...$this->guardModels($panels),
             ...$this->remoteAvatars($panels),
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
+            ...$this->insecureTransport(),
             ...$this->replacedResetPages($panels),
             ...$this->mfa($panels),
             ...$this->weakeningOptions(),
@@ -112,7 +114,9 @@ final readonly class Doctor
      */
     public function blocking(): array
     {
-        return array_values(array_filter([...$this->environment(), ...$this->userModels($this->panels()), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
+        $panels = $this->panels();
+
+        return array_values(array_filter([...$this->environment(), ...$this->userModels($panels), ...$this->guardModels($panels), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
     }
 
     /** @return list<Problem> */
@@ -267,6 +271,35 @@ final readonly class Doctor
             'add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.',
             'users-and-roles.md#the-user-model',
         ), $lacking));
+    }
+
+    /**
+     * kami_role_user, authorship and kami:install's first administrator all point at auth.providers.users.model; a host Role source lifts this (ADR 0014, V1).
+     *
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function guardModels(array $panels): array
+    {
+        $users = config('auth.providers.users.model');
+        $users = is_string($users) ? ltrim($users, '\\') : null;
+        $problems = [];
+
+        foreach ($panels as $panel) {
+            // A guard with no Eloquent model is already an error of userModels(); class names are case-insensitive.
+            if (($model = $this->userModel($panel['guard'])) === null || strcasecmp($model = ltrim($model, '\\'), (string) $users) === 0) {
+                continue;
+            }
+
+            $problems[] = new Problem(
+                Severity::Error,
+                "The panel {$panel['id']} signs Users in with {$model}, while Kami gives Roles to " . ($users ?? 'no model') . ' (auth.providers.users.model): nobody could sign in to Kami.',
+                ($users === null ? '' : "point the provider of the guard {$panel['guard']} to {$users}, or ") . "set auth.providers.users.model to {$model}.",
+                'users-and-roles.md#the-user-model',
+            );
+        }
+
+        return $problems;
     }
 
     /**
@@ -590,6 +623,54 @@ final readonly class Doctor
             "delete {$hot}, and keep it out of what you deploy.",
             'security.md#vite-in-development',
         ) : null;
+    }
+
+    /**
+     * Read from configuration, so the same on shared hosting and on a server: the command line sees no request, and a proxy in front changes nothing to it.
+     *
+     * @return list<Problem>
+     */
+    private function insecureTransport(): array
+    {
+        if (config('app.env') !== 'production') {
+            return [];
+        }
+
+        $problems = [];
+        $appUrl = config('app.url');
+        /** @var array<string, array{url?: mixed}> $sites */
+        $sites = Config::array('kami.sites', []);
+        $urls = ['APP_URL' => $appUrl];
+
+        foreach ($sites as $handle => $site) {
+            // A Site's url defaults to APP_URL in config/kami.php: one fix, one warning.
+            if (($site['url'] ?? null) !== $appUrl) {
+                $urls["kami.sites.{$handle}.url"] = $site['url'] ?? null;
+            }
+        }
+
+        foreach ($urls as $name => $url) {
+            if (is_string($url) && str_starts_with(strtolower($url), 'http://')) {
+                $problems[] = new Problem(
+                    Severity::Warning,
+                    "{$name} is {$url}: production travels in clear, the admin's session cookie and passwords included.",
+                    "serve the site over HTTPS, then start {$name} with https://.",
+                    'security.md#https-in-production',
+                );
+            }
+        }
+
+        // Left unset, the cookie is Secure only on a request Laravel sees as HTTPS: behind a shared host's proxy it trusts no proxy by default.
+        if (config('session.secure') !== true) {
+            $problems[] = new Problem(
+                Severity::Warning,
+                'The session cookie is not always Secure in production: behind a proxy Laravel does not trust, it travels without it.',
+                'set SESSION_SECURE_COOKIE=true in .env.',
+                'security.md#https-in-production',
+            );
+        }
+
+        return $problems;
     }
 
     /**
