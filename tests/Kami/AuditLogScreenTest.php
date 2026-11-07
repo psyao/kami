@@ -13,6 +13,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Audit\Internal\AuditEvent;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Workbench\App\Content\Article;
 use Workbench\App\Models\User;
 
@@ -83,6 +84,16 @@ it('names a deleted User by id, and shows a subject gone, or out of the User’s
         ->assertTableColumnStateSet('subject', "Entry: {$entry->id}", $published)
         ->assertTableColumnStateSet('subject', 'Entry: 01ARZ3NDEKTSV4RRFFQ69G5FAV', $forgotten)
         ->assertDontSeeHtml('Secret');
+});
+
+it('titles an Entry in the Trash, marked, with no link: it has no edit page', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello']);
+    resolve(TrashEntry::class)->handle($entry);
+    $trashed = AuditEvent::query()->where('event', 'kami.entries.trashed')->sole();
+
+    auditLog()
+        ->assertTableColumnStateSet('subject', 'Entry: Hello (in the Trash)', $trashed)
+        ->assertDontSeeHtml(EntryResource::withConfiguration('article', fn (): string => EntryResource::editUrl($entry, null)));
 });
 
 it('filters by a User acting or acted upon, deleted ones included, by event and by days of the Site’s time zone', function () {

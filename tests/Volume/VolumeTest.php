@@ -150,7 +150,8 @@ it('reorders a type whose Positions tie within a shared host\'s limits', functio
 it('opens the admin table', function () {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
-    $this->actingAs(User::forceCreate(['name' => 'Ada', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
+    // A manager without MFA is sent to set it up (#362).
+    $this->actingAs(withMfa(User::forceCreate(['name' => 'Ada', 'email' => uniqid() . '@example.test', 'password' => 'secret'])));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => auth()->id(), 'role' => 'administrator']);
 
     measure('Admin table', fn () => $this->get('/admin/projects')->assertOk());

@@ -17,14 +17,18 @@ use Psyao\Kami\Audit\Actions\RecordAuditEvent;
  */
 final class LockoutGuard
 {
-    /** Whether this User alone holds `kami.users.manage`. Inside a transaction, the holders' rows stay locked until it ends, so two Users cannot take it from each other at once. */
+    /**
+     * Whether this User alone holds `kami.users.manage` among the Users the host's model still finds: a soft-deleted one keeps its rows, yet signs in no more.
+     * Inside a transaction, the holders' rows stay locked until it ends, so two Users cannot take it from each other at once.
+     */
     public static function isLastManager(Model $user): bool
     {
         // pluck, not count: PostgreSQL refuses FOR UPDATE with an aggregate.
+        $holders = DB::table('kami_role_user')->whereIn('role', Permissions::rolesGranting('kami.users.manage'))->lockForUpdate()->pluck('user_id')->all();
         $id = fn (mixed $key): string => is_scalar($key) ? (string) $key : '';
-        $holders = DB::table('kami_role_user')->whereIn('role', Permissions::rolesGranting('kami.users.manage'))->lockForUpdate()->pluck('user_id')->map($id)->unique()->values()->all();
 
-        return $holders === [$id($user->getKey())];
+        // Locked too: on MySQL a plain read could answer from a snapshot taken before a concurrent soft delete committed.
+        return $user->newQuery()->whereKey($holders)->lockForUpdate()->pluck($user->getKeyName())->map($id)->all() === [$id($user->getKey())];
     }
 
     /**

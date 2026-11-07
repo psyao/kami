@@ -79,7 +79,7 @@ final class AuditEventResource extends FilamentResource
                     ->searchable(),
                 // Days of the Site's time zone, as the dates are shown.
                 Filter::make('occurred_at')
-                    ->schema([
+                    ->form([
                         DatePicker::make('from')->label(__('kami::admin.audit.filters.from')),
                         DatePicker::make('until')->label(__('kami::admin.audit.filters.until')),
                     ])
@@ -163,9 +163,10 @@ final class AuditEventResource extends FilamentResource
         $described = [];
         $readable = EntryResource::accessibleTypes();
 
-        foreach (Entry::query()->withUnpublished()->whereKey($ids['entry'] ?? [])->with('translations')->get() as $entry) {
+        foreach (Entry::query()->withUnpublished()->withTrashed()->whereKey($ids['entry'] ?? [])->with('translations')->get() as $entry) {
             if (in_array($entry->type, $readable, true)) {
-                $described["entry:{$entry->id}"] = [self::subjectLabel('entry', EntryTitles::of($entry)), EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))];
+                // One in the Trash has no edit page to link to.
+                $described["entry:{$entry->id}"] = [self::subjectLabel('entry', EntryTitles::marked($entry)), $entry->trashed() ? null : EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))];
             }
         }
 
