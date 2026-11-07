@@ -49,6 +49,8 @@ final class RequestPasswordReset extends FilamentRequestPasswordReset
             ->body(__('kami::admin.password_reset.sent_body'))
             ->success()
             ->send();
+
+        // Unlike Filament, the field keeps the address: the same for every address, and `AdminEntriesTest` reads any form fill in `Admin` as a model write.
     }
 
     /** @param  array<string, mixed>  $credentials */

@@ -110,8 +110,8 @@ fi
 # sent after the response, once FPM has finished the request. The link lands in the mail log, cut back before the empty-log check below.
 mail_log=/var/www/site/storage/logs/laravel.log
 log_size=$(docker compose exec -T php sh -c "wc -c < $mail_log 2>/dev/null || echo 0" | tr -d ' \r')
-known=$(docker compose run -T --rm cli php /kami/tests/Smoke/password-reset.php http://apache admin@example.test 2>&1 || true)
-unknown=$(docker compose run -T --rm cli php /kami/tests/Smoke/password-reset.php http://apache nobody@example.test 2>&1 || true)
+known=$(docker compose run -T --rm cli php /kami/tests/Smoke/password-reset.php http://apache admin@example.test) || known=
+unknown=$(docker compose run -T --rm cli php /kami/tests/Smoke/password-reset.php http://apache nobody@example.test) || unknown=
 mail=$(docker compose exec -T php sh -c "tail -c +$((log_size + 1)) $mail_log 2>/dev/null" || true)
 if [ -n "$known" ] && [ "$known" = "$unknown" ] && [ "$(grep -c '^To: ' <<<"$mail")" = 1 ] && grep -q '^To: admin@example.test' <<<"$mail"; then
     echo "Password reset: \"$known\" for both addresses, one link sent"

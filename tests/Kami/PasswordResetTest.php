@@ -30,33 +30,37 @@ function resetRequestPage(): Testable
     return Livewire::test(Filament::getPanel('admin')->getRequestPasswordResetRouteAction());
 }
 
-function grace(): User
+function resetUser(): User
 {
     return User::forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => Hash::make('secret-password')]);
 }
 
-it('answers a known, an unknown and a throttled address the same way', function (string $email, int $earlier) {
-    grace();
+it('answers a known, an unknown and a throttled address the same way', function (string $email, int $earlier, int $links) {
+    resetUser();
     Notification::fake();
     $page = resetRequestPage();
 
-    foreach (range(1, $earlier) as $attempt) {
-        $page->fillForm(['email' => $email])->call('request');
+    for ($attempt = 0; $attempt < $earlier; $attempt++) {
+        // Asserting pulls the earlier notification, so the last request's stands alone below.
+        $page->fillForm(['email' => $email])->call('request')->assertNotified(__('kami::admin.password_reset.sent'));
         app(DeferredCallbackCollection::class)->invoke();
     }
 
     $page->fillForm(['email' => $email])->call('request')
         ->assertHasNoFormErrors()
         ->assertNotified(__('kami::admin.password_reset.sent'));
+    app(DeferredCallbackCollection::class)->invoke();
+
+    Notification::assertCount($links);
 })->with([
-    'known' => ['grace@example.test', 0],
-    'unknown' => ['nobody@example.test', 0],
-    // The broker refuses a second link within a minute: Password::RESET_THROTTLED.
-    'throttled' => ['grace@example.test', 1],
+    'known' => ['grace@example.test', 0, 1],
+    'unknown' => ['nobody@example.test', 0, 0],
+    // The broker refuses a second link within a minute: Password::RESET_THROTTLED, so one link in all.
+    'throttled' => ['grace@example.test', 1, 1],
 ]);
 
 it('sends the link only after the response, and not through the queue, as no worker runs on shared hosting', function () {
-    grace();
+    resetUser();
     // A queued email would never leave.
     Queue::fake();
     config(['mail.default' => 'array']);
@@ -93,7 +97,7 @@ it('serves Kami\'s page whether the panel enables reset before or after the plug
 });
 
 it('records a completed reset in the Audit log, with the User as subject and actor', function () {
-    $grace = grace();
+    $grace = resetUser();
     $token = Password::broker()->createToken($grace);
     Filament::setCurrentPanel('admin');
 
