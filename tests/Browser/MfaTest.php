@@ -17,10 +17,7 @@ it('sets MFA up from the QR code\'s secret, then asks a code at the next sign-in
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
 
     $page = visit('/admin/login', ['reducedMotion' => 'reduce']);
-    $page->script("new Promise(function wait(resolve) { document.querySelector('[x-load][x-ignore]') ? requestAnimationFrame(() => wait(resolve)) : resolve(); })");
-    $page->fill('[id="form.email"]', 'grace@example.test')
-        ->fill('[id="form.password"]', 'secret-password')
-        ->press('internal:role=button[name="Sign in"s]')
+    signInPassword($page, 'grace@example.test')
         // A manager without MFA lands on its set-up, not on the dashboard.
         ->assertPathIs('/admin/multi-factor-authentication/set-up')
         ->press('internal:role=button[name="Set up"s]')
@@ -55,11 +52,6 @@ it('passes axe on the set-up and challenge pages, light, dark and mobile', funct
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $manager->getKey(), 'role' => 'administrator']);
     withMfa(User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')])));
 
-    $passwordStep = function (mixed $page, string $email): mixed {
-        $page->script("new Promise(function wait(resolve) { document.querySelector('[x-load][x-ignore]') ? requestAnimationFrame(() => wait(resolve)) : resolve(); })");
-
-        return $page->fill('[id="form.email"]', $email)->fill('[id="form.password"]', 'secret-password')->press('internal:role=button[name="Sign in"s]');
-    };
     $modes = [
         'light' => fn (string $url) => visit($url, ['reducedMotion' => 'reduce']),
         'dark' => fn (string $url) => visit($url, ['reducedMotion' => 'reduce'])->inDarkMode(),
@@ -68,13 +60,13 @@ it('passes axe on the set-up and challenge pages, light, dark and mobile', funct
 
     // The challenge, before anyone signs in: the browser keeps one session for the whole test.
     foreach ($modes as $mode) {
-        $passwordStep($mode('/admin/login'), 'ada@example.test')
+        signInPassword($mode('/admin/login'), 'ada@example.test')
             ->assertSee('Enter the 6-digit code from the authenticator app')
             ->assertNoAccessibilityIssues()
             ->assertNoJavaScriptErrors();
     }
 
-    $passwordStep($modes['light']('/admin/login'), 'grace@example.test')->assertPathIs('/admin/multi-factor-authentication/set-up');
+    signInPassword($modes['light']('/admin/login'), 'grace@example.test')->assertPathIs('/admin/multi-factor-authentication/set-up');
 
     foreach ($modes as $mode) {
         $mode('/admin/multi-factor-authentication/set-up')

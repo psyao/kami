@@ -9,7 +9,6 @@ use Filament\Auth\Pages\EditProfile;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -29,11 +28,7 @@ function mfaUser(string $role, ?array $codes = null): User
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
 
     if ($codes !== null) {
-        DB::table('kami_user_mfa')->insert([
-            'user_id' => $user->getKey(),
-            'secret' => Crypt::encryptString(MFA_SECRET),
-            'recovery_codes' => Crypt::encryptString(json_encode(array_map(Hash::make(...), $codes))),
-        ]);
+        withMfa($user, $codes);
     }
 
     // The Workbench User is no FilamentUser: Filament admits it locally only.
@@ -57,7 +52,7 @@ it('sends a manager without MFA to set it up before any admin page', function (s
     $this->actingAs(mfaUser('administrator'));
 
     $this->get($page)->assertRedirect('/admin/multi-factor-authentication/set-up');
-})->with(['/admin', '/admin/articles', '/admin/profile']);
+})->with(['/admin', '/admin/articles', '/admin/profile', 'a Preview' => '/admin/kami/preview/unknown']);
 
 it('serves the set-up page to that manager', function () {
     $this->actingAs(mfaUser('administrator'));

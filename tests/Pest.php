@@ -48,6 +48,21 @@ function temporaryPath(): string
     return sys_get_temp_dir() . '/kami-' . uniqid();
 }
 
+/** The authenticator secret of the Users `withMfa()` sets up. */
+const MFA_SECRET = 'JBSWY3DPEHPK3PXP';
+
+/** MFA set up for `$user`, with these recovery codes in clear, or a manager is sent to set it up before any admin page. */
+function withMfa(User $user, ?array $codes = null): User
+{
+    DB::table('kami_user_mfa')->insert([
+        'user_id' => $user->getKey(),
+        'secret' => Crypt::encryptString(MFA_SECRET),
+        'recovery_codes' => $codes === null ? null : Crypt::encryptString(json_encode(array_map(Hash::make(...), $codes))),
+    ]);
+
+    return $user;
+}
+
 /** The admin's dashboard, signed in as an administrator. Filament's theme drops its transitions under reduced motion, so axe never measures a notification mid-fade. */
 function signIn(): mixed
 {
@@ -59,8 +74,8 @@ function signIn(): mixed
     return passSignIn(visit('/admin/login', ['reducedMotion' => 'reduce']), 'ada@example.test')->assertSee('Dashboard');
 }
 
-/** Through the sign-in page: the password, then the authenticator's current code. A second sign-in within the same 30 seconds is refused: Filament accepts each code once. */
-function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mixed
+/** The sign-in page's first step, the email and password; a User with MFA is then asked a code, a manager without it sent to set it up. */
+function signInPassword(mixed $page, string $email): mixed
 {
     // Filament loads the password field's Alpine component after the page (`x-load`, `x-ignore` until it arrives):
     // its `wire:model` then resets the field to the empty Livewire state, wiping a password typed before.
@@ -72,23 +87,17 @@ function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mi
     return $page
         ->fill('[id="form.email"]', $email)
         ->fill('[id="form.password"]', 'secret-password')
-        ->press('internal:role=button[name="Sign in"s]')
-        // The last digit submits the form.
-        ->fill('[id="multiFactorChallengeForm.app.code"]', (new Google2FA)->getCurrentOtp($secret));
+        ->press('internal:role=button[name="Sign in"s]');
+}
+
+/** Through the sign-in page: the password, then the authenticator's current code. A second sign-in within the same 30 seconds is refused: Filament accepts each code once. */
+function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mixed
+{
+    // The last digit submits the form.
+    return signInPassword($page, $email)->fill('[id="multiFactorChallengeForm.app.code"]', (new Google2FA)->getCurrentOtp($secret));
 }
 
 /** Signs in a new User holding the Role, or these Permissions under a Role of their own; the panel admits them, as in the local environment. */
-/** The authenticator secret of the Users `withMfa()` sets up. */
-const MFA_SECRET = 'JBSWY3DPEHPK3PXP';
-
-/** MFA set up for `$user`, or a manager is sent to set it up before any admin page. */
-function withMfa(User $user): User
-{
-    DB::table('kami_user_mfa')->insert(['user_id' => $user->getKey(), 'secret' => Crypt::encryptString(MFA_SECRET)]);
-
-    return $user;
-}
-
 function signInWith(string | array $role = 'administrator'): User
 {
     if (is_array($role)) {

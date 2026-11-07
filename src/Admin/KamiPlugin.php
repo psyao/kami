@@ -204,11 +204,12 @@ final class KamiPlugin implements Plugin
 
         // A front page, so the front's headers in place of the panel's (ADR 0018); but for the admin's opener policy,
         // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.
+        // Filament adds its MFA middleware to its own pages only: a manager without MFA is sent to set it up here too.
         $panel->authenticatedRoutes(fn () => Route::get('kami/preview/{token}', RenderPreview::class)
             ->name('kami.preview')
             // Named with its profile too: Laravel before 13.39 only drops a middleware excluded by its exact name, parameters included.
             ->withoutMiddleware([SecurityHeaders::class, SecurityHeaders::class . ':admin'])
-            ->middleware(FrontSecurityHeaders::class . ':Cross-Origin-Opener-Policy=unsafe-none'));
+            ->middleware([FrontSecurityHeaders::class . ':Cross-Origin-Opener-Policy=unsafe-none', RequireMfa::class]));
 
         // An authenticator app with recovery codes, set up before any other admin page by a User holding `kami.users.manage`,
         // from the profile page by any other; Filament's profile page unless the host set its own (ADR 0014).
