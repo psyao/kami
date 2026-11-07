@@ -388,7 +388,8 @@ it('reads the table in an exact number of queries, whatever the rows', function 
     page('B', ['parent' => $parent->id]);
     page('C', ['parent' => $parent->id]);
 
-    expect($first)->toBe(9)->and($count())->toBe($first);
+    // The breadcrumb's Parents are titled through the pickers' labels, which read their types first.
+    expect($first)->toBe(10)->and($count())->toBe($first);
 });
 
 it('reads one list on a type no longer hierarchical, whatever Parents its rows kept', function () {

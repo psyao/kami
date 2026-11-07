@@ -373,9 +373,9 @@ A relation is Shared by default. With `->translatable()`, each Locale has its ow
 
 A relation can be conditional, and a save that gives its target and hides it removes its links in every Locale. The first read of the declarations refuses one with no `->of()` or a type not in `types`, with `->filterable()`, `->sortable()` or `->default()`, as the target of a condition, `->required()` on a Global Set, and inside a Repeater or Group.
 
-Editors search targets by title and see them in pick order, Drafts included. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
+Editors search targets by title and see them in pick order, Drafts included, among the types whose `view` Permission they hold. A target someone else picked, of a type they may not view, shows as a restricted Entry with no title: they may remove it, and saving keeps it otherwise. They reorder by dragging; on a keyboard, removing a target and picking it again puts it last.
 
-With `->creatable()`, editors holding the target type's `create` Permission also create a target from the picker, with a title alone, in the Locale they edit. It goes through `SaveEntry`, as a Draft. The first read of the declarations refuses it when the picker could not do so: several target types, a Singleton, or a target with a `->required()` Field its default does not fill.
+With `->creatable()`, editors holding the target type's `create` and `view` Permissions also create a target from the picker, with a title alone, in the Locale they edit. It goes through `SaveEntry`, as a Draft. The first read of the declarations refuses it when the picker could not do so: several target types, a Singleton, or a target with a `->required()` Field its default does not fill.
 
 ### Media
 
