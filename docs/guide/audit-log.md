@@ -18,6 +18,7 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.preview-links.revoked` | A Preview link is revoked | `entry`, `locale`, `expires_at` |
 | `kami.media.deleted` | `DeleteMedia` | `name` |
 | `kami.content.migrated` | Each `ContentMigrator` operation | `operation` and its arguments |
+| `kami.auth.password-reset` | A User completes a password reset, Laravel's `PasswordReset` event for a `KamiUser`; the User is subject and actor | |
 
 A bulk action in the admin records one event per row, as each row's own action does.
 

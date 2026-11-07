@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Psyao\Kami;
 
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Image\ImageManager;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Event;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
@@ -21,6 +25,7 @@ use Psyao\Kami\Support\Internal\Install\InstallCommand;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\Internal\Permissions;
+use Psyao\Kami\Users\KamiUser;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -70,6 +75,13 @@ final class KamiServiceProvider extends PackageServiceProvider
         $this->callAfterResolving('image', function (ImageManager $images): void {
             $images->transformUsing('gd', StripMetadata::class, StripMetadata::handle(...));
             $images->transformUsing('imagick', StripMetadata::class, StripMetadata::handle(...));
+        });
+
+        // Laravel's event carries no guard: a KamiUser is the User a Kami panel signs in, as the doctor requires.
+        Event::listen(PasswordReset::class, function (PasswordReset $event): void {
+            if ($event->user instanceof KamiUser && $event->user instanceof Model) {
+                resolve(RecordAuditEvent::class)->handle('kami.auth.password-reset', $event->user, actor: $event->user);
+            }
         });
     }
 }

@@ -106,6 +106,21 @@ else
     failed=1
 fi
 
+# The reset page (psyao/kami#350): the same notification for a known and an unknown address, and the known one's link
+# sent after the response, once FPM has finished the request. The link lands in the mail log, cut back before the empty-log check below.
+mail_log=/var/www/site/storage/logs/laravel.log
+log_size=$(docker compose exec -T php sh -c "wc -c < $mail_log 2>/dev/null || echo 0" | tr -d ' \r')
+known=$(docker compose run -T --rm cli php /kami/tests/Smoke/password-reset.php http://apache admin@example.test 2>&1 || true)
+unknown=$(docker compose run -T --rm cli php /kami/tests/Smoke/password-reset.php http://apache nobody@example.test 2>&1 || true)
+mail=$(docker compose exec -T php sh -c "tail -c +$((log_size + 1)) $mail_log 2>/dev/null" || true)
+if [ -n "$known" ] && [ "$known" = "$unknown" ] && [ "$(grep -c '^To: ' <<<"$mail")" = 1 ] && grep -q '^To: admin@example.test' <<<"$mail"; then
+    echo "Password reset: \"$known\" for both addresses, one link sent"
+else
+    echo "Password reset: known \"$known\", unknown \"$unknown\", mail log: $mail"
+    failed=1
+fi
+docker compose exec -T php truncate --no-create --size="$log_size" "$mail_log" || true
+
 # Rich text renders in pure PHP, on the host's PHP and its extensions: the starter kit declares no RichText yet.
 rich_text=$(docker compose run -T --rm cli php -r '
     require "vendor/autoload.php";

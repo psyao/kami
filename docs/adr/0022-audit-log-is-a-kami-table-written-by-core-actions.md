@@ -39,6 +39,7 @@ The truncated IP trades part of security's forensic value (principle 1) for priv
   - `kami.preview-links.created`, `kami.preview-links.revoked` (context: `entry`, `locale`, `expires_at`); a link deleted with its Translation or Entry records nothing of its own;
   - `kami.media.deleted` (context: `name`);
   - `kami.content.migrated`, one per `ContentMigrator` operation (context: `operation` and its arguments).
+  - `kami.auth.password-reset`, from Laravel's `PasswordReset` event, the User as subject and actor. The event carries no guard, so the core records it for a `KamiUser`, the model `kami:doctor` requires of a Kami panel's guard (amended in #350).
 - A core action run inside `AuditContext::batch($event, fn () => …, $context)` records nothing per item. The batch records one summary event, such as `kami.import.completed` with its source and the count of each event, with `actor: cli` in the console. A rolled back item is not counted. Imports run inside it, so a run of thousands of Entries writes one row. `ContentMigrator` writes with the query builder, calling no core action, so each operation records its one `kami.content.migrated` directly (amended in #342).
 - Recording is a side effect inside the actions, not a listener of Kami's public events (ADR 0029), so a site cannot unregister it. `AuditContext::batch()` only groups Audit events; the public events still fire for every item.
 - Site code records its own events through the public action `RecordAuditEvent`.
