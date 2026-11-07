@@ -24,6 +24,10 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.users.created` | A User is created through Eloquent; the signed-in User is the actor | |
 | `kami.users.deleted` | A User is deleted through Eloquent; the signed-in User is the actor | |
 | `kami.auth.password-reset` | A User completes a password reset, Laravel's `PasswordReset` event for a `KamiUser`; the User is subject and actor | |
+| `kami.mfa.enabled` | A User sets [MFA](users-and-roles.md#mfa) up through `HasKamiMfa`; the User is subject and actor | |
+| `kami.mfa.disabled` | A User disables MFA through `HasKamiMfa`; the User is subject and actor | |
+| `kami.mfa.recovery-used` | A User signs in with a recovery code through `HasKamiMfa`; the User is subject and actor | |
+| `kami.mfa.reset` | `kami:user:reset-mfa` clears a User's authenticator; the User is subject, the actor `cli` | |
 
 A bulk action in the admin records one event per row, as each row's own action does.
 

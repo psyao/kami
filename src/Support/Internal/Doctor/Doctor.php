@@ -37,6 +37,7 @@ use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\Internal\SecurityPolicy;
 use Psyao\Kami\Support\SecurityHeaders;
+use Psyao\Kami\Users\Internal\Permissions;
 use Psyao\Kami\Users\KamiUser;
 use ReflectionMethod;
 use Throwable;
@@ -46,7 +47,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
  */
 final readonly class Doctor
 {
@@ -82,6 +83,7 @@ final readonly class Doctor
         $assignments = rescue(fn (): bool => Schema::hasTable('kami_role_user'), false, report: false);
         $paths = rescue(fn (): bool => Schema::hasTable('kami_paths'), false, report: false);
         $media = rescue(fn (): bool => Schema::hasTable('kami_media'), false, report: false);
+        $mfaTable = rescue(fn (): bool => Schema::hasTable('kami_user_mfa'), false, report: false);
 
         return [
             ...$this->environment(),
@@ -91,12 +93,14 @@ final readonly class Doctor
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
             ...$this->replacedResetPages($panels),
+            ...$this->mfa($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
             ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia()]),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
+            ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
         ];
     }
@@ -291,6 +295,75 @@ final readonly class Doctor
             "remove the class from ->passwordReset() on the panel {$panel['id']}, or make its page answer every address the same way, after the response.",
             'security.md#password-reset',
         ), array_filter($panels, fn (array $panel): bool => $panel['replacedResetPage'] !== null)));
+    }
+
+    /**
+     * Errors, so the rule that Users who may manage Users sign in with a second factor is never skipped by accident (ADR 0014).
+     *
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function mfa(array $panels): array
+    {
+        $problems = [];
+
+        foreach ($panels as $panel) {
+            if (! $panel['requiresKamiMfa']) {
+                $problems[] = new Problem(
+                    Severity::Error,
+                    "The panel {$panel['id']} does not require Kami's MFA: Users who may manage Users sign in with a password alone.",
+                    "remove ->multiFactorAuthentication() and ->requiresMultiFactorAuthentication() from the panel {$panel['id']}: KamiPlugin sets them.",
+                    'security.md#mfa',
+                );
+            }
+
+            // A guard with no Eloquent model is already an error of userModels().
+            if (($model = $this->userModel($panel['guard'])) !== null && ! ($panel['storesMfa'])($model)) {
+                $problems[] = new Problem(
+                    Severity::Error,
+                    "The panel {$panel['id']} signs Users in with {$model}, which cannot store an authenticator: Users who may manage Users cannot set MFA up, nor sign in.",
+                    'add implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery to the User model, and use \\Psyao\\Kami\\Admin\\HasKamiMfa; in its body.',
+                    'users-and-roles.md#the-user-model',
+                );
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function managersWithoutMfa(array $panels): array
+    {
+        $problems = [];
+
+        foreach ($panels as $panel) {
+            $model = $this->userModel($panel['guard']);
+
+            // The errors of mfa() and userModels() already cover these panels.
+            if (! $panel['requiresKamiMfa'] || $model === null || ! is_a($model, Model::class, true) || ! ($panel['storesMfa'])($model)) {
+                continue;
+            }
+
+            // Asked of each holder's model, so a host storing the authenticator on its own columns counts too; holders are few.
+            $holders = DB::table('kami_role_user')->whereIn('role', Permissions::rolesGranting('kami.users.manage'))->select('user_id');
+            $count = $model::query()->whereIn((new $model)->getKeyName(), $holders)->lazyById()
+                ->reject(fn (Model $user): bool => $user instanceof Authenticatable && ($panel['hasMfa'])($user))
+                ->count();
+
+            if ($count > 0) {
+                $problems[] = new Problem(
+                    Severity::Warning,
+                    "{$count} " . Str::plural('User', $count) . ' who may manage Users ' . ($count === 1 ? 'has' : 'have') . " no MFA set up: the panel {$panel['id']} sends " . ($count === 1 ? 'it' : 'them') . ' to set it up at the next sign-in.',
+                    'nothing, once ' . ($count === 1 ? 'that User knows' : 'they know') . ' to bring an authenticator app, such as one on their phone.',
+                    'users-and-roles.md#mfa',
+                );
+            }
+        }
+
+        return $problems;
     }
 
     /**

@@ -9,6 +9,7 @@ use Filament\Auth\Pages\EditProfile;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -150,4 +151,80 @@ it('deletes the authenticator with its User', function () {
     mfaUser('editor', ['a-code'])->delete();
 
     expect(DB::table('kami_user_mfa')->count())->toBe(0);
+});
+
+describe('kami:user:reset-mfa', function (): void {
+    it('clears the authenticator of the User stored under any spelling of the email, so it sets MFA up again', function () {
+        $user = mfaUser('administrator', ['a-code']);
+        $user->forceFill(['email' => 'Grace@Example.test'])->saveQuietly();
+
+        $this->artisan('kami:user:reset-mfa', ['email' => 'grace@example.TEST'])
+            ->expectsOutputToContain('Grace@Example.test sets MFA up again at the next sign-in.')
+            ->assertSuccessful();
+
+        expect(DB::table('kami_user_mfa')->count())->toBe(0)
+            ->and(auditEvents())->toHaveCount(1)
+            ->and(auditEvents()[0])->toMatchArray(['event' => 'kami.mfa.reset', 'actor' => 'cli', 'user_id' => null, 'subject_type' => 'user', 'subject_id' => (string) $user->getKey()]);
+    });
+
+    it('changes nothing for a User with no MFA', function () {
+        $user = mfaUser('editor');
+
+        $this->artisan('kami:user:reset-mfa', ['email' => $user->email])
+            ->expectsOutputToContain('has no MFA set up in kami_user_mfa.')
+            ->assertSuccessful();
+
+        expect(auditEvents())->toBe([]);
+    });
+
+    // Several stored spellings: tests/Install, whose database may drop the unique index MySQL's collation enforces.
+    it('refuses, changing nothing, an email no User has', function (string $email, string $message) {
+        mfaUser('editor', ['a-code']);
+
+        $this->artisan('kami:user:reset-mfa', ['email' => $email])
+            ->expectsOutputToContain($message)
+            ->assertFailed();
+
+        expect(DB::table('kami_user_mfa')->count())->toBe(1)
+            ->and(auditEvents())->toBe([]);
+    })->with([
+        'unknown email' => ['nobody@example.test', 'No User has the email nobody@example.test.'],
+        'not an email' => ['nobody', 'must be a valid email address'],
+    ]);
+});
+
+it('counts the Users who may manage Users and have no MFA yet, failing kami:doctor with --strict only', function () {
+    withConversionsServed();
+    mfaUser('administrator');
+    mfaUser('administrator');
+    mfaUser('administrator', ['a-code']);
+    mfaUser('editor');
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('2 Users who may manage Users have no MFA set up: the panel admin sends them to set it up at the next sign-in.')
+        ->expectsOutputToContain('docs/guide/users-and-roles.md#mfa')
+        ->assertSuccessful();
+
+    $this->artisan('kami:doctor', ['--strict' => true])->assertFailed();
+});
+
+it('counts a manager whose authenticator the app key no longer reads, as one without MFA, instead of failing', function () {
+    withConversionsServed();
+    mfaUser('administrator', ['a-code']);
+    // APP_KEY rotated without APP_PREVIOUS_KEYS: kami:user:reset-mfa is the rescue, so the doctor must still run.
+    config(['app.key' => 'base64:' . base64_encode(random_bytes(32))]);
+    app()->forgetInstance('encrypter');
+    Crypt::clearResolvedInstance('encrypter');
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('1 User who may manage Users has no MFA set up')
+        ->assertSuccessful();
+});
+
+it('says nothing once every User who may manage Users has MFA set up', function () {
+    withConversionsServed();
+    mfaUser('administrator', ['a-code']);
+    mfaUser('editor');
+
+    $this->artisan('kami:doctor')->doesntExpectOutputToContain('no MFA set up')->assertSuccessful();
 });

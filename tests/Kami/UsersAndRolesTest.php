@@ -162,7 +162,8 @@ it('informs, without failing even with --strict, of Users with no Role who can s
     withConversionsServed();
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
-    userWithRoles('administrator');
+    // With MFA: a manager without it is a warning, which --strict fails on.
+    withMfa(userWithRoles('administrator'));
     userWithRoles();
 
     $this->artisan('kami:doctor', ['--strict' => true])

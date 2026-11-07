@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\Pages\PasswordReset\RequestPasswordReset;
 use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
@@ -31,6 +32,8 @@ use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\Severity;
 use Psyao\Kami\Support\SecurityHeaders;
+use Psyao\Kami\Users\HasKamiRoles;
+use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\HttpFoundation\Response;
 
 /** A type with no view and no label. */
@@ -52,6 +55,14 @@ final class Rendered extends ContentType
     {
         return response('');
     }
+}
+
+/** A User model with Roles but nowhere to store an authenticator. */
+final class UserWithoutMfa extends PlainUser implements KamiUser
+{
+    use HasKamiRoles;
+
+    protected $table = 'users';
 }
 
 // An empty database, whatever the engine: tables another test left on MySQL or MariaDB, which do not roll back, would read as drift. `ContentModelDriftTest` covers the engines.
@@ -352,6 +363,30 @@ it('blocks on a panel whose User model does not implement KamiUser, naming what 
         ->assertFailed();
 
     expect((new Doctor)->blocking())->toHaveCount(1);
+});
+
+it('blocks when a Kami panel no longer requires Kami\'s MFA, set otherwise after the plugin', function (Closure $override) {
+    $override(Filament::getPanel('admin'));
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin does not require Kami\'s MFA: Users who may manage Users sign in with a password alone.')
+        ->expectsOutputToContain('Fix: remove ->multiFactorAuthentication() and ->requiresMultiFactorAuthentication() from the panel admin: KamiPlugin sets them.')
+        ->expectsOutputToContain('docs/guide/security.md#mfa')
+        ->assertFailed();
+})->with([
+    'no provider' => [fn (Panel $panel) => $panel->multiFactorAuthentication([])],
+    'Filament\'s own provider' => [fn (Panel $panel) => $panel->multiFactorAuthentication(AppAuthentication::make(), isRequired: true)],
+    'not required' => [fn (Panel $panel) => $panel->requiresMultiFactorAuthentication(false)],
+]);
+
+it('blocks on a panel whose User model cannot store an authenticator, naming what to add', function () {
+    config(['auth.providers.users.model' => UserWithoutMfa::class]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin signs Users in with UserWithoutMfa, which cannot store an authenticator')
+        ->expectsOutputToContain('Fix: add implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery to the User model, and use \\Psyao\\Kami\\Admin\\HasKamiMfa; in its body.')
+        ->expectsOutputToContain('docs/guide/users-and-roles.md#the-user-model')
+        ->assertFailed();
 });
 
 it('warns when a Kami panel does not authorize strictly, even when turned off after the plugin', function () {

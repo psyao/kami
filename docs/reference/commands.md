@@ -47,3 +47,9 @@ Give a Role to an existing User, found by email
 
 - `<email>`: The User's email, in any letter case
 - `<role>`: The handle of a Role declared in config/kami.php
+
+## `kami:user:reset-mfa`
+
+Clear the authenticator of a User, found by email
+
+- `<email>`: The User's email, in any letter case
