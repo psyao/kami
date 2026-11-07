@@ -9,6 +9,7 @@ use Filament\Auth\Pages\EditProfile;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -170,7 +171,7 @@ describe('kami:user:reset-mfa', function (): void {
         $user = mfaUser('editor');
 
         $this->artisan('kami:user:reset-mfa', ['email' => $user->email])
-            ->expectsOutputToContain('has no MFA set up')
+            ->expectsOutputToContain('has no MFA set up in kami_user_mfa.')
             ->assertSuccessful();
 
         expect(auditEvents())->toBe([]);
@@ -205,6 +206,19 @@ it('counts the Users who may manage Users and have no MFA yet, failing kami:doct
         ->assertSuccessful();
 
     $this->artisan('kami:doctor', ['--strict' => true])->assertFailed();
+});
+
+it('counts a manager whose authenticator the app key no longer reads, as one without MFA, instead of failing', function () {
+    withConversionsServed();
+    mfaUser('administrator', ['a-code']);
+    // APP_KEY rotated without APP_PREVIOUS_KEYS: kami:user:reset-mfa is the rescue, so the doctor must still run.
+    config(['app.key' => 'base64:' . base64_encode(random_bytes(32))]);
+    app()->forgetInstance('encrypter');
+    Crypt::clearResolvedInstance('encrypter');
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('1 User who may manage Users has no MFA set up')
+        ->assertSuccessful();
 });
 
 it('says nothing once every User who may manage Users has MFA set up', function () {

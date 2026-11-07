@@ -22,9 +22,9 @@ final class PluginRegistration
      * `remoteAvatars` when it still draws avatars with Filament's `UiAvatarsProvider`; `admits` answers as Filament does when a User signs in;
      * `middleware` lists the panel's own, by class or alias; `replacedResetPage` names the host's own reset request page, which keeps Kami's from serving;
      * `setPasswordLink` makes a one-time link to set a User's password on the panel's reset page, `null` when the panel offers no password reset;
-     * `mfa` while the panel requires Kami's authenticator-app provider; `storesMfa` when a User model implements Filament's two app-authentication contracts; `hasMfa` once a User has set MFA up.
+     * `requiresKamiMfa` while the panel requires Kami's authenticator-app provider; `storesMfa` when a User model implements Filament's two app-authentication contracts; `hasMfa` once a User has set MFA up.
      *
-     * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, mfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}>
+     * @var array<int, Closure(): array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}>
      */
     public array $panels = [];
 

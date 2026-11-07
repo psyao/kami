@@ -48,13 +48,8 @@ final class ResetMfaCommand extends Command
         /** @var string $stored */
         $stored = $user->getAttribute('email');
 
-        if (! UserMfa::reset($user)) {
-            $this->components->info("{$stored} has no MFA set up.");
-
-            return self::SUCCESS;
-        }
-
-        $this->components->info("{$stored} sets MFA up again at the next sign-in.");
+        // A model keeping its authenticator on columns of its own is not Kami's to clear.
+        $this->components->info(UserMfa::reset($user) ? "{$stored} sets MFA up again at the next sign-in." : "{$stored} has no MFA set up in kami_user_mfa.");
 
         return self::SUCCESS;
     }

@@ -47,7 +47,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, mfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
  */
 final readonly class Doctor
 {
@@ -83,7 +83,7 @@ final readonly class Doctor
         $assignments = rescue(fn (): bool => Schema::hasTable('kami_role_user'), false, report: false);
         $paths = rescue(fn (): bool => Schema::hasTable('kami_paths'), false, report: false);
         $media = rescue(fn (): bool => Schema::hasTable('kami_media'), false, report: false);
-        $mfa = rescue(fn (): bool => Schema::hasTable('kami_user_mfa'), false, report: false);
+        $mfaTable = rescue(fn (): bool => Schema::hasTable('kami_user_mfa'), false, report: false);
 
         return [
             ...$this->environment(),
@@ -100,7 +100,7 @@ final readonly class Doctor
             ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia()]),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
-            ...($assignments && $mfa ? $this->managersWithoutMfa($panels) : []),
+            ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
         ];
     }
@@ -308,7 +308,7 @@ final readonly class Doctor
         $problems = [];
 
         foreach ($panels as $panel) {
-            if (! $panel['mfa']) {
+            if (! $panel['requiresKamiMfa']) {
                 $problems[] = new Problem(
                     Severity::Error,
                     "The panel {$panel['id']} does not require Kami's MFA: Users who may manage Users sign in with a password alone.",
@@ -343,7 +343,7 @@ final readonly class Doctor
             $model = $this->userModel($panel['guard']);
 
             // The errors of mfa() and userModels() already cover these panels.
-            if (! $panel['mfa'] || $model === null || ! is_a($model, Model::class, true) || ! ($panel['storesMfa'])($model)) {
+            if (! $panel['requiresKamiMfa'] || $model === null || ! is_a($model, Model::class, true) || ! ($panel['storesMfa'])($model)) {
                 continue;
             }
 
