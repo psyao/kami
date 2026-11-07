@@ -163,9 +163,10 @@ final class AuditEventResource extends FilamentResource
         $described = [];
         $readable = EntryResource::accessibleTypes();
 
-        foreach (Entry::query()->withUnpublished()->whereKey($ids['entry'] ?? [])->with('translations')->get() as $entry) {
+        foreach (Entry::query()->withUnpublished()->withTrashed()->whereKey($ids['entry'] ?? [])->with('translations')->get() as $entry) {
             if (in_array($entry->type, $readable, true)) {
-                $described["entry:{$entry->id}"] = [self::subjectLabel('entry', EntryTitles::of($entry)), EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))];
+                // One in the Trash has no edit page to link to.
+                $described["entry:{$entry->id}"] = [self::subjectLabel('entry', EntryTitles::marked($entry)), $entry->trashed() ? null : EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))];
             }
         }
 
