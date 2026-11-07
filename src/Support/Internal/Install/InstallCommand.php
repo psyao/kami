@@ -9,7 +9,6 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -270,9 +269,11 @@ final class InstallCommand extends Command
 
                 return false;
             }
+
+            unset($rules['password']);
         }
 
-        $validator = Validator::make(['email' => $email, 'name' => $name, ...(is_string($password) ? ['password' => $password] : [])], is_string($password) ? $rules : Arr::except($rules, 'password'));
+        $validator = Validator::make(['email' => $email, 'name' => $name, 'password' => $password], $rules);
 
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -282,7 +283,7 @@ final class InstallCommand extends Command
             return false;
         }
 
-        $user = DB::transaction(function () use ($users, $email, $name, $password): Model {
+        $link = DB::transaction(function () use ($users, $email, $name, $password, $makeLink): ?array {
             $user = new $users;
             $user->setAttribute('email', $email);
             $user->setAttribute('name', $name);
@@ -291,19 +292,16 @@ final class InstallCommand extends Command
             $user->save();
             DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
 
-            return $user;
+            // Inside the transaction: a token the broker cannot store must not leave an administrator nobody can sign in as, whom the next run would skip.
+            return $makeLink !== null && $user instanceof CanResetPassword ? $makeLink($user) : null;
         });
 
-        if ($makeLink !== null && $user instanceof CanResetPassword) {
-            $link = $makeLink($user);
-            $this->components->info("{$email} is the first administrator. This one-time link sets their password, valid for {$link['minutes']} minutes:");
+        $this->components->info("{$email} is the first administrator." . ($link === null ? '' : " This one-time link sets their password, valid for {$link['minutes']} minutes:"));
+
+        if ($link !== null) {
             // A plain line: the components would wrap a long URL.
             $this->line("  {$link['url']}");
-
-            return true;
         }
-
-        $this->components->info("{$email} is the first administrator.");
 
         return true;
     }

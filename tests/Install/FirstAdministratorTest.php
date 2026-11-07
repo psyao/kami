@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 use Filament\Auth\Pages\PasswordReset\ResetPassword;
 use Filament\Facades\Filament;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +18,8 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Psyao\Kami\Users\HasKamiRoles;
+use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Workbench\App\Models\User;
@@ -89,6 +94,26 @@ it('creates the first administrator without KAMI_ADMIN_PASSWORD and prints a one
         ->assertNotified(__(Password::INVALID_TOKEN));
 
     expect(Auth::attempt(['email' => 'ada@example.test', 'password' => 'correct horse battery']))->toBeTrue();
+});
+
+/** A host's User model that Laravel's password broker cannot reset. */
+final class UserWithoutPasswordReset extends Model implements AuthenticatableContract, KamiUser
+{
+    use Authenticatable;
+    use HasKamiRoles;
+
+    protected $table = 'users';
+}
+
+it('fails without KAMI_ADMIN_PASSWORD when the User model cannot reset a password, naming the fix', function () {
+    unset($_SERVER['KAMI_ADMIN_PASSWORD']);
+    config(['auth.providers.users.model' => UserWithoutPasswordReset::class]);
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])
+        ->expectsOutputToContain('does not implement CanResetPassword. Implement it, or set KAMI_ADMIN_PASSWORD in the environment')
+        ->assertFailed();
+
+    expect(User::query()->count())->toBe(0);
 });
 
 it('fails without KAMI_ADMIN_PASSWORD when the panel offers no password reset, naming the fix', function () {
