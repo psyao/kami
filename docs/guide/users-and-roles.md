@@ -7,15 +7,21 @@ Users belong to your application: Kami adds no `users` table and no login of its
 The model of the guard your panel signs Users in with implements `KamiUser`, with the `HasKamiRoles` trait:
 
 ```php
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Psyao\Kami\Admin\HasKamiMfa;
 use Psyao\Kami\Users\HasKamiRoles;
 use Psyao\Kami\Users\KamiUser;
 
-class User extends Authenticatable implements KamiUser
+class User extends Authenticatable implements HasAppAuthentication, HasAppAuthenticationRecovery, KamiUser
 {
+    use HasKamiMfa;
     use HasKamiRoles;
 }
 ```
+
+`HasKamiMfa` stores the User's authenticator for [MFA](#mfa); a model without it, or without Filament's two contracts, makes the sign-in page fail.
 
 Until it does, `kami:install` stops before changing anything, and `kami:doctor` reports an error naming the model and what to add.
 
@@ -73,6 +79,19 @@ php artisan kami:user:grant ada@example.com administrator
 It finds the User by email as `kami:install` does: case-insensitively, and several Users matching the address make it fail. It never creates a User, and refuses an unknown email and an undeclared Role. It takes no password. The grant goes through `AssignRoles` and is recorded with the actor `cli`. There is no command to revoke a Role: revoking is not a rescue, and the admin does it.
 
 `kami:doctor` warns about assignments whose handle `config/kami.php` does not declare: such a Role grants nothing. Declare it again, or delete its rows from `kami_role_user`.
+
+## MFA
+
+`KamiPlugin` adds Filament's authenticator-app second factor to your panel, with recovery codes. The code is asked at every sign-in, after the password.
+
+- A User whose Roles grant `kami.users.manage` must set it up before reaching any other admin page: Filament's set-up page shows a QR code, the secret as text, and asks a code before enabling it. It then shows eight recovery codes, once; each signs in once in place of a code. That User cannot disable MFA while holding the Permission, only regenerate the codes.
+- Every other User may set it up, or disable it, from the profile page. `KamiPlugin` turns on Filament's profile page (`->profile()`) when your panel has none; your own `->profile(MyProfile::class)` wins.
+
+`HasKamiMfa` keeps the authenticator in `kami_user_mfa`, one row per User with MFA, deleted with the User: your `users` table gains no column. The secret and the hashed recovery codes are encrypted with the app key. Setting MFA up, disabling it and using a recovery code land in the [Audit log](audit-log.md) as `kami.mfa.enabled`, `kami.mfa.disabled` and `kami.mfa.recovery-used`. Filament remembers the last code accepted in your cache, so a code signs in once; the `file` and `database` stores of a shared host do.
+
+Rotating `APP_KEY` without listing the old key in `APP_PREVIOUS_KEYS` makes every authenticator unreadable, and its Users cannot sign in. See [Security](security.md#mfa).
+
+A model may implement Filament's two contracts on columns of its own instead of using `HasKamiMfa`; it then records no MFA event.
 
 ## The first administrator
 

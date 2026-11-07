@@ -12,6 +12,7 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 
 1. **Deleting the last User who may manage Users is refused.** `HasKamiRoles` now boots model hooks on your User: `$user->delete()` on the only User holding `kami.users.manage` throws a `ValidationException` and records `kami.users.lockout-refused`. Code or tests that delete that User give the right to another User first, through `AssignRoles` ([The lockout guard](docs/guide/users-and-roles.md#the-lockout-guard)). Creating and deleting a User through Eloquent also writes a row to the Audit log.
 2. **Give Roles through `AssignRoles`.** Rows written to `kami_role_user` directly still work, but skip the lockout guard and the Audit log. A seeder giving Roles calls `AssignRoles` instead ([Giving Roles](docs/guide/users-and-roles.md#giving-roles)).
+3. **MFA, required for Users who may manage Users.** `KamiPlugin` adds Filament's authenticator-app second factor to the panel. Your User model implements Filament's `HasAppAuthentication` and `HasAppAuthenticationRecovery` with the `HasKamiMfa` trait, or the sign-in page fails ([The user model](docs/guide/users-and-roles.md#the-user-model)); `kami:install` creates `kami_user_mfa`. At their next request, Users holding `kami.users.manage` are sent to set MFA up before any other page, and a test signing such a User in sets MFA up first. The panel gains Filament's profile page when it had none ([MFA](docs/guide/users-and-roles.md#mfa)).
 
 ## 0.5.0
 

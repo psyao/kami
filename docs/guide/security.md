@@ -77,6 +77,12 @@ The link opens Filament's own page to choose the new password. A completed reset
 
 A class of your own, `->passwordReset(MyRequestPage::class)`, wins over Kami's. Keeping it from revealing who has an account is then yours, and `kami:doctor` warns.
 
+## MFA
+
+Users who may manage Users must sign in with an authenticator app's code after their password; others may choose to ([Users and roles](users-and-roles.md#mfa)). A stolen password alone then hands out no rights.
+
+The secrets are encrypted with `APP_KEY`. Rotating it breaks every authenticator unless the old key stays readable: list it in `APP_PREVIOUS_KEYS` (comma-separated) when you set a new `APP_KEY`, as Laravel's encryption reads both. A User locked out anyway, by a lost phone and lost recovery codes or a key gone for good, sets MFA up again once its `kami_user_mfa` row is deleted.
+
 ## Extending the policy
 
 A front that loads from another origin, such as images from a CDN, adds it under `security.csp` in `config/kami.php`, per directive:

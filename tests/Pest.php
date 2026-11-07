@@ -10,6 +10,7 @@ use Illuminate\Image\Drivers\ImagickDriver;
 use Illuminate\Image\ImageException;
 use Illuminate\Image\ImagePipeline;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,7 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use PragmaRX\Google2FA\Google2FA;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Tests\Install\InstallTestCase;
@@ -52,9 +54,14 @@ function signIn(): mixed
     // Without model events: a fixture, whose own `kami.users.created` row no test reads.
     $user = User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')]));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
+    withMfa($user);
 
-    $page = visit('/admin/login', ['reducedMotion' => 'reduce']);
+    return passSignIn(visit('/admin/login', ['reducedMotion' => 'reduce']), 'ada@example.test')->assertSee('Dashboard');
+}
 
+/** Through the sign-in page: the password, then the authenticator's current code. A second sign-in within the same 30 seconds is refused: Filament accepts each code once. */
+function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mixed
+{
     // Filament loads the password field's Alpine component after the page (`x-load`, `x-ignore` until it arrives):
     // its `wire:model` then resets the field to the empty Livewire state, wiping a password typed before.
     // The plugin times the script out after 5 seconds, failing here if a component never loads.
@@ -63,13 +70,25 @@ function signIn(): mixed
     $page->script("new Promise(function wait(resolve) { document.querySelector('[x-load][x-ignore]') ? requestAnimationFrame(() => wait(resolve)) : resolve(); })");
 
     return $page
-        ->fill('[id="form.email"]', 'ada@example.test')
+        ->fill('[id="form.email"]', $email)
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]')
-        ->assertSee('Dashboard');
+        // The last digit submits the form.
+        ->fill('[id="multiFactorChallengeForm.app.code"]', (new Google2FA)->getCurrentOtp($secret));
 }
 
 /** Signs in a new User holding the Role, or these Permissions under a Role of their own; the panel admits them, as in the local environment. */
+/** The authenticator secret of the Users `withMfa()` sets up. */
+const MFA_SECRET = 'JBSWY3DPEHPK3PXP';
+
+/** MFA set up for `$user`, or a manager is sent to set it up before any admin page. */
+function withMfa(User $user): User
+{
+    DB::table('kami_user_mfa')->insert(['user_id' => $user->getKey(), 'secret' => Crypt::encryptString(MFA_SECRET)]);
+
+    return $user;
+}
+
 function signInWith(string | array $role = 'administrator'): User
 {
     if (is_array($role)) {
@@ -80,6 +99,7 @@ function signInWith(string | array $role = 'administrator'): User
     // Without model events: a fixture, whose own `kami.users.created` row no test reads.
     $user = User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
+    withMfa($user);
     config(['app.env' => 'local']);
     test()->actingAs($user);
 

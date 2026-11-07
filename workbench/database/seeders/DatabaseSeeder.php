@@ -30,6 +30,8 @@ class DatabaseSeeder extends Seeder
     public function run(SaveEntry $save, TrashEntry $trash, DeleteEntry $delete, SaveMedia $media): void
     {
         $admin = $this->user('Ada Admin', 'admin@example.test', 'administrator');
+        // MFA is required of a manager: add this secret to an authenticator app to sign in as Ada. Eddie may set it up from his profile.
+        $admin->saveAppAuthenticationSecret('JBSWY3DPEHPK3PXP');
         $this->user('Eddie Editor', 'editor@example.test', 'editor');
 
         $published = ['status' => 'published'];

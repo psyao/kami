@@ -34,11 +34,13 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Component as LivewireComponent;
 use Livewire\Livewire;
 use LogicException;
+use Psyao\Kami\Admin\Internal\AppAuthentication;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
+use Psyao\Kami\Admin\Internal\RequireMfa;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Admin\Internal\SetPasswordLink;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
@@ -207,6 +209,15 @@ final class KamiPlugin implements Plugin
             // Named with its profile too: Laravel before 13.39 only drops a middleware excluded by its exact name, parameters included.
             ->withoutMiddleware([SecurityHeaders::class, SecurityHeaders::class . ':admin'])
             ->middleware(FrontSecurityHeaders::class . ':Cross-Origin-Opener-Policy=unsafe-none'));
+
+        // An authenticator app with recovery codes, set up before any other admin page by a User holding `kami.users.manage`,
+        // from the profile page by any other; Filament's profile page unless the host set its own (ADR 0014).
+        $panel->multiFactorAuthentication(AppAuthentication::make()->recoverable(), isRequired: true)
+            ->multiFactorAuthenticationRequiredMiddlewareName(RequireMfa::class);
+
+        if (! $panel->hasProfile()) {
+            $panel->profile();
+        }
 
         // Kami's reset request page in place of Filament's, unless the host set its own: this runs mid-chain, before a later `->passwordReset()`,
         // and `boot()` after the routes, so the swap waits for the panel's route callbacks, which Filament runs just before reading the page's class.
