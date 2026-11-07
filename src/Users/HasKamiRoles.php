@@ -36,7 +36,8 @@ trait HasKamiRoles
             }
         });
 
-        // ponytail: `delete()` opens no transaction, so the lock holds only inside the caller's: two Users deleting the last two managers at once may both pass. #354's Users screen deletes inside one.
+        // ponytail: `delete()` opens no transaction, so the lock holds only inside the caller's: two bare `delete()` calls on the last two managers at once may both pass.
+        // A Users screen deletes inside one (`DeleteAction::databaseTransaction()`), as the guide says; overriding the host's `delete()` to open one waits for a site that needs it (V1).
         static::deleting(function (Model $user): void {
             if (Schema::hasTable('kami_audit_events') && LockoutGuard::isLastManager($user)) {
                 throw LockoutGuard::refuse($user, 'delete', Auth::user());

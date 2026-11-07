@@ -47,7 +47,7 @@ Roles are edited in code and deployed, never in the admin.
 
 ## Giving Roles
 
-Every change to a User's Roles goes through the `AssignRoles` action, whoever makes it: the admin, `kami:install`, `kami:user:grant` or your own code, a seeder for instance. It takes the full list of Roles the User should hold, so a Role left out is revoked:
+Every change to a User's Roles goes through the `AssignRoles` action, whoever makes it: the admin's [Users screen](#the-users-screen), `kami:install`, `kami:user:grant` or your own code, a seeder for instance. It takes the full list of Roles the User should hold, so a Role left out is revoked:
 
 ```php
 use Psyao\Kami\Users\Actions\AssignRoles;
@@ -63,6 +63,95 @@ It runs in one transaction and records each Role granted or revoked in the [Audi
 Like Kami's other actions, it does not authorise: code calling it from a request checks `kami.users.manage` first. There is no rule against escalation: a User who may manage Users may give any Role, `administrator` included.
 
 Writing to `kami_role_user` yourself skips the guard and the Audit log. Shared hosting and a server behave the same: one transaction, nothing waiting on a process.
+
+## The Users screen
+
+Kami ships no Users screen of its own: it would collide with your application's. The starter kit's `UserResource` is yours to change; in an existing application, add Kami's Roles field to your own User form. Give the screen a policy granting every method to `kami.users.manage` only, so an editor cannot promote themselves:
+
+```php
+public function viewAny(User $user): bool
+{
+    return $user->can('kami.users.manage');
+}
+```
+
+### The Roles field
+
+`Psyao\Kami\Admin\KamiRoles` is a checkbox list of the Roles `config/kami.php` declares, labelled from your `kami-roles` translation file under each handle (the handle itself without a label):
+
+```php
+use Psyao\Kami\Admin\KamiRoles;
+
+$schema->components([
+    TextInput::make('name')->required(),
+    TextInput::make('email')->email()->required()->unique(ignoreRecord: true),
+    KamiRoles::make(),
+]);
+```
+
+```php
+// lang/en/kami-roles.php
+return [
+    'administrator' => 'Administrator',
+    'editor' => 'Editor',
+];
+```
+
+It saves through [`AssignRoles`](#giving-roles) with the User's save, never as a column, with the signed-in User as the actor. A refusal, an undeclared Role or the [lockout guard](#the-lockout-guard), shows under the field and changes no Role. It shows only to a User holding `kami.users.manage`: on a form others may open, a profile page for instance, it is hidden and the User's Roles stay as they are. A Role the User holds that `config/kami.php` no longer declares stays listed by its handle, so a save keeps it until someone unticks it.
+
+`KamiRoles::roleLabel($handle)` gives the same label elsewhere, a table column for instance:
+
+```php
+TextColumn::make('roles')->badge()
+    ->state(fn (User $record): array => array_map(KamiRoles::roleLabel(...), $record->kamiRoles())),
+```
+
+### Creating a User
+
+Nobody chooses a new User's password. Create the User with an unusable one, then give the administrator the same one-time link `kami:install` prints, for the User to set theirs. `Psyao\Kami\Admin\SetPasswordLink::make($user)` returns its `url` and the `minutes` it stays valid, from the password broker of the panel serving the request, or of the panel you pass as `$panel`; the panel needs `->passwordReset()`. Past that, the User asks for a new link from the sign-in page.
+
+```php
+use Psyao\Kami\Admin\SetPasswordLink;
+
+protected ?bool $hasDatabaseTransactions = true;
+
+protected function mutateFormDataBeforeCreate(array $data): array
+{
+    return [...$data, 'password' => Hash::make(Str::random(64))];
+}
+
+protected function afterCreate(): void
+{
+    ['url' => $url, 'minutes' => $minutes] = SetPasswordLink::make($this->getRecord());
+    // Show both to the administrator, a persistent notification for instance.
+}
+```
+
+The starter kit shows the link in a persistent notification once the User is created. The transaction creates the User, their Roles and the link's token together.
+
+### Deleting a User
+
+Delete inside a transaction, which keeps two deletions of the last two managers from both passing, and show the lockout guard's refusal, which Filament would otherwise drop:
+
+```php
+use Illuminate\Validation\ValidationException;
+
+DeleteAction::make()
+    ->databaseTransaction()
+    ->using(function (User $record, DeleteAction $action): bool {
+        try {
+            return (bool) $record->delete();
+        } catch (ValidationException $refused) { // From the `deleting` hook, which Larastan cannot see.
+            $action->failureNotificationTitle($refused->getMessage());
+
+            return false;
+        }
+    });
+```
+
+A deleted User's Roles and authenticator go with them; their Entries stay, with no Creator or Last modifier.
+
+Shared hosting and a server behave the same: each change is one request and one transaction, and the link's token waits in the password broker's table, nothing on a process.
 
 ## The lockout guard
 
@@ -107,7 +196,7 @@ A model may implement Filament's two contracts on columns of its own instead of 
 
 ## The first administrator
 
-While no User holds a Role that grants `kami.users.manage`, `kami:install` gives the `administrator` Role to the User whose email you give it, after a confirmation in a terminal, or creates that User from the email, name and password you give it, or prints a one-time link for them to set the password ([Installation](installation.md#the-first-user)). The grant goes through `AssignRoles` and is recorded in the Audit log with the actor `cli`. A new User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has. The email is compared case-insensitively, and several Users matching it make the command fail; sign-in stays your application's, case-sensitive on SQLite and PostgreSQL.
+While no User holds a Role that grants `kami.users.manage`, `kami:install` gives the `administrator` Role to the User whose email you give it, after a confirmation in a terminal, or creates that User from the email, name and password you give it, or prints a one-time link for them to set the password ([Installation](installation.md#the-first-user)). The grant goes through `AssignRoles` and is recorded in the Audit log with the actor `cli`. Every later User gets their Roles from the [Users screen](#the-users-screen), or from [`kami:user:grant`](#from-the-command-line) when nobody can sign in to give them. A new User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has. The email is compared case-insensitively, and several Users matching it make the command fail; sign-in stays your application's, case-sensitive on SQLite and PostgreSQL.
 
 ## Permissions
 

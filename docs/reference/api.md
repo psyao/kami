@@ -57,6 +57,23 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 - `public function register(Filament\Panel $panel): void`
 - `public function tables(array $tables): Psyao\Kami\Admin\KamiPlugin`: A type's own table, in place of the generated one.
 
+## `Psyao\Kami\Admin\KamiRoles`
+
+`final class extends Filament\Forms\Components\CheckboxList`
+
+The "Kami Roles" field of a User form: the Roles `config/kami.php` declares, by their `kami-roles` labels, saved through `AssignRoles` with the User's save.
+
+- `public static function getDefaultName(): string`
+- `public static function roleLabel(string $handle): string`: `kami-roles.{handle}`, or the handle itself, for a Role without a label or no longer declared.
+
+## `Psyao\Kami\Admin\SetPasswordLink`
+
+`final class`
+
+A one-time link to set a User's password (ADR 0001), as `kami:install` prints and a Users screen offers: a token from the panel's password broker, opening the panel's reset page.
+
+- `public static function make(Illuminate\Contracts\Auth\CanResetPassword $user, ?Filament\Panel $panel = NULL): array`
+
 ## `Psyao\Kami\Audit\Actions\RecordAuditEvent`
 
 `final class`

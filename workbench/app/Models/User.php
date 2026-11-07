@@ -6,6 +6,7 @@ namespace Workbench\App\Models;
 
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Psyao\Kami\Admin\HasKamiMfa;
@@ -19,6 +20,7 @@ use Psyao\Kami\Users\KamiUser;
  * @property string $email
  * @property string $password
  */
+#[Fillable(['name', 'email', 'password'])]
 class User extends Authenticatable implements HasAppAuthentication, HasAppAuthenticationRecovery, KamiUser
 {
     use HasKamiMfa;
