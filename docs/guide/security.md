@@ -71,7 +71,7 @@ Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: s
 
 The counts live in your default cache store, under a hash of the address, never the address itself: the starter kit's `file` store, or `database`, on shared hosting ([Hosting](hosting.md#shared-hosting-and-a-server)). A User may lock their own address for a minute by mistyping, and so may a stranger who knows it: the limit trades that for slow guessing.
 
-The first refused attempt of each minute fires Laravel's `Lockout` event and lands in the [Audit log](audit-log.md) as `kami.auth.locked-out`, naming which limit was hit, never the address; later refusals in the same minute record nothing, so refused requests cannot fill the log. A sign-in and a failed sign-in of an existing account are recorded too; a failure on an address with no account records nothing.
+The first refused attempt of each minute fires Laravel's `Lockout` event and lands in the [Audit log](audit-log.md) as `kami.auth.locked-out`, naming which limit was hit, never the address; later refusals in the same minute record nothing, so refused requests cannot fill the log. A sign-in and a failed sign-in of an existing account are recorded too; a failure on an address with no account records nothing. A wrong MFA code or recovery code after the right password is recorded as `kami.mfa.challenge-failed`: whoever typed it knows the password.
 
 A class of your own, `->login(MyLoginPage::class)`, wins over Kami's. Throttling per email is then yours, and `kami:doctor` warns.
 

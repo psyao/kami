@@ -6,7 +6,6 @@ use Filament\Actions\Exceptions\ActionNotResolvableException;
 use Filament\Actions\Testing\TestAction;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\Pages\EditProfile;
-use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -38,12 +37,12 @@ function mfaUser(string $role, ?array $codes = null): User
     return $user;
 }
 
-/** Filament's sign-in page, its password step passed: the challenge form is showing. */
+/** The panel's sign-in page, its password step passed: the challenge form is showing. */
 function passwordStep(User $user): Testable
 {
     Filament::setCurrentPanel('admin');
 
-    return Livewire::test(Login::class)
+    return Livewire::test(Filament::getPanel('admin')->getLoginRouteAction())
         ->fillForm(['email' => $user->email, 'password' => 'secret-password'])
         ->call('authenticate')
         ->assertHasNoFormErrors();
@@ -87,6 +86,23 @@ it('asks the code at every sign-in, after the password', function () {
     $this->assertAuthenticatedAs($user);
 });
 
+it('records a wrong code after the right password, with the User as subject and no actor', function (string $code) {
+    $user = mfaUser('editor', ['a-code']);
+
+    passwordStep($user)->set('data.multiFactor.app.code', $code)->call('authenticate')->assertHasErrors();
+
+    expect(auditEvents())->toHaveCount(1)
+        ->and(auditEvents()[0])->toMatchArray(['event' => 'kami.mfa.challenge-failed', 'subject_type' => 'user', 'subject_id' => (string) $user->getKey(), 'user_id' => null]);
+})->with(['wrong' => '000000', 'blank' => '']);
+
+it('records a wrong password at the code step as a failed sign-in, not a failed challenge', function () {
+    $user = mfaUser('editor', ['a-code']);
+
+    passwordStep($user)->set('data.password', 'wrong-password')->set('data.multiFactor.app.code', '000000')->call('authenticate')->assertHasErrors();
+
+    expect(array_column(auditEvents(), 'event'))->toBe(['kami.auth.sign-in-failed']);
+});
+
 it('signs in once with each recovery code, and records its use', function () {
     $user = mfaUser('administrator', ['first-code', 'second-code']);
 
@@ -98,8 +114,8 @@ it('signs in once with each recovery code, and records its use', function () {
     $this->assertGuest();
 
     expect($user->fresh()->getAppAuthenticationRecoveryCodes())->toHaveCount(1)
-        // The second sign-in, refused, records nothing of its own: a wrong code is not a failed password.
-        ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.recovery-used', 'kami.auth.signed-in'])
+        // The second sign-in, refused, records a failed challenge, as a wrong code does.
+        ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.recovery-used', 'kami.auth.signed-in', 'kami.mfa.challenge-failed'])
         ->and(auditEvents()[0])->toMatchArray(['subject_type' => 'user', 'subject_id' => (string) $user->getKey(), 'user_id' => (string) $user->getKey()]);
 });
 
