@@ -123,19 +123,23 @@ it('hides bulk Publish and Unpublish while the table shows only the Trash, and s
     expect($draft->fresh()->status)->toBe('published');
 });
 
-it('names deleting for good in plain words, row and bulk, in English and French', function (string $locale, string $label, string $heading, string $bulkLabel) {
+it('names deleting for good in plain words, row and bulk, in English and French', function (string $locale, string $label, string $heading, string $bulkLabel, string $bulkHeading) {
     app()->setLocale($locale);
     $entry = bulkArticle('Bonjour');
     resolve(TrashEntry::class)->handle($entry);
 
     entriesPage(ListEntries::class)->filterTable('trashed', false)
         ->assertActionHasLabel(bulk('forceDelete'), $bulkLabel)
+        ->selectTableRecords([$entry->id])
+        ->mountAction(bulk('forceDelete'))
+        ->assertMountedActionModalSee($bulkHeading)
+        ->unmountAction()
         ->assertActionHasLabel(TestAction::make('forceDelete')->table($entry), $label)
         ->mountAction(TestAction::make('forceDelete')->table($entry))
         ->assertMountedActionModalSee($heading);
 })->with([
-    'en' => ['en', 'Delete for good', 'Delete Bonjour for good', 'Delete selected for good'],
-    'fr' => ['fr', 'Supprimer définitivement', 'Supprimer définitivement Bonjour', 'Supprimer définitivement la sélection'],
+    'en' => ['en', 'Delete for good', 'Delete Bonjour for good', 'Delete selected for good', 'Delete the selected entries for good'],
+    'fr' => ['fr', 'Supprimer définitivement', 'Supprimer définitivement Bonjour', 'Supprimer définitivement la sélection', 'Supprimer définitivement les entrées sélectionnées'],
 ]);
 
 it('publishes the chosen Locale\'s Translations, refusing a row without one, a published one and one missing a required Field', function () {

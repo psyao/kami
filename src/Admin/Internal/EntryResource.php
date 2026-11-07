@@ -836,14 +836,14 @@ final class EntryResource extends FilamentResource
      *
      * @param  array<string, mixed>  $data
      */
-    private static function remind(array $data, string $entry): void
+    private static function remind(array $data, string $entryId): void
     {
         foreach (self::type()->flatFields() as $field) {
             $value = $field instanceof RichText && array_key_exists($field->handle, $data) ? $field->normalise($data[$field->handle]) : null;
             $reminders = is_array($value) ? RichTextInput::reminders($field, new Document($value)) : [];
 
             if ($reminders !== []) {
-                Notification::make("kami-reminders-{$entry}-{$field->handle}")->warning()->persistent()
+                Notification::make("kami-reminders-{$entryId}-{$field->handle}")->warning()->persistent()
                     ->title(__('kami::admin.reminders.title', ['field' => self::type()->fieldLabel($field->handle)]))
                     ->body('<ul><li>' . implode('</li><li>', array_map(e(...), $reminders)) . '</li></ul>')
                     ->send();

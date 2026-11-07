@@ -28,7 +28,7 @@ it('trashes an Entry from its row, finds it through the Trash filter, and restor
         ->assertSee('Bonjour')
         // Applying keeps the dropdown open under the pointer: axe would measure the button's hover colours, or the panel mid-fade (#361).
         ->keys('[data-table-filter-action="apply"]', 'Escape');
-    $page->script("() => new Promise((resolve) => { const hidden = () => document.querySelector('[data-table-filter-action=\"apply\"]').checkVisibility() ? requestAnimationFrame(hidden) : resolve(); hidden(); })");
+    $page->script("() => new Promise((resolve, reject) => { const until = Date.now() + 5000; const hidden = () => ! document.querySelector('[data-table-filter-action=\"apply\"]').checkVisibility() ? resolve() : Date.now() > until ? reject(new Error('The filter dropdown is still open after 5 seconds.')) : requestAnimationFrame(hidden); hidden(); })");
 
     $page->assertNoAccessibilityIssues()
         ->click('internal:role=button[name="Restore"s]')
