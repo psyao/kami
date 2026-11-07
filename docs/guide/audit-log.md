@@ -23,6 +23,9 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.users.lockout-refused` | The [lockout guard](users-and-roles.md#the-lockout-guard) refuses a change; the User is subject. Recorded even when the caller's transaction rolls back | `operation`: `revoke` or `delete` |
 | `kami.users.created` | A User is created through Eloquent; the signed-in User is the actor | |
 | `kami.users.deleted` | A User is deleted through Eloquent; the signed-in User is the actor | |
+| `kami.auth.signed-in` | A User signs in on a Kami panel's guard, Laravel's `Login` event, remember-me cookie included; the User is subject and actor | |
+| `kami.auth.sign-in-failed` | A wrong password, or a refused panel, for an existing account on a Kami panel's guard, Laravel's `Failed` event; the User is subject, with no actor. An address with no account records nothing | |
+| `kami.auth.locked-out` | Kami's [sign-in page](security.md#sign-in) refuses the first attempt past a limit in a minute, Laravel's `Lockout` event; no subject, no actor, never the address | `key`: `ip` or `email` |
 | `kami.auth.password-reset` | A User completes a password reset, Laravel's `PasswordReset` event for a `KamiUser`; the User is subject and actor | |
 | `kami.mfa.enabled` | A User sets [MFA](users-and-roles.md#mfa) up through `HasKamiMfa`; the User is subject and actor | |
 | `kami.mfa.disabled` | A User disables MFA through `HasKamiMfa`; the User is subject and actor | |

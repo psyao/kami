@@ -121,6 +121,25 @@ else
 fi
 docker compose exec -T php truncate --no-create --size="$log_size" "$mail_log" || true
 
+# Sign-in throttling (psyao/kami#349) on the starter kit's `file` cache: five wrong passwords for one email from the CLI container, then the right one
+# from the PHP container, another address, refused by the email's limit alone. Each failure and the one lockout land in the Audit log, never the address.
+failures=$(for attempt in 1 2 3 4 5; do docker compose run -T --rm cli php /kami/tests/Smoke/sign-in.php http://apache admin@example.test wrong-password || true; done | sort -u)
+refused=$(docker compose exec -T --workdir /var/www/site php php /kami/tests/Smoke/sign-in.php http://apache admin@example.test smoke-password || true)
+sign_ins=$(docker compose run -T --rm cli php -r '
+    require "vendor/autoload.php";
+    $app = require "bootstrap/app.php";
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    echo Illuminate\Support\Facades\DB::table("kami_audit_events")->where("event", "like", "kami.auth.%")->orderBy("id")->get()
+        ->map(fn ($row) => $row->event . ($row->subject_type ? " " . $row->subject_type : "") . " " . json_encode(json_decode($row->context, true)))->implode(", ");
+' 2>&1 || true)
+expected_sign_ins="$(printf 'kami.auth.sign-in-failed user [], %.0s' 1 2 3 4 5)kami.auth.locked-out {\"key\":\"email\"}"
+if [ "$(wc -l <<<"$failures")" -eq 1 ] && [ -n "$refused" ] && [ "$refused" != "$failures" ] && [ "$sign_ins" = "$expected_sign_ins" ]; then
+    echo "Sign-in: \"$failures\" five times, then \"$refused\" from another address"
+else
+    echo "Sign-in: failures \"$failures\", then \"$refused\", Audit log: $sign_ins"
+    failed=1
+fi
+
 # Rich text renders in pure PHP, on the host's PHP and its extensions: the starter kit declares no RichText yet.
 rich_text=$(docker compose run -T --rm cli php -r '
     require "vendor/autoload.php";

@@ -65,6 +65,16 @@ object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 
 Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` and `X-Frame-Options: DENY`. The admin policy is fixed: the options below change the front only. `kami:doctor` warns when a panel carrying `KamiPlugin` lacks the middleware.
 
+## Sign-in
+
+`KamiPlugin` serves its own sign-in page in place of Filament's, whatever the order of `->login()` and the plugin. Filament limits each IP address to five attempts per minute; Kami's page adds the same limit per email, compared lower-cased, so guessing a password stays slow from many addresses at once. Every attempt counts, a right one too, and so does the MFA code step: a User who signs in with MFA spends two. Past the limit, the page says how many seconds to wait, as Filament's does; a wrong email and a wrong password get the same message.
+
+The counts live in your default cache store, under a hash of the address, never the address itself: the starter kit's `file` store, or `database`, on shared hosting ([Hosting](hosting.md#shared-hosting-and-a-server)). A User may lock their own address for a minute by mistyping, and so may a stranger who knows it: the limit trades that for slow guessing.
+
+The first refused attempt of each minute fires Laravel's `Lockout` event and lands in the [Audit log](audit-log.md) as `kami.auth.locked-out`, naming which limit was hit, never the address; later refusals in the same minute record nothing, so refused requests cannot fill the log. A sign-in and a failed sign-in of an existing account are recorded too; a failure on an address with no account records nothing.
+
+A class of your own, `->login(MyLoginPage::class)`, wins over Kami's. Throttling per email is then yours, and `kami:doctor` warns.
+
 ## Password reset
 
 Enable reset on your panel with `->passwordReset()`, as the starter kit does. `KamiPlugin` then serves its own request page in place of Filament's, whatever the order of the two calls. Filament's page answers an unknown address with "We can't find a user with that email address", which tells a stranger who has an account. Kami's answers every address the same way: known, unknown, or asked for a second link within a minute (`Password::RESET_THROTTLED`), the page says "Check your email" and that a link went out if an account uses the address.

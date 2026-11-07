@@ -77,13 +77,7 @@ function signIn(): mixed
 /** The sign-in page's first step, the email and password; a User with MFA is then asked a code, a manager without it sent to set it up. */
 function signInPassword(mixed $page, string $email): mixed
 {
-    // Filament loads the password field's Alpine component after the page (`x-load`, `x-ignore` until it arrives):
-    // its `wire:model` then resets the field to the empty Livewire state, wiping a password typed before.
-    // The plugin times the script out after 5 seconds, failing here if a component never loads.
-    // ponytail: tied to Filament's `x-load`/`x-ignore` markup; V1 at the latest, when pest-plugin-browser exposes `waitForFunction`
-    // or Filament keeps typed input.
-    $page->script("new Promise(function wait(resolve) { document.querySelector('[x-load][x-ignore]') ? requestAnimationFrame(() => wait(resolve)) : resolve(); })");
-
+    // Typed before the password field's lazy component loads or after, the password is kept (`Browser/SignInTest`, #128).
     return $page
         ->fill('[id="form.email"]', $email)
         ->fill('[id="form.password"]', 'secret-password')

@@ -30,6 +30,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | **Image formats** | AVIF and WebP where GD or Imagick passes Kami's encode test, else JPEG or PNG alone | The same |
 | **Dates** | Kami sets the application's time zone to UTC, whatever the host's default (`Europe/Zurich` on Infomaniak) | The same |
 | **MFA** | Pure-PHP codes and an SVG QR code, no extension beyond Laravel's; the last code accepted and a lock per User kept in the `file` or `database` cache | The same, or Redis |
+| **Sign-in throttling** | Attempts per IP address and per email counted in the `file` or `database` cache, with no daemon | The same, or Redis |
 | **Reset email** | Sent after the response through `defer()`, as PHP-FPM finishes the request first; under `mod_php`, before it | The same under PHP-FPM |
 | **PHP settings** | The web and the command line differ: on Infomaniak, the web has 60 s and 640 MB, the command line no time limit and 1 GB | Your own `php.ini` |
 

@@ -47,7 +47,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedLoginPage: ?string, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
  */
 final readonly class Doctor
 {
@@ -94,6 +94,7 @@ final readonly class Doctor
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
             ...$this->insecureTransport(),
+            ...$this->replacedLoginPages($panels),
             ...$this->replacedResetPages($panels),
             ...$this->mfa($panels),
             ...$this->weakeningOptions(),
@@ -314,6 +315,20 @@ final readonly class Doctor
             "add ->defaultAvatarProvider(InitialsAvatarProvider::class) to the panel {$panel['id']}.",
             'installation.md#installing-and-deploying',
         ), array_filter($panels, fn (array $panel): bool => $panel['remoteAvatars'])));
+    }
+
+    /**
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function replacedLoginPages(array $panels): array
+    {
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
+            Severity::Warning,
+            "The panel {$panel['id']} replaces Kami's sign-in page with {$panel['replacedLoginPage']}: throttling sign-in per email is then yours.",
+            "remove the class from ->login() on the panel {$panel['id']}, or make its page limit attempts per email as well as per IP address.",
+            'security.md#sign-in',
+        ), array_filter($panels, fn (array $panel): bool => $panel['replacedLoginPage'] !== null)));
     }
 
     /**

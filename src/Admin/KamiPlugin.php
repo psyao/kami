@@ -7,6 +7,7 @@ namespace Psyao\Kami\Admin;
 use Closure;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
+use Filament\Auth\Pages\Login as FilamentLogin;
 use Filament\Auth\Pages\PasswordReset\RequestPasswordReset as FilamentRequestPasswordReset;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Contracts\Plugin;
@@ -39,6 +40,7 @@ use LogicException;
 use Psyao\Kami\Admin\Internal\AppAuthentication;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
+use Psyao\Kami\Admin\Internal\Login;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
@@ -168,6 +170,7 @@ final class KamiPlugin implements Plugin
         $registration->onAPanel = true;
         $registration->userName = EntryResource::userName(...);
         EntryResource::relateUsers();
+        $registration->guards[spl_object_id($panel)] = $panel->getAuthGuard(...);
         $registration->panels[spl_object_id($panel)] = fn (): array => [
             'id' => $panel->getId(),
             'guard' => $panel->getAuthGuard(),
@@ -178,7 +181,8 @@ final class KamiPlugin implements Plugin
             'admits' => fn (Authenticatable $user): bool => $user instanceof FilamentUser ? $user->canAccessPanel($panel) : config('app.env') === 'local',
             // A panel does not run the `web` group, so it needs `SecurityHeaders` of its own (ADR 0018).
             'middleware' => array_values(array_filter($panel->getMiddleware(), is_string(...))),
-            'replacedResetPage' => $this->replacedResetPage($panel),
+            'replacedLoginPage' => $this->replacedPage($panel->hasLogin(), $panel->getLoginRouteAction(), [FilamentLogin::class, Login::class]),
+            'replacedResetPage' => $this->replacedPage($panel->hasPasswordReset(), $panel->getRequestPasswordResetRouteAction(), [FilamentRequestPasswordReset::class, RequestPasswordReset::class]),
             'setPasswordLink' => $panel->hasPasswordReset() ? fn (CanResetPassword $user): array => SetPasswordLink::make($panel, $user) : null,
             // A provider or requirement set after the plugin replaces Kami's, and with it the rule for Users who may manage Users (ADR 0014).
             'requiresKamiMfa' => $panel->isMultiFactorAuthenticationRequired() && array_any($panel->getMultiFactorAuthenticationProviders(), fn (object $provider): bool => $provider instanceof AppAuthentication),
@@ -227,10 +231,14 @@ final class KamiPlugin implements Plugin
             $panel->profile();
         }
 
-        // Kami's reset request page in place of Filament's, unless the host set its own: this runs mid-chain, before a later `->passwordReset()`,
-        // and `boot()` after the routes, so the swap waits for the panel's route callbacks, which Filament runs just before reading the page's class.
-        $panel->livewireComponents([RequestPasswordReset::class]);
+        // Kami's sign-in and reset request pages in place of Filament's, unless the host set its own: this runs mid-chain, before a later `->login()`
+        // or `->passwordReset()`, and `boot()` after the routes, so the swap waits for the panel's route callbacks, which Filament runs just before reading the pages' classes.
+        $panel->livewireComponents([Login::class, RequestPasswordReset::class]);
         $panel->routes(function (Panel $panel): void {
+            if ($panel->getLoginRouteAction() === FilamentLogin::class) {
+                $panel->login(Login::class);
+            }
+
             if ($panel->getRequestPasswordResetRouteAction() === FilamentRequestPasswordReset::class) {
                 $panel->passwordReset(RequestPasswordReset::class, $panel->getResetPasswordRouteAction());
             }
@@ -265,13 +273,16 @@ final class KamiPlugin implements Plugin
         }
     }
 
-    /** The host's own reset request page, `null` while Kami's serves or the panel offers none. */
-    private function replacedResetPage(Panel $panel): ?string
+    /**
+     * The host's own page, `null` while Kami's serves or the panel offers none.
+     *
+     * @param  string|Closure|array<mixed>|null  $page  The panel's route action for the page.
+     * @param  list<class-string>  $servedByKami  Filament's page and Kami's, which the route callback swaps it for.
+     */
+    private function replacedPage(bool $offered, string | Closure | array | null $page, array $servedByKami): ?string
     {
-        $page = $panel->getRequestPasswordResetRouteAction();
-
         // Filament's own page counts as Kami's: the route callback swaps it, and a cached route table keeps the swap.
-        if (! $panel->hasPasswordReset() || in_array($page, [FilamentRequestPasswordReset::class, RequestPasswordReset::class], true)) {
+        if (! $offered || in_array($page, $servedByKami, true)) {
             return null;
         }
 

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Psyao\Kami;
 
+use Closure;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Database\Eloquent\Model;
@@ -83,6 +87,30 @@ final class KamiServiceProvider extends PackageServiceProvider
         Event::listen(PasswordReset::class, function (PasswordReset $event): void {
             if ($event->user instanceof KamiUser && $event->user instanceof Model) {
                 resolve(RecordAuditEvent::class)->handle('kami.auth.password-reset', $event->user, actor: $event->user);
+            }
+        });
+
+        // The event's Kami User when it signs in on a Kami panel's guard; another guard, a front's for instance, is the host's own.
+        $kamiUser = fn (Login | Failed $event): ?Model => $event->user instanceof KamiUser && $event->user instanceof Model
+            && array_any(resolve(PluginRegistration::class)->guards, fn (Closure $guard): bool => $guard() === $event->guard) ? $event->user : null;
+
+        Event::listen(Login::class, function (Login $event) use ($kamiUser): void {
+            if (($user = $kamiUser($event)) instanceof Model) {
+                resolve(RecordAuditEvent::class)->handle('kami.auth.signed-in', $user, actor: $event->user);
+            }
+        });
+
+        // An existing account only, with no actor: whoever typed the password is unknown. An unknown address records nothing, and the credentials never.
+        Event::listen(Failed::class, function (Failed $event) use ($kamiUser): void {
+            if (($user = $kamiUser($event)) instanceof Model) {
+                resolve(RecordAuditEvent::class)->handle('kami.auth.sign-in-failed', $user);
+            }
+        });
+
+        // Laravel's event carries no guard: the core records the lockouts Kami's sign-in page fires, which name the throttled key's kind, never the email.
+        Event::listen(Lockout::class, function (Lockout $event): void {
+            if (is_string($key = $event->request->attributes->get('kami.throttled'))) {
+                resolve(RecordAuditEvent::class)->handle('kami.auth.locked-out', context: ['key' => $key]);
             }
         });
     }
