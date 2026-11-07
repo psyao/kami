@@ -654,7 +654,7 @@ final class EntryResource extends FilamentResource
 
         return $picker
             ->createOptionForm([TextInput::make('title')->label(__('kami::admin.fields.title'))->required()])
-            // Offering a link takes `view`: a User never creates a target they would then see as restricted.
+            // Offering a link takes `view` (`viewAny` without a record): a User never creates a target they would then see as restricted.
             ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => $allows('create') && $allows('viewAny'))
                 // Named, as a form may hold several pickers (WCAG 2.4.6).
                 ->label($label)
@@ -767,7 +767,7 @@ final class EntryResource extends FilamentResource
 
         return array_values(array_filter(
             array_map(fn (ContentType $type): string => $type->handle(), resolve(ContentTypes::class)->all()),
-            fn (string $type): bool => $gate->allows("kami.entries.{$type}.view"),
+            fn (string $type): bool => $gate->allows('viewAny', [Entry::class, $type]),
         ));
     }
 

@@ -1432,6 +1432,14 @@ describe('a target type the User may not view', function () {
         expect(entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->get('data.related'))->toBe([]);
     });
 
+    it('accepts an id of it sent by the client, its title never shown', function () {
+        $other = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Secret', 'status' => 'draft'], locale: 'fr');
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->set('data.related', [$this->hello->id, $other->id])->call('save')->assertHasNoErrors();
+
+        expect(entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->get('data.related'))->toBe([$this->hello->id, $other->id]);
+    });
+
     it('still refuses an id no Entry has', function () {
         entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
             ->set('data.related', ['01JAAAAAAAAAAAAAAAAAAAAAAA'])
