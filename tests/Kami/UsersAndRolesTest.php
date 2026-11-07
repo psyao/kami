@@ -5,11 +5,15 @@ declare(strict_types=1);
 use Illuminate\Foundation\Auth\User as PlainUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Psyao\Kami\Users\Actions\AssignRoles;
+use Psyao\Kami\Users\Events\RolesAssigned;
 use Workbench\App\Content\Article;
 use Workbench\App\Models\User;
 
@@ -105,7 +109,7 @@ it('reads a User\'s Roles once', function () {
 });
 
 it('drops a User\'s assignments with the User', function () {
-    $user = userWithRoles('administrator');
+    $user = userWithRoles('editor');
 
     $user->delete();
 
@@ -172,4 +176,175 @@ it('says nothing of Users the panel turns away', function () {
     userWithRoles();
 
     expect((new Doctor)->problems())->toBeEmpty();
+});
+
+/**
+ * The Audit events about Users and their Roles, as event, subject id, acting User id and context.
+ *
+ * @return list<array{string, string|null, string|null, array<string, mixed>}>
+ */
+function userEvents(string ...$except): array
+{
+    return array_values(array_map(
+        fn (array $event): array => [$event['event'], $event['subject_id'], $event['user_id'] === null ? null : (string) $event['user_id'], $event['context']],
+        array_filter(auditEvents(), fn (array $event): bool => preg_match('/^kami\.(roles|users)\./', (string) $event['event']) === 1 && ! in_array($event['event'], $except, true)),
+    ));
+}
+
+describe('AssignRoles', function (): void {
+    it('gives the User exactly the Roles listed, recording each one granted or revoked', function (): void {
+        declareRole('translator', 'kami.entries.*.view');
+        $admin = userWithRoles('administrator');
+        $user = userWithRoles('editor');
+        $user->kamiRoles();
+
+        Event::fake(RolesAssigned::class);
+
+        resolve(AssignRoles::class)->handle($user, ['translator', 'administrator', 'translator'], $admin);
+
+        Event::assertDispatchedTimes(RolesAssigned::class);
+        Event::assertDispatched(fn (RolesAssigned $event): bool => $event->user->is($user) && $event->granted === ['translator', 'administrator'] && $event->revoked === ['editor'] && $event->actor === $admin);
+        expect($user->kamiRoles())->toEqualCanonicalizing(['translator', 'administrator'])
+            ->and(userEvents('kami.users.created'))->toEqualCanonicalizing([
+                ['kami.roles.granted', (string) $user->id, (string) $admin->id, ['role' => 'translator']],
+                ['kami.roles.granted', (string) $user->id, (string) $admin->id, ['role' => 'administrator']],
+                ['kami.roles.revoked', (string) $user->id, (string) $admin->id, ['role' => 'editor']],
+            ]);
+    });
+
+    it('records nothing when the User already holds exactly these Roles', function (): void {
+        $user = userWithRoles('editor');
+
+        Event::fake(RolesAssigned::class);
+
+        resolve(AssignRoles::class)->handle($user, ['editor']);
+
+        Event::assertNotDispatched(RolesAssigned::class);
+        expect(userEvents('kami.users.created'))->toBe([]);
+    });
+
+    it('refuses an undeclared Role, changing nothing', function (): void {
+        $user = userWithRoles('editor');
+
+        expect(fn () => resolve(AssignRoles::class)->handle($user, ['administrator', 'edtior']))
+            ->toThrow(ValidationException::class, 'edtior');
+
+        expect($user->fresh()->kamiRoles())->toBe(['editor'])
+            ->and(userEvents('kami.users.created'))->toBe([]);
+    });
+
+    it('keeps an undeclared Role the User already holds', function (): void {
+        $user = userWithRoles('retired');
+
+        resolve(AssignRoles::class)->handle($user, ['retired', 'editor']);
+
+        expect($user->kamiRoles())->toEqualCanonicalizing(['retired', 'editor']);
+    });
+
+    it('refuses to take kami.users.manage from its last holder, recording the refusal', function (): void {
+        $admin = userWithRoles('administrator');
+
+        expect(fn () => resolve(AssignRoles::class)->handle($admin, ['editor'], $admin))
+            ->toThrow(ValidationException::class, 'last User who may manage Users');
+
+        expect($admin->fresh()->kamiRoles())->toBe(['administrator'])
+            ->and(userEvents('kami.users.created'))->toBe([['kami.users.lockout-refused', (string) $admin->id, (string) $admin->id, ['operation' => 'revoke']]]);
+    });
+
+    it('takes kami.users.manage from a User while another holds it, through any Role', function (): void {
+        declareRole('user-manager', 'kami.users.manage');
+        $admin = userWithRoles('administrator');
+        userWithRoles('user-manager');
+
+        resolve(AssignRoles::class)->handle($admin, ['editor']);
+
+        expect($admin->fresh()->kamiRoles())->toBe(['editor']);
+    });
+
+    it('gives a Role without kami.users.manage while nobody holds it yet, as a seeder before kami:install does', function (): void {
+        $user = userWithRoles();
+
+        resolve(AssignRoles::class)->handle($user, ['editor']);
+
+        expect($user->fresh()->kamiRoles())->toBe(['editor']);
+    });
+
+    it('keeps the refusal recorded when the caller rolls its own transaction back', function (): void {
+        $admin = userWithRoles('administrator');
+
+        try {
+            DB::transaction(fn () => resolve(AssignRoles::class)->handle($admin, []));
+        } catch (ValidationException) {
+        }
+
+        expect(userEvents('kami.users.created'))->toHaveCount(1);
+    });
+});
+
+describe('HasKamiRoles', function (): void {
+    it('records a User created and deleted, with the signed-in User', function (): void {
+        $admin = userWithRoles('administrator');
+        $this->actingAs($admin);
+
+        $user = userWithRoles('editor');
+        $id = (string) $user->id;
+        $user->delete();
+
+        expect(userEvents())->toBe([
+            ['kami.users.created', (string) $admin->id, null, []],
+            ['kami.users.created', $id, (string) $admin->id, []],
+            ['kami.users.deleted', $id, (string) $admin->id, []],
+        ]);
+    });
+
+    it('refuses to delete the last User who may manage Users, recording the refusal', function (): void {
+        $admin = userWithRoles('administrator');
+
+        expect(fn () => $admin->delete())->toThrow(ValidationException::class, 'cannot be deleted');
+
+        expect(User::query()->whereKey($admin->id)->exists())->toBeTrue()
+            ->and(userEvents('kami.users.created'))->toBe([['kami.users.lockout-refused', (string) $admin->id, null, ['operation' => 'delete']]]);
+    });
+});
+
+describe('kami:user:grant', function (): void {
+    it('gives the Role to the User stored under any spelling of the email, keeping their other Roles', function (): void {
+        $user = userWithRoles('editor');
+        $user->forceFill(['email' => 'Grace@Example.test'])->save();
+        declareRole('translator', 'kami.entries.*.view');
+
+        $this->artisan('kami:user:grant', ['email' => 'grace@example.TEST', 'role' => 'translator'])
+            ->expectsOutputToContain('Grace@Example.test now holds the translator Role.')
+            ->assertSuccessful();
+
+        expect($user->fresh()->kamiRoles())->toEqualCanonicalizing(['editor', 'translator'])
+            ->and(userEvents('kami.users.created'))->toBe([['kami.roles.granted', (string) $user->id, null, ['role' => 'translator']]])
+            ->and(auditEvents()[array_key_last(auditEvents())]['actor'])->toBe('cli');
+    });
+
+    it('changes nothing for a Role the User already holds', function (): void {
+        $user = userWithRoles('editor');
+
+        $this->artisan('kami:user:grant', ['email' => $user->email, 'role' => 'editor'])
+            ->expectsOutputToContain('already holds the editor Role')
+            ->assertSuccessful();
+
+        expect(userEvents('kami.users.created'))->toBe([]);
+    });
+
+    // Several stored spellings: tests/Install, whose database may drop the unique index MySQL's collation enforces.
+    it('refuses, changing nothing, an email no User has and an undeclared Role', function (string $email, string $role, string $message): void {
+        userWithRoles()->forceFill(['email' => 'ada@example.test'])->save();
+
+        $this->artisan('kami:user:grant', ['email' => $email, 'role' => $role])
+            ->expectsOutputToContain($message)
+            ->assertFailed();
+
+        expect(DB::table('kami_role_user')->count())->toBe(0)
+            ->and(User::query()->count())->toBe(1);
+    })->with([
+        'unknown email' => ['nobody@example.test', 'editor', 'No User has the email nobody@example.test.'],
+        'not an email' => ['nobody', 'editor', 'must be a valid email address'],
+        'undeclared Role' => ['ada@example.test', 'edtior', 'No Role is declared as edtior'],
+    ]);
 });

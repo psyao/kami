@@ -28,7 +28,8 @@ uses(RefreshDatabase::class);
 
 function sharer(string $role = 'administrator'): User
 {
-    $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
+    // Without model events: the User's own `kami.users.created` row is not what this file reads.
+    $user = User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
 
     return $user;

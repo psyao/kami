@@ -239,6 +239,14 @@ class Psyao\Kami\Schema\ContentMigrator::renameField() public static function re
 class Psyao\Kami\Schema\ContentMigrator::renameType() public static function renameType(string $from, string $to): void
 class Psyao\Kami\Support\SecurityHeaders final class
 class Psyao\Kami\Support\SecurityHeaders::handle() public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response
+class Psyao\Kami\Users\Actions\AssignRoles final class
+class Psyao\Kami\Users\Actions\AssignRoles::handle() public function handle(Illuminate\Database\Eloquent\Model&Psyao\Kami\Users\KamiUser $user, array $roles, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Users\Events\RolesAssigned final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Users\Events\RolesAssigned::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Users\Events\RolesAssigned::$granted public protected(set) readonly array $granted
+class Psyao\Kami\Users\Events\RolesAssigned::$revoked public protected(set) readonly array $revoked
+class Psyao\Kami\Users\Events\RolesAssigned::$user public protected(set) readonly Illuminate\Database\Eloquent\Model&Psyao\Kami\Users\KamiUser $user
+class Psyao\Kami\Users\Events\RolesAssigned::__construct() public function __construct(Illuminate\Database\Eloquent\Model&Psyao\Kami\Users\KamiUser $user, array $granted, array $revoked, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Users\HasKamiRoles trait
 class Psyao\Kami\Users\HasKamiRoles::kamiRoles() public function kamiRoles(): array
 class Psyao\Kami\Users\KamiUser interface
@@ -259,6 +267,9 @@ command kami:media:prune
 command kami:media:warm
 command kami:media:warm --entry [--entry [ENTRY]]
 command kami:media:warm --preset [--preset [PRESET]]
+command kami:user:grant
+command kami:user:grant email <email>
+command kami:user:grant role <role>
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::preview-banner
 config kami.media.avif

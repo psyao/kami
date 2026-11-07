@@ -24,6 +24,7 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 use Psyao\Kami\Support\Internal\Install\InstallCommand;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\SecurityHeaders;
+use Psyao\Kami\Users\Internal\GrantRoleCommand;
 use Psyao\Kami\Users\Internal\Permissions;
 use Psyao\Kami\Users\KamiUser;
 use Spatie\LaravelPackageTools\Package;
@@ -39,7 +40,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasTranslations()
             ->hasViews()
             // ponytail: `kami:media:prune` runs when an operator starts it; M8's Tick schedules it weekly.
-            ->hasCommands([DoctorCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneMediaCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneMediaCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void

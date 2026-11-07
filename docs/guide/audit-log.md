@@ -4,7 +4,7 @@ Kami records security-sensitive actions in its own table, `kami_audit_events`: w
 
 ## What is recorded
 
-Each core action writes its row inside its own transaction, so a rolled back action leaves none, and a recorded one really happened. An action that refuses, with a `ValidationException` for instance, records nothing.
+Each core action writes its row inside its own transaction, so a rolled back action leaves none, and a recorded one really happened. An action that refuses, with a `ValidationException` for instance, records nothing, but for the lockout guard's refusal, which is the event.
 
 | Event | When | Context |
 | --- | --- | --- |
@@ -18,6 +18,11 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.preview-links.revoked` | A Preview link is revoked | `entry`, `locale`, `expires_at` |
 | `kami.media.deleted` | `DeleteMedia` | `name` |
 | `kami.content.migrated` | Each `ContentMigrator` operation | `operation` and its arguments |
+| `kami.roles.granted` | `AssignRoles` gives a User a Role; the User is subject | `role` |
+| `kami.roles.revoked` | `AssignRoles` takes a Role from a User; the User is subject | `role` |
+| `kami.users.lockout-refused` | The [lockout guard](users-and-roles.md#the-lockout-guard) refuses a change; the User is subject. Recorded even when the caller's transaction rolls back | `operation`: `revoke` or `delete` |
+| `kami.users.created` | A User is created through Eloquent; the signed-in User is the actor | |
+| `kami.users.deleted` | A User is deleted through Eloquent; the signed-in User is the actor | |
 | `kami.auth.password-reset` | A User completes a password reset, Laravel's `PasswordReset` event for a `KamiUser`; the User is subject and actor | |
 
 A bulk action in the admin records one event per row, as each row's own action does.
@@ -39,7 +44,7 @@ Each row holds:
 - A Preview link deleted with its Translation (`DeleteTranslation`) or its Entry (`DeleteEntry`): the deletion itself is the event.
 - Content: no title, no body, no diff. Revisions are a V1 feature.
 - A `ContentMigrator` operation in a site migration older than Kami's `kami_audit_events` table: on a fresh `migrate` it runs before the table exists.
-- Writes that bypass the core actions, with the query builder or Eloquent directly. Every write goes through a core action (ADR 0011).
+- Writes that bypass the core actions, with the query builder or Eloquent directly. Every write goes through a core action (ADR 0011). Users are the host's: their creation and deletion are recorded by `HasKamiRoles`' model hooks, which a query-builder write skips.
 
 Recording is part of the actions, not a listener of Kami's Content events, so a site cannot unregister it by accident.
 

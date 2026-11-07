@@ -49,7 +49,8 @@ function temporaryPath(): string
 /** The admin's dashboard, signed in as an administrator. Filament's theme drops its transitions under reduced motion, so axe never measures a notification mid-fade. */
 function signIn(): mixed
 {
-    $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')]);
+    // Without model events: a fixture, whose own `kami.users.created` row no test reads.
+    $user = User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => 'ada@example.test', 'password' => Hash::make('secret-password')]));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
 
     $page = visit('/admin/login', ['reducedMotion' => 'reduce']);
@@ -76,7 +77,8 @@ function signInWith(string | array $role = 'administrator'): User
         $role = 'custom';
     }
 
-    $user = User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
+    // Without model events: a fixture, whose own `kami.users.created` row no test reads.
+    $user = User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
     config(['app.env' => 'local']);
     test()->actingAs($user);
@@ -206,4 +208,22 @@ function publicClasses(): Collection
 function uploadedFixture(string $fixture, ?string $name = null): UploadedFile
 {
     return UploadedFile::fake()->createWithContent($name ?? basename($fixture), (string) file_get_contents(fixture("media/{$fixture}")));
+}
+
+/**
+ * The Audit log's rows, oldest first, as a site's own query would read them. Contexts by key: MySQL's JSON keeps no order.
+ *
+ * @return list<array<string, mixed>>
+ */
+function auditEvents(): array
+{
+    return DB::table('kami_audit_events')->orderBy('occurred_at')->orderBy('id')->get()
+        ->map(function (object $row): array {
+            /** @var array<string, mixed> $context */
+            $context = json_decode((string) $row->context, true);
+            ksort($context);
+
+            return [...(array) $row, 'context' => $context];
+        })
+        ->all();
 }

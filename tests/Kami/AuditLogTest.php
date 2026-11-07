@@ -28,27 +28,10 @@ use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
 
-/**
- * The Audit log's rows, oldest first, as a site's own query would read them. Contexts by key: MySQL's JSON keeps no order.
- *
- * @return list<array<string, mixed>>
- */
-function auditEvents(): array
-{
-    return DB::table('kami_audit_events')->orderBy('occurred_at')->orderBy('id')->get()
-        ->map(function (object $row): array {
-            /** @var array<string, mixed> $context */
-            $context = json_decode((string) $row->context, true);
-            ksort($context);
-
-            return [...(array) $row, 'context' => $context];
-        })
-        ->all();
-}
-
 function auditUser(): User
 {
-    return User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']);
+    // Without model events: the User's own `kami.users.created` row is not what this file reads.
+    return User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
 }
 
 it('records a site’s own event with its User, subject and context', function (): void {

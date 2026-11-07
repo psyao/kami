@@ -21,6 +21,8 @@ Until it does, `kami:install` stops before changing anything, and `kami:doctor` 
 
 A User's Roles are its rows in `kami_role_user`, which follow the User when it is deleted. `$user->kamiRoles()` lists their handles, read once per model instance.
 
+`HasKamiRoles` also adds model hooks to your User: creating or deleting a User through Eloquent records it in the [Audit log](audit-log.md), and deleting the last User who may manage Users is refused ([The lockout guard](#the-lockout-guard)). A query-builder delete, such as `User::query()->where(...)->delete()`, skips them, as it skips every Eloquent event: it records nothing and is not guarded. Until `kami:install` has created the Audit log's table, the hooks do nothing.
+
 ## Roles
 
 `config/kami.php` declares the Roles, each with the Permissions it grants:
@@ -35,11 +37,46 @@ A User's Roles are its rows in `kami_role_user`, which follow the User when it i
 
 Roles are edited in code and deployed, never in the admin.
 
+## Giving Roles
+
+Every change to a User's Roles goes through the `AssignRoles` action, whoever makes it: the admin, `kami:install`, `kami:user:grant` or your own code, a seeder for instance. It takes the full list of Roles the User should hold, so a Role left out is revoked:
+
+```php
+use Psyao\Kami\Users\Actions\AssignRoles;
+
+resolve(AssignRoles::class)->handle($user, ['editor'], actor: auth()->user());
+```
+
+It runs in one transaction and records each Role granted or revoked in the [Audit log](audit-log.md). Once the change commits, it dispatches `Psyao\Kami\Users\Events\RolesAssigned`, with `user`, the `granted` and `revoked` handles and `actor`; a call that changes nothing dispatches nothing (ADR 0029). It refuses, with a `ValidationException` on `roles` and changing nothing:
+
+- a Role to grant that `config/kami.php` does not declare, so a typo never grants nothing silently. A Role the User already holds may stay undeclared;
+- a change the [lockout guard](#the-lockout-guard) refuses.
+
+Like Kami's other actions, it does not authorise: code calling it from a request checks `kami.users.manage` first. There is no rule against escalation: a User who may manage Users may give any Role, `administrator` included.
+
+Writing to `kami_role_user` yourself skips the guard and the Audit log. Shared hosting and a server behave the same: one transaction, nothing waiting on a process.
+
+## The lockout guard
+
+The last User who may manage Users neither loses `kami.users.manage` nor is deleted, so a site never locks itself out of its admin. `AssignRoles` refuses the change and the User's `deleting` hook refuses the deletion, each with a message saying why, and records `kami.users.lockout-refused`. Give `kami.users.manage` to another User first.
+
+The guard only refuses a change that would take the right from its last holder: while nobody holds it yet, before `kami:install` for instance, a seeder may give `editor` to a User or delete one. Inside a transaction, the holders' rows stay locked until it ends, so two Users cannot take the right from each other at once. `AssignRoles` opens its own; `$user->delete()` opens none, so delete a User inside `DB::transaction()` to keep two deletions of the last two managers from both passing.
+
+## From the command line
+
+`kami:user:grant` gives a Role to an existing User, to rescue a site nobody can manage any more:
+
+```bash
+php artisan kami:user:grant ada@example.com administrator
+```
+
+It finds the User by email as `kami:install` does: case-insensitively, and several Users matching the address make it fail. It never creates a User, and refuses an unknown email and an undeclared Role. It takes no password. The grant goes through `AssignRoles` and is recorded with the actor `cli`. There is no command to revoke a Role: revoking is not a rescue, and the admin does it.
+
 `kami:doctor` warns about assignments whose handle `config/kami.php` does not declare: such a Role grants nothing. Declare it again, or delete its rows from `kami_role_user`.
 
 ## The first administrator
 
-While no User holds a Role that grants `kami.users.manage`, `kami:install` gives the `administrator` Role to the User whose email you give it, after a confirmation in a terminal, or creates that User from the email, name and password you give it, or prints a one-time link for them to set the password ([Installation](installation.md#the-first-user)). No Audit log row records the grant yet, only the command's output. A new User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has. The email is compared case-insensitively, and several Users matching it make the command fail; sign-in stays your application's, case-sensitive on SQLite and PostgreSQL.
+While no User holds a Role that grants `kami.users.manage`, `kami:install` gives the `administrator` Role to the User whose email you give it, after a confirmation in a terminal, or creates that User from the email, name and password you give it, or prints a one-time link for them to set the password ([Installation](installation.md#the-first-user)). The grant goes through `AssignRoles` and is recorded in the Audit log with the actor `cli`. A new User is created with your `auth.providers.users.model`, which needs `email`, `name` and `password` columns, as Laravel's has. The email is compared case-insensitively, and several Users matching it make the command fail; sign-in stays your application's, case-sensitive on SQLite and PostgreSQL.
 
 ## Permissions
 

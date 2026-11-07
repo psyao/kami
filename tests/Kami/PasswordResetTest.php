@@ -32,7 +32,8 @@ function resetRequestPage(): Testable
 
 function resetUser(): User
 {
-    return User::forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => Hash::make('secret-password')]);
+    // Without model events: the User's own `kami.users.created` row is not what this file reads.
+    return User::withoutEvents(fn () => User::forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => Hash::make('secret-password')]));
 }
 
 it('answers a known, an unknown and a throttled address the same way', function (string $email, int $earlier, int $links) {
