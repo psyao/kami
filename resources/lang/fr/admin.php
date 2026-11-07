@@ -93,6 +93,8 @@ return [
 
     'titles' => [
         'more' => ':titles et :count autres',
+        'restricted' => '{1} :count Entry à accès restreint|[2,*] :count Entries à accès restreint',
+        'and_restricted' => ':titles et :restricted',
         'trashed' => ':title (dans la corbeille)',
     ],
 

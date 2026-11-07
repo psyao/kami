@@ -93,6 +93,8 @@ return [
 
     'titles' => [
         'more' => ':titles and :count more',
+        'restricted' => '{1} :count restricted Entry|[2,*] :count restricted Entries',
+        'and_restricted' => ':titles and :restricted',
         'trashed' => ':title (in the Trash)',
     ],
 

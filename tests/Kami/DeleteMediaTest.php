@@ -49,6 +49,16 @@ it('names a single Entry in the singular', function (): void {
         ->toThrow(ValidationException::class, 'An Entry uses this item: Kami. Remove it from that Entry, or delete the Entry for good if it is in the Trash, first.');
 });
 
+it('counts, with no title, the Entries of types the actor may not view', function (): void {
+    $media = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'));
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $media->id], locale: 'fr');
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Velox', 'gallery' => [$media->id]], locale: 'fr');
+    $librarian = signInWith(['kami.media.view', 'kami.media.delete']);
+
+    expect(fn () => resolve(DeleteMedia::class)->handle($media, $librarian))
+        ->toThrow(ValidationException::class, 'Entries use this item: 2 restricted Entries. Remove it from them');
+});
+
 it('deletes an unused Media item for good: its row, Translations, original and every file served', function (): void {
     Storage::fake('originals');
     config(['kami.media.originals_disk' => 'originals']);

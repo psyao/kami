@@ -146,12 +146,13 @@ final class MediaResource extends FilamentResource
     }
 
     /**
-     * The first Entries using it, then how many more, each linked to its edit page. One in the Trash, of a type the User cannot open,
-     * or of a type no longer declared has no page to link to, and is named only: its title is in `DeleteMedia`'s refusal anyway.
+     * The first Entries using it, then how many more, each linked to its edit page; one in the Trash has no page to link to, and is named only.
+     * Those of types the User may not view, a type no longer declared included, are counted last, with no title (ADR 0014).
      */
     private static function usedBy(Media $media): HtmlString
     {
         $sources = References::mediaSources($media->id);
+        $restricted = EntryTitles::withoutRestricted($sources, Filament::auth()->user());
         $count = $sources->count();
         $linkable = EntryResource::accessibleTypes();
 
@@ -164,8 +165,9 @@ final class MediaResource extends FilamentResource
         });
 
         $more = $count > self::USED_BY_SHOWN ? '<li>' . e(__('kami::admin.media.used_by.more', ['count' => $count - self::USED_BY_SHOWN])) . '</li>' : '';
+        $more .= $restricted === '' ? '' : '<li>' . e($restricted) . '</li>';
 
-        return new HtmlString($items->isEmpty() ? e(__('kami::admin.media.used_by.none')) : "<ul>{$items->implode('')}{$more}</ul>");
+        return new HtmlString($items->isEmpty() && $more === '' ? e(__('kami::admin.media.used_by.none')) : "<ul>{$items->implode('')}{$more}</ul>");
     }
 
     public static function table(Table $table): Table

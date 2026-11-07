@@ -81,7 +81,7 @@ The new file goes through the same checks as an upload, and must be of the same 
 app(DeleteMedia::class)->handle($media, actor: $request->user());
 ```
 
-It refuses while any Entry uses the item through a [Media Field](content-types.md#media), an Entry in the Trash too: the `ValidationException` is on `media`, and its message names those Entries, marking the ones in the Trash. Remove the item from them, or delete those in the Trash for good, then delete it. The files go once the deletion is committed, at once rather than at the next `kami:media:prune`, so nothing of the item stays served; a transaction rolled back around it keeps them.
+It refuses while any Entry uses the item through a [Media Field](content-types.md#media), an Entry in the Trash too: the `ValidationException` is on `media`, and its message names those Entries, marking the ones in the Trash. Given an actor, it counts those of types the actor may not view rather than naming them; with none, from the CLI or an import, it names them all. Remove the item from them, or delete those in the Trash for good, then delete it. The files go once the deletion is committed, at once rather than at the next `kami:media:prune`, so nothing of the item stays served; a transaction rolled back around it keeps them.
 
 ## The library in the admin
 
@@ -112,7 +112,7 @@ Saving an image in the default Locale requires its alt text, unless it is marked
 
 **Replace file** takes a new file of the same family through `SaveMedia` ([Replacing a file](#replacing-a-file)). The form states the upload limit, and a file of another family is refused with its reason. The new `admin-thumb` is generated once the response is sent.
 
-**Used by** lists the first 50 Entries using the item, then how many more, each linked to its edit page. One in the Trash is marked; it, and one of a type the editor cannot open, are named without a link. **Delete**, under `kami.media.delete`, goes through `DeleteMedia` ([Deleting a Media item](#deleting-a-media-item)): an item in use is refused on a message naming its Entries.
+**Used by** lists the first 50 Entries using the item, then how many more, each linked to its edit page. One in the Trash is marked and named without a link. Those of types the editor may not view, a type no longer declared included, are counted last, with no title. **Delete**, under `kami.media.delete`, goes through `DeleteMedia` ([Deleting a Media item](#deleting-a-media-item)): an item in use is refused on a message naming its Entries, and counting those the editor may not view.
 
 ## Reading Media
 

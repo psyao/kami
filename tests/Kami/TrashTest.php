@@ -242,6 +242,27 @@ it('warns of what uses the Entry before trashing it', function () {
         ->assertMountedActionModalDontSee('Used by');
 });
 
+it('counts, with no title, what uses the Entry among types the User may not view', function () {
+    $article = published('Bonjour');
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Quai', 'related' => [$article->id]]);
+    $hidden = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Phare', 'related' => [$article->id]]);
+    // A type the Role does not grant `view` on: the Workbench declares no other type linking to an Article.
+    DB::table('kami_entries')->where('id', $hidden->id)->update(['type' => 'retired']);
+
+    entriesPage(ListEntries::class, ['kami.entries.article.view', 'kami.entries.article.delete', 'kami.entries.project.view'])
+        ->mountAction(TestAction::make('delete')->table($article))
+        ->assertMountedActionModalSee('Used by Quai and 1 restricted Entry:')
+        ->assertMountedActionModalDontSee('Phare');
+
+    // Both Drafts, of a declared type the Role does not grant `view` on.
+    DB::table('kami_entries')->where('id', $hidden->id)->update(['type' => 'project']);
+    entriesPage(ListEntries::class, ['kami.entries.article.view', 'kami.entries.article.delete'])
+        ->mountAction(TestAction::make('delete')->table($article))
+        ->assertMountedActionModalSee('Used by 2 restricted Entries:')
+        ->assertMountedActionModalDontSee('Quai')
+        ->assertMountedActionModalDontSee('Phare');
+});
+
 it('shows a refusal on a notification, and trashes nothing', function () {
     $parent = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Parent']);
     resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Kept', 'parent' => $parent->id]);
