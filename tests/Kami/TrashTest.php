@@ -253,6 +253,14 @@ it('counts, with no title, what uses the Entry among types the User may not view
         ->mountAction(TestAction::make('delete')->table($article))
         ->assertMountedActionModalSee('Used by Quai and 1 restricted Entry:')
         ->assertMountedActionModalDontSee('Phare');
+
+    // Both Drafts, of a declared type the Role does not grant `view` on.
+    DB::table('kami_entries')->where('id', $hidden->id)->update(['type' => 'project']);
+    entriesPage(ListEntries::class, ['kami.entries.article.view', 'kami.entries.article.delete'])
+        ->mountAction(TestAction::make('delete')->table($article))
+        ->assertMountedActionModalSee('Used by 2 restricted Entries:')
+        ->assertMountedActionModalDontSee('Quai')
+        ->assertMountedActionModalDontSee('Phare');
 });
 
 it('shows a refusal on a notification, and trashes nothing', function () {

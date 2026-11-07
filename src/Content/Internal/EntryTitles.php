@@ -39,9 +39,8 @@ final class EntryTitles
      */
     public static function listFor(Builder $entries, ?Authenticatable $reader): string
     {
-        $hidden = self::hiddenTypes($entries, $reader);
-        $restricted = self::restricted($entries, $hidden);
-        $titles = self::list($entries->whereNotIn('type', $hidden));
+        $restricted = self::withoutRestricted($entries, $reader);
+        $titles = self::list($entries);
 
         return match (true) {
             $restricted === '' => $titles,
@@ -51,34 +50,28 @@ final class EntryTitles
     }
 
     /**
-     * "2 restricted Entries", or '' when none is.
+     * Narrows the query to the types the reader may view, and counts what it left out: "2 restricted Entries", or '' when none is.
+     * With no reader, the CLI or an import, it leaves the query whole.
      *
-     * @param  Builder<Entry>  $entries
-     * @param  list<string>  $hidden
+     * @param  Builder<Entry>  $entries  Narrowed in place.
      */
-    public static function restricted(Builder $entries, array $hidden): string
-    {
-        $count = $hidden === [] ? 0 : $entries->clone()->whereIn('type', $hidden)->count();
-
-        return $count === 0 ? '' : trans_choice('kami::admin.titles.restricted', $count, ['count' => $count]);
-    }
-
-    /**
-     * The types among these Entries the reader may not view; none with no reader.
-     *
-     * @param  Builder<Entry>  $entries
-     * @return list<string>
-     */
-    public static function hiddenTypes(Builder $entries, ?Authenticatable $reader): array
+    public static function withoutRestricted(Builder $entries, ?Authenticatable $reader): string
     {
         if (! $reader instanceof Authenticatable) {
-            return [];
+            return '';
         }
 
         /** @var list<string> $types */
         $types = $entries->clone()->reorder()->distinct()->pluck('type')->all();
+        $hidden = array_values(array_diff($types, self::viewableTypes($reader, $types)));
+        if ($hidden === []) {
+            return '';
+        }
 
-        return array_values(array_diff($types, self::viewableTypes($reader, $types)));
+        $count = $entries->clone()->whereIn('type', $hidden)->count();
+        $entries->whereNotIn('type', $hidden);
+
+        return trans_choice('kami::admin.titles.restricted', $count, ['count' => $count]);
     }
 
     /**

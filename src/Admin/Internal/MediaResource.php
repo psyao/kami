@@ -152,9 +152,7 @@ final class MediaResource extends FilamentResource
     private static function usedBy(Media $media): HtmlString
     {
         $sources = References::mediaSources($media->id);
-        $hidden = EntryTitles::hiddenTypes($sources, Filament::auth()->user());
-        $restricted = EntryTitles::restricted($sources, $hidden);
-        $sources->whereNotIn('type', $hidden);
+        $restricted = EntryTitles::withoutRestricted($sources, Filament::auth()->user());
         $count = $sources->count();
         $linkable = EntryResource::accessibleTypes();
 
