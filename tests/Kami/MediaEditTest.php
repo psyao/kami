@@ -139,16 +139,29 @@ describe('used by and delete', function () {
             ->assertDontSeeHtml('>Velox (in the Trash)</a>');
     });
 
-    it('names without a link an Entry the User cannot open, or of a type no longer declared', function () {
-        usedByProjects($this->media);
+    it('counts, with no title and no link, the Entries of types the User may not view', function () {
+        $kami = usedByProjects($this->media);
 
         mediaPage($this->media, role: ['kami.media.view', 'kami.media.update'])
-            ->assertSee('Kami')
+            ->assertSee('2 restricted Entries')
+            ->assertDontSeeHtml('<li>Kami</li>')
+            ->assertDontSee('Velox')
             ->assertDontSeeHtml('/admin/projects/');
+
+        // Velox of a type the Role does not grant `view` on, Kami of one it does.
+        DB::table('kami_entries')->where('type', 'project')->whereNotNull('deleted_at')->update(['type' => 'retired']);
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', 'kami.entries.project.view'])
+            ->assertSeeHtml("/admin/projects/{$kami->id}/edit")
+            ->assertSee('1 restricted Entry')
+            ->assertDontSee('Velox');
+    });
+
+    it('counts the Entries of a type no longer declared, whose Permissions nobody holds', function () {
+        usedByProjects($this->media);
 
         // A type taken out of `kami.types`, its Entries left in the database.
         DB::table('kami_entries')->update(['type' => 'retired']);
-        mediaPage($this->media)->assertSee('Kami')->assertDontSeeHtml('/admin/projects/');
+        mediaPage($this->media)->assertSee('2 restricted Entries')->assertDontSee('Velox')->assertDontSeeHtml('/admin/projects/');
     });
 
     it('lists the first 50 Entries, then how many more', function () {

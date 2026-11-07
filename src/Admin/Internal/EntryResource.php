@@ -386,7 +386,7 @@ final class EntryResource extends FilamentResource
                 ->label(__('kami::admin.actions.trash'))
                 ->modalHeading(fn (DeleteAction $action): string => __('kami::admin.trash.heading', ['title' => $action->getRecordTitle()]))
                 ->modalDescription(function (Entry $record): string {
-                    $sources = EntryTitles::list(References::sources($record->id));
+                    $sources = EntryTitles::listFor(References::sources($record->id), Filament::auth()->user());
 
                     return $sources === '' ? __('kami::admin.trash.description') : __('kami::admin.trash.used_by', ['entries' => $sources]);
                 })
@@ -763,12 +763,7 @@ final class EntryResource extends FilamentResource
      */
     private static function viewableTypes(): array
     {
-        $gate = Gate::forUser(Filament::auth()->user());
-
-        return array_values(array_filter(
-            array_map(fn (ContentType $type): string => $type->handle(), resolve(ContentTypes::class)->all()),
-            fn (string $type): bool => $gate->allows('viewAny', [Entry::class, $type]),
-        ));
+        return EntryTitles::viewableTypes(Filament::auth()->user(), array_values(array_map(fn (ContentType $type): string => $type->handle(), resolve(ContentTypes::class)->all())));
     }
 
     /**

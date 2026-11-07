@@ -24,7 +24,7 @@ final class DeleteMedia
     /**
      * @param  Authenticatable|null  $actor  Null for imports and the CLI.
      *
-     * @throws ValidationException On `media`: Entries use it, which it names, those in the Trash marked.
+     * @throws ValidationException On `media`: Entries use it, which it names, those in the Trash marked; those of types the actor may not view are counted instead (ADR 0014).
      */
     public function handle(Media $media, ?Authenticatable $actor = null): void
     {
@@ -33,7 +33,7 @@ final class DeleteMedia
 
         $count = $sources->count();
         if ($count > 0) {
-            throw ValidationException::withMessages(['media' => trans_choice('kami::admin.media.delete.used', $count, ['entries' => EntryTitles::list($sources)])]);
+            throw ValidationException::withMessages(['media' => trans_choice('kami::admin.media.delete.used', $count, ['entries' => EntryTitles::listFor($sources, $actor)])]);
         }
 
         // The Translations go with the row, by the foreign key.

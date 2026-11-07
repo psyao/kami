@@ -138,7 +138,7 @@ The [Media library](media.md#the-library-in-the-admin) has four, shared by every
 
 Editing a Published or Scheduled Translation changes what visitors see, now or at its date, so it takes `publish` as well as `update` (ADR 0019). A User with `update` alone edits Drafts only.
 
-Being offered a link takes `view` on the target type: a [relation Field](content-types.md#relations)'s picker and the Parent input search and title only Entries of types the User may view, and creating a target from a picker takes `create` and `view`. A target of another type, already picked, shows as a restricted Entry with no title, which the User may remove; a save keeps it otherwise.
+Being offered a link takes `view` on the target type: a [relation Field](content-types.md#relations)'s picker and the Parent input search and title only Entries of types the User may view, and creating a target from a picker takes `create` and `view`. A target of another type, already picked, shows as a restricted Entry with no title, which the User may remove; a save keeps it otherwise. The lists of what links to an Entry or uses a Media item, in the Trash's warning, the Media item's Used by and `DeleteMedia`'s refusal, count the Entries of those types instead of naming them.
 
 A [bulk action](content-types.md#bulk-actions) checks these on each row as the row's own action would, so selecting rows grants nothing more.
 
