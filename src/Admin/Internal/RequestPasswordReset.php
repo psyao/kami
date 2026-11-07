@@ -62,10 +62,6 @@ final class RequestPasswordReset extends FilamentRequestPasswordReset
                 return;
             }
 
-            if (! method_exists($user, 'notifyNow')) {
-                throw new LogicException('Model [' . $user::class . '] does not have a [notifyNow()] method.');
-            }
-
             $notification = resolve(ResetPassword::class, ['token' => $token]);
             $notification->url = $panel->getResetPasswordUrl($token, $user);
 
