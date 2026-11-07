@@ -61,7 +61,7 @@ class UserResource extends FilamentResource
             ->columns([
                 TextColumn::make('name')->label(__('users.name'))->searchable()->sortable(),
                 TextColumn::make('email')->label(__('users.email'))->searchable(),
-                // One query per row: a page of Users is short.
+                // ponytail: one `kami_role_user` query per row, fine for a page of Users; eager loading waits for a site listing many (V1).
                 TextColumn::make('roles')->label(__('kami::admin.roles.label'))->badge()
                     ->state(fn (User $record): array => collect($record->kamiRoles())->map(KamiRoles::roleLabel(...))->sort()->values()->all()),
             ])

@@ -97,7 +97,7 @@ return [
 ];
 ```
 
-It saves through [`AssignRoles`](#giving-roles) once the User is saved, never as a column, with the signed-in User as the actor. A refusal, an undeclared Role or the [lockout guard](#the-lockout-guard), shows under the field and changes no Role. It shows only to a User holding `kami.users.manage`: on a form others may open, a profile page for instance, it is hidden and the User's Roles stay as they are. A Role the User holds that `config/kami.php` no longer declares stays listed by its handle, so a save keeps it until someone unticks it.
+It saves through [`AssignRoles`](#giving-roles) with the User's save, never as a column, with the signed-in User as the actor. A refusal, an undeclared Role or the [lockout guard](#the-lockout-guard), shows under the field and changes no Role. It shows only to a User holding `kami.users.manage`: on a form others may open, a profile page for instance, it is hidden and the User's Roles stay as they are. A Role the User holds that `config/kami.php` no longer declares stays listed by its handle, so a save keeps it until someone unticks it.
 
 `KamiRoles::roleLabel($handle)` gives the same label elsewhere, a table column for instance:
 

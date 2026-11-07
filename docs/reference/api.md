@@ -61,7 +61,7 @@ Kami's admin, added by the host to its own panel with `->plugin(KamiPlugin::make
 
 `final class extends Filament\Forms\Components\CheckboxList`
 
-The "Kami Roles" field of a User form: the Roles `config/kami.php` declares, by their `kami-roles` labels, saved through `AssignRoles` once the User is.
+The "Kami Roles" field of a User form: the Roles `config/kami.php` declares, by their `kami-roles` labels, saved through `AssignRoles` with the User's save.
 
 - `public static function getDefaultName(): string`
 - `public static function roleLabel(string $handle): string`: `kami-roles.{handle}`, or the handle itself, for a Role without a label or no longer declared.

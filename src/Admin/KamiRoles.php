@@ -15,7 +15,7 @@ use Psyao\Kami\Users\Actions\AssignRoles;
 use Psyao\Kami\Users\KamiUser;
 
 /**
- * The "Kami Roles" field of a User form: the Roles `config/kami.php` declares, by their `kami-roles` labels, saved through `AssignRoles` once the User is.
+ * The "Kami Roles" field of a User form: the Roles `config/kami.php` declares, by their `kami-roles` labels, saved through `AssignRoles` with the User's save.
  * Shown only to a User holding `kami.users.manage`; `AssignRoles`' refusal, the lockout guard's included, shows as the field's error.
  */
 final class KamiRoles extends CheckboxList
@@ -41,10 +41,10 @@ final class KamiRoles extends CheckboxList
 
         // A Role held but no longer declared stays listed, so a save keeps it rather than revoking it unseen.
         $this->options(function (?Model $record): array {
-            $handles = array_values(array_unique([
+            $handles = array_unique([
                 ...array_map(fn (int | string $handle): string => (string) $handle, array_keys(Config::array('kami.roles', []))),
                 ...($record instanceof KamiUser ? $record->kamiRoles() : []),
-            ]));
+            ]);
 
             return array_combine($handles, array_map(self::roleLabel(...), $handles));
         });
