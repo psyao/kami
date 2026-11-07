@@ -30,6 +30,7 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.mfa.enabled` | A User sets [MFA](users-and-roles.md#mfa) up through `HasKamiMfa`; the User is subject and actor | |
 | `kami.mfa.disabled` | A User disables MFA through `HasKamiMfa`; the User is subject and actor | |
 | `kami.mfa.recovery-used` | A User signs in with a recovery code through `HasKamiMfa`; the User is subject and actor | |
+| `kami.mfa.challenge-failed` | A wrong or blank MFA code, or a wrong recovery code, after the right password on Kami's [sign-in page](security.md#sign-in); the User is subject, with no actor. A right password whose second factor fails is the strongest sign someone else knows it | |
 | `kami.mfa.reset` | `kami:user:reset-mfa` clears a User's authenticator; the User is subject, the actor `cli` | |
 
 A bulk action in the admin records one event per row, as each row's own action does.

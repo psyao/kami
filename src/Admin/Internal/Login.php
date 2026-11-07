@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Psyao\Kami\Admin\Internal;
 
 use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
+use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Auth\Pages\Login as FilamentLogin;
 use Illuminate\Auth\Events\Lockout;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 
 /**
  * Filament's sign-in page, throttled per lower-cased email as well as per IP address, so guessing a password is slow even from many addresses.
@@ -17,6 +22,27 @@ use Illuminate\Support\Str;
  */
 final class Login extends FilamentLogin
 {
+    /**
+     * Records a failed MFA challenge, a wrong or blank code after the right password: Filament fires no auth event for it, and it says the password is known (ADR 0022).
+     *
+     * @throws ValidationException
+     */
+    public function authenticate(): ?LoginResponse
+    {
+        try {
+            return parent::authenticate();
+        } catch (ValidationException $exception) {
+            // A wrong password at the code step clears the challenge before it throws, and errs on the email instead.
+            if (($user = $this->getUserUndertakingMultiFactorAuthentication()) instanceof Model
+                && array_any(array_keys($exception->errors()), fn (string $key): bool => str_starts_with($key, 'data.multiFactor.'))
+                && Schema::hasTable('kami_audit_events')) {
+                resolve(RecordAuditEvent::class)->handle('kami.mfa.challenge-failed', $user);
+            }
+
+            throw $exception;
+        }
+    }
+
     /**
      * Filament calls it first thing on each attempt, the MFA code's included, with its limit per IP address: the same limit applies per email.
      *
