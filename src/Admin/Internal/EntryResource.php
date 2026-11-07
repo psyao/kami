@@ -880,6 +880,33 @@ final class EntryResource extends FilamentResource
     }
 
     /**
+     * The names of these panel Users, by key, in one query; a key with no User is left out, as is every key on a panel whose Users are not Eloquent models.
+     *
+     * @param  list<int|string>  $keys
+     * @return array<array-key, string>
+     */
+    public static function userNames(array $keys): array
+    {
+        $user = self::newUser();
+
+        if ($user === null || $keys === []) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ($user->newQuery()->whereIn($user->getAuthIdentifierName(), $keys)->get() as $found) {
+            $key = $found->getAuthIdentifier();
+
+            if (is_int($key) || is_string($key)) {
+                $names[$key] = Filament::getUserName($found);
+            }
+        }
+
+        return $names;
+    }
+
+    /**
      * `creator` and `lastModifier` on `Entry`, the panel's Users the table loads for its visible columns only, in one query each.
      *
      * The admin's own: not public surface, absent without a panel, a `LogicException` on a panel whose Users are not Eloquent models.

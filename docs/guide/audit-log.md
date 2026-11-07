@@ -103,6 +103,38 @@ Your context follows `RecordAuditEvent`'s rules and is checked before the callba
 
 Only the Audit log is grouped: the [Content events](publishing.md#reacting-to-content) still fire for every item, so your listeners see each change.
 
+## Reading the log
+
+The admin's **Audit log** screen lists the events, newest first, to a User holding `kami.audit.view`. The `administrator` Role holds it through `kami.*`; the starter kit's `editor` does not. Each row reads on its own:
+
+- **When**: in the Site's time zone.
+- **Who**: the User, "Deleted User (id)" when that User is gone, the command line or the system.
+- **Event**: Kami's own events by their translated label, "Entry published" for `kami.entries.published`; your own events by their name.
+- **Subject**: an Entry or a Media item by its title or name, linked to its page. An Entry in the Trash or deleted for good, an Entry of a type the reader may not view, or a Media item they may not view shows its id instead, so the screen never reveals a title its reader could not see elsewhere. A User shows their name.
+- **Site**, **IP** and **Context**: from a tablet's width up.
+
+Filters narrow the list to one User, acting or acted upon, deleted Users included; to one event; and to a range of days in the Site's time zone.
+
+Nothing in the admin creates, edits or deletes an event, not even for an administrator: only the retention removes them.
+
+## Retention
+
+Events are kept 12 months by default, then deleted by `kami:audit:prune`, so the log does not keep personal data forever. Change the number of months in `config/kami.php`:
+
+```php
+'audit' => [
+    'retention' => 24,
+],
+```
+
+A retention under one month is refused: a typo would otherwise erase the trail of an incident. The command deletes in chunks of 1000 rows, so a run cut short is simply started again.
+
+Kami does not schedule it yet. Run it from time to time:
+
+```bash
+php artisan kami:audit:prune
+```
+
 ## Shared hosting and server
 
-Both behave the same: one insert inside the action's transaction, no queue, no cron, no extension.
+Recording behaves the same on both: one insert inside the action's transaction, no queue, no cron, no extension. On shared hosting, run `kami:audit:prune` over SSH or from a cron job of the host's control panel, as [Hosting](hosting.md#shared-hosting-and-a-server) shows; on a server, from cron.

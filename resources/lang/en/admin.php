@@ -277,4 +277,77 @@ return [
             ],
         ],
     ],
+
+    'audit' => [
+        'label' => 'Audit event',
+        'plural_label' => 'Audit log',
+        'columns' => [
+            'occurred_at' => 'When',
+            'actor' => 'Who',
+            'event' => 'Event',
+            'subject' => 'Subject',
+            'site' => 'Site',
+            'ip' => 'IP',
+            'context' => 'Context',
+        ],
+        'actors' => [
+            'cli' => 'Command line',
+            'system' => 'System',
+        ],
+        'deleted_user' => 'Deleted User (:id)',
+        'filters' => [
+            'user' => 'User',
+            'event' => 'Event',
+            'from' => 'From',
+            'until' => 'Until',
+        ],
+        'subjects' => [
+            'entry' => 'Entry',
+            'media' => 'Media',
+            'user' => 'User',
+            'preview-link' => 'Preview link',
+        ],
+        'events' => [
+            'entries' => [
+                'published' => 'Entry published',
+                'unpublished' => 'Entry unpublished',
+                'publication-date-changed' => 'Publication date changed',
+                'trashed' => 'Entry moved to the Trash',
+                'restored' => 'Entry restored',
+                'force-deleted' => 'Entry deleted for good',
+            ],
+            'preview-links' => [
+                'created' => 'Preview link created',
+                'revoked' => 'Preview link revoked',
+            ],
+            'media' => [
+                'deleted' => 'Media deleted',
+            ],
+            'content' => [
+                'migrated' => 'Content migrated',
+            ],
+            'roles' => [
+                'granted' => 'Role granted',
+                'revoked' => 'Role revoked',
+            ],
+            'users' => [
+                'lockout-refused' => 'Lockout refused',
+                'created' => 'User created',
+                'deleted' => 'User deleted',
+            ],
+            'auth' => [
+                'signed-in' => 'Signed in',
+                'sign-in-failed' => 'Sign-in failed',
+                'locked-out' => 'Sign-in locked out',
+                'password-reset' => 'Password reset',
+            ],
+            'mfa' => [
+                'enabled' => 'MFA enabled',
+                'disabled' => 'MFA disabled',
+                'recovery-used' => 'Recovery code used',
+                'challenge-failed' => 'MFA code refused',
+                'reset' => 'MFA reset',
+            ],
+        ],
+    ],
 ];

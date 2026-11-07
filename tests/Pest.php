@@ -233,6 +233,12 @@ function uploadedFixture(string $fixture, ?string $name = null): UploadedFile
     return UploadedFile::fake()->createWithContent($name ?? basename($fixture), (string) file_get_contents(fixture("media/{$fixture}")));
 }
 
+/** A User for an audit test, without the `kami.users.created` row of their own creation, which no such test reads. */
+function auditUser(): User
+{
+    return User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
+}
+
 /**
  * The Audit log's rows, oldest first, as a site's own query would read them. Contexts by key: MySQL's JSON keeps no order.
  *
