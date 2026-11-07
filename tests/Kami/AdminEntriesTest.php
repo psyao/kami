@@ -908,7 +908,7 @@ it('renders every Kami admin page in English and French with no raw translation 
     }
 
     // A row naming a subject and a User gone since, each label of its own.
-    resolve(RecordAuditEvent::class)->handle('kami.roles.granted', ['user', 'gone'], ['role' => 'editor']);
+    resolve(RecordAuditEvent::class)->handle('kami.roles.granted', ['user', '999999'], ['role' => 'editor']);
     resolve(RecordAuditEvent::class)->handle('kami.entries.trashed', $entries['article']);
     expect((string) $this->get('/admin/audit-events')->assertOk()->getContent())->not->toContain('kami::');
 })->with(['en', 'fr']);
