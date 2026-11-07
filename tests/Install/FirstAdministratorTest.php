@@ -260,6 +260,16 @@ it('refuses several stored spellings of the email, listing them and changing not
         ->and(User::query()->count())->toBe(2);
 });
 
+it('makes kami:user:grant refuse several stored spellings too', function () {
+    existingUser();
+    Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));
+    User::query()->forceCreate(['name' => 'Other', 'email' => 'Grace@example.test', 'password' => 'hash']);
+
+    expect(Artisan::call('kami:user:grant', ['email' => 'grace@example.test', 'role' => 'administrator']))->toBe(1)
+        ->and(Artisan::output())->toContain('Several Users match this email')->toContain('grace@example.test')->toContain('Grace@example.test')
+        ->and(DB::table('kami_role_user')->count())->toBe(0);
+});
+
 it('refuses several stored spellings of a prompted email too', function () {
     existingUser();
     Schema::table('users', fn (Blueprint $table) => $table->dropUnique(['email']));

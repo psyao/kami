@@ -332,10 +332,8 @@ describe('kami:user:grant', function (): void {
         expect(userEvents('kami.users.created'))->toBe([]);
     });
 
-    it('refuses, changing nothing, an email no User or several Users have, and an undeclared Role', function (string $email, string $role, string $message): void {
-        foreach (['grace@example.test', 'GRACE@example.test'] as $stored) {
-            userWithRoles()->forceFill(['email' => $stored])->save();
-        }
+    // Several stored spellings: tests/Install, whose database may drop the unique index MySQL's collation enforces.
+    it('refuses, changing nothing, an email no User has and an undeclared Role', function (string $email, string $role, string $message): void {
         userWithRoles()->forceFill(['email' => 'ada@example.test'])->save();
 
         $this->artisan('kami:user:grant', ['email' => $email, 'role' => $role])
@@ -343,11 +341,10 @@ describe('kami:user:grant', function (): void {
             ->assertFailed();
 
         expect(DB::table('kami_role_user')->count())->toBe(0)
-            ->and(User::query()->count())->toBe(3);
+            ->and(User::query()->count())->toBe(1);
     })->with([
         'unknown email' => ['nobody@example.test', 'editor', 'No User has the email nobody@example.test.'],
         'not an email' => ['nobody', 'editor', 'must be a valid email address'],
-        'several spellings' => ['grace@example.test', 'editor', 'Several Users match this email: grace@example.test, GRACE@example.test.'],
         'undeclared Role' => ['ada@example.test', 'edtior', 'No Role is declared as edtior'],
     ]);
 });

@@ -7,6 +7,7 @@ namespace Psyao\Kami\Users\Internal;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Users\Actions\AssignRoles;
@@ -24,8 +25,8 @@ final class GrantRoleCommand extends Command
 {
     public function handle(AssignRoles $assign): int
     {
-        $email = (string) $this->argument('email');
-        $role = (string) $this->argument('role');
+        $email = Arr::string($this->arguments(), 'email');
+        $role = Arr::string($this->arguments(), 'role');
 
         if (($check = Validator::make(['email' => $email], ['email' => UsersByEmail::RULES]))->fails()) {
             $this->components->error($check->errors()->first());
