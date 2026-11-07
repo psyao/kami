@@ -16,6 +16,9 @@ function fail(string $message): never
     exit(1);
 }
 
+// The CLI container shows no PHP errors: an HTTP failure (a 404 on the page, say) is named on stderr too.
+set_exception_handler(fn (Throwable $exception) => fail($exception::class . ': ' . $exception->getMessage()));
+
 [, $base, $email] = $argv;
 $http = (new Factory)->withHeaders(['X-Forwarded-Proto' => 'https'])->withOptions(['cookies' => new CookieJar])->throw();
 $page = $http->get("{$base}/admin/password-reset/request")->body();
