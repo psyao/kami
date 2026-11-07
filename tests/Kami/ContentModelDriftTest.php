@@ -44,7 +44,7 @@ final class DriftedNote extends ContentType
 }
 
 /** `kami:doctor`'s output, once it exited 0; otherwise the failure shows the output, so a flaky Error names itself (#338). */
-function warningsOnly(): string
+function passingDoctor(): string
 {
     $exit = Artisan::call('kami:doctor');
     // Read once: it empties the buffer.
@@ -127,7 +127,7 @@ it('warns about a value left on the row a Field no longer reads, without failing
     $page = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'About', 'slug' => 'about', 'body' => 'Kept'], locale: 'en');
     DB::table('kami_type_page')->where('entry_id', $page->id)->update(['locale' => '*']);
 
-    expect(warningsOnly())->toContain('The Field body of the type page is translatable, but holds Shared values', "makeTranslatable('page', 'body')");
+    expect(passingDoctor())->toContain('The Field body of the type page is translatable, but holds Shared values', "makeTranslatable('page', 'body')");
 });
 
 it('warns about a link under a handle no relation Field declares, as a mistyped renameField leaves', function () {
@@ -137,7 +137,7 @@ it('warns about a link under a handle no relation Field declares, as a mistyped 
     $page = $save->handle(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');
     DB::table('kami_references')->insert(['id' => (string) Str::ulid(), 'source_entry_id' => $project->id, 'field' => 'relatd', 'target_entry_id' => $page->id, 'position' => 0]);
 
-    expect(warningsOnly())->toContain('are under relatd, which no relation Field declares', "ContentMigrator::renameField('project', 'relatd', '<handle>')");
+    expect(passingDoctor())->toContain('are under relatd, which no relation Field declares', "ContentMigrator::renameField('project', 'relatd', '<handle>')");
 });
 
 it('warns about a relation Field flipped without conversion', function () {
@@ -147,5 +147,5 @@ it('warns about a relation Field flipped without conversion', function () {
     $page = $save->handle(Page::class, ['title' => 'About', 'slug' => 'about'], locale: 'en');
     DB::table('kami_references')->insert(['id' => (string) Str::ulid(), 'source_entry_id' => $project->id, 'field' => 'related', 'locale' => 'en', 'target_entry_id' => $page->id, 'position' => 0]);
 
-    expect(warningsOnly())->toContain('The Field related of the type project is Shared, but holds links in a Locale', "makeShared('project', 'related', keep:");
+    expect(passingDoctor())->toContain('The Field related of the type project is Shared, but holds links in a Locale', "makeShared('project', 'related', keep:");
 });

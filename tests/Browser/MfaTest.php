@@ -76,7 +76,7 @@ it('passes axe on the set-up and challenge pages, light, dark and mobile', funct
             ->press('internal:role=button[name="Set up"s]')
             ->assertSee('Or enter this code manually');
         // The modal shows before Livewire's request ends, which dims "Set up" (`fi-disabled`) until then: axe measures it as the User sees it after (#369).
-        $page->script("() => new Promise((resolve, reject) => { const until = Date.now() + 5000; const settled = () => document.querySelector('[aria-disabled=\"true\"].fi-disabled') === null ? resolve() : Date.now() > until ? reject(new Error('Set up is still disabled after 5 seconds.')) : requestAnimationFrame(settled); settled(); })");
+        $page->script("() => new Promise((resolve, reject) => { const until = Date.now() + 5000; const settled = () => ! [...document.querySelectorAll('.fi-link[aria-disabled=\"true\"]')].some((link) => link.textContent.trim() === 'Set up') ? resolve() : Date.now() > until ? reject(new Error('Set up is still disabled after 5 seconds.')) : requestAnimationFrame(settled); settled(); })");
         $page->assertNoAccessibilityIssues()
             ->assertNoJavaScriptErrors();
     }
