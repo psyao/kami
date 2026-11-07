@@ -79,7 +79,7 @@ final class AuditEventResource extends FilamentResource
                     ->searchable(),
                 // Days of the Site's time zone, as the dates are shown.
                 Filter::make('occurred_at')
-                    ->schema([
+                    ->form([
                         DatePicker::make('from')->label(__('kami::admin.audit.filters.from')),
                         DatePicker::make('until')->label(__('kami::admin.audit.filters.until')),
                     ])
