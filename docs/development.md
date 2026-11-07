@@ -32,6 +32,13 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says |
 | `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Nightly (`volume.yml`) |
 
+The suites take another engine from the environment, as CI does. On Steve's machine, Herd serves MySQL on 3306 and MariaDB on 3307 (user `root`, no password); PostgreSQL runs in Docker:
+
+```bash
+docker run -d --rm --name kami-pg -e POSTGRES_PASSWORD=password -e POSTGRES_DB=kami -p 55432:5432 postgres:15
+DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=55432 DB_DATABASE=kami DB_USERNAME=postgres DB_PASSWORD=password vendor/bin/pest --testsuite=Kami
+```
+
 `tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`.
 
 ## Git hooks

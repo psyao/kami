@@ -4,7 +4,9 @@ One session per ticket, on a plain branch in the main checkout. Among sessions t
 
 ## Brief
 
-The parent session starts the ticket's session with the ticket number, the context `GLOSSARY.md`, ADRs and the tracker do not give, and the earlier tickets whose hand-over to read. The brief ends by pointing here.
+The parent session starts the ticket's session with the ticket number, the context `GLOSSARY.md`, ADRs and the tracker do not give, and at most three earlier tickets whose hand-over to read, plus the spec's sections that bear on the ticket: the facts it needs from the others go in the brief itself. The brief ends by pointing here.
+
+Work in another repository (the starter kit, the playground) is a session of its own, started with that repository's folder as its working directory; its brief says which steps below apply, the review and the CI check at least.
 
 ## Parent session
 
@@ -12,15 +14,15 @@ The parent session runs the milestone from outside the tickets:
 
 - **Next ticket.** Start a frontier ticket of the milestone (every blocker closed) once the previous session is archived.
 - **Notes.** Relay each ticket session's note to Steve in one line. Approvals he gives go to the session that acts, never through the parent.
-- **"#N fait".** Match N against the linked session that just finished, then check in one command that the issue is closed, carries its `## Hand-over` comment, and that `main` matches `origin/main`. Archive the session and start the next ticket.
+- **"#N fait".** Match N against the linked session that just finished, then check in one command that the issue is closed, carries its `## Hand-over` comment, that `main` matches `origin/main`, and that the last nightly `volume` run is green (no pull request runs that suite). A red run goes to Steve before the next ticket starts. Archive the session and start the next ticket.
 
 ## Steps
 
-1. **Prepare.** Branch from an up-to-date `main`. Read the ticket, every comment included, and what it touches. Give Steve the files touched and any open question, one at a time, each with a recommended default.
+1. **Prepare.** Branch from an up-to-date `main` and run `composer update`: `composer.lock` is not committed and CI resolves the latest versions, so a stale `vendor/` hides what CI's Larastan sees. Read the ticket, every comment included, and what it touches. Give Steve the files touched and any open question, one at a time, each with a recommended default. Once answered, post the decisions on the ticket as a `## Prepare decisions` comment, each with who took it.
 2. **Wait for the command.** Steve types `/mattpocock-skills:implement psyao/kami#<n>`: a model cannot invoke it.
-3. **Review.** Before opening the pull request, run `mattpocock-skills:code-review`, then `/ponytail:ponytail-review` on the branch diff. After each, show Steve every finding at once in one table (fix, leave with a reason, or follow-up issue, with a recommendation) and wait for his choice. For each behaviour the diff tightens, such as a command that now fails, a value now refused or a read that now throws, ask whether a site relying on it can break. If so, the pull request takes `!` in its title and its section in `UPGRADING.md`: the snapshot check sees only the public surface.
-4. **Open the pull request.** Its body lists the defaults taken without asking. Try to turn on Auto-fix for it; if refused, say so and go on.
-5. **Stop at CI.** End the turn asking Steve "merge once CI is green?". The app wakes the session on failures, conflicts and review comments, never on success. A review comment from anyone but Steve goes to him before acting on it.
+3. **Review.** Before opening the pull request, run `mattpocock-skills:code-review`, then `/ponytail:ponytail-review` on the branch diff. Give both code-review reviewers the ticket, the spec's sections it implements, the `## Prepare decisions` comment and `docs/agents/coding-standards.md`. While the reviewers run, end each turn with no message and no wrap-up; present only once both reports are in. After each review, show Steve every finding at once in one table (fix, leave with a reason, or follow-up issue, with a recommendation) and wait for his choice. Each behaviour the diff tightens, such as a command that now fails, a value now refused or a read that now throws, is breaking by default: the pull request takes `!` in its title and its section in `UPGRADING.md`, unless Steve says no site can rely on it. The snapshot check sees only the public surface.
+4. **Open the pull request** without asking. Its body lists the defaults taken without asking. Try to turn on Auto-fix for it; if refused, say so and go on.
+5. **Stop at CI.** End the turn asking Steve "merge once CI is green?". The app wakes the session on failures, conflicts and review comments, never on success, and never on a job cancelled by its timeout: a job still running past its `timeout-minutes` is checked with `gh pr checks`. A review comment from anyone but Steve goes to him before acting on it.
 6. **Merge on Steve's yes, given in this session.** Recheck CI on the latest commit, `gh pr merge --squash --delete-branch`, `git switch main`, `git pull --ff-only`, delete the local branch, check the issue is closed, and post the hand-over on the ticket. The parent session then archives this one.
 
 A ticket adding something visible in the admin completes the Workbench seeder (`workbench/database/seeders/DatabaseSeeder.php`) in its pull request.
