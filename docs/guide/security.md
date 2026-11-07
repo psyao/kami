@@ -85,6 +85,15 @@ The secrets are encrypted with `APP_KEY`. Rotating it breaks every authenticator
 
 `kami:doctor` makes sure the rule is not skipped by accident. It reports an error when a panel carrying `KamiPlugin` no longer requires Kami's provider, because a `->multiFactorAuthentication()` or `->requiresMultiFactorAuthentication()` set after the plugin replaced it, and when the panel's User model does not implement Filament's `HasAppAuthentication` and `HasAppAuthenticationRecovery`. It warns with the number of Users who may manage Users and have not set MFA up yet.
 
+## HTTPS in production
+
+The admin's session cookie and every password typed into the panel travel with each request: production is served over HTTPS only. HSTS stays your host's to send; add it under `security.headers` if it does not.
+
+`kami:doctor` warns, in production only, when:
+
+- `APP_URL` or a Site's `url` in `config/kami.php` starts with `http://`: serve the site over HTTPS, then change the address. Infomaniak serves HTTPS once the site's certificate is active.
+- The session cookie is not always `Secure`, because `session.secure` is not `true`. Left unset, Laravel adds `Secure` only to a request it sees as HTTPS, and behind a shared host's proxy, which Laravel does not trust by default, it sees plain HTTP: the cookie goes out without the flag. Set `SESSION_SECURE_COOKIE=true` in `.env`; the starter kit's `config/session.php` defaults it to `true` in production.
+
 ## Extending the policy
 
 A front that loads from another origin, such as images from a CDN, adds it under `security.csp` in `config/kami.php`, per directive:

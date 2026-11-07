@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -19,12 +20,19 @@ use Psyao\Kami\Tests\Install\InstallTestCase as TestCase;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
+use Workbench\App\Models\User as WorkbenchUser;
 
 /** A second Singleton on Home's address. */
 final class TakenHome extends Singleton
 {
     #[Override]
     protected ?string $prefix = '';
+}
+
+/** A User model a host panel may sign in with through a provider of its own. */
+final class InstallEditor extends WorkbenchUser
+{
+    protected $table = 'users';
 }
 
 /**
@@ -115,6 +123,21 @@ it('refuses before migrating, naming what to add, while the panel\'s User model 
     install()
         ->expectsOutputToContain('The panel admin signs Users in with Illuminate\\Foundation\\Auth\\User, which does not implement Psyao\\Kami\\Users\\KamiUser')
         ->expectsOutputToContain('Fix: add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.')
+        ->assertFailed();
+
+    expect(Schema::hasTable('migrations'))->toBeFalse();
+});
+
+it('refuses before migrating while the panel signs in with another model than auth.providers.users.model', function () {
+    $this->bootWithKamiOnAPanel();
+    config([
+        'auth.providers.editors' => ['driver' => 'eloquent', 'model' => InstallEditor::class],
+        'auth.guards.editors' => ['driver' => 'session', 'provider' => 'editors'],
+    ]);
+    Filament::getPanel('admin')->authGuard('editors');
+
+    install()
+        ->expectsOutputToContain('The panel admin signs Users in with InstallEditor, while Kami gives Roles to')
         ->assertFailed();
 
     expect(Schema::hasTable('migrations'))->toBeFalse();

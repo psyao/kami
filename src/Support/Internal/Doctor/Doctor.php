@@ -92,6 +92,8 @@ final readonly class Doctor
             ...$this->remoteAvatars($panels),
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
+            ...$this->insecureUrls(),
+            ...array_filter([$this->insecureSessionCookie()]),
             ...$this->replacedResetPages($panels),
             ...$this->mfa($panels),
             ...$this->weakeningOptions(),
@@ -260,13 +262,24 @@ final readonly class Doctor
     private function userModels(array $panels): array
     {
         $lacking = array_filter($panels, fn (array $panel): bool => ! is_a((string) $this->userModel($panel['guard']), KamiUser::class, true));
+        $users = Config::string('auth.providers.users.model', '');
+        // kami_role_user, authorship and kami:install's first administrator all point at auth.providers.users.model; a host Role source lifts this (ADR 0014, V1).
+        $elsewhere = array_filter($panels, fn (array $panel): bool => ($model = $this->userModel($panel['guard'])) !== null && ltrim($model, '\\') !== ltrim($users, '\\'));
 
-        return array_values(array_map(fn (array $panel): Problem => new Problem(
-            Severity::Error,
-            "The panel {$panel['id']} signs Users in with " . ($this->userModel($panel['guard']) ?? 'no Eloquent model') . ', which does not implement ' . KamiUser::class . '.',
-            'add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.',
-            'users-and-roles.md#the-user-model',
-        ), $lacking));
+        return [
+            ...array_values(array_map(fn (array $panel): Problem => new Problem(
+                Severity::Error,
+                "The panel {$panel['id']} signs Users in with " . ($this->userModel($panel['guard']) ?? 'no Eloquent model') . ', which does not implement ' . KamiUser::class . '.',
+                'add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.',
+                'users-and-roles.md#the-user-model',
+            ), $lacking)),
+            ...array_values(array_map(fn (array $panel): Problem => new Problem(
+                Severity::Error,
+                "The panel {$panel['id']} signs Users in with {$this->userModel($panel['guard'])}, while Kami gives Roles to {$users} (auth.providers.users.model): nobody could sign in to Kami.",
+                "point the provider of the guard {$panel['guard']} to {$users}, or set auth.providers.users.model to {$this->userModel($panel['guard'])}.",
+                'users-and-roles.md#the-user-model',
+            ), $elsewhere)),
+        ];
     }
 
     /**
@@ -589,6 +602,46 @@ final readonly class Doctor
             "{$hot} exists in production: pages load their scripts from a Vite dev server, and the CSP allows its origin.",
             "delete {$hot}, and keep it out of what you deploy.",
             'security.md#vite-in-development',
+        ) : null;
+    }
+
+    /**
+     * The URLs production is served at, read from configuration: the command line sees no request, and a proxy in front changes nothing to them.
+     *
+     * @return list<Problem>
+     */
+    private function insecureUrls(): array
+    {
+        if (config('app.env') !== 'production') {
+            return [];
+        }
+
+        /** @var array<string, array{url?: mixed}> $sites */
+        $sites = Config::array('kami.sites', []);
+        $urls = ['APP_URL' => config('app.url')];
+
+        foreach ($sites as $handle => $site) {
+            $urls["kami.sites.{$handle}.url"] = $site['url'] ?? null;
+        }
+
+        $insecure = array_filter($urls, fn (mixed $url): bool => is_string($url) && str_starts_with(strtolower($url), 'http://'));
+
+        return array_map(fn (string $name, string $url): Problem => new Problem(
+            Severity::Warning,
+            "{$name} is {$url}: production travels in clear, the admin's session cookie and passwords included.",
+            "serve the site over HTTPS, then start {$name} with https://.",
+            'security.md#https-in-production',
+        ), array_keys($insecure), $insecure);
+    }
+
+    /** Left unset, the cookie is Secure only on a request Laravel sees as HTTPS: behind a shared host's proxy it trusts no proxy by default. */
+    private function insecureSessionCookie(): ?Problem
+    {
+        return config('app.env') === 'production' && config('session.secure') !== true ? new Problem(
+            Severity::Warning,
+            'The session cookie is not always Secure in production: behind a proxy Laravel does not trust, it travels without it.',
+            'set SESSION_SECURE_COOKIE=true in .env.',
+            'security.md#https-in-production',
         ) : null;
     }
 

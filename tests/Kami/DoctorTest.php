@@ -35,6 +35,7 @@ use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\HasKamiRoles;
 use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\HttpFoundation\Response;
+use Workbench\App\Models\User;
 
 /** A type with no view and no label. */
 final class Undescribed extends ContentType
@@ -62,6 +63,12 @@ final class UserWithoutMfa extends PlainUser implements KamiUser
 {
     use HasKamiRoles;
 
+    protected $table = 'users';
+}
+
+/** A User model a host panel may sign in with through a provider of its own. */
+final class Editor extends User
+{
     protected $table = 'users';
 }
 
@@ -365,6 +372,22 @@ it('blocks on a panel whose User model does not implement KamiUser, naming what 
     expect((new Doctor)->blocking())->toHaveCount(1);
 });
 
+it('blocks on a panel whose guard signs in with another model than auth.providers.users.model, naming both', function () {
+    config([
+        'auth.providers.editors' => ['driver' => 'eloquent', 'model' => Editor::class],
+        'auth.guards.editors' => ['driver' => 'session', 'provider' => 'editors'],
+    ]);
+    Filament::getPanel('admin')->authGuard('editors');
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin signs Users in with Editor, while Kami gives Roles to ' . User::class . ' (auth.providers.users.model): nobody could sign in to Kami.')
+        ->expectsOutputToContain('Fix: point the provider of the guard editors to ' . User::class . ', or set auth.providers.users.model to Editor.')
+        ->expectsOutputToContain('docs/guide/users-and-roles.md#the-user-model')
+        ->assertFailed();
+
+    expect((new Doctor)->blocking())->toHaveCount(1);
+});
+
 it('blocks when a Kami panel no longer requires Kami\'s MFA, set otherwise after the plugin', function (Closure $override) {
     $override(Filament::getPanel('admin'));
 
@@ -488,6 +511,40 @@ it('fails on a Vite hot file in production, not elsewhere', function (string $en
 })->with([
     'production' => ['production', true],
     'local' => ['local', false],
+]);
+
+it('warns in production, not elsewhere, about an http:// APP_URL or Site URL', function (string $environment, string $key, string $label, bool $warns) {
+    config(['app.env' => $environment, 'session.secure' => true, 'app.url' => 'https://example.com', 'kami.sites.default.url' => 'https://example.com']);
+    config([$key => 'http://example.com']);
+
+    $doctor = $this->artisan('kami:doctor');
+    $warns
+        ? $doctor->expectsOutputToContain("{$label} is http://example.com: production travels in clear, the admin's session cookie and passwords included.")
+            ->expectsOutputToContain('Fix: serve the site over HTTPS, then start ' . $label . ' with https://.')
+            ->expectsOutputToContain('docs/guide/security.md#https-in-production')
+            ->assertSuccessful()
+        : $doctor->doesntExpectOutputToContain('travels in clear')->assertSuccessful();
+})->with([
+    'APP_URL in production' => ['production', 'app.url', 'APP_URL', true],
+    'a Site URL in production' => ['production', 'kami.sites.default.url', 'kami.sites.default.url', true],
+    'APP_URL in local' => ['local', 'app.url', 'APP_URL', false],
+]);
+
+it('warns in production, not elsewhere, about a session cookie not always Secure', function (string $environment, ?bool $secure, bool $warns) {
+    config(['app.env' => $environment, 'session.secure' => $secure]);
+
+    $doctor = $this->artisan('kami:doctor');
+    $warns
+        ? $doctor->expectsOutputToContain('The session cookie is not always Secure in production: behind a proxy Laravel does not trust, it travels without it.')
+            ->expectsOutputToContain('Fix: set SESSION_SECURE_COOKIE=true in .env.')
+            ->expectsOutputToContain('docs/guide/security.md#https-in-production')
+            ->assertSuccessful()
+        : $doctor->doesntExpectOutputToContain('not always Secure')->assertSuccessful();
+})->with([
+    'off in production' => ['production', false, true],
+    'unset in production' => ['production', null, true],
+    'on in production' => ['production', true, false],
+    'off in local' => ['local', false, false],
 ]);
 
 it('warns about a type whose view is missing, unless it renders without one', function () {
