@@ -94,6 +94,8 @@ The admin's session cookie and every password typed into the panel travel with e
 - `APP_URL` or a Site's `url` in `config/kami.php` starts with `http://`: serve the site over HTTPS, then change the address. Infomaniak serves HTTPS once the site's certificate is active.
 - The session cookie is not always `Secure`, because `session.secure` is not `true`. Left unset, Laravel adds `Secure` only to a request it sees as HTTPS, and behind a shared host's proxy, which Laravel does not trust by default, it sees plain HTTP: the cookie goes out without the flag. Set `SESSION_SECURE_COOKIE=true` in `.env`; the starter kit's `config/session.php` defaults it to `true` in production.
 
+Both checks read the configuration only, so they behave the same on shared hosting and on a server, whatever terminates TLS in front of PHP. A Site whose `url` is `APP_URL`, as `config/kami.php` sets it by default, gets one warning, not two.
+
 ## Extending the policy
 
 A front that loads from another origin, such as images from a CDN, adds it under `security.csp` in `config/kami.php`, per directive:
