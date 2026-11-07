@@ -53,7 +53,15 @@ On a site where no User may manage Users yet, `kami:install` ends by creating th
 php artisan kami:install --email=ada@example.com --name=Ada
 ```
 
-The password is never an option, so it stays out of the shell history and the process list. Without a terminal (`--no-interaction`, a deploy script, CI), `kami:install` reads it from the `KAMI_ADMIN_PASSWORD` environment variable, and fails, naming what to pass, when the email, the name or the password is missing. Set it in the process's environment, from a CI secret or in your shell without echoing it, never in `.env`, which is no longer read once the configuration is cached:
+The password is never an option, so it stays out of the shell history and the process list. Without a terminal (`--no-interaction`, a deploy script, CI), `kami:install` fails, naming what to pass, when the email or the name is missing. It creates the User without a password anyone knows and prints a one-time link to set it:
+
+```bash
+php artisan kami:install --no-interaction --email=ada@example.com --name=Ada
+```
+
+The link opens the admin's password reset page, where the new administrator chooses their password. It works once and expires after `expire` minutes of your password broker in `config/auth.php` (60 by default); when it has expired, the "Forgot password?" link on the sign-in page sends a new one by email. It is built on `APP_URL`, so set that to the site's address first. The panel needs a password reset (`->passwordReset()` in its provider, which the starter kit has): without one, `kami:install` fails before creating the User and says so.
+
+The link sits in the command's output, where anyone reading a CI log could use it before the administrator does. Where that matters, give the password in the `KAMI_ADMIN_PASSWORD` environment variable instead, and no link is printed. Set it in the process's environment, from a CI secret or in your shell without echoing it, never in `.env`, which is no longer read once the configuration is cached:
 
 ```bash
 read -rs KAMI_ADMIN_PASSWORD && export KAMI_ADMIN_PASSWORD

@@ -6,6 +6,7 @@ namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
@@ -45,7 +46,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null}
  */
 final readonly class Doctor
 {

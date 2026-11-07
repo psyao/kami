@@ -2,15 +2,19 @@
 
 declare(strict_types=1);
 
+use Filament\Auth\Pages\PasswordReset\ResetPassword;
+use Filament\Facades\Filament;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Workbench\App\Models\User;
@@ -45,10 +49,6 @@ it('prompts for the email, the name and the password in a terminal', function ()
 });
 
 it('fails without a terminal, naming the missing input', function (array $options, string $missing) {
-    if ($missing === 'KAMI_ADMIN_PASSWORD') {
-        unset($_SERVER['KAMI_ADMIN_PASSWORD']);
-    }
-
     $this->artisan('kami:install', ['--no-interaction' => true, ...$options])
         ->expectsOutputToContain("Pass {$missing}")
         ->assertFailed();
@@ -57,8 +57,50 @@ it('fails without a terminal, naming the missing input', function (array $option
 })->with([
     'email' => [['--name' => 'Ada'], '--email'],
     'name' => [['--email' => 'ada@example.test'], '--name'],
-    'password' => [['--email' => 'ada@example.test', '--name' => 'Ada'], 'KAMI_ADMIN_PASSWORD'],
 ]);
+
+it('creates the first administrator without KAMI_ADMIN_PASSWORD and prints a one-time link that sets the password', function () {
+    unset($_SERVER['KAMI_ADMIN_PASSWORD']);
+    config(['auth.passwords.users.expire' => 45]);
+
+    expect(Artisan::call('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada']))->toBe(0);
+    $output = Artisan::output();
+
+    expect($output)->toContain('valid for 45 minutes')
+        ->and(preg_match('~(https?://\S+/password-reset/reset\S+)~', $output, $link))->toBe(1)
+        ->and(Auth::attempt(['email' => 'ada@example.test', 'password' => '']))->toBeFalse();
+
+    // Followed as a browser would: the signed URL opens the panel's reset page, which takes the email and the token from it.
+    $this->get($link[1])->assertOk();
+    parse_str((string) parse_url($link[1], PHP_URL_QUERY), $query);
+    Livewire::test(ResetPassword::class, ['email' => $query['email'], 'token' => $query['token']])
+        ->fillForm(['password' => 'correct horse battery', 'passwordConfirmation' => 'correct horse battery'])
+        ->call('resetPassword')
+        ->assertHasNoFormErrors();
+
+    expect(Auth::attempt(['email' => 'ada@example.test', 'password' => 'correct horse battery']))->toBeTrue()
+        ->and(Gate::forUser(User::query()->sole())->allows('kami.users.manage'))->toBeTrue();
+
+    // One-time: the token is spent. Signed out first, as Auth::attempt() signed in and the reset page sends a signed-in User away.
+    Auth::logout();
+    Livewire::test(ResetPassword::class, ['email' => $query['email'], 'token' => $query['token']])
+        ->fillForm(['password' => 'another horse battery', 'passwordConfirmation' => 'another horse battery'])
+        ->call('resetPassword')
+        ->assertNotified(__(Password::INVALID_TOKEN));
+
+    expect(Auth::attempt(['email' => 'ada@example.test', 'password' => 'correct horse battery']))->toBeTrue();
+});
+
+it('fails without KAMI_ADMIN_PASSWORD when the panel offers no password reset, naming the fix', function () {
+    unset($_SERVER['KAMI_ADMIN_PASSWORD']);
+    Filament::getPanel('admin')->passwordReset(null, null);
+
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])
+        ->expectsOutputToContain('Add ->passwordReset() to your panel provider, or set KAMI_ADMIN_PASSWORD in the environment')
+        ->assertFailed();
+
+    expect(User::query()->count())->toBe(0);
+});
 
 function existingUser(): User
 {
@@ -287,6 +329,6 @@ it('fails the same way from a process with no terminal, even without --no-intera
         ->run(['php', 'vendor/bin/testbench', 'kami:install']);
 
     expect($result->exitCode())->toBe(1)
-        ->and($result->output() . $result->errorOutput())->toContain('Pass --email, --name, KAMI_ADMIN_PASSWORD')
+        ->and($result->output() . $result->errorOutput())->toContain('Pass --email, --name.')
         ->not->toContain('NonInteractiveValidationException');
 });

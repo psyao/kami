@@ -7,7 +7,9 @@ namespace Psyao\Kami\Support\Internal\Install;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -96,7 +98,7 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        if (! $this->firstAdministrator()) {
+        if (! $this->firstAdministrator($registration)) {
             return self::FAILURE;
         }
 
@@ -155,7 +157,7 @@ final class InstallCommand extends Command
      * Makes sure a User may manage Users (ADR 0001, step 7): while none does, an existing email gets the `administrator` Role and an unknown one creates the User.
      * The password is never an argument: it would stay in the shell history and the process list.
      */
-    private function firstAdministrator(): bool
+    private function firstAdministrator(PluginRegistration $registration): bool
     {
         $granting = Permissions::rolesGranting('kami.users.manage');
 
@@ -246,15 +248,31 @@ final class InstallCommand extends Command
         $name = is_string($name) ? $name : ($interactive ? text('Name of the first administrator', required: true, validate: ['name' => $rules['name']]) : null);
         $password = $interactive ? password('Password of the first administrator', required: true, validate: ['password' => $rules['password']]) : Env::get('KAMI_ADMIN_PASSWORD');
 
-        // ponytail: missing input fails; ADR 0001's one-time password link replaces the KAMI_ADMIN_PASSWORD requirement in M6.
-        if ($email === null || $name === null || ! is_string($password)) {
-            $missing = array_keys(array_filter(['--email' => $email === null, '--name' => $name === null, 'KAMI_ADMIN_PASSWORD' => ! is_string($password)]));
-            $this->components->error('No User may manage Users yet, and kami:install cannot create the first administrator without a terminal. Pass ' . implode(', ', $missing) . ' (KAMI_ADMIN_PASSWORD in the environment, never as an argument).');
+        if ($email === null || $name === null) {
+            $missing = array_keys(array_filter(['--email' => $email === null, '--name' => $name === null]));
+            $this->components->error('No User may manage Users yet, and kami:install cannot create the first administrator without a terminal. Pass ' . implode(', ', $missing) . '.');
 
             return false;
         }
 
-        $validator = Validator::make(['email' => $email, 'name' => $name, 'password' => $password], $rules);
+        // Without a password, the User sets one through a one-time link (ADR 0001): checked before anything is written.
+        $makeLink = null;
+
+        if (! is_string($password)) {
+            foreach ($registration->panels as $panel) {
+                if (($makeLink = $panel()['setPasswordLink']) !== null) {
+                    break;
+                }
+            }
+
+            if ($makeLink === null || ! is_a($users, CanResetPassword::class, true)) {
+                $this->components->error('No password was given, and kami:install cannot print a link to set one: ' . ($makeLink === null ? 'the Kami panel offers no password reset. Add ->passwordReset() to your panel provider' : "{$users} does not implement CanResetPassword. Implement it") . ', or set KAMI_ADMIN_PASSWORD in the environment, then run kami:install again.');
+
+                return false;
+            }
+        }
+
+        $validator = Validator::make(['email' => $email, 'name' => $name, ...(is_string($password) ? ['password' => $password] : [])], is_string($password) ? $rules : Arr::except($rules, 'password'));
 
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -264,14 +282,26 @@ final class InstallCommand extends Command
             return false;
         }
 
-        DB::transaction(function () use ($users, $email, $name, $password): void {
+        $user = DB::transaction(function () use ($users, $email, $name, $password): Model {
             $user = new $users;
             $user->setAttribute('email', $email);
             $user->setAttribute('name', $name);
-            $user->setAttribute('password', Hash::make($password));
+            // Laravel's users.password is not nullable: a random one nobody knows until the link sets the real one.
+            $user->setAttribute('password', Hash::make(is_string($password) ? $password : Str::random(64)));
             $user->save();
             DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
+
+            return $user;
         });
+
+        if ($makeLink !== null && $user instanceof CanResetPassword) {
+            $link = $makeLink($user);
+            $this->components->info("{$email} is the first administrator. This one-time link sets their password, valid for {$link['minutes']} minutes:");
+            // A plain line: the components would wrap a long URL.
+            $this->line("  {$link['url']}");
+
+            return true;
+        }
 
         $this->components->info("{$email} is the first administrator.");
 

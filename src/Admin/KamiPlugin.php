@@ -28,6 +28,7 @@ use Filament\Support\Assets\Css;
 use Filament\Support\Assets\Js;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
 use Livewire\Component as LivewireComponent;
@@ -39,6 +40,7 @@ use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RichTextInput;
+use Psyao\Kami\Admin\Internal\SetPasswordLink;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
 use Psyao\Kami\Admin\Internal\Widgets\RecentlyEdited;
 use Psyao\Kami\Admin\Internal\Widgets\Scheduled;
@@ -173,6 +175,7 @@ final class KamiPlugin implements Plugin
             // A panel does not run the `web` group, so it needs `SecurityHeaders` of its own (ADR 0018).
             'middleware' => array_values(array_filter($panel->getMiddleware(), is_string(...))),
             'replacedResetPage' => $this->replacedResetPage($panel),
+            'setPasswordLink' => $panel->hasPasswordReset() ? fn (CanResetPassword $user): array => SetPasswordLink::make($panel, $user) : null,
         ];
 
         // One registration per declared type, each with its own URL, navigation item and Permissions; the class comes from config, the door for overridable Resources in V1 (ADR 0029).
