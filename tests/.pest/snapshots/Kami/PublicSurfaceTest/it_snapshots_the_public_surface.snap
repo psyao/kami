@@ -276,6 +276,8 @@ command kami:media:warm --preset [--preset [PRESET]]
 command kami:user:grant
 command kami:user:grant email <email>
 command kami:user:grant role <role>
+command kami:user:reset-mfa
+command kami:user:reset-mfa email <email>
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::preview-banner
 config kami.media.avif

@@ -55,6 +55,20 @@ final class UserMfa
         });
     }
 
+    /** Deletes the User's authenticator for the operator, recording `kami.mfa.reset`, not the User's own `kami.mfa.disabled`; false when it had none. */
+    public static function reset(Model $user): bool
+    {
+        return DB::transaction(function () use ($user): bool {
+            if (DB::table('kami_user_mfa')->where('user_id', $user->getKey())->delete() === 0) {
+                return false;
+            }
+
+            resolve(RecordAuditEvent::class)->handle('kami.mfa.reset', $user);
+
+            return true;
+        });
+    }
+
     /** @param  ?array<string>  $codes  Hashed by Filament. */
     public static function saveRecoveryCodes(Model $user, #[SensitiveParameter] ?array $codes): void
     {

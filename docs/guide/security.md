@@ -81,7 +81,9 @@ A class of your own, `->passwordReset(MyRequestPage::class)`, wins over Kami's. 
 
 Users who may manage Users must sign in with an authenticator app's code after their password; others may choose to ([Users and roles](users-and-roles.md#mfa)). A stolen password alone then hands out no rights.
 
-The secrets are encrypted with `APP_KEY`. Rotating it breaks every authenticator unless the old key stays readable: list it in `APP_PREVIOUS_KEYS` (comma-separated) when you set a new `APP_KEY`, as Laravel's encryption reads both. A User locked out anyway, by a lost phone and lost recovery codes or a key gone for good, sets MFA up again once its `kami_user_mfa` row is deleted.
+The secrets are encrypted with `APP_KEY`. Rotating it breaks every authenticator unless the old key stays readable: list it in `APP_PREVIOUS_KEYS` (comma-separated) when you set a new `APP_KEY`, as Laravel's encryption reads both. A User locked out anyway, by a lost phone and lost recovery codes or a key gone for good, sets MFA up again after `php artisan kami:user:reset-mfa` with its email ([From the command line](users-and-roles.md#from-the-command-line)).
+
+`kami:doctor` makes sure the rule is not skipped by accident. It reports an error when a panel carrying `KamiPlugin` no longer requires Kami's provider, because a `->multiFactorAuthentication()` or `->requiresMultiFactorAuthentication()` set after the plugin replaced it, and when the panel's User model does not implement Filament's `HasAppAuthentication` and `HasAppAuthenticationRecovery`. It warns with the number of Users who may manage Users and have not set MFA up yet.
 
 ## Extending the policy
 

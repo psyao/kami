@@ -21,7 +21,7 @@ class User extends Authenticatable implements HasAppAuthentication, HasAppAuthen
 }
 ```
 
-`HasKamiMfa` stores the User's authenticator for [MFA](#mfa); a model without it, or without Filament's two contracts, makes the sign-in page fail.
+`HasKamiMfa` stores the User's authenticator for [MFA](#mfa); a model without it, or without Filament's two contracts, makes the sign-in page fail, and `kami:doctor` reports an error.
 
 Until it does, `kami:install` stops before changing anything, and `kami:doctor` reports an error naming the model and what to add.
 
@@ -78,6 +78,14 @@ php artisan kami:user:grant ada@example.com administrator
 
 It finds the User by email as `kami:install` does: case-insensitively, and several Users matching the address make it fail. It never creates a User, and refuses an unknown email and an undeclared Role. It takes no password. The grant goes through `AssignRoles` and is recorded with the actor `cli`. There is no command to revoke a Role: revoking is not a rescue, and the admin does it.
 
+`kami:user:reset-mfa` clears a User's authenticator and recovery codes, for a User who lost both:
+
+```bash
+php artisan kami:user:reset-mfa ada@example.com
+```
+
+It finds the User by email as `kami:user:grant` does, and takes no password. The User sets MFA up again at the next sign-in, at once when it may manage Users. The reset is recorded in the [Audit log](audit-log.md) as `kami.mfa.reset`, with the actor `cli`. A User with no MFA set up is left as it is.
+
 `kami:doctor` warns about assignments whose handle `config/kami.php` does not declare: such a Role grants nothing. Declare it again, or delete its rows from `kami_role_user`.
 
 ## MFA
@@ -87,11 +95,13 @@ It finds the User by email as `kami:install` does: case-insensitively, and sever
 - A User whose Roles grant `kami.users.manage` must set it up before reaching any other admin page: Filament's set-up page shows a QR code, the secret as text, and asks a code before enabling it. It then shows eight recovery codes, once; each signs in once in place of a code. That User cannot disable MFA while holding the Permission, only regenerate the codes.
 - Every other User may set it up, or disable it, from the profile page. `KamiPlugin` turns on Filament's profile page (`->profile()`) when your panel has none; your own `->profile(MyProfile::class)` wins.
 
-`HasKamiMfa` keeps the authenticator in `kami_user_mfa`, one row per User with MFA, deleted with the User: your `users` table gains no column. The secret and the hashed recovery codes are encrypted with the app key. Setting MFA up, disabling it and using a recovery code land in the [Audit log](audit-log.md) as `kami.mfa.enabled`, `kami.mfa.disabled` and `kami.mfa.recovery-used`. Filament remembers the last code accepted in your cache, so a code signs in once; the `file` and `database` stores of a shared host do.
+`HasKamiMfa` keeps the authenticator in `kami_user_mfa`, one row per User with MFA, deleted with the User: your `users` table gains no column. The secret and the hashed recovery codes are encrypted with the app key. Setting MFA up, disabling it and using a recovery code land in the [Audit log](audit-log.md) as `kami.mfa.enabled`, `kami.mfa.disabled` and `kami.mfa.recovery-used`; a reset from the [command line](#from-the-command-line) as `kami.mfa.reset`. Filament remembers the last code accepted in your cache, so a code signs in once; the `file` and `database` stores of a shared host do.
 
 Rotating `APP_KEY` without listing the old key in `APP_PREVIOUS_KEYS` makes every authenticator unreadable, and its Users cannot sign in. See [Security](security.md#mfa).
 
-A model may implement Filament's two contracts on columns of its own instead of using `HasKamiMfa`; it then records no MFA event.
+`kami:doctor` counts, as a warning, the Users who may manage Users and have not set MFA up yet: the panel stops each at the next sign-in until it does.
+
+A model may implement Filament's two contracts on columns of its own instead of using `HasKamiMfa`; it then records no MFA event, and `kami:user:reset-mfa`, which clears `kami_user_mfa` only, finds no MFA to reset.
 
 ## The first administrator
 
