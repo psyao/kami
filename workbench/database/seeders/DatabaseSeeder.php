@@ -6,6 +6,7 @@ namespace Workbench\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
@@ -102,6 +103,13 @@ class DatabaseSeeder extends Seeder
         // Tabs, a section, conditions, a Repeater, a Group, relations, and Media Fields picking from the library: a cover, a gallery in pick order.
         $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id], 'tags' => [$filament->id, $laravel->id], 'cover' => $photo->id, 'gallery' => [$pixel->id, $photo->id, $brochure->id]], locale: 'fr', actor: $admin);
         $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
+
+        // The Audit log already holds every write above. Two more rows worth looking at: a wrong password on Ada's account,
+        // and an Entry published by a User deleted since, shown as "Deleted User (id)".
+        resolve(RecordAuditEvent::class)->handle('kami.auth.sign-in-failed', $admin);
+        $former = $this->user('Fiona Former', 'former@example.test', 'editor');
+        $save->handle(Article::class, [...$published, 'title' => 'Écrit par une ancienne', 'author' => 'Fiona'], locale: 'fr', actor: $former);
+        $former->delete();
     }
 
     private function user(string $name, string $email, string $role): User

@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
+use Psyao\Kami\Audit\Internal\AuditEvent;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
@@ -38,6 +39,7 @@ final class Permissions
 
         $gate->policy(Entry::class, EntryPolicy::class);
         $gate->policy(Media::class, MediaPolicy::class);
+        $gate->policy(AuditEvent::class, AuditEventPolicy::class);
     }
 
     /** @return list<string> */
@@ -46,7 +48,7 @@ final class Permissions
         $entries = collect(resolve(ContentTypes::class)->all())
             ->flatMap(fn (ContentType $type): array => array_map(fn (string $action): string => "kami.entries.{$type->handle()}.{$action}", self::ENTRY_ACTIONS));
 
-        return [...$entries, ...array_map(fn (string $action): string => "kami.media.{$action}", self::MEDIA_ACTIONS), 'kami.health.view', 'kami.users.manage'];
+        return [...$entries, ...array_map(fn (string $action): string => "kami.media.{$action}", self::MEDIA_ACTIONS), 'kami.audit.view', 'kami.health.view', 'kami.users.manage'];
     }
 
     /**

@@ -63,6 +63,14 @@ return [
     ],
 
     /*
+    | The Audit log (ADR 0022). `retention`: the months an event is kept before `kami:audit:prune` deletes it, 1 or more
+    | (docs/guide/audit-log.md#retention).
+    */
+    'audit' => [
+        'retention' => 12,
+    ],
+
+    /*
     | The front's Content Security Policy and headers (ADR 0018); the admin profile is fixed. Every option that weakens
     | them is off by default and raises a `kami:doctor` warning when on (docs/guide/security.md#weakening-options).
     |

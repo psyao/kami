@@ -277,4 +277,77 @@ return [
             ],
         ],
     ],
+
+    'audit' => [
+        'label' => 'Événement d’audit',
+        'plural_label' => 'Journal d’audit',
+        'columns' => [
+            'occurred_at' => 'Quand',
+            'actor' => 'Qui',
+            'event' => 'Événement',
+            'subject' => 'Sujet',
+            'site' => 'Site',
+            'ip' => 'IP',
+            'context' => 'Contexte',
+        ],
+        'actors' => [
+            'cli' => 'Ligne de commande',
+            'system' => 'Système',
+        ],
+        'deleted_user' => 'Utilisateur supprimé (:id)',
+        'filters' => [
+            'user' => 'Utilisateur',
+            'event' => 'Événement',
+            'from' => 'Du',
+            'until' => 'Au',
+        ],
+        'subjects' => [
+            'entry' => 'Entrée',
+            'media' => 'Média',
+            'user' => 'Utilisateur',
+            'preview-link' => 'Lien de prévisualisation',
+        ],
+        'events' => [
+            'entries' => [
+                'published' => 'Entrée publiée',
+                'unpublished' => 'Entrée dépubliée',
+                'publication-date-changed' => 'Date de publication modifiée',
+                'trashed' => 'Entrée mise à la corbeille',
+                'restored' => 'Entrée restaurée',
+                'force-deleted' => 'Entrée supprimée définitivement',
+            ],
+            'preview-links' => [
+                'created' => 'Lien de prévisualisation créé',
+                'revoked' => 'Lien de prévisualisation révoqué',
+            ],
+            'media' => [
+                'deleted' => 'Média supprimé',
+            ],
+            'content' => [
+                'migrated' => 'Contenu migré',
+            ],
+            'roles' => [
+                'granted' => 'Rôle attribué',
+                'revoked' => 'Rôle retiré',
+            ],
+            'users' => [
+                'lockout-refused' => 'Verrouillage refusé',
+                'created' => 'Utilisateur créé',
+                'deleted' => 'Utilisateur supprimé',
+            ],
+            'auth' => [
+                'signed-in' => 'Connexion',
+                'sign-in-failed' => 'Échec de connexion',
+                'locked-out' => 'Connexion bloquée',
+                'password-reset' => 'Mot de passe réinitialisé',
+            ],
+            'mfa' => [
+                'enabled' => 'MFA activée',
+                'disabled' => 'MFA désactivée',
+                'recovery-used' => 'Code de récupération utilisé',
+                'challenge-failed' => 'Code MFA refusé',
+                'reset' => 'MFA réinitialisée',
+            ],
+        ],
+    ],
 ];

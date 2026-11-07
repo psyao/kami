@@ -38,6 +38,7 @@ use Livewire\Component as LivewireComponent;
 use Livewire\Livewire;
 use LogicException;
 use Psyao\Kami\Admin\Internal\AppAuthentication;
+use Psyao\Kami\Admin\Internal\AuditEventResource;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\Login;
@@ -211,7 +212,7 @@ final class KamiPlugin implements Plugin
             throw new LogicException('kami.resources.media names ' . MediaResource::class . '.');
         }
 
-        $panel->resources([$media]);
+        $panel->resources([$media, AuditEventResource::class]);
 
         // A front page, so the front's headers in place of the panel's (ADR 0018); but for the admin's opener policy,
         // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.

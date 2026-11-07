@@ -15,6 +15,7 @@ use Illuminate\Image\ImageManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Event;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
+use Psyao\Kami\Audit\Internal\PruneAuditCommand;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
@@ -44,8 +45,8 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            // ponytail: `kami:media:prune` runs when an operator starts it; M8's Tick schedules it weekly.
-            ->hasCommands([DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, WarmMediaCommand::class]);
+            // ponytail: `kami:media:prune` and `kami:audit:prune` run when an operator starts them, from the shell or a host cron; M8's Tick schedules them.
+            ->hasCommands([DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void

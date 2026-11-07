@@ -257,6 +257,7 @@ class Psyao\Kami\Users\HasKamiRoles trait
 class Psyao\Kami\Users\HasKamiRoles::kamiRoles() public function kamiRoles(): array
 class Psyao\Kami\Users\KamiUser interface
 class Psyao\Kami\Users\KamiUser::kamiRoles() abstract public function kamiRoles(): array
+command kami:audit:prune
 command kami:doctor
 command kami:doctor --strict [--strict]
 command kami:install
@@ -280,6 +281,7 @@ command kami:user:reset-mfa
 command kami:user:reset-mfa email <email>
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::preview-banner
+config kami.audit.retention
 config kami.media.avif
 config kami.media.max_pixels
 config kami.media.mimes.document
@@ -300,6 +302,7 @@ config kami.sites.default.url
 config kami.types
 middleware kami group
 middleware kami.security-headers Psyao\Kami\Support\SecurityHeaders
+permission kami.audit.view
 permission kami.entries.{type}.create
 permission kami.entries.{type}.delete
 permission kami.entries.{type}.force-delete

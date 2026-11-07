@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
@@ -27,12 +28,6 @@ use Workbench\App\Content\Page;
 use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
-
-function auditUser(): User
-{
-    // Without model events: the User's own `kami.users.created` row is not what this file reads.
-    return User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
-}
 
 it('records a site’s own event with its User, subject and context', function (): void {
     $this->freezeSecond();
@@ -305,4 +300,44 @@ it('dispatches AuditEventRecorded once the row commits, for a batch’s summary 
         && [$recorded->subjectType, $recorded->subjectId, $recorded->site, $recorded->context, $recorded->actor] === ['invoice', '42', null, ['number' => 'F-12'], $ada]);
     Event::assertDispatched(AuditEventRecorded::class, fn (AuditEventRecorded $recorded): bool => $recorded->event === 'acme.import.completed'
         && $recorded->context === ['kami.entries.published' => 1]);
+});
+
+describe('kami:audit:prune', function (): void {
+    it('deletes the events older than kami.audit.retention months, in chunks, and keeps the others', function (): void {
+        $this->freezeSecond();
+        config(['kami.audit.retention' => 3]);
+        $old = fn (string $at): array => ['id' => (string) Str::ulid(), 'occurred_at' => $at, 'actor' => 'cli', 'event' => 'acme.cache.cleared', 'context' => '{}'];
+        // More than one chunk.
+        DB::table('kami_audit_events')->insert(array_map(fn (): array => $old(now()->subMonths(3)->subSecond()->toDateTimeString()), range(1, 1001)));
+        resolve(RecordAuditEvent::class)->handle('acme.kept');
+        DB::table('kami_audit_events')->insert($old(now()->subMonths(3)->toDateTimeString()));
+
+        $this->artisan('kami:audit:prune')->expectsOutputToContain('Deleted 1001 audit events older than 3 months.')->assertSuccessful();
+
+        expect(DB::table('kami_audit_events')->count())->toBe(2);
+    });
+
+    it('keeps 12 months by default', function (): void {
+        $this->freezeSecond();
+        config(['kami.audit' => []]);
+        resolve(RecordAuditEvent::class)->handle('acme.kept');
+        $this->travel(-12)->months();
+        resolve(RecordAuditEvent::class)->handle('acme.kept');
+        $this->travel(-1)->seconds();
+        resolve(RecordAuditEvent::class)->handle('acme.pruned');
+        $this->travelBack();
+
+        $this->artisan('kami:audit:prune')->assertSuccessful();
+
+        expect(array_column(auditEvents(), 'event'))->toBe(['acme.kept', 'acme.kept']);
+    });
+
+    it('refuses a retention under one month, deleting nothing', function (): void {
+        config(['kami.audit.retention' => 0]);
+        resolve(RecordAuditEvent::class)->handle('acme.kept');
+
+        $this->artisan('kami:audit:prune')->expectsOutputToContain('kami.audit.retention must be a number of months, 1 or more.')->assertFailed();
+
+        expect(auditEvents())->toHaveCount(1);
+    });
 });
