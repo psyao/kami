@@ -20,6 +20,8 @@ it('sets MFA up from the QR code\'s secret, then asks a code at the next sign-in
     signInPassword($page, 'grace@example.test')
         // A manager without MFA lands on its set-up, not on the dashboard.
         ->assertPathIs('/admin/multi-factor-authentication/set-up')
+        // Reached by a redirect, which nothing waits for: pressed before Livewire starts, "Set up" opens nothing (#369).
+        ->waitForEvent('load')
         ->press('internal:role=button[name="Set up"s]')
         ->assertSee('Or enter this code manually');
 
@@ -69,11 +71,13 @@ it('passes axe on the set-up and challenge pages, light, dark and mobile', funct
     signInPassword($modes['light']('/admin/login'), 'grace@example.test')->assertPathIs('/admin/multi-factor-authentication/set-up');
 
     foreach ($modes as $mode) {
-        $mode('/admin/multi-factor-authentication/set-up')
+        $page = $mode('/admin/multi-factor-authentication/set-up')
             ->assertNoAccessibilityIssues()
             ->press('internal:role=button[name="Set up"s]')
-            ->assertSee('Or enter this code manually')
-            ->assertNoAccessibilityIssues()
+            ->assertSee('Or enter this code manually');
+        // The modal shows before Livewire's request ends, which dims "Set up" (`fi-disabled`) until then: axe measures it as the User sees it after (#369).
+        $page->script("() => new Promise((resolve, reject) => { const until = Date.now() + 5000; const settled = () => ! [...document.querySelectorAll('.fi-link[aria-disabled=\"true\"]')].some((link) => link.textContent.trim() === 'Set up') ? resolve() : Date.now() > until ? reject(new Error('Set up is still disabled after 5 seconds.')) : requestAnimationFrame(settled); settled(); })");
+        $page->assertNoAccessibilityIssues()
             ->assertNoJavaScriptErrors();
     }
 });
