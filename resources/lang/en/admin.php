@@ -10,6 +10,7 @@ return [
         'slug_help' => 'The last part of the address. Left blank, it is made from the title.',
         'parent' => 'Parent',
         'parent_cycle' => 'An Entry cannot sit under itself or one of its children.',
+        'restricted' => 'Restricted Entry',
         'untitled' => 'Untitled',
         'encoding' => 'The :attribute field must be valid UTF-8 text.',
         'path_taken' => "Another Entry already answers at this type's Prefix: change the Prefix.",

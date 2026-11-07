@@ -631,18 +631,18 @@ final class EntryResource extends FilamentResource
     }
 
     /**
-     * The candidates titled with the search, in any Locale.
+     * The candidates titled with the search, in any Locale, of the types the User may view.
      *
      * @param  Builder<Entry>  $candidates
      * @return array<mixed>
      */
     private static function matchingIds(Builder $candidates, string $search): array
     {
-        return Translation::query()->whereIn('entry_id', $candidates->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
+        return Translation::query()->whereIn('entry_id', $candidates->whereIn('type', self::viewableTypes())->select('id')->toBase())->whereLike('title', "%{$search}%")->distinct()->limit(50)->pluck('entry_id')->all();
     }
 
     /**
-     * Creates a target from its title, through `SaveEntry`, in the Locale edited, under the target's `create` Permission. A Term is published by default (ADR 0002), unless the editor may not publish its type (ADR 0019); anything else is a Draft.
+     * Creates a target from its title, through `SaveEntry`, in the Locale edited, under the target's `create` and `view` Permissions. A Term is published by default (ADR 0002), unless the editor may not publish its type (ADR 0019); anything else is a Draft.
      *
      * @param  class-string<ContentType>  $target
      */
@@ -654,7 +654,8 @@ final class EntryResource extends FilamentResource
 
         return $picker
             ->createOptionForm([TextInput::make('title')->label(__('kami::admin.fields.title'))->required()])
-            ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => $allows('create'))
+            // Offering a link takes `view`: a User never creates a target they would then see as restricted.
+            ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => $allows('create') && $allows('viewAny'))
                 // Named, as a form may hold several pickers (WCAG 2.4.6).
                 ->label($label)
                 ->modalHeading($label))
@@ -727,6 +728,7 @@ final class EntryResource extends FilamentResource
 
     /**
      * Each Entry's title in the Locale edited, or the default one's, or any: a target titled elsewhere stays recognisable.
+     * An Entry of a type the User may not view is labelled as restricted, with no title, so a pick someone else made stays removable; an id no Entry has gets no label.
      *
      * @param  array<mixed>  $entries
      * @return array<string, string>
@@ -735,15 +737,38 @@ final class EntryResource extends FilamentResource
     {
         $default = Site::current()->defaultLocale();
         $edited = $livewire instanceof EditEntry ? $livewire->locale : $default;
+        /** @var array<string, string> $types */
+        $types = Entry::query()->withUnpublished()->withTrashed()->whereKey($entries)->pluck('type', 'id')->all();
+        $restricted = array_keys(array_diff($types, self::viewableTypes()));
 
         /** @var array<string, string> The preferred last, so it wins. */
-        return Translation::query()->whereIn('entry_id', $entries)->whereNotNull('title')->get()
+        $titles = Translation::query()->whereIn('entry_id', array_diff(array_keys($types), $restricted))->whereNotNull('title')->get()
             ->sortBy(fn (Translation $translation): int => match ($translation->locale) {
                 $edited => 2,
                 $default, '*' => 1,
                 default => 0,
             })
             ->pluck('title', 'entry_id')->all();
+
+        /** @var array<string, string> */
+        $labels = array_fill_keys($restricted, __('kami::admin.fields.restricted'));
+
+        return $titles + $labels;
+    }
+
+    /**
+     * The types whose Entries a picker offers and titles: offering a link takes `view` on the target (ADR 0014).
+     *
+     * @return list<string>
+     */
+    private static function viewableTypes(): array
+    {
+        $gate = Gate::forUser(Filament::auth()->user());
+
+        return array_values(array_filter(
+            array_map(fn (ContentType $type): string => $type->handle(), resolve(ContentTypes::class)->all()),
+            fn (string $type): bool => $gate->allows("kami.entries.{$type}.view"),
+        ));
     }
 
     /**

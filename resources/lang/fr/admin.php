@@ -10,6 +10,7 @@ return [
         'slug_help' => 'La dernière partie de l’adresse. Laissé vide, il est tiré du titre.',
         'parent' => 'Parent',
         'parent_cycle' => 'Une Entry ne peut pas se placer sous elle-même ni sous un de ses enfants.',
+        'restricted' => 'Entry à accès restreint',
         'untitled' => 'Sans titre',
         'encoding' => 'Le champ :attribute doit être un texte UTF-8 valide.',
         'path_taken' => 'Une autre Entry répond déjà au Prefix de ce type : changez le Prefix.',

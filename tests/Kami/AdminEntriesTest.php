@@ -1401,6 +1401,45 @@ it('finds and labels a target titled only in another Locale, and lists a target 
         ->and($picker->getSearchResults('Bonjour'))->toBe([$hello->id => 'Bonjour']);
 });
 
+describe('a target type the User may not view', function () {
+    beforeEach(function () {
+        [$this->project, $this->hello] = projectAndTargets();
+        resolve(SaveEntry::class)->handle(Project::class, ['related' => [$this->hello->id]], $this->project, 'fr');
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update']]);
+        $this->actingAs(userWithRole('picker'));
+    });
+
+    it('is not searched, and a pick of it is labelled as restricted, with no title', function () {
+        $picker = entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->instance()->getSchema('form')->getComponent('related');
+
+        expect($picker->getSearchResults('bon'))->toBe([])
+            ->and($picker->getOptionLabels())->toBe([$this->hello->id => 'Restricted Entry']);
+    });
+
+    it('is searched and titled once the User may view it', function () {
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.article.view']]);
+        $picker = entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->instance()->getSchema('form')->getComponent('related');
+
+        expect($picker->getSearchResults('bon'))->toBe([$this->hello->id => 'Bonjour'])
+            ->and($picker->getOptionLabels())->toBe([$this->hello->id => 'Bonjour']);
+    });
+
+    it('keeps a restricted pick on save, and removes it on request', function () {
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->call('save')->assertHasNoErrors();
+        expect(entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->get('data.related'))->toBe([$this->hello->id]);
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->set('data.related', [])->call('save')->assertHasNoErrors();
+        expect(entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->get('data.related'))->toBe([]);
+    });
+
+    it('still refuses an id no Entry has', function () {
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
+            ->set('data.related', ['01JAAAAAAAAAAAAAAAAAAAAAAA'])
+            ->call('save')
+            ->assertHasErrors(['data.related.0']);
+    });
+});
+
 it('opens an Entry page in an exact number of queries, with relations', function (int $targets) {
     [$project] = projectAndTargets();
     $ids = [];
@@ -1414,8 +1453,8 @@ it('opens an Entry page in an exact number of queries, with relations', function
     DB::enableQueryLog();
     $this->get("/admin/projects/{$project->id}/edit")->assertOk();
 
-    // The manager's authenticator, read once by the MFA requirement, is one of them.
-    expect(DB::getQueryLog())->toHaveCount(10);
+    // The manager's authenticator, read once by the MFA requirement, is one of them, as are the targets' types, which decide who sees their titles.
+    expect(DB::getQueryLog())->toHaveCount(11);
 })->with([1, 5]);
 
 function quickCreate(string $field): TestAction
@@ -1463,21 +1502,38 @@ describe('quick create', function () {
         entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->assertActionDoesNotExist(quickCreate('tags'));
     });
 
-    it('takes the target type\'s create Permission', function () {
-        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update']]);
+    it('takes the target type\'s create and view Permissions', function (array $target) {
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', ...$target]]);
         $this->actingAs(userWithRole('picker'));
 
         entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->assertActionHidden(quickCreate('genres'));
         expect(Entry::query()->withUnpublished()->ofType(Genre::class)->exists())->toBeFalse();
 
-        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create']]);
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create', 'kami.entries.genre.view']]);
 
         entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->callAction(quickCreate('genres'), ['title' => 'Essai'])->assertHasNoErrors();
         expect(Entry::query()->withUnpublished()->ofType(Genre::class)->exists())->toBeTrue();
+    })->with([
+        'neither' => [[]],
+        'create alone' => [['kami.entries.genre.create']],
+        'view alone' => [['kami.entries.genre.view']],
+    ]);
+
+    it('searches Terms only of a Taxonomy the User may view', function () {
+        resolve(SaveEntry::class)->handle(Genre::class, ['title' => 'Essai'], locale: 'fr');
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update']]);
+        $this->actingAs(userWithRole('picker'));
+        $search = fn (): array => entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->instance()->getSchema('form')->getComponent('genres')->getSearchResults('Ess');
+
+        expect($search())->toBe([]);
+
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.view']]);
+
+        expect($search())->toHaveCount(1);
     });
 
     it('creates a Draft for an editor who may not publish the Taxonomy, leaving no public page', function () {
-        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create']]);
+        config(['kami.roles.picker' => ['kami.entries.project.view', 'kami.entries.project.update', 'kami.entries.genre.create', 'kami.entries.genre.view']]);
         $this->actingAs(userWithRole('picker'));
 
         entryPage(EditEntry::class, 'project', ['record' => $this->project->id])->callAction(quickCreate('genres'), ['title' => 'Essai'])->assertHasNoErrors();
