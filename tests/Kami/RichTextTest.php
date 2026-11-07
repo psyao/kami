@@ -556,6 +556,19 @@ it('reminds of nothing for a sound document', function () {
         ->assertNotNotified('Accessibility reminders for Body');
 });
 
+it('replaces an Entry\'s reminder for a Field on a save, a Schedule or a Publish, rather than stacking another', function () {
+    $entry = savedArticle(['body' => doc(heading(3, 'b')), 'status' => 'draft']);
+    $other = savedArticle(['title' => 'Salut', 'body' => doc(heading(3, 'b'))]);
+
+    editorPage(['record' => $entry->id])->call('save')->call('save')
+        ->fillForm(['published_at' => now()->addDay()->toDateTimeString()])
+        ->callAction(TestAction::make('publish')->schemaComponent('form-actions', schema: 'content'))
+        ->assertHasNoFormErrors();
+    Livewire::test(EditEntry::class, ['record' => $other->id])->call('save');
+
+    expect(shownNotifications('Accessibility reminders for Body'))->toBe(2);
+});
+
 it('reminds in French on the create page', function () {
     app()->setLocale('fr');
     signInToPanel();

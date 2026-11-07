@@ -106,6 +106,42 @@ it('offers each bulk action under its Permission only', function () {
         ->assertActionVisible(bulk('forceDelete'));
 });
 
+it('hides bulk Publish and Unpublish while the table shows only the Trash, and still refuses a trashed row in a mixed selection', function () {
+    $trashed = bulkArticle('Gone');
+    $draft = bulkArticle('Kept');
+    resolve(TrashEntry::class)->handle($trashed);
+
+    entriesPage(ListEntries::class)->filterTable('trashed', false)
+        ->assertActionHidden(bulk('publish'))
+        ->assertActionHidden(bulk('unpublish'))
+        ->filterTable('trashed', true)
+        ->assertActionVisible(bulk('unpublish'))
+        ->selectTableRecords([$trashed->id, $draft->id])
+        ->callAction(bulk('publish'), ['locale' => 'fr'])
+        ->assertNotified(partialReport(1, 2, [__('kami::admin.bulk.trashed') => 1]));
+
+    expect($draft->fresh()->status)->toBe('published');
+});
+
+it('names deleting for good in plain words, row and bulk, in English and French', function (string $locale, string $label, string $heading, string $bulkLabel, string $bulkHeading) {
+    app()->setLocale($locale);
+    $entry = bulkArticle('Bonjour');
+    resolve(TrashEntry::class)->handle($entry);
+
+    entriesPage(ListEntries::class)->filterTable('trashed', false)
+        ->assertActionHasLabel(bulk('forceDelete'), $bulkLabel)
+        ->selectTableRecords([$entry->id])
+        ->mountAction(bulk('forceDelete'))
+        ->assertMountedActionModalSee($bulkHeading)
+        ->unmountAction()
+        ->assertActionHasLabel(TestAction::make('forceDelete')->table($entry), $label)
+        ->mountAction(TestAction::make('forceDelete')->table($entry))
+        ->assertMountedActionModalSee($heading);
+})->with([
+    'en' => ['en', 'Delete for good', 'Delete Bonjour for good', 'Delete selected for good', 'Delete the selected entries for good'],
+    'fr' => ['fr', 'Supprimer définitivement', 'Supprimer définitivement Bonjour', 'Supprimer définitivement la sélection', 'Supprimer définitivement les entrées sélectionnées'],
+]);
+
 it('publishes the chosen Locale\'s Translations, refusing a row without one, a published one and one missing a required Field', function () {
     $ready = bulkArticle('Prêt');
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Ready'], $ready, 'en');

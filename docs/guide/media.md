@@ -59,7 +59,7 @@ Media::query()->missingAlt()->count();
 
 A missing alt text never blocks anything, but it stays in sight:
 
-- **Publishing** a Translation, from its form or the list's bulk **Publish**, and saving one that is published or Scheduled, warn of the images its Media Fields show without alt text, by name, on a message kept until dismissed. A Draft is never warned about.
+- **Publishing** a Translation, from its form or the list's bulk **Publish**, and saving one that is published or Scheduled, warn of the images its Media Fields show without alt text, by name, on a message kept until dismissed, which saving the same Translation again replaces. A Draft is never warned about.
 - **`kami:doctor`** counts the images missing their alt text as a warning, which the dashboard's **Needs attention** shows after its next run.
 - The library's **Alt text missing** filter lists them ([The library in the admin](#the-library-in-the-admin)).
 

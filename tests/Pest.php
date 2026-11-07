@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Filament\Facades\Filament;
+use Filament\Notifications\NotificationMailbox;
 use Illuminate\Contracts\Image\Driver;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Image\Drivers\GdDriver;
@@ -117,6 +118,15 @@ function entriesPage(string $page, string | array $role = 'administrator', array
     Filament::setCurrentResourceConfigurationKey($type);
 
     return Livewire::test($page, $parameters);
+}
+
+/** How many notifications with that title the panel shows once every one sent so far reaches it: the panel keys them by id, so one sent again under the same id replaces the first. */
+function shownNotifications(string $title): int
+{
+    $mailbox = resolve(NotificationMailbox::class);
+    $mailbox->flush();
+
+    return collect($mailbox->pull())->where('title', $title)->keyBy('id')->count();
 }
 
 /**

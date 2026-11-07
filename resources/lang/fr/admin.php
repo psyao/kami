@@ -51,6 +51,7 @@ return [
         'trash_heading' => 'Mettre les entrées sélectionnées à la corbeille',
         'trash_description' => 'Elles quittent le site dans toutes les langues jusqu’à ce que quelqu’un les restaure.',
         'trash_done' => 'Mises à la corbeille',
+        'delete_heading' => 'Supprimer définitivement les entrées sélectionnées',
         'delete_description' => 'Elles sont supprimées définitivement, dans toutes les langues. Leurs adresses indiquent que les pages n’existent plus (410).',
         'publish_heading' => 'Publier les entrées sélectionnées',
         'unpublish_heading' => 'Dépublier les entrées sélectionnées',
@@ -73,6 +74,7 @@ return [
     ],
 
     'delete' => [
+        'heading' => 'Supprimer définitivement :title',
         'children' => 'Supprimez d’abord ses enfants : :children.',
         'description' => 'Elle est supprimée définitivement, dans toutes les langues. Ses adresses envoient les visiteurs vers la remplaçante, ou indiquent que la page n’existe plus.',
         'replacement' => 'Remplaçante',
@@ -163,6 +165,8 @@ return [
         'unpublish' => 'Dépublier',
         'view' => 'Voir sur le site',
         'trash' => 'Mettre à la corbeille',
+        'delete' => 'Supprimer définitivement',
+        'delete_selected' => 'Supprimer définitivement la sélection',
         'duplicate' => 'Dupliquer',
     ],
 

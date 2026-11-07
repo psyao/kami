@@ -280,7 +280,7 @@ Bare text in a list item or a quote is wrapped in a paragraph, and each unknown 
 
 Unwrapping paragraphs (`wpautop`), shortcodes, Media and rewriting URLs stay with the importer, which emits that HTML.
 
-Saving a document in the admin reminds the editor, without stopping the save, of a skipped heading level, counted from the Field's highest level as the title is the H1, of an empty heading and of a link with no text. The reminders stay on screen until dismissed.
+Saving a document in the admin reminds the editor, without stopping the save, of a skipped heading level, counted from the Field's highest level as the title is the H1, of an empty heading and of a link with no text. The reminders stay on screen until dismissed; saving the Entry again replaces them rather than adding more.
 
 ### Inline Markdown
 
@@ -777,7 +777,7 @@ Four things to know:
 
 ### Bulk actions
 
-Selecting rows offers **Move to Trash**, **Publish** and **Unpublish**, and in the Trash **Restore** and **Force delete**. Each row is authorised as its own action would be, so a bulk action grants nothing a single one would not, then written by the core action: `TrashEntry`, `RestoreEntry`, `DeleteEntry`, or `SaveEntry` with a `status`. A refused row stops nothing: the report gives how many succeeded, then each reason with its count, such as a required Field missing, a row the User may not change, or one already in the wanted state, left untouched. **Publish** and **Unpublish** ask for the Locale on a translatable type, and refuse a row with no Translation in it. **Force delete** takes no replacement: every address answers 410, and the row's own action offers one.
+Selecting rows offers **Move to Trash**, **Publish** and **Unpublish**, and in the Trash **Restore** and **Delete selected for good**, but not **Publish** or **Unpublish**, which would refuse every row. Each row is authorised as its own action would be, so a bulk action grants nothing a single one would not, then written by the core action: `TrashEntry`, `RestoreEntry`, `DeleteEntry`, or `SaveEntry` with a `status`. A refused row stops nothing: the report gives how many succeeded, then each reason with its count, such as a required Field missing, a row the User may not change, or one already in the wanted state, left untouched. **Publish** and **Unpublish** ask for the Locale on a translatable type, and refuse a row with no Translation in it. **Delete selected for good** takes no replacement: every address answers 410, and the row's own action offers one.
 
 A selection stays within the page shown, at most 50 rows, so a request fits shared hosting's time limit.
 
@@ -934,7 +934,7 @@ A Redirect sends visitors to the replacement's current URL in the same Locale, r
 
 `DeleteEntry` refuses, with a `ValidationException` on `entry`, a Parent that still has children, the first ten named: delete them first. An Entry outside the Trash is an `InvalidArgumentException`. Nothing is kept to undo it.
 
-In the admin, **Force delete** on a row in the Trash takes the type's `force-delete` Permission and asks for a replacement among the type's Entries outside the Trash, or none for a 410.
+In the admin, **Delete for good** on a row in the Trash takes the type's `force-delete` Permission and asks for a replacement among the type's Entries outside the Trash, or none for a 410.
 
 ### Deleting a Translation
 

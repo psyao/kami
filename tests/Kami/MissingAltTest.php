@@ -89,6 +89,14 @@ it('warns, without stopping the save, of the images a published or scheduled Tra
     'saved while published' => ['published', fn ($page) => $page->call('save')],
 ]);
 
+it('replaces an Entry\'s alt text warning in a Locale on a save again, rather than stacking another', function () {
+    $project = illustrated('published');
+
+    entriesPage(EditEntry::class, parameters: ['record' => $project->id], type: 'project')->call('save')->call('save');
+
+    expect(shownNotifications(__('kami::admin.reminders.alt_title')))->toBe(1);
+});
+
 it('never warns of alt text on a Draft, or when every image shown is described', function () {
     $draft = illustrated();
 
