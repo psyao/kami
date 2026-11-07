@@ -39,7 +39,7 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 `composer install` installs lefthook's hooks once the checkout is a Git repository; gitleaks comes from Homebrew (`brew install gitleaks`).
 
 - **pre-commit**, on staged files, in order: gitleaks, then Rector on `config/`, `src/` and `workbench/app/`, then Pint. Rector and Pint stage what they fix.
-- **pre-push**, on the whole project: `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
+- **pre-push**, on the whole project: a check that no global test function is defined twice under `tests/` (the coverage step loads `Kami` and `Install` in one process), then `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
 
 ## CI
 
