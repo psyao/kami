@@ -8,6 +8,11 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 - **Upgrade floor.** From 1.0, a release that squashes Kami's migrations is a major, and its section names the release a site must reach first.
 - **Security fixes.** A patch that tightens a default for security reasons is listed here too, though it breaks the rule above.
 
+## 0.6.0
+
+1. **Deleting the last User who may manage Users is refused.** `HasKamiRoles` now boots model hooks on your User: `$user->delete()` on the only User holding `kami.users.manage` throws a `ValidationException` and records `kami.users.lockout-refused`. Code or tests that delete that User give the right to another User first, through `AssignRoles` ([The lockout guard](docs/guide/users-and-roles.md#the-lockout-guard)). Creating and deleting a User through Eloquent also writes a row to the Audit log.
+2. **Give Roles through `AssignRoles`.** Rows written to `kami_role_user` directly still work, but skip the lockout guard and the Audit log. A seeder giving Roles calls `AssignRoles` instead ([Giving Roles](docs/guide/users-and-roles.md#giving-roles)).
+
 ## 0.5.0
 
 1. **`media` is reserved for Media Conversions.** Kami answers `/media/{id}/{version}/{file}` itself. A Content Type whose Prefix starts with `media`, a type with no `$prefix` whose handle is `media` included, now fails the first time the types are read: set another `$prefix`; its Entries move on the next `kami:install`, and their former addresses answer 404. A root slug `media` is refused at its next save; the stored Path keeps answering until then ([Prefix](docs/guide/content-types.md#prefix)).

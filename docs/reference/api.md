@@ -482,6 +482,14 @@ Kami's Content Security Policy and companion headers (ADR 0018), on every respon
 
 - `public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response`
 
+## `Psyao\Kami\Users\Actions\AssignRoles`
+
+`final class`
+
+Gives a User exactly the Roles listed, whoever asks: the admin, a seeder, `kami:install`, `kami:user:grant`. Each Role granted or revoked is recorded in the Audit log, and `RolesAssigned` follows the commit. It does not authorise: the caller checks `kami.users.manage` first (ADR 0014).
+
+- `public function handle(Illuminate\Database\Eloquent\Model&Psyao\Kami\Users\KamiUser $user, array $roles, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
 ## `Psyao\Kami\Users\HasKamiRoles`
 
 `trait`

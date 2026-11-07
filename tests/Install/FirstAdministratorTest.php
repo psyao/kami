@@ -36,8 +36,21 @@ it('creates the first administrator from options and KAMI_ADMIN_PASSWORD without
 
     expect(Auth::attempt(['email' => 'ada@example.test', 'password' => 'correct horse battery']))->toBeTrue()
         ->and(Gate::forUser(User::query()->sole())->allows('kami.users.manage'))->toBeTrue()
-        ->and(User::query()->sole()->name)->toBe('Ada');
+        ->and(User::query()->sole()->name)->toBe('Ada')
+        ->and(installGrants())->toBe([['kami.roles.granted', (string) User::query()->sole()->id, 'cli', '{"role":"administrator"}']]);
 });
+
+/**
+ * The Role grants kami:install recorded, as event, subject id, actor and context.
+ *
+ * @return list<array{string, string, string, string}>
+ */
+function installGrants(): array
+{
+    return DB::table('kami_audit_events')->where('event', 'kami.roles.granted')->get()
+        ->map(fn (object $row): array => [$row->event, (string) $row->subject_id, $row->actor, str_replace(' ', '', (string) $row->context)])
+        ->all();
+}
 
 it('prompts for the email, the name and the password in a terminal', function () {
     unset($_SERVER['KAMI_ADMIN_PASSWORD']);
@@ -149,7 +162,8 @@ it('grants an existing User the administrator Role without a terminal, changing 
     expect($existing->fresh()->only('name', 'password'))->toBe(['name' => 'Grace', 'password' => 'hash'])
         ->and(User::query()->count())->toBe(1)
         ->and(DB::table('kami_role_user')->orderBy('role')->pluck('role')->all())->toBe(['administrator', 'editor'])
-        ->and(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeTrue();
+        ->and(Gate::forUser($existing->fresh())->allows('kami.users.manage'))->toBeTrue()
+        ->and(installGrants())->toBe([['kami.roles.granted', (string) $existing->id, 'cli', '{"role":"administrator"}']]);
 });
 
 it('ignores --name and KAMI_ADMIN_PASSWORD for an existing User, saying so for --name', function () {

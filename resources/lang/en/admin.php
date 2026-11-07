@@ -106,6 +106,12 @@ return [
         'nobody' => 'Nobody',
     ],
 
+    'roles' => [
+        'undeclared' => 'No Role is declared as :roles in config/kami.php.',
+        'lockout' => 'This is the last User who may manage Users: give that right to another User first.',
+        'lockout_delete' => 'This is the last User who may manage Users, so they cannot be deleted: give that right to another User first.',
+    ],
+
     'state' => [
         'label' => 'State',
         'label_in' => 'State (:LOCALE)',

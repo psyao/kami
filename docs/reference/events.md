@@ -130,3 +130,15 @@ A Media item was saved through `SaveMedia`, once its transaction committed (ADR 
 - `public protected(set) readonly string $locale`
 - `public protected(set) readonly Psyao\Kami\Media\Media $media`
 - `public function __construct(Psyao\Kami\Media\Media $media, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
+## `Psyao\Kami\Users\Events\RolesAssigned`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A User's Roles changed through `AssignRoles`, once the write committed (ADR 0029). Not dispatched when the User already held exactly the Roles listed.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly array $granted`
+- `public protected(set) readonly array $revoked`
+- `public protected(set) readonly Illuminate\Database\Eloquent\Model&Psyao\Kami\Users\KamiUser $user`
+- `public function __construct(Illuminate\Database\Eloquent\Model&Psyao\Kami\Users\KamiUser $user, array $granted, array $revoked, ?Illuminate\Contracts\Auth\Authenticatable $actor)`

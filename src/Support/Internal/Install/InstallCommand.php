@@ -8,6 +8,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,10 @@ use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\PrintsProblems;
+use Psyao\Kami\Users\Actions\AssignRoles;
 use Psyao\Kami\Users\Internal\Permissions;
+use Psyao\Kami\Users\Internal\UsersByEmail;
+use Psyao\Kami\Users\KamiUser;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\password;
@@ -46,7 +50,7 @@ final class InstallCommand extends Command
     use Localizable;
     use PrintsProblems;
 
-    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types, ContentModelDrift $drift): int
+    public function handle(Doctor $doctor, PluginRegistration $registration, SyncPaths $syncPaths, SaveEntry $save, ContentTypes $types, ContentModelDrift $drift, AssignRoles $assign): int
     {
         // A broken environment fails the deploy before anything is migrated; warnings are kami:doctor's to report.
         if (($problems = $doctor->blocking()) !== []) {
@@ -97,7 +101,7 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        if (! $this->firstAdministrator($registration)) {
+        if (! $this->firstAdministrator($registration, $assign)) {
             return self::FAILURE;
         }
 
@@ -156,7 +160,7 @@ final class InstallCommand extends Command
      * Makes sure a User may manage Users (ADR 0001, step 7): while none does, an existing email gets the `administrator` Role and an unknown one creates the User.
      * The password is never an argument: it would stay in the shell history and the process list.
      */
-    private function firstAdministrator(PluginRegistration $registration): bool
+    private function firstAdministrator(PluginRegistration $registration, AssignRoles $assign): bool
     {
         $granting = Permissions::rolesGranting('kami.users.manage');
 
@@ -171,11 +175,10 @@ final class InstallCommand extends Command
             return false;
         }
 
-        // kami_role_user points at this model (its migration), whichever guard the panel signs in with.
-        /** @var class-string<Model> $users */
+        /** @var class-string<Model&KamiUser> $users The model UsersByEmail reads. */
         $users = config('auth.providers.users.model');
         $rules = [
-            'email' => ['bail', 'required', 'string', 'email', 'max:255'],
+            'email' => UsersByEmail::RULES,
             'name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', Password::defaults()],
         ];
@@ -192,25 +195,16 @@ final class InstallCommand extends Command
 
         while (true) {
             $email = is_string($emailOption) ? $emailOption : ($interactive ? text('Email of the first administrator', required: true, validate: ['email' => $rules['email']]) : null);
-            $query = $users::query();
-            // lower() finds every spelling on every engine (ADR 0001, step 7). No whereLike(): `_` is valid in an email and would be a wildcard.
-            // The PHP check drops what the engine matches beyond ASCII case: MySQL's default collation ignores accents, so gràce@ would find grace@.
-            // ponytail: outside ASCII an address matches exactly, whatever the engine could fold; V1 lifts it if a site needs it.
-            $matches = $email === null ? $query->getModel()->newCollection() : $query
-                // @phpstan-ignore argument.type (the only non-literal part is the grammar's quoting of a constant column name; the email is bound)
-                ->whereRaw('lower(' . $query->getGrammar()->wrap('email') . ') = lower(?)', [$email])
-                ->get()
-                ->filter(fn (Model $user): bool => is_string($stored = $user->getAttribute('email')) && strtolower($stored) === strtolower($email));
+            $matches = $email === null ? null : UsersByEmail::find($email);
 
             // A grant hands out every Permission, so it never rests on a guess between two accounts, even when one spelling is exact.
-            if ($matches->count() > 1) {
-                $stored = $matches->pluck('email')->implode(', ');
-                $this->components->error('Several Users match this email: ' . (preg_replace('/\p{C}/u', '', $stored) ?? $stored) . '. Fix the duplicates in your users table, then run kami:install again.');
+            if ($matches instanceof Collection && $matches->count() > 1) {
+                $this->components->error('Several Users match this email: ' . UsersByEmail::listed($matches) . '. Fix the duplicates in your users table, then run kami:install again.');
 
                 return false;
             }
 
-            $existing = $matches->first();
+            $existing = $matches?->first();
 
             if ($existing === null) {
                 break;
@@ -224,8 +218,7 @@ final class InstallCommand extends Command
 
             // No password is checked here: on an application with open registration, a mistyped email would hand every right to a stranger, who also chose this name, so it cannot rewrite the question. Without a terminal, --email is the consent.
             if (! $interactive || confirm((preg_replace('/\p{C}/u', '', $label) ?? $storedEmail) . ' already exists. Give them the administrator Role?', default: false)) {
-                // ponytail: the grant leaves only this output; ADR 0022's Audit log row for it lands with kami_audit_events in M6.
-                DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $existing->getKey(), 'role' => 'administrator']);
+                $assign->handle($existing, [...$existing->kamiRoles(), 'administrator']);
 
                 if (is_string($this->option('name'))) {
                     $this->components->warn('--name was ignored: an existing User keeps their name.');
@@ -283,14 +276,14 @@ final class InstallCommand extends Command
             return false;
         }
 
-        $link = DB::transaction(function () use ($users, $email, $name, $password, $makeLink): ?array {
+        $link = DB::transaction(function () use ($users, $email, $name, $password, $makeLink, $assign): ?array {
             $user = new $users;
             $user->setAttribute('email', $email);
             $user->setAttribute('name', $name);
             // Laravel's users.password is not nullable: a random one nobody knows until the link sets the real one.
             $user->setAttribute('password', Hash::make(is_string($password) ? $password : Str::random(64)));
             $user->save();
-            DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
+            $assign->handle($user, ['administrator']);
 
             // Inside the transaction: a token the broker cannot store must not leave an administrator nobody can sign in as, whom the next run would skip.
             return $makeLink !== null && $user instanceof CanResetPassword ? $makeLink($user) : null;

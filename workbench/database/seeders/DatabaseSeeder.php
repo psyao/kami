@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Workbench\Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
@@ -15,6 +13,7 @@ use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Media\Actions\SaveMedia;
+use Psyao\Kami\Users\Actions\AssignRoles;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
@@ -106,7 +105,7 @@ class DatabaseSeeder extends Seeder
     private function user(string $name, string $email, string $role): User
     {
         $user = User::forceCreate(['name' => $name, 'email' => $email, 'password' => Hash::make('password')]);
-        DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => $role]);
+        resolve(AssignRoles::class)->handle($user, [$role]);
 
         return $user;
     }
