@@ -133,7 +133,7 @@ sign_ins=$(docker compose run -T --rm cli php -r '
         ->map(fn ($row) => $row->event . ($row->subject_type ? " " . $row->subject_type : "") . " " . json_encode(json_decode($row->context, true)))->implode(", ");
 ' 2>&1 || true)
 expected_sign_ins="$(printf 'kami.auth.sign-in-failed user [], %.0s' 1 2 3 4 5)kami.auth.locked-out {\"key\":\"email\"}"
-if [ "$(wc -l <<<"$failures")" = 1 ] && [ -n "$refused" ] && [ "$refused" != "$failures" ] && [ "$sign_ins" = "$expected_sign_ins" ]; then
+if [ "$(wc -l <<<"$failures")" -eq 1 ] && [ -n "$refused" ] && [ "$refused" != "$failures" ] && [ "$sign_ins" = "$expected_sign_ins" ]; then
     echo "Sign-in: \"$failures\" five times, then \"$refused\" from another address"
 else
     echo "Sign-in: failures \"$failures\", then \"$refused\", Audit log: $sign_ins"

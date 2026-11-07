@@ -29,6 +29,13 @@ final class PluginRegistration
     public array $panels = [];
 
     /**
+     * Keyed as `$panels`, each panel's auth guard, asked when an auth event fires: cheaper than the whole report.
+     *
+     * @var array<int, Closure(): string>
+     */
+    public array $guards = [];
+
+    /**
      * The panel's name for the User of a key, `null` for a User deleted since: what `SaveEntry`'s refusals name. Unset with no panel.
      *
      * @var (Closure(int|string): ?string)|null

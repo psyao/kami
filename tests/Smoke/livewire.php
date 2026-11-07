@@ -87,6 +87,6 @@ final class LivewirePage
 
         // Livewire dehydrates each notification as [its data, its type].
         return collect(json_decode($pulled['components'][0]['snapshot'], true)['data']['notifications'][0])
-            ->map(fn (array $notification): string => trim($notification[0]['title'] . ' / ' . $notification[0]['body'], ' /'))->implode(' | ');
+            ->map(fn (array $notification): string => $notification[0]['title'] . ' / ' . $notification[0]['body'])->implode(' | ');
     }
 }

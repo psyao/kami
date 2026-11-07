@@ -170,6 +170,7 @@ final class KamiPlugin implements Plugin
         $registration->onAPanel = true;
         $registration->userName = EntryResource::userName(...);
         EntryResource::relateUsers();
+        $registration->guards[spl_object_id($panel)] = $panel->getAuthGuard(...);
         $registration->panels[spl_object_id($panel)] = fn (): array => [
             'id' => $panel->getId(),
             'guard' => $panel->getAuthGuard(),
@@ -275,12 +276,13 @@ final class KamiPlugin implements Plugin
     /**
      * The host's own page, `null` while Kami's serves or the panel offers none.
      *
-     * @param  list<class-string>  $kamis  Filament's page and Kami's, which the route callback swaps it for.
+     * @param  string|Closure|array<mixed>|null  $page  The panel's route action for the page.
+     * @param  list<class-string>  $servedByKami  Filament's page and Kami's, which the route callback swaps it for.
      */
-    private function replacedPage(bool $offered, mixed $page, array $kamis): ?string
+    private function replacedPage(bool $offered, string | Closure | array | null $page, array $servedByKami): ?string
     {
         // Filament's own page counts as Kami's: the route callback swaps it, and a cached route table keeps the swap.
-        if (! $offered || in_array($page, $kamis, true)) {
+        if (! $offered || in_array($page, $servedByKami, true)) {
             return null;
         }
 
