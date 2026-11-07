@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Users;
 
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,23 +30,22 @@ trait HasKamiRoles
      */
     public static function bootHasKamiRoles(): void
     {
-        $actor = fn (): ?Authenticatable => Auth::user();
-
-        static::created(function (Model $user) use ($actor): void {
+        static::created(function (Model $user): void {
             if (Schema::hasTable('kami_audit_events')) {
-                resolve(RecordAuditEvent::class)->handle('kami.users.created', $user, actor: $actor());
+                resolve(RecordAuditEvent::class)->handle('kami.users.created', $user, actor: Auth::user());
             }
         });
 
-        static::deleting(function (Model $user) use ($actor): void {
+        // ponytail: `delete()` opens no transaction, so the lock holds only inside the caller's: two Users deleting the last two managers at once may both pass. #354's Users screen deletes inside one.
+        static::deleting(function (Model $user): void {
             if (Schema::hasTable('kami_audit_events') && LockoutGuard::isLastManager($user)) {
-                throw LockoutGuard::refuse($user, 'delete', $actor());
+                throw LockoutGuard::refuse($user, 'delete', Auth::user());
             }
         });
 
-        static::deleted(function (Model $user) use ($actor): void {
+        static::deleted(function (Model $user): void {
             if (Schema::hasTable('kami_audit_events')) {
-                resolve(RecordAuditEvent::class)->handle('kami.users.deleted', $user, actor: $actor());
+                resolve(RecordAuditEvent::class)->handle('kami.users.deleted', $user, actor: Auth::user());
             }
         });
     }

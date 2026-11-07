@@ -60,7 +60,7 @@ Writing to `kami_role_user` yourself skips the guard and the Audit log. Shared h
 
 The last User who may manage Users neither loses `kami.users.manage` nor is deleted, so a site never locks itself out of its admin. `AssignRoles` refuses the change and the User's `deleting` hook refuses the deletion, each with a message saying why, and records `kami.users.lockout-refused`. Give `kami.users.manage` to another User first.
 
-The guard only refuses a change that would take the right from its last holder: while nobody holds it yet, before `kami:install` for instance, a seeder may give `editor` to a User or delete one. Inside a transaction, the holders' rows stay locked until it ends, so two Users cannot take the right from each other at once.
+The guard only refuses a change that would take the right from its last holder: while nobody holds it yet, before `kami:install` for instance, a seeder may give `editor` to a User or delete one. Inside a transaction, the holders' rows stay locked until it ends, so two Users cannot take the right from each other at once. `AssignRoles` opens its own; `$user->delete()` opens none, so delete a User inside `DB::transaction()` to keep two deletions of the last two managers from both passing.
 
 ## From the command line
 

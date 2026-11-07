@@ -195,16 +195,16 @@ final class InstallCommand extends Command
 
         while (true) {
             $email = is_string($emailOption) ? $emailOption : ($interactive ? text('Email of the first administrator', required: true, validate: ['email' => $rules['email']]) : null);
-            $matches = $email === null ? null : UsersByEmail::find($email);
+            $matches = $email === null ? new Collection : UsersByEmail::find($email);
 
             // A grant hands out every Permission, so it never rests on a guess between two accounts, even when one spelling is exact.
-            if ($matches instanceof Collection && $matches->count() > 1) {
+            if ($matches->count() > 1) {
                 $this->components->error('Several Users match this email: ' . UsersByEmail::listed($matches) . '. Fix the duplicates in your users table, then run kami:install again.');
 
                 return false;
             }
 
-            $existing = $matches?->first();
+            $existing = $matches->first();
 
             if ($existing === null) {
                 break;
