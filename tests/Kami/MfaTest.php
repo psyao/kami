@@ -98,7 +98,8 @@ it('signs in once with each recovery code, and records its use', function () {
     $this->assertGuest();
 
     expect($user->fresh()->getAppAuthenticationRecoveryCodes())->toHaveCount(1)
-        ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.recovery-used'])
+        // The second sign-in, refused, records nothing of its own: a wrong code is not a failed password.
+        ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.recovery-used', 'kami.auth.signed-in'])
         ->and(auditEvents()[0])->toMatchArray(['subject_type' => 'user', 'subject_id' => (string) $user->getKey(), 'user_id' => (string) $user->getKey()]);
 });
 

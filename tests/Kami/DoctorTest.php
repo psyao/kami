@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Filament\Auth\MultiFactor\App\AppAuthentication;
+use Filament\Auth\Pages\Login;
 use Filament\Auth\Pages\PasswordReset\RequestPasswordReset;
 use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
@@ -434,6 +435,23 @@ it('warns when a Kami panel does not authorize strictly, even when turned off af
         ->expectsOutputToContain('docs/guide/users-and-roles.md#strict-authorization')
         ->assertSuccessful();
 });
+
+it('warns without failing when a host replaced Kami\'s sign-in page with its own', function () {
+    Filament::getPanel('admin')->login((new class extends Login {})::class);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The panel admin replaces Kami\'s sign-in page with')
+        ->expectsOutputToContain('docs/guide/security.md#sign-in')
+        ->assertSuccessful();
+
+    expect((new Doctor)->blocking())->toBeEmpty();
+});
+
+it('says nothing of a panel that keeps Filament\'s sign-in page, which Kami replaces, or offers none', function (bool $login) {
+    Filament::getPanel('admin')->login($login ? Login::class : null);
+
+    $this->artisan('kami:doctor')->doesntExpectOutputToContain('sign-in page');
+})->with(['Filament\'s page' => true, 'no sign-in' => false]);
 
 it('warns without failing when a host replaced Kami\'s password reset page with its own', function () {
     Filament::getPanel('admin')->passwordReset((new class extends RequestPasswordReset {})::class);
