@@ -27,6 +27,7 @@ use Filament\Forms\Components\Repeater as RepeaterInput;
 use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource as FilamentResource;
 use Filament\Resources\ResourceConfiguration;
@@ -37,6 +38,7 @@ use Filament\Schemas\Components\Tabs\Tab as FilamentTab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Contracts\HasSchemas;
+use Filament\Schemas\JsContent;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
@@ -55,6 +57,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component as LivewireComponent;
@@ -94,6 +97,7 @@ use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Sites\Internal\Site;
 use UnitEnum;
 
@@ -106,6 +110,9 @@ use UnitEnum;
  */
 final class EntryResource extends FilamentResource
 {
+    /** The SEO section's key, which `EntryForm::seo()` finds it by. */
+    public const string SEO = 'kami-seo';
+
     #[\Override]
     protected static ?string $model = Entry::class;
 
@@ -246,7 +253,36 @@ final class EntryResource extends FilamentResource
                 // Live, so Publish reads Schedule as soon as a date to come is chosen.
                 ->live()
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record))] : []),
+            ...(self::type()->isRoutable() ? [self::seoSection($livewire, $lang)] : []),
         ];
+    }
+
+    /**
+     * What a page's head reads from its Translation, and its Social image, shared by all of them (#23 decision 1). Collapsed: most pages keep what derives from their content.
+     *
+     * @param  array<string, string>  $lang
+     */
+    private static function seoSection(HasSchemas & LivewireComponent $livewire, array $lang): FilamentSection
+    {
+        $image = array_find(self::type()->storedFields(), fn (Field $field): bool => $field->handle === 'seo_image');
+
+        if (! $image instanceof MediaField) {
+            throw new LogicException(self::type()::class . ' has a URL, so stores a Social image.');
+        }
+
+        // The saved Entry's, read in the page's Locale: a summary or an image Field typed since shows once saved.
+        $entry = fn (): ?Entry => $livewire instanceof EditEntry ? $livewire->getRecord() : null;
+        $locale = $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale();
+
+        return FilamentSection::make(__('kami::seo.section'))->key(self::SEO, isInheritable: false)->collapsed()->schema([
+            TextInput::make('meta_title')->label(__('kami::seo.meta_title'))->extraInputAttributes($lang)->hint(self::counter('meta_title', 60))
+                ->placeholder(fn (Get $get): string => ResolvePageMeta::derivedTitle(self::type(), $entry(), is_string($get('title')) ? $get('title') : null, $locale)),
+            Textarea::make('meta_description')->label(__('kami::seo.meta_description'))->extraInputAttributes($lang)->hint(self::counter('meta_description', 160))
+                ->placeholder(fn (): ?string => ($saved = $entry()) instanceof Entry ? ResolvePageMeta::derivedDescription(self::type(), $saved) : null),
+            Toggle::make('noindex')->label(__('kami::seo.noindex'))->helperText(__('kami::seo.noindex_help')),
+            self::shared(MediaResource::picker($image)->label(__('kami::seo.image'))->helperText(__('kami::seo.image_help'))
+                ->placeholder(fn (): ?string => ($media = ResolvePageMeta::derivedImage(self::type(), $entry())) instanceof Media ? (string) __('kami::seo.image_placeholder', ['name' => $media->name]) : null), $image),
+        ]);
     }
 
     /**
@@ -984,7 +1020,7 @@ final class EntryResource extends FilamentResource
         return [
             ...(self::can('publish', $entry) ? [] : ['published_at']),
             ...(self::can('reorder') ? [] : ['parent']),
-            ...(self::sharedFieldsLocked($entry) ? array_map(fn (Field $field): string => $field->handle, array_filter(self::type()->flatFields(), self::isShared(...))) : []),
+            ...(self::sharedFieldsLocked($entry) ? array_map(fn (Field $field): string => $field->handle, array_filter(self::type()->storedFields(), self::isShared(...))) : []),
         ];
     }
 
@@ -1129,7 +1165,21 @@ final class EntryResource extends FilamentResource
             $component->live(onBlur: $component instanceof TextInput || $component instanceof Textarea);
         }
 
-        if ($translatable) {
+        return self::shared($component, $field);
+    }
+
+    /** The input's length against what search results show of it, about `$shown` characters: advice counted in the browser as one types, never a limit. */
+    private static function counter(string $input, int $shown): JsContent
+    {
+        $text = Js::from((string) __('kami::seo.counter', ['max' => $shown]));
+
+        return JsContent::make("{$text}.replace(':count', [...(\$get('{$input}') ?? '')].length)");
+    }
+
+    /** A Shared Field's input, marked and locked as such; on an untranslatable type every value is its one, unmarked. */
+    private static function shared(Component $component, Field $field): Component
+    {
+        if (! self::isShared($field)) {
             return $component;
         }
 

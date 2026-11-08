@@ -2,6 +2,7 @@ class Psyao\Kami\Admin\EntryForm class
 class Psyao\Kami\Admin\EntryForm::actions() public function actions(): array
 class Psyao\Kami\Admin\EntryForm::components() public function components(): array
 class Psyao\Kami\Admin\EntryForm::field() final protected function field(string $handle): Filament\Schemas\Components\Component
+class Psyao\Kami\Admin\EntryForm::seo() final protected function seo(): Filament\Schemas\Components\Component
 class Psyao\Kami\Admin\EntryTable class
 class Psyao\Kami\Admin\EntryTable::columns() public function columns(): array
 class Psyao\Kami\Admin\EntryTable::filters() public function filters(): array

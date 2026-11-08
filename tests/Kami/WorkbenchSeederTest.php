@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Media;
 use Workbench\App\Models\User;
@@ -59,4 +60,10 @@ it('seeds a Media library holding a photo described in both Locales, an image wi
         ['rotated-gps', 'image', null, true],
     ])
         ->and(Media::query()->where('name', 'holiday-photo')->sole()->translations->pluck('alt', 'locale')->sortKeys()->all())->toBe(['en' => 'A holiday photo', 'fr' => 'Une photo de vacances']);
+});
+
+it('seeds a Meta title and description, and a Translation Hidden from search engines', function () {
+    $this->get('/articles/bonjour')->assertSee('<title>Bonjour, en deux langues</title>', escape: false);
+
+    expect(Entry::query()->inLocale('en')->withUnpublished()->get()->firstWhere('title', 'French only so far')?->noindex)->toBeTrue();
 });

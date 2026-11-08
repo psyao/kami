@@ -31,8 +31,9 @@ final class ResolvePageMeta
     {
         $settings = SiteSettings::entry();
         $siteName = self::siteName($settings);
-        $home = Path::of($type, $entry->slug) === '';
-        $image = self::image($settings, fn (): mixed => $entry->getAttribute('seo_image'), fn (): ?Media => $type->socialImage($entry));
+        $home = self::isHome($type, $entry);
+        $media = self::image($settings, fn (): mixed => $entry->getAttribute('seo_image'), fn (): ?Media => $type->socialImage($entry));
+        $image = $media instanceof Media ? Picture::of($media, ImagePresets::SOCIAL) : null;
         $article = $type->ogType() === 'article';
         $site = Site::current();
         $locale = $entry->readLocale();
@@ -40,7 +41,7 @@ final class ResolvePageMeta
 
         return new PageMeta(
             title: self::filled($entry->meta_title) ?? self::title($home ? null : $entry->title, $siteName),
-            description: self::filled($entry->meta_description) ?? self::filled($type->summary($entry)) ?? ($home ? self::ownValue($settings, 'default_description') : null),
+            description: self::filled($entry->meta_description) ?? self::description($type, $entry, $settings, $home),
             canonical: match (true) {
                 ! $preview => $entry->url(),
                 // A Preview of an Entry never saved has no id.
@@ -68,7 +69,8 @@ final class ResolvePageMeta
     {
         $settings = SiteSettings::entry();
         $siteName = self::siteName($settings);
-        $image = self::image($settings);
+        $media = self::image($settings);
+        $image = $media instanceof Media ? Picture::of($media, ImagePresets::SOCIAL) : null;
         $site = Site::current();
 
         return new PageMeta(
@@ -110,22 +112,61 @@ final class ResolvePageMeta
         return isset($urls[$site->defaultLocale()]) ? [...$urls, 'x-default' => $urls[$site->defaultLocale()]] : $urls;
     }
 
+    /** The title the head gives an Entry with no Meta title, from the title `$title` the form holds: the admin's placeholder. */
+    public static function derivedTitle(ContentType $type, ?Entry $entry, ?string $title, string $locale): string
+    {
+        return self::title(self::isHome($type, $entry) ? null : $title, self::siteName(self::settingsIn($locale)));
+    }
+
+    /** The description the head gives an Entry with no Meta description: the admin's placeholder. */
+    public static function derivedDescription(ContentType $type, Entry $entry): ?string
+    {
+        return self::description($type, $entry, self::settingsIn($entry->readLocale()), self::isHome($type, $entry));
+    }
+
+    /** The Social image the head gives an Entry with none of its own, the Site's default alone without an Entry yet: the admin's placeholder. */
+    public static function derivedImage(ContentType $type, ?Entry $entry): ?Media
+    {
+        return self::image(SiteSettings::entry(), ...($entry instanceof Entry ? [fn (): ?Media => $type->socialImage($entry)] : []));
+    }
+
     /**
      * The first image of the chain that has a Conversion, the Site's default last: an SVG, which crawlers do not read, falls to the next.
      *
      * @param  Closure(): mixed  ...$links  Read in turn, only as far as needed.
      */
-    private static function image(?Entry $settings, Closure ...$links): ?Picture
+    private static function image(?Entry $settings, Closure ...$links): ?Media
     {
         foreach ([...$links, fn (): mixed => $settings?->getAttribute('default_social_image')] as $link) {
             $media = $link();
 
             if ($media instanceof Media && Conversion::isConvertible($media)) {
-                return Picture::of($media, ImagePresets::SOCIAL);
+                return $media;
             }
         }
 
         return null;
+    }
+
+    /** The type's summary, else the Site's default description on the home page only. */
+    private static function description(ContentType $type, Entry $entry, ?Entry $settings, bool $home): ?string
+    {
+        return self::filled($type->summary($entry)) ?? ($home ? self::ownValue($settings, 'default_description') : null);
+    }
+
+    /** The Entry at the empty Path, which the Site name titles alone. */
+    private static function isHome(ContentType $type, ?Entry $entry): bool
+    {
+        return Path::of($type, $entry?->slug) === '';
+    }
+
+    /** The Site settings read in that Locale, as a page in it reads them. */
+    private static function settingsIn(string $locale): ?Entry
+    {
+        $settings = SiteSettings::entry();
+        $settings?->readIn($locale);
+
+        return $settings;
     }
 
     /** `kami::seo.title` with the page's title, or the Site name alone without one. */

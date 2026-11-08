@@ -1461,8 +1461,9 @@ it('opens an Entry page in an exact number of queries, with relations', function
     DB::enableQueryLog();
     $this->get("/admin/projects/{$project->id}/edit")->assertOk();
 
-    // The manager's authenticator, read once by the MFA requirement, is one of them, as are the targets' types, which decide who sees their titles.
-    expect(DB::getQueryLog())->toHaveCount(11);
+    // The manager's authenticator, read once by the MFA requirement, is one of them, as are the targets' types, which decide who sees their titles,
+    // and the Site settings, read by each of the SEO section's three placeholders.
+    expect(DB::getQueryLog())->toHaveCount(14);
 })->with([1, 5]);
 
 function quickCreate(string $field): TestAction

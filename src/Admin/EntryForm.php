@@ -50,6 +50,18 @@ class EntryForm
             ?? throw new LogicException(static::class . " names [{$handle}], which the generated form does not have.");
     }
 
+    /** The generated SEO section, which ends the form of a type with a URL: a form of its own places it among its components. The same one `parent::components()` holds. */
+    final protected function seo(): Component
+    {
+        foreach ($this->generated() as $component) {
+            if ($component->getKey(isAbsolute: false) === EntryResource::SEO) {
+                return $component;
+            }
+        }
+
+        throw new LogicException(static::class . ' places the SEO section, which ' . EntryResource::type()::class . ' has none of: it has no URL.');
+    }
+
     /** @return list<Component> */
     private function generated(): array
     {

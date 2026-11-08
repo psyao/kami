@@ -145,7 +145,7 @@ final class EditEntry extends EditRecord
             References::load([$entry], array_column($relations, 'handle'));
         }
 
-        foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->flatFields())] as $key) {
+        foreach ([...Translation::ATTRIBUTES, ...array_map(fn (Field $field): string => $field->handle, EntryResource::type()->storedFields())] as $key) {
             // A value fallen back from the default Locale is not this Locale's: saved, it would become its own.
             $value = $entry->fallbackLocale($key) === null ? $entry->getAttribute($key) : null;
             $values[$key] = match (true) {

@@ -36,6 +36,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Internal\EntryTitles;
 use Psyao\Kami\Content\Internal\References;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\ImagePreset;
 use Psyao\Kami\Media\Internal\Conversion;
@@ -223,7 +224,8 @@ final class MediaResource extends FilamentResource
      */
     public static function picker(MediaField $field): SelectInput
     {
-        $label = __('kami::admin.media.picker.upload', ['field' => EntryResource::type()->fieldLabel($field->handle)]);
+        $social = $field->handle === 'seo_image' || (EntryResource::type() instanceof SiteSettings && $field->handle === 'default_social_image');
+        $label = __('kami::admin.media.picker.upload', ['field' => $field->handle === 'seo_image' ? __('kami::seo.image') : EntryResource::type()->fieldLabel($field->handle)]);
 
         return SelectInput::make($field->handle)
             ->multiple($field->isMultiple())
@@ -231,7 +233,8 @@ final class MediaResource extends FilamentResource
             ->searchable()
             // Every name is escaped in `options()`.
             ->allowHtml()
-            ->getSearchResultsUsing(fn (string $search): array => self::options($field->linkable()
+            // A Social image is read as JPEG or PNG by link previews: an SVG, which has no Conversion, would be skipped on the page (#404).
+            ->getSearchResultsUsing(fn (string $search): array => self::options($field->linkable()->when($social, fn (Builder $query) => $query->where('mime', '!=', 'image/svg+xml'))
                 ->where(fn (Builder $query) => $query->whereLike('name', "%{$search}%")->orWhereHas('translations', fn (Builder $translation) => $translation->whereLike('alt', "%{$search}%")))
                 ->orderBy('name')->limit(50)->get()))
             ->getOptionLabelsUsing(fn (array $values): array => self::options(Media::query()->whereKey($values)->get()))
@@ -242,6 +245,8 @@ final class MediaResource extends FilamentResource
                     ->helperText(__('kami::admin.media.picker.limit', ['size' => Number::fileSize(self::uploadLimit(), 1)]))
                     ->maxSize(intdiv(self::uploadLimit(), 1024))
                     ->when($field->acceptsImagesOnly(), fn (FileUpload $upload): FileUpload => $upload->image())
+                    // Laravel's `image` rule refuses an SVG.
+                    ->when($social, fn (FileUpload $upload): FileUpload => $upload->rule('image'))
                     ->storeFiles(false)
                     ->required(),
             ])
