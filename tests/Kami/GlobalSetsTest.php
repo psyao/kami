@@ -124,8 +124,8 @@ it('stays within an exact query count in a view', function () {
     DB::enableQueryLog();
     $this->get('/a-propos')->assertOk()->assertSee('Merci de votre visite');
 
-    // The page's Path, Entry, Translations and type rows; the Global Set's Entry, Translations and type rows.
-    expect(DB::getQueryLog())->toHaveCount(7);
+    // The page's Path, Entry, Translations and type rows; the Global Set's Entry, Translations and type rows; the head's look for the Site settings, none here.
+    expect(DB::getQueryLog())->toHaveCount(8);
 });
 
 describe('SiteSettings', function () {

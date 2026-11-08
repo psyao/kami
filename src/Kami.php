@@ -14,6 +14,8 @@ use Psyao\Kami\Media\Internal\RenderConversion;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Routing\Internal\RenderPreviewLink;
+use Psyao\Kami\Seo\Internal\ResolvePageMeta;
+use Psyao\Kami\Seo\PageMeta;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 
 /** What a site calls on Kami through the `Kami` facade. */
@@ -37,6 +39,14 @@ final class Kami
             ->withoutMiddleware('web');
         Route::get('media/{media}/{version}/{file}', RenderConversion::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::fallback(RenderEntry::class)->middleware('kami')->withoutMiddleware('web');
+    }
+
+    /** The current page's head values: a Kami page's own, or the Site's on a site route or an error page. */
+    public function seo(): PageMeta
+    {
+        $meta = request()->attributes->get(ResolvePageMeta::ATTRIBUTE);
+
+        return $meta instanceof PageMeta ? $meta : ResolvePageMeta::forSite();
     }
 
     /**

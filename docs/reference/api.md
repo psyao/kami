@@ -159,6 +159,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `final public function pluralLabel(): string`: `kami-types.{handle}.plural`, or the humanised handle in the plural.
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
 - `final public function sectionLabel(string $section): string`: `kami-types.{handle}.sections.{section}.label`, or the humanised handle.
+- `public function summary(Psyao\Kami\Content\Entry $entry): ?string`: The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field, in its own Locale only.
 - `final public function tabLabel(string $tab): string`: `kami-types.{handle}.tabs.{tab}.label`, or the humanised handle.
 
 ## `Psyao\Kami\Content\Entry`
@@ -173,6 +174,7 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `public function langAttribute(string $field): Illuminate\Support\HtmlString`: ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
+- `public function summary(): ?string`: Its type's `summary()`: the page's description when it has no Meta description. `$entry->summary`, with no call, reads a Field of that name.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
 
@@ -437,6 +439,7 @@ What a site calls on Kami through the `Kami` facade.
 - `public function flushCache(): void`: Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data.
 - `public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed`: Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
 - `public function routes(): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG.
+- `public function seo(): Psyao\Kami\Seo\PageMeta`: The current page's head values: a Kami page's own, or the Site's on a site route or an error page.
 - `public function withoutPageCache(): void`: Keeps the current response out of the page cache, as for a page showing the time of day.
 
 ## `Psyao\Kami\KamiServiceProvider`
@@ -506,6 +509,19 @@ What a migration calls to move data a schema change cannot express (ADR 0006). E
 - `public static function makeTypeTranslatable(string $type, string $locale): void`: Moves each shared translation to a Locale, for a type whose `$translatable` turned true. Field rows stay: `makeTranslatable()` moves them, Field by Field.
 - `public static function renameField(string $type, string $from, string $to): void`: Renames a Field: its column and that column's index when it has one, else a relation Field's rows in `kami_references`.
 - `public static function renameType(string $from, string $to): void`: Moves a type's Entries and its table to a new handle, with the index and foreign key names that follow the old one.
+
+## `Psyao\Kami\Seo\PageMeta`
+
+`final readonly class`
+
+What the page's head says to search engines and networks, as `<x-kami::seo />` prints it: read with `Kami::seo()`, as an Inertia site passes it in its props.
+
+- `public protected(set) readonly ?string $canonical`
+- `public protected(set) readonly ?string $description`
+- `public protected(set) readonly ?string $robots`
+- `public protected(set) readonly string $siteName`
+- `public protected(set) readonly string $title`
+- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName)`
 
 ## `Psyao\Kami\Support\SecurityHeaders`
 

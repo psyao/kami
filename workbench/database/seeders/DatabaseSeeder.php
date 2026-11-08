@@ -89,7 +89,8 @@ class DatabaseSeeder extends Seeder
         // Values shown across the Site, always published.
         $footer = $save->handle(Footer::class, ['tagline' => 'Un site de démonstration.', 'contact' => 'ada@example.test'], locale: 'fr', actor: $admin);
         $save->handle(Footer::class, ['tagline' => 'A demo Site.'], $footer, 'en', $admin);
-        $save->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr', actor: $admin);
+        $settings = $save->handle(SiteSettings::class, ['site_name' => 'Kami', 'default_description' => 'Le Site de démonstration de Kami.'], locale: 'fr', actor: $admin);
+        $save->handle(SiteSettings::class, ['default_description' => 'The Kami demo Site.'], $settings, 'en', $admin);
 
         // The Media library: a photo described in both Locales, an image missing its alt text, a decorative one, an SVG served as its own file, a document, which needs none.
         $fixtures = dirname(__DIR__, 3) . '/tests/Fixtures/media';

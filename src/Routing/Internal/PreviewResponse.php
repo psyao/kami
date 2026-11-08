@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Sites\Internal\Site;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -27,6 +28,7 @@ final class PreviewResponse
         $request->attributes->set('kami.preview', true);
         $request->attributes->set('kami.preview.banner', $banner);
         $request->attributes->set('kami.entry', $entry);
+        $request->attributes->set(ResolvePageMeta::ATTRIBUTE, ResolvePageMeta::forEntry($type, $entry, preview: true));
 
         $response = Route::toResponse($request, app()->call($type->render(...), ['entry' => $entry]));
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow');

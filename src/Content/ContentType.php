@@ -10,6 +10,8 @@ use Illuminate\Support\Str;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Media;
 use Psyao\Kami\Content\Fields\RelationField;
+use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\RichText\Document;
 use Symfony\Component\HttpFoundation\Response;
 
 /** A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007). */
@@ -150,6 +152,21 @@ abstract class ContentType
     public function render(Entry $entry): View | Response
     {
         return view()->make("kami.{$this->handle()}", ['entry' => $entry]);
+    }
+
+    /**
+     * The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field, in its own Locale only.
+     *
+     * Override it to read another Field, as `return $entry->summary;` for a Field of that name.
+     */
+    public function summary(Entry $entry): ?string
+    {
+        $field = collect($this->flatFields())->first(fn (Field $field): bool => $field instanceof RichText);
+        // A value fallen back from the default Locale would describe this page in another language.
+        $document = $field === null || $entry->fallbackLocale($field->handle) !== null ? null : $entry->getAttribute($field->handle);
+        $excerpt = $document instanceof Document ? $document->excerpt(160) : '';
+
+        return $excerpt === '' ? null : $excerpt;
     }
 
     /**

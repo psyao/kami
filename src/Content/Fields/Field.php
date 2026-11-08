@@ -13,7 +13,7 @@ abstract class Field
     /**
      * Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
      *
-     * A new one only arrives in a major version. A handle naming a method of `Entry`, Eloquent's included, is refused too.
+     * A new one only arrives in a major version. A handle naming a method of `Entry`, Eloquent's included, is refused too, except `summary`, which `$entry->summary` reads as a Field and `$entry->summary()` as the type's hook.
      */
     public const array RESERVED_HANDLES = [
         'id', 'site', 'type', 'created_by', 'updated_by', 'created_at', 'updated_at',

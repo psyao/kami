@@ -2,7 +2,7 @@
 <html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
-    <title>{{ $entry->title }}</title>
+    <x-kami::seo />
 </head>
 <body>
     <x-kami::preview-banner />

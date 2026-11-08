@@ -18,9 +18,11 @@ use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
+use Workbench\App\Content\Footer;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Testimonial;
 
 uses(RefreshDatabase::class);
 
@@ -114,6 +116,32 @@ it('stores blanks as null, so a blank Translatable Field falls back', function (
         ->and(save(['title' => 'Empty', 'summary' => []])->summary)->toBeNull()
         ->and(DB::table('kami_type_article')->where('locale', 'en')->value('summary'))->toBeNull();
 });
+
+it('stores the Meta title, the Meta description and Hidden from search engines per Translation, with no fallback', function () {
+    $entry = save(['title' => 'Bonjour', 'author' => 'Ada', 'meta_title' => 'Titre', 'meta_description' => 'Un article.', 'noindex' => true], locale: 'fr');
+    save(['title' => 'Hello', 'status' => 'published'], $entry, 'en');
+
+    $french = Entry::query()->withUnpublished()->inLocale('fr')->sole();
+    $english = Entry::query()->inLocale('en')->sole();
+
+    expect([$french->meta_title, $french->meta_description, $french->noindex])->toBe(['Titre', 'Un article.', true])
+        ->and([$english->meta_title, $english->meta_description, $english->noindex])->toBe([null, null, false]);
+
+    save(['meta_title' => '', 'noindex' => false], $french, 'fr');
+
+    expect(Entry::query()->withUnpublished()->inLocale('fr')->sole())
+        ->meta_title->toBeNull()->meta_description->toBe('Un article.')->noindex->toBeFalse();
+});
+
+it('refuses a Meta title over 255 characters and a Hidden from search engines that is no boolean', function () {
+    expect(failures(fn () => save(['title' => 'Odd', 'meta_title' => str_repeat('a', 256), 'noindex' => 'maybe'])))->toBe(['meta_title', 'noindex'])
+        ->and(save(['title' => 'Long', 'meta_title' => str_repeat('a', 255)])->meta_title)->toHaveLength(255);
+});
+
+it('refuses SEO values on a type with no URL and on a Global Set', function (string $type) {
+    expect(failures(fn () => resolve(SaveEntry::class)->handle($type, ['title' => 'Odd', 'meta_title' => 'Odd', 'meta_description' => 'Odd', 'noindex' => true])))
+        ->toBe(['meta_title', 'meta_description', 'noindex']);
+})->with([Testimonial::class, Footer::class]);
 
 it('writes a Shared Field given in a Locale call to the Entry\'s shared row', function () {
     $entry = save(['title' => 'Bonjour'], locale: 'fr');

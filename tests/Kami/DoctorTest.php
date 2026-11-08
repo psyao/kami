@@ -38,6 +38,9 @@ use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\HasKamiRoles;
 use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\HttpFoundation\Response;
+use Workbench\App\Content\Article;
+use Workbench\App\Content\Home;
+use Workbench\App\Content\Testimonial;
 use Workbench\App\Models\User;
 
 /** A type with no view and no label. */
@@ -613,6 +616,19 @@ it('warns about a type whose view is missing, unless it renders without one', fu
         ->expectsOutputToContain('Fix: create resources/views/kami/undescribed.blade.php')
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#rendering')
         ->doesntExpectOutputToContain('kami.rendered')
+        ->assertSuccessful();
+});
+
+it('warns about a type with a URL and no description: the default summary() and no RichText Field', function () {
+    config(['kami.types' => [Undescribed::class, Article::class, Home::class, Testimonial::class]]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The Content Type undescribed has no RichText Field for summary() to read: its pages have no description unless editors write one.')
+        ->expectsOutputToContain('Fix: override summary() in ' . Undescribed::class . ' to return a Field, or add a RichText Field.')
+        ->expectsOutputToContain('docs/guide/seo.md#description')
+        ->doesntExpectOutputToContain('The Content Type article has no RichText')
+        ->doesntExpectOutputToContain('The Content Type home has no RichText')
+        ->doesntExpectOutputToContain('The Content Type testimonial has no RichText')
         ->assertSuccessful();
 });
 

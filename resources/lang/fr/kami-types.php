@@ -8,6 +8,7 @@ return [
         'label' => 'Réglages du site',
         'fields' => [
             'site_name' => ['label' => 'Nom du site'],
+            'default_description' => ['label' => 'Description par défaut', 'help' => 'Décrit la page d’accueil aux moteurs de recherche quand elle n’a pas de description propre.'],
         ],
     ],
 ];

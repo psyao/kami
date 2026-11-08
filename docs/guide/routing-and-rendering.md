@@ -90,6 +90,10 @@ It may return any view or response: a redirect, JSON, or a controller's response
 
 It renders nothing for a null value.
 
+### Head
+
+`<x-kami::seo />` prints the page's title, description, canonical URL and robots tag, in place of the layout's `<title>` ([SEO](seo.md#the-head)).
+
 ### Language switcher
 
 `<x-kami::locales />` links the page's Entry in its other Locales ([Multilingual](multilingual.md#language-switcher)).

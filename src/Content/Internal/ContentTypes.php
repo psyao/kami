@@ -129,7 +129,7 @@ final class ContentTypes
                 }
 
                 // `Entry::getAttribute()` would return the method's relation or nothing, never the Field's value.
-                if (method_exists($type->model(), $field->handle)) {
+                if ($field->handle !== 'summary' && method_exists($type->model(), $field->handle)) {
                     throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" names a method of " . $type->model() . ', which would hide its value; rename the Field.');
                 }
 

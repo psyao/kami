@@ -6,6 +6,7 @@ namespace Psyao\Kami\Routing\Internal;
 
 use Illuminate\Http\Request;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -48,6 +49,8 @@ final class RenderEntry
         abort_unless($type->isRoutable(), 404);
         // The page's Entry, for what the layout renders around it: `<x-kami::locales />`.
         $request->attributes->set('kami.entry', $entry);
+        // Before `render()`, so it can pass it on, as an Inertia page does.
+        $request->attributes->set(ResolvePageMeta::ATTRIBUTE, ResolvePageMeta::forEntry($type, $entry));
 
         return app()->call($type->render(...), ['entry' => $entry]);
     }

@@ -165,7 +165,7 @@ final class SettingsForm extends EntryForm
 {
     public function components(): array
     {
-        return [$this->field('site_name')];
+        return [$this->field('site_name'), $this->field('default_description')];
     }
 
     public function actions(): array
