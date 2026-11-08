@@ -318,14 +318,15 @@ describe('kami:audit:prune', function (): void {
     });
 
     it('keeps 12 months by default', function (): void {
-        $this->freezeSecond();
+        $now = $this->freezeSecond();
         config(['kami.audit' => []]);
         resolve(RecordAuditEvent::class)->handle('acme.kept');
         $this->travel(-12)->months();
         resolve(RecordAuditEvent::class)->handle('acme.kept');
         $this->travel(-1)->seconds();
         resolve(RecordAuditEvent::class)->handle('acme.pruned');
-        $this->travelBack();
+        // Back to the frozen second, not the real clock: a second boundary crossed meanwhile would prune the event kept at the cutoff (#425).
+        $this->travelTo($now);
 
         $this->artisan('kami:audit:prune')->assertSuccessful();
 
