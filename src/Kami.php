@@ -26,8 +26,8 @@ final class Kami
     /**
      * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, and `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing.
      *
-     * The fallback lets the site's own routes always win. All run without the `web` group's session, cookies and CSRF, even when called inside it; the fallback in the `kami` middleware group.
-     * With `$session`, the fallback joins the `web` group, so the application's signed-in members stay signed in on Kami's pages, which the page cache then never stores (ADR 0038).
+     * The fallback lets the site's own routes always win, in the `kami` middleware group. All run without the `web` group's session, cookies and CSRF, even when called inside it,
+     * but the fallback under `$session`: it then joins the `web` group, so the application's signed-in members stay signed in on Kami's pages, which the page cache never stores (ADR 0038).
      */
     public function routes(bool $session = false): void
     {
@@ -48,7 +48,11 @@ final class Kami
 
         Route::get('sitemaps/{file}', ServeSitemap::class)->where('file', '[A-Za-z0-9_-]+-[1-9][0-9]*\.xml')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         $fallback = Route::fallback(RenderEntry::class);
-        $session ? $fallback->middleware(['web', 'kami']) : $fallback->middleware('kami')->withoutMiddleware('web');
+        if ($session) {
+            $fallback->middleware(['web', 'kami']);
+        } else {
+            $fallback->middleware('kami')->withoutMiddleware('web');
+        }
     }
 
     /** The current page's head values: a Kami page's own, or the Site's on a site route or an error page. */

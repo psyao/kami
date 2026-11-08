@@ -129,16 +129,22 @@ it('never stores a response that sets a cookie or calls withoutPageCache()', fun
     }],
 ]);
 
-it('keeps the host\'s session on Kami::routes(session: true), so its pages set the cookie and are never stored', function () {
-    Kami::routes(session: true);
+it('keeps the host\'s session on Kami::routes(session: true), its pages neither stored nor served from the page cache', function (bool $inWebGroup) {
     cachedArticle();
-    $this->get('/articles/hello-world')->assertOk()->assertCookie(config('session.cookie'));
-
+    $this->get('/articles/hello-world');
+    $inWebGroup ? Route::middleware('web')->group(fn () => Kami::routes(session: true)) : Kami::routes(session: true);
     retitleBehindKamisBack('Unseen');
 
-    $this->get('/articles/hello-world')->assertSee('Unseen');
+    $this->get('/articles/hello-world')->assertOk()->assertSee('Unseen')->assertCookie(config('session.cookie'));
+
+    retitleBehindKamisBack('Unstored');
+
+    $this->get('/articles/hello-world')->assertSee('Unstored');
     $this->get('/articles/nowhere')->assertNotFound()->assertCookie(config('session.cookie'));
-});
+})->with([
+    'in routes/web.php' => [true],
+    'outside the web group' => [false],
+]);
 
 it('keeps media, Preview links and the sitemap out of the session on Kami::routes(session: true)', function (string $uri) {
     Kami::routes(session: true);
