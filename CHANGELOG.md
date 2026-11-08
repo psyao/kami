@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.6.0](https://github.com/psyao/kami/compare/v0.5.0...v0.6.0) (2026-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* pickers no longer show titles of types the User may not view, and quick-create from a picker takes the target type's `view` as well as `create`. See UPGRADING.md section 0.6.0.
+* a sixth sign-in attempt within a minute for one email is refused, the MFA code step counting as an attempt. See UPGRADING.md section 0.6.0 item 5.
+* kami:install fails, and kami:doctor exits with 1, on a panel whose guard uses another model than auth.providers.users.model; kami:doctor --strict fails in production on an http:// URL or a session cookie not always Secure. See UPGRADING.md section 0.6.0.
+* kami:doctor exits with 1 when a ->multiFactorAuthentication() or ->requiresMultiFactorAuthentication() set after the plugin replaces Kami's MFA, or when the User model lacks the two contracts; --strict fails while a manager has no MFA set up.
+* the panel's User model must implement Filament's HasAppAuthentication and HasAppAuthenticationRecovery through HasKamiMfa, or sign-in fails; Users holding kami.users.manage must set MFA up at their next request.
+* deleting the only User holding kami.users.manage through Eloquent now throws a ValidationException.
+
+### Features
+
+* assign Roles through AssignRoles, with the lockout guard ([#360](https://github.com/psyao/kami/issues/360)) ([d8053ab](https://github.com/psyao/kami/commit/d8053abf97326dd7ae1a038e584450c9a47369a3))
+* check the panel's guard model, HTTPS and the secure cookie in kami:doctor ([#364](https://github.com/psyao/kami/issues/364)) ([0ce772c](https://github.com/psyao/kami/commit/0ce772cce3b8415e2ce3215eb18698a33bb55b6d))
+* give Users Roles from the admin through the KamiRoles field ([#375](https://github.com/psyao/kami/issues/375)) ([1312300](https://github.com/psyao/kami/commit/1312300a05163e9093461cf51a15fa7d4bda8a61))
+* pickers offer and title only types the User may view ([#372](https://github.com/psyao/kami/issues/372)) ([920186d](https://github.com/psyao/kami/commit/920186d8ebf11e38a5e1cfe34d48bc86642ac829))
+* print a one-time link to set the first administrator's password ([#359](https://github.com/psyao/kami/issues/359)) ([5ddf917](https://github.com/psyao/kami/commit/5ddf917cba9c637f974ca4efaf097581bb3013fb)), closes [#352](https://github.com/psyao/kami/issues/352)
+* read the Audit log in the admin and prune it with kami:audit:prune ([#368](https://github.com/psyao/kami/issues/368)) ([f7a6719](https://github.com/psyao/kami/commit/f7a6719b430237c8f584fd6094085bef0b2e2224))
+* record a wrong MFA code after the right password in the Audit log ([#367](https://github.com/psyao/kami/issues/367)) ([08031d0](https://github.com/psyao/kami/commit/08031d0250e2c21ed6633ac647a2fdf3756d3e29))
+* record visibility and deletion events in the Audit log ([#356](https://github.com/psyao/kami/issues/356)) ([6b2c8cd](https://github.com/psyao/kami/commit/6b2c8cd766f3bca16403cf42eb29d67b96fac138))
+* require app MFA for kami.users.manage ([#362](https://github.com/psyao/kami/issues/362)) ([fee9c63](https://github.com/psyao/kami/commit/fee9c63e0a7ce26852da7ea800b037dfa2db1392)), closes [#351](https://github.com/psyao/kami/issues/351)
+* rescue a lost authenticator from the shell, and check MFA in kami:doctor ([#363](https://github.com/psyao/kami/issues/363)) ([058d7b1](https://github.com/psyao/kami/commit/058d7b147ceb60fd669ab5cce04bb0a90d795f1d))
+* serve a password reset page that reveals nothing ([#358](https://github.com/psyao/kami/issues/358)) ([507d5f2](https://github.com/psyao/kami/commit/507d5f246c4c13c16dcba1e7aac9dacaaf980200)), closes [#350](https://github.com/psyao/kami/issues/350)
+* throttle admin sign-in per email, and record sign-in events ([#366](https://github.com/psyao/kami/issues/366)) ([8129e8c](https://github.com/psyao/kami/commit/8129e8c5ab646b82f40626d1fe2114d8344261af))
+
+
+### Bug Fixes
+
+* count, not title, linking Entries of types the User may not view ([#373](https://github.com/psyao/kami/issues/373)) ([e30ce77](https://github.com/psyao/kami/commit/e30ce77943478a6f9340a2c2dd458313f450e5a7))
+* delete for good in plain words, no bulk Publish in the Trash, one reminder per save ([#370](https://github.com/psyao/kami/issues/370)) ([b9b587e](https://github.com/psyao/kami/commit/b9b587e7575234725b1356bfa63faae711de7b09))
+* M6 playground frictions: dashboard with a Term, install without MFA contracts ([#392](https://github.com/psyao/kami/issues/392)) ([9662981](https://github.com/psyao/kami/commit/9662981345df42d1c367a74bf421820da2bf949f))
+* M6 pre-release fixes: soft-deleted managers, trashed Entry in the Audit log, Volume fixture ([#382](https://github.com/psyao/kami/issues/382)) ([dfda364](https://github.com/psyao/kami/commit/dfda364e197e26fe3881b930c14358f75115d864))
+
 ## [0.5.0](https://github.com/psyao/kami/compare/v0.4.0...v0.5.0) (2026-11-06)
 
 
