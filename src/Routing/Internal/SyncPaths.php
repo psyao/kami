@@ -19,7 +19,7 @@ use Psyao\Kami\Sites\Internal\Site;
  *
  * @internal
  *
- * @phpstan-type Row array{entry_id: string, locale: string, path: string, public: bool}
+ * @phpstan-type Row array{entry_id: string, locale: string, path: string, wasPublic: bool}
  */
 final readonly class SyncPaths
 {
@@ -109,7 +109,7 @@ final readonly class SyncPaths
                 : ($translation->locale === '*' ? $site->locales : []);
 
             foreach ($locales as $locale) {
-                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => $path, 'public' => $translation->wasPublic()];
+                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => $path, 'wasPublic' => $translation->wasPublic()];
             }
         }
 
@@ -133,7 +133,7 @@ final readonly class SyncPaths
                 // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008); kept when the write clashes.
                 Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->where('status', '!=', 200)->delete();
 
-                if ($current instanceof Path && ! $row['public']) {
+                if ($current instanceof Path && ! $row['wasPublic']) {
                     $current->update(['path' => $row['path']]);
 
                     return;

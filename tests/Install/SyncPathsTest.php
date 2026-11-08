@@ -10,6 +10,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
+use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 
@@ -118,6 +119,10 @@ it('keeps a once-public Translation\'s former address as a 301 to its Entry, and
 
     expect(DB::table('kami_paths')->where('status', '!=', 200)->get(['locale', 'path', 'entry_id', 'status'])->map(fn (object $row) => (array) $row)->all())
         ->toBe([['locale' => 'fr', 'path' => 'a-propos', 'entry_id' => $about->id, 'status' => 301]]);
+
+    Kami::routes();
+    $this->get('/a-propos')->assertMovedPermanently()->assertRedirectContains('/pages/a-propos');
+    $this->get('/en/about')->assertNotFound();
 });
 
 it('gives untranslatable Entries a Path in a new Locale, and nothing else', function () {

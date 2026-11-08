@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
@@ -177,15 +178,19 @@ it('warns about stored Paths of the default Locale that a Locale or a segment Ka
     translate('fr', ['title' => 'About', 'slug' => 'de/about'], type: Page::class);
     $media = translate('fr', ['title' => 'Media', 'slug' => 'press'], type: Page::class);
     translate('en', ['title' => 'Media', 'slug' => 'press'], $media, Page::class);
-    // As stored before the segment was reserved; in another Locale, `/en/media` is no route of Kami's.
+    // As stored before they were reserved; in another Locale, `/en/media` is no route of Kami's.
     DB::table('kami_paths')->where('path', 'press')->update(['path' => 'media']);
+    translate('fr', ['title' => 'Robots', 'slug' => 'robots'], type: Page::class);
+    DB::table('kami_paths')->where('path', 'robots')->update(['path' => 'robots.txt']);
+    // A Redirect has no slug to change: left out.
+    DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'fr', 'path' => 'kami', 'entry_id' => null, 'status' => 410]);
     config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
 
-    $this->artisan('kami:doctor')
-        ->expectsOutputToContain('2 Paths of the default Locale are hidden by a Locale code or a segment Kami answers itself: /de/about, /media.')
+    $this->artisan('kami:doctor', ['--strict' => true])
+        ->expectsOutputToContain('3 Paths of the default Locale are hidden by a Locale code or a segment Kami answers itself: /de/about, /media, /robots.txt.')
         ->expectsOutputToContain('Fix: change their slug, or their type\'s Prefix')
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#reserved-paths')
-        ->assertSuccessful();
+        ->assertFailed();
 
     expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('reserved-paths');
 });

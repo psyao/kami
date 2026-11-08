@@ -556,16 +556,15 @@ final readonly class Doctor
         // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
         $site = Site::current();
         $segments = [...Path::RESERVED_SEGMENTS, ...array_slice($site->locales, 1)];
-        $hidden = Path::query()->where(['site' => $site->handle, 'locale' => $site->defaultLocale()])
+        // 200 rows only: a hidden Redirect or 410 has no slug to change, and no screen manages Redirects before M10.
+        $hidden = Path::query()->where(['site' => $site->handle, 'locale' => $site->defaultLocale(), 'status' => 200])
             ->where(function (Builder $query) use ($segments): void {
-                $query->whereIn('path', [...Path::RESERVED_PATHS, ...$segments]);
-
-                foreach ($segments as $segment) {
-                    $query->orWhere('path', 'like', "{$segment}/%");
+                foreach ([...Path::RESERVED_PATHS, ...$segments] as $reserved) {
+                    $query->orWhere('path', 'like', "{$reserved}%");
                 }
             })
             ->orderBy('path')->get(['path'])->map(fn (Path $row): string => $row->path)
-            // LIKE reads `_` in a Locale code as any character.
+            // LIKE matches more: `_` in a Locale code reads as any character, and `media` matches `medias`.
             ->filter(fn (string $path): bool => Path::isReserved($path) || in_array(explode('/', $path)[0], $segments, true))->values();
 
         return $hidden->isEmpty() ? null : new Problem(
