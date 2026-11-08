@@ -15,6 +15,9 @@ pre-commit:
       glob: "**/*.php"
       run: vendor/bin/pint {staged_files}
       stage_fixed: true
+    - name: claude hooks # a hook that blocks a good command, or lets a bad one through, costs every session
+      glob: ".claude/hooks/*"
+      run: bash .claude/hooks/no-piped-gates.test.sh
 
 pre-push:
   piped: true
