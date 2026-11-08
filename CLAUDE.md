@@ -17,6 +17,7 @@ From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they
 - An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters.
 - Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
 - Never skip the hooks (`--no-verify`): they are the only check before a push.
+- A gate (tests, analysis, push) keeps its exit status redirected, never piped: `<gate> > "$file" 2>&1; rc=$?`, then read the file. `.claude/hooks/no-piped-gates.sh` refuses the pipe, and nothing of the refused command runs.
 - `composer serve` runs the Workbench Site with its synthetic seeder.
 
 ## Languages
