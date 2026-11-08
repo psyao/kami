@@ -13,7 +13,7 @@ use Throwable;
 /**
  * Kami's entry point for sites.
  *
- * @method static void routes()
+ * @method static void routes(bool $session = false)
  * @method static mixed remember(string $key, \DateTimeInterface|\DateInterval|int $ttl, \Closure $callback)
  * @method static void withoutPageCache()
  * @method static void flushCache()
