@@ -113,21 +113,30 @@ final class ResolvePageMeta
     }
 
     /** The title the head gives an Entry with no Meta title, from the title `$title` the form holds: the admin's placeholder. */
-    public static function derivedTitle(ContentType $type, ?Entry $entry, ?string $title, string $locale): string
+    public static function derivedTitle(ContentType $type, ?Entry $entry, ?string $title, ?Entry $settings): string
     {
-        return self::title(self::isHome($type, $entry) ? null : $title, self::siteName(self::settingsIn($locale)));
+        return self::title(self::isHome($type, $entry) ? null : $title, self::siteName($settings));
     }
 
     /** The description the head gives an Entry with no Meta description: the admin's placeholder. */
-    public static function derivedDescription(ContentType $type, Entry $entry): ?string
+    public static function derivedDescription(ContentType $type, Entry $entry, ?Entry $settings): ?string
     {
-        return self::description($type, $entry, self::settingsIn($entry->readLocale()), self::isHome($type, $entry));
+        return self::description($type, $entry, $settings, self::isHome($type, $entry));
     }
 
     /** The Social image the head gives an Entry with none of its own, the Site's default alone without an Entry yet: the admin's placeholder. */
-    public static function derivedImage(ContentType $type, ?Entry $entry): ?Media
+    public static function derivedImage(ContentType $type, ?Entry $entry, ?Entry $settings): ?Media
     {
-        return self::image(SiteSettings::entry(), ...($entry instanceof Entry ? [fn (): ?Media => $type->socialImage($entry)] : []));
+        return self::image($settings, ...($entry instanceof Entry ? [fn (): ?Media => $type->socialImage($entry)] : []));
+    }
+
+    /** The Site settings read in that Locale, as a page in it reads them. */
+    public static function settingsIn(string $locale): ?Entry
+    {
+        $settings = SiteSettings::entry();
+        $settings?->readIn($locale);
+
+        return $settings;
     }
 
     /**
@@ -158,15 +167,6 @@ final class ResolvePageMeta
     private static function isHome(ContentType $type, ?Entry $entry): bool
     {
         return Path::of($type, $entry?->slug) === '';
-    }
-
-    /** The Site settings read in that Locale, as a page in it reads them. */
-    private static function settingsIn(string $locale): ?Entry
-    {
-        $settings = SiteSettings::entry();
-        $settings?->readIn($locale);
-
-        return $settings;
     }
 
     /** `kami::seo.title` with the page's title, or the Site name alone without one. */

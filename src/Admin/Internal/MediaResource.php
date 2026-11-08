@@ -245,7 +245,7 @@ final class MediaResource extends FilamentResource
                     ->helperText(__('kami::admin.media.picker.limit', ['size' => Number::fileSize(self::uploadLimit(), 1)]))
                     ->maxSize(intdiv(self::uploadLimit(), 1024))
                     ->when($field->acceptsImagesOnly(), fn (FileUpload $upload): FileUpload => $upload->image())
-                    // Laravel's `image` rule refuses an SVG.
+                    // Laravel's `image` rule refuses an SVG, as it is not given `allow_svg`.
                     ->when($social, fn (FileUpload $upload): FileUpload => $upload->rule('image'))
                     ->storeFiles(false)
                     ->required(),

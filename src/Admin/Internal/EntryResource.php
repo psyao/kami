@@ -272,16 +272,22 @@ final class EntryResource extends FilamentResource
 
         // The saved Entry's, read in the page's Locale: a summary or an image Field typed since shows once saved.
         $entry = fn (): ?Entry => $livewire instanceof EditEntry ? $livewire->getRecord() : null;
-        $locale = $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale();
+        // Read once for the three placeholders, as the form is built for each request.
+        $read = null;
+        $settings = function () use (&$read, $entry): ?Entry {
+            $read ??= [ResolvePageMeta::settingsIn($entry()?->readLocale() ?? Site::current()->defaultLocale())];
+
+            return $read[0];
+        };
 
         return FilamentSection::make(__('kami::seo.section'))->key(self::SEO, isInheritable: false)->collapsed()->schema([
             TextInput::make('meta_title')->label(__('kami::seo.meta_title'))->extraInputAttributes($lang)->hint(self::counter('meta_title', 60))
-                ->placeholder(fn (Get $get): string => ResolvePageMeta::derivedTitle(self::type(), $entry(), is_string($get('title')) ? $get('title') : null, $locale)),
+                ->placeholder(fn (Get $get): string => ResolvePageMeta::derivedTitle(self::type(), $entry(), is_string($get('title')) ? $get('title') : null, $settings())),
             Textarea::make('meta_description')->label(__('kami::seo.meta_description'))->extraInputAttributes($lang)->hint(self::counter('meta_description', 160))
-                ->placeholder(fn (): ?string => ($saved = $entry()) instanceof Entry ? ResolvePageMeta::derivedDescription(self::type(), $saved) : null),
+                ->placeholder(fn (): ?string => ($saved = $entry()) instanceof Entry ? ResolvePageMeta::derivedDescription(self::type(), $saved, $settings()) : null),
             Toggle::make('noindex')->label(__('kami::seo.noindex'))->helperText(__('kami::seo.noindex_help')),
             self::shared(MediaResource::picker($image)->label(__('kami::seo.image'))->helperText(__('kami::seo.image_help'))
-                ->placeholder(fn (): ?string => ($media = ResolvePageMeta::derivedImage(self::type(), $entry())) instanceof Media ? (string) __('kami::seo.image_placeholder', ['name' => $media->name]) : null), $image),
+                ->placeholder(fn (): ?string => ($media = ResolvePageMeta::derivedImage(self::type(), $entry(), $settings())) instanceof Media ? (string) __('kami::seo.image_placeholder', ['name' => $media->name]) : null), $image),
         ]);
     }
 
