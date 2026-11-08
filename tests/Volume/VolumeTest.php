@@ -90,7 +90,12 @@ it('walks a listing in its index, sorting nothing, the Trash left out', function
         ->and(plan($query))->toContain('kami_entries_type_position_id_index')->not->toContain('filesort')->not->toContain('Sort')->not->toContain('TEMP B-TREE')
         ->and(measure('Listing, 50 rows', fn () => (clone $query)->get()))->toHaveCount(50);
 
-    measure('Listing in a Site', fn () => Entry::query()->where('site', 'default')->ofType(Project::class)->ordered()->limit(50)->get());
+    // #222: an `exists` made MariaDB materialise every published Translation, and MySQL sort the type through the Site index.
+    $inSite = Entry::query()->where('site', 'default')->ofType(Project::class)->ordered()->limit(50);
+    expect(plan($inSite))->toContain('kami_entries_type_position_id_index')->not->toContain('MATERIALIZED')->not->toContain('filesort');
+    $start = microtime(true);
+    expect(measure('Listing in a Site', fn () => (clone $inSite)->get()))->toHaveCount(50)
+        ->and(microtime(true) - $start)->toBeLessThan(0.03);
     measure('Listing with Drafts', fn () => Entry::query()->withUnpublished()->ofType(Project::class)->ordered()->limit(50)->get());
 });
 

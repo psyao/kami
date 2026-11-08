@@ -132,6 +132,21 @@ When `php -v` prints another version than 8.5, put PHP 8.5 first on the `PATH` b
 
 When a step fails, `kami:install` included, the deploy stops before `php artisan up` and the site stays in maintenance mode: fix the problem it prints, then run the chained command again, from `git pull`.
 
+## Measuring page speed
+
+After a deploy, measure the server time of a page from the host itself, over SSH:
+
+```bash
+php artisan kami:bench
+php artisan kami:bench /blog
+```
+
+It calls the page on the Site URL ten times, served from the [page cache](page-cache.md), then ten times with `?kami-bench=1` to `10`, which the page cache never serves, and prints the median of each. The time is the server's: from the end of the TLS handshake to the first byte of the response, with no network between you and the host. It warns above the budgets, 30 ms cached and 200 ms uncached, and never fails, so a deploy script can run it. A page that does not answer 200, a redirect included, stops the measure: bench the address the page lives at.
+
+`kami:doctor` shows the last result, with the address and the time it was measured.
+
+Behind a staging password, pass its user: `kami:bench --user=preview` asks for the password, never as an argument, and signs in with Digest. Apache answers the first request of each sign-in with a 401 before the page; the measure covers only the page.
+
 ## Media files
 
 After migrating a site's images or importing Media, generate their Conversions before visitors ask for them, then delete those no longer served once you change the presets:
