@@ -5,6 +5,6 @@
     <x-kami::seo :title="__('Not Found')" />
 </head>
 <body>
-    <h1>{{ __('Not Found') }}</h1>
+    <h1>404 {{ __('Not Found') }}</h1>
 </body>
 </html>
