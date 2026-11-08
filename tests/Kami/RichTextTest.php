@@ -7,11 +7,9 @@ use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema as FilamentSchema;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
@@ -34,11 +32,22 @@ use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
 
-/** A type whose Fields each test sets, over a `body` column. */
+/**
+ * A type whose Fields each test sets, on Article's handle and table for its `body` column. A table of its own, created per test,
+ * would commit RefreshDatabase's transaction on MySQL and MariaDB, whose DDL is not transactional, and cost a full migrate:fresh per test.
+ */
 final class Prose extends ContentType
 {
+    #[Override]
+    protected ?string $prefix = 'articles';
+
     /** @var array<mixed> */
     public static array $declared = [];
+
+    public function handle(): string
+    {
+        return 'article';
+    }
 
     public function fields(): array
     {
@@ -101,7 +110,7 @@ function saveProse(mixed $body, RichText $field): ?array
     config(['kami.types' => [Prose::class]]);
 
     $entry = resolve(SaveEntry::class)->handle(Prose::class, ['title' => uniqid('Kami'), 'body' => $body], locale: 'fr');
-    $stored = DB::table('kami_type_prose')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body');
+    $stored = DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body');
 
     return $stored === null ? null : json_decode((string) $stored, true);
 }
@@ -110,15 +119,6 @@ function savedArticle(array $values = [], string $locale = 'fr', ?Entry $entry =
 {
     return resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published', ...$values], $entry, $locale);
 }
-
-beforeEach(function () {
-    Schema::create('kami_type_prose', function (Blueprint $table): void {
-        $table->foreignUlid('entry_id')->constrained('kami_entries')->cascadeOnDelete();
-        $table->string('locale', 20);
-        $table->json('body')->nullable();
-        $table->unique(['entry_id', 'locale']);
-    });
-});
 
 function signInToPanel(): void
 {
