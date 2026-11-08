@@ -34,7 +34,7 @@ php artisan serve
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
 - [Audit log](docs/guide/audit-log.md): what Kami records, privacy, recording your own events with `RecordAuditEvent`, and batches
-- [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
+- [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths, a type's `render()` and error pages (`Kami::exceptions()`)
 - [Page cache](docs/guide/page-cache.md): what is cached and when it goes stale, `Kami::withoutPageCache()`, `Kami::remember()`, `Kami::flushCache()` and `kami:cache:clear`
 - [SEO](docs/guide/seo.md): the indexable switch (`KAMI_INDEXABLE`), `X-Robots-Tag` and the `robots.txt` `kami:install` writes
 - [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them

@@ -433,6 +433,8 @@ An Entry of a Taxonomy.
 
 Kami's entry point for sites.
 
+- `public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void`: Renders every error view in the Locale the URL's first segment names, on Kami's routes and the application's own, for `withExceptions()` in `bootstrap/app.php`.
+
 ## `Psyao\Kami\Kami`
 
 `final class`
