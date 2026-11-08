@@ -18,13 +18,13 @@ final class ResolveLocale
     /** @param Closure(Request): Response $next */
     public function handle(Request $request, Closure $next): Response
     {
-        self::from($request);
+        self::apply($request);
 
         return $next($request);
     }
 
     /** Also run by `Kami::exceptions()` before an error view renders, on a route of the host's or a request no route answered. */
-    public static function from(Request $request): void
+    public static function apply(Request $request): void
     {
         $site = Site::current();
         $segment = $request->segment(1);

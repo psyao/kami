@@ -140,7 +140,7 @@ use Psyao\Kami\Facades\Kami;
 })
 ```
 
-The Locale then comes from the URL's first segment, as on Kami's pages: `/en/unknown` answers its 404 in English, on Kami's route, on your own routes and when no route answers. `__()`, `app()->getLocale()` and Kami's components use it. Kami renders nothing itself; a callback of yours registered before Kami's and returning a response skips it.
+The Locale then comes from the URL's first segment, as on Kami's pages: `/en/unknown` answers its 404 in English, on Kami's route, on your own routes and when no route answers. `__()`, `app()->getLocale()` and Kami's components use it. Kami renders nothing itself; a callback of yours registered before Kami's and returning a response skips it. A request whose first segment names no Locale gets the default Locale, on your admin's error pages and your own routes too, whatever locale your code set earlier in the request. An error raised while the application boots, such as a broken config file, renders in the application's locale. It behaves the same on shared hosting and on a server.
 
 Write the views in two kinds:
 

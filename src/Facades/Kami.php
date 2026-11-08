@@ -32,7 +32,10 @@ final class Kami extends Facade
     {
         // `null` lets Laravel render `errors/{code}` as usual, or the next callback the application registers.
         $exceptions->render(function (Throwable $e, Request $request): null {
-            ResolveLocale::from($request);
+            // An error while the application boots, a broken config file for one, renders as Laravel would: reading the Site then could replace it.
+            if (app()->isBooted()) {
+                ResolveLocale::apply($request);
+            }
 
             return null;
         });
