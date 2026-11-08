@@ -67,9 +67,10 @@ final class SaveEntry
 
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
+        $wasPublic = $translation->wasPublic();
         $publishedAt = $translation->published_at;
 
-        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences, $wasPublished, $publishedAt): string {
+        $id = DB::transaction(function () use ($contentType, $site, $locale, $values, $entry, $actor, $writesTranslation, $translation, $data, $fields, $cleared, $clearedReferences, $wasPublished, $wasPublic, $publishedAt): string {
             $entry ??= (new Entry)->forceFill(['site' => $site->handle, 'type' => $contentType->handle(), 'created_by' => $actor?->getAuthIdentifier()]);
             // Touched by every save, one changing a Translation only too: the concurrent-edit check reads it.
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()]);
@@ -126,7 +127,7 @@ final class SaveEntry
             }
 
             if ($writesTranslation) {
-                $this->reservePath($contentType, $site, $entry, $locale, $translation->slug);
+                $this->reservePath($contentType, $site, $entry, $locale, $translation->slug, $wasPublic);
                 $this->recordVisibility($entry, $translation, $wasPublished, $publishedAt, $actor);
             }
 
@@ -416,11 +417,7 @@ final class SaveEntry
         ])]);
     }
 
-    /**
-     * The Path's characters, `media` as first segment, which Media Conversions answer under, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment.
-     *
-     * ponytail: at save only, so a Locale or Prefix declared later can still hide a stored Path; M7's reserved paths lift it.
-     */
+    /** The Path's characters, a Path Kami answers itself, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment (ADR 0008). `kami:doctor` reports a stored Path one declared later hides. */
     private function pathRule(ContentType $contentType, Site $site, string $locale): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($contentType, $site, $locale): void {
@@ -432,7 +429,7 @@ final class SaveEntry
 
             if (! Path::isAnswerable($path)) {
                 $fail(__('validation.regex'));
-            } elseif (explode('/', $path)[0] === Path::MEDIA) {
+            } elseif (Path::isReserved($path)) {
                 $fail(__('validation.not_in'));
             } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array(explode('/', $path)[0], array_slice($site->locales, 1), true)) {
                 $fail(__('validation.not_in'));
@@ -460,8 +457,8 @@ final class SaveEntry
         };
     }
 
-    /** The Translation's 200 row, rewritten in place when its slug changes; the `'*'` Translation answers in every Locale of the Site, one row each (ADR 0008). */
-    private function reservePath(ContentType $contentType, Site $site, Entry $entry, string $locale, ?string $slug): void
+    /** The Translation's 200 row; the `'*'` Translation answers in every Locale of the Site, one row each. A moved one stays as a 301 to the Entry once public, and is rewritten in place otherwise (ADR 0008). */
+    private function reservePath(ContentType $contentType, Site $site, Entry $entry, string $locale, ?string $slug, bool $wasPublic): void
     {
         $locales = $locale === '*' ? $site->locales : [$locale];
         // ponytail: no ancestor's slug, so a Parent change moves no Path; M10's hierarchical URLs add them.
@@ -477,6 +474,11 @@ final class SaveEntry
             foreach ($locales as $pathLocale) {
                 // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008).
                 Path::query()->where(['site' => $site->handle, 'locale' => $pathLocale, 'path' => $path])->where('status', '!=', 200)->delete();
+
+                if ($wasPublic) {
+                    Path::query()->where(['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200])->where('path', '!=', $path)->update(['status' => 301]);
+                }
+
                 Path::query()->updateOrCreate(
                     ['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200],
                     ['path' => $path],

@@ -172,6 +172,24 @@ it('warns that Paths lag behind the declarations until the next kami:install', f
     expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('after-a-deploy');
 });
 
+it('warns about stored Paths of the default Locale that a Locale or a segment Kami answers declared later hides', function () {
+    withConversionsServed();
+    translate('fr', ['title' => 'About', 'slug' => 'de/about'], type: Page::class);
+    $media = translate('fr', ['title' => 'Media', 'slug' => 'press'], type: Page::class);
+    translate('en', ['title' => 'Media', 'slug' => 'press'], $media, Page::class);
+    // As stored before the segment was reserved; in another Locale, `/en/media` is no route of Kami's.
+    DB::table('kami_paths')->where('path', 'press')->update(['path' => 'media']);
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain('2 Paths of the default Locale are hidden by a Locale code or a segment Kami answers itself: /de/about, /media.')
+        ->expectsOutputToContain('Fix: change their slug, or their type\'s Prefix')
+        ->expectsOutputToContain('docs/guide/routing-and-rendering.md#reserved-paths')
+        ->assertSuccessful();
+
+    expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('reserved-paths');
+});
+
 it('warns about content in an undeclared Locale or of an undeclared type, and keeps it', function () {
     withConversionsServed();
     $entry = translate('fr', ['title' => 'Bonjour', 'summary' => 'Un article.']);

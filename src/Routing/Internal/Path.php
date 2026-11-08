@@ -32,8 +32,11 @@ final class Path extends Model
 {
     use HasUlids;
 
-    /** The first segment Media Conversions answer under: no Path starts with it (ADR 0017). */
-    public const string MEDIA = 'media';
+    /** First segments Kami's own routes answer under: Media Conversions (ADR 0017), the sitemap's files (ADR 0027), Preview links. No Path starts with one. */
+    public const array RESERVED_SEGMENTS = ['media', 'sitemaps', 'kami'];
+
+    /** Whole Paths Kami's own files answer: the sitemap index and the managed `robots.txt` (ADR 0027). */
+    public const array RESERVED_PATHS = ['sitemap.xml', 'robots.txt'];
 
     /** The Path of a Translation: its type's Prefix, then its slug; a Singleton's is its Prefix; none with no URL or no slug yet. */
     public static function of(ContentType $type, ?string $slug): ?string
@@ -47,6 +50,12 @@ final class Path extends Model
         }
 
         return $slug === null ? null : self::normalise("{$type->prefix()}/{$slug}");
+    }
+
+    /** Whether a normalised Path is one Kami answers itself, which hides an Entry's in the default Locale (ADR 0008). */
+    public static function isReserved(string $path): bool
+    {
+        return in_array($path, self::RESERVED_PATHS, true) || in_array(explode('/', $path)[0], self::RESERVED_SEGMENTS, true);
     }
 
     /** The slug a title gives in a Locale, the same in the admin form and on save. */

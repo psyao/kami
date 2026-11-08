@@ -19,7 +19,7 @@ use Psyao\Kami\Sites\Internal\Site;
  *
  * @internal
  *
- * @phpstan-type Row array{entry_id: string, locale: string, path: string}
+ * @phpstan-type Row array{entry_id: string, locale: string, path: string, public: bool}
  */
 final readonly class SyncPaths
 {
@@ -80,7 +80,7 @@ final readonly class SyncPaths
                 $counts[$current === null ? 'created' : 'rewritten']++;
             } else {
                 $holder = Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->value('entry_id');
-                $clashes[] = [...$row, 'holder' => is_string($holder) ? $holder : null];
+                $clashes[] = ['entry_id' => $row['entry_id'], 'locale' => $row['locale'], 'path' => $row['path'], 'holder' => is_string($holder) ? $holder : null];
             }
         }
 
@@ -109,7 +109,7 @@ final readonly class SyncPaths
                 : ($translation->locale === '*' ? $site->locales : []);
 
             foreach ($locales as $locale) {
-                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => $path];
+                $rows[$this->key($translation->entry_id, $locale)] = ['entry_id' => $translation->entry_id, 'locale' => $locale, 'path' => $path, 'public' => $translation->wasPublic()];
             }
         }
 
@@ -133,10 +133,18 @@ final readonly class SyncPaths
                 // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008); kept when the write clashes.
                 Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->where('status', '!=', 200)->delete();
 
-                // ponytail: rewritten in place, so the former address answers 404; M7 (Redirects) keeps it as a 301 once published.
-                $current instanceof Path
-                    ? $current->update(['path' => $row['path']])
-                    : Path::query()->create(['site' => $site->handle, 'status' => 200, ...$row]);
+                if ($current instanceof Path && ! $row['public']) {
+                    $current->update(['path' => $row['path']]);
+
+                    return;
+                }
+
+                if ($current instanceof Path) {
+                    // A once-public address stays, as a 301 to the Entry (ADR 0008); by query, as a clash rolls it back while the model would keep it.
+                    Path::query()->whereKey($current->id)->update(['status' => 301]);
+                }
+
+                Path::query()->create(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path'], 'entry_id' => $row['entry_id'], 'status' => 200]);
             });
 
             return true;

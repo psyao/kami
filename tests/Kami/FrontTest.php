@@ -8,7 +8,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\SiteSettings;
@@ -131,4 +133,69 @@ it('tells addresses apart by their bytes on every engine', function () {
     $this->get('/articles/cafe')->assertOk()->assertSee('Plain');
     $this->get('/articles/cafe%20')->assertNotFound();
     $this->get('/articles/%C3%A7afe')->assertNotFound();
+});
+
+describe('a moved address', function () {
+    it('answers 301 to the new address once public, which carries the canonical URL', function () {
+        $entry = saveArticle();
+
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+
+        $this->get('/articles/hello-world')->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-again');
+        $this->get('/articles/hello-again')->assertOk()->assertSee('<link rel="canonical" href="http://localhost/articles/hello-again">', escape: false);
+    });
+
+    it('rewrites a never-public address in place: a Draft, or a publication still to come', function (array $values) {
+        $entry = saveArticle($values);
+
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+
+        expect(DB::table('kami_paths')->pluck('path')->all())->toBe(['articles/hello-again']);
+    })->with([
+        'a Draft' => [['status' => 'draft']],
+        'a publication to come' => [['published_at' => now()->addDay()]],
+    ]);
+
+    it('keeps it for an unpublished Translation, answering once it is visible again', function () {
+        $entry = saveArticle();
+        resolve(SaveEntry::class)->handle(Article::class, ['status' => 'draft'], $entry);
+
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+        $this->get('/articles/hello-world')->assertNotFound();
+
+        resolve(SaveEntry::class)->handle(Article::class, ['status' => 'published'], $entry);
+        $this->get('/articles/hello-world')->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-again');
+    });
+
+    it('gives an address back to the Entry moving back to it, the one it leaves redirecting', function () {
+        $entry = saveArticle();
+
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-world'], $entry);
+
+        $this->get('/articles/hello-world')->assertOk();
+        $this->get('/articles/hello-again')->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-world');
+    });
+
+    it('lets another Entry take a moved address, replacing its Redirect', function () {
+        $entry = saveArticle();
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+
+        saveArticle(['title' => 'Other', 'slug' => 'hello-world']);
+
+        $this->get('/articles/hello-world')->assertOk()->assertSee('<h1>Other</h1>', escape: false);
+    });
+
+    it('takes a browser\'s cached 301 of a deleted Entry on to its replacement moved since, in one redirect (#287)', function () {
+        $deleted = saveArticle(['title' => 'Old']);
+        $replacement = saveArticle();
+        resolve(TrashEntry::class)->handle($deleted);
+        resolve(DeleteEntry::class)->handle(Entry::query()->withTrashed()->findOrFail($deleted->id), $replacement);
+        $cached = $this->get('/articles/old')->assertMovedPermanently()->headers->get('Location');
+
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $replacement);
+
+        $this->get((string) parse_url((string) $cached, PHP_URL_PATH))->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-again');
+        $this->get('/articles/old')->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-again');
+    });
 });

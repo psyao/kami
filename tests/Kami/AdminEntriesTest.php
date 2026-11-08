@@ -306,7 +306,7 @@ it('fills the slug of a Draft saved without a title, which has none stored', fun
         ->assertSchemaStateSet(['slug' => 'enfin-un-titre']);
 });
 
-it('never changes a stored slug from the title, in any Locale, and warns that changing it moves the address', function () {
+it('never changes a stored slug from the title, in any Locale, and says the old address redirects', function () {
     entryPage(CreateEntry::class)->fillForm(['title' => 'Bonjour'])->call('create');
     entryPage(EditEntry::class, parameters: ['record' => onlyEntry()->id, 'locale' => 'en'])->fillForm(['title' => 'Hello'])->call('save');
 

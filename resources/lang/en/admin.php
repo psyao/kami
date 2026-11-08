@@ -14,7 +14,7 @@ return [
         'untitled' => 'Untitled',
         'encoding' => 'The :attribute field must be valid UTF-8 text.',
         'path_taken' => "Another Entry already answers at this type's Prefix: change the Prefix.",
-        'slug_moves' => 'Changing it moves the address: the old one stops answering.',
+        'slug_moves' => 'Changing it moves the address: once the page has been published, the old one redirects to the new one.',
         'published_at' => 'Publication date',
         'published_at_help' => 'In the :timezone time zone. Left blank, publishing sets it to now; a date to come schedules the publication.',
         'shared' => 'Shared by every language: changing it here changes it everywhere.',

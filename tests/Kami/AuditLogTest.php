@@ -138,7 +138,7 @@ describe('SaveEntry', function (): void {
     });
 
     it('records an unpublication, and a changed date on a visible or Scheduled Translation with the old and new date', function (): void {
-        $entry = auditSave(['title' => 'Kami', 'status' => 'published', 'published_at' => '2026-11-01 08:00:00'], locale: 'fr');
+        $entry = auditSave(['title' => 'About', 'status' => 'published', 'published_at' => '2026-11-01 08:00:00'], locale: 'fr');
         auditSave(['published_at' => '2026-12-01 08:00:00'], $entry, 'fr');
         auditSave(['status' => 'draft'], $entry, 'fr');
         // A Draft's date is not visible: changing it records nothing.
@@ -152,7 +152,7 @@ describe('SaveEntry', function (): void {
 
     it('records nothing when the publication rolls back, in the caller’s transaction', function (): void {
         expect(fn () => DB::transaction(function (): void {
-            auditSave(['title' => 'Kami', 'status' => 'published'], locale: 'fr');
+            auditSave(['title' => 'About', 'status' => 'published'], locale: 'fr');
 
             throw new RuntimeException('The import failed further on.');
         }))->toThrow(RuntimeException::class);
@@ -169,7 +169,7 @@ function auditSave(array $values, ?Entry $entry = null, ?string $locale = null, 
 
 it('records the Trash, a restore and a deletion for good, with the User', function (): void {
     $ada = auditUser();
-    $entry = auditSave(['title' => 'Kami'], locale: 'fr');
+    $entry = auditSave(['title' => 'About'], locale: 'fr');
 
     resolve(TrashEntry::class)->handle($entry, $ada);
     resolve(RestoreEntry::class)->handle($entry, $ada);

@@ -483,13 +483,13 @@ it('refuses a slug that cannot answer at its URL', function (string $slug) {
     expect(failures(fn () => save(['title' => 'Hello', 'slug' => $slug])))->toBe(['slug']);
 })->with(['a?b#c d', 'a b', 'a?b', 'a#b', '100%25', 'a\\b', 'a//b', '../a', 'a/..', '.', "a\u{7f}b", "\xff"]);
 
-it('refuses a root type\'s slug starting with media, where Media Conversions answer', function () {
-    $page = fn (string $slug) => failures(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug]));
+it('refuses a root type\'s slug where Kami answers itself, in every Locale', function (string $slug, string $locale) {
+    expect(failures(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug], locale: $locale)))->toBe(['slug']);
+})->with(['media', 'Media/photos', 'sitemaps', 'sitemaps/fr-1.xml', 'kami', 'kami/share', 'sitemap.xml', 'robots.txt'])->with(['fr', 'en']);
 
-    expect($page('media'))->toBe(['slug'])
-        ->and($page('Media/photos'))->toBe(['slug'])
-        ->and($page('medias'))->toBe([]);
-});
+it('accepts a slug that only starts like a reserved one', function (string $slug) {
+    expect(resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug])->slug)->toBe($slug);
+})->with(['medias', 'kamis', 'sitemap', 'robots.txt/more', 'sitemap.xml.bak']);
 
 it('accepts accents, dots and nested segments in a slug', function (string $slug) {
     expect(save(['title' => 'Hello', 'slug' => $slug])->slug)->toBe($slug);

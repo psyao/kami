@@ -49,7 +49,7 @@ it('updates the Translation, Field values and Path of an existing Entry', functi
         ->and([$updated->title, $updated->slug, $updated->summary, $updated->status])->toBe(['Second', 'second', 'Two', 'published']);
 
     Kami::routes();
-    $this->get('/articles/first')->assertNotFound();
+    $this->get('/articles/first')->assertRedirect('http://localhost/articles/second');
     $this->get('/articles/second')->assertOk();
 });
 
