@@ -62,7 +62,7 @@ final readonly class Doctor
     /** What Kami and its dependencies require at run time, as `composer check-platform-reqs --no-dev` lists it. */
     public const array EXTENSIONS = [
         'ctype', 'dom', 'fileinfo', 'filter', 'hash', 'iconv', 'intl', 'json', 'libxml',
-        'mbstring', 'openssl', 'pcre', 'session', 'tokenizer', 'xmlreader', 'zip',
+        'mbstring', 'openssl', 'pcre', 'session', 'tokenizer', 'xmlreader', 'xmlwriter', 'zip',
     ];
 
     /** @var Closure(string): bool */

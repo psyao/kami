@@ -64,8 +64,7 @@ final class Sitemap
         }
 
         clearstatcache(true, self::state('stale'));
-        $next = PageCache::manifest()['next_change_at'] ?? null;
-        $changes = array_filter([(int) @filemtime(self::state('stale')), $next !== null && $next <= now()->getTimestamp() ? $next : 0], fn (int $at): bool => $at >= $built);
+        $changes = array_filter([(int) @filemtime(self::state('stale')), PageCache::passedChange() ?? 0], fn (int $at): bool => $at >= $built);
 
         return $changes === [] ? null : min($changes);
     }
@@ -82,7 +81,7 @@ final class Sitemap
         $started = now()->getTimestamp();
         self::deleteLeftovers();
         File::ensureDirectoryExists($directory = public_path('sitemaps.' . bin2hex(random_bytes(4))));
-        /** @var array<string, array{XMLWriter, int, int}> $files By Locale: the open file, its number, its URLs. */
+        /** @var array<string, array{writer: XMLWriter, number: int, urls: int}> $files By Locale: the open file, its number, its URLs. */
         $files = [];
         $total = 0;
 
@@ -95,22 +94,22 @@ final class Sitemap
                 $alternates = ResolvePageMeta::alternates($site, $urls);
 
                 foreach ($urls as $locale => $url) {
-                    if (($files[$locale][2] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
+                    if (($files[$locale]['urls'] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
                         if (isset($files[$locale])) {
-                            self::close($files[$locale][0]);
+                            self::close($files[$locale]['writer']);
                         }
-                        $number = ($files[$locale][1] ?? 0) + 1;
-                        $files[$locale] = [self::open("{$directory}/{$locale}-{$number}.xml"), $number, 0];
+                        $number = ($files[$locale]['number'] ?? 0) + 1;
+                        $files[$locale] = ['writer' => self::open("{$directory}/{$locale}-{$number}.xml"), 'number' => $number, 'urls' => 0];
                     }
 
-                    self::url($files[$locale][0], $url, $entry->translation($locale)?->updated_at?->toAtomString(), $alternates);
-                    $files[$locale][2]++;
+                    self::url($files[$locale]['writer'], $url, $entry->translation($locale)?->updated_at?->toAtomString(), $alternates);
+                    $files[$locale]['urls']++;
                     $total++;
                 }
             }
 
-            foreach ($files as [$writer]) {
-                self::close($writer);
+            foreach ($files as $file) {
+                self::close($file['writer']);
             }
         } catch (Throwable $exception) {
             File::deleteDirectory($directory);

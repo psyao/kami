@@ -118,9 +118,7 @@ final class InstallCommand extends Command
         File::delete(File::glob(storage_path('framework/kami/visibility-*.json')));
 
         // ponytail: shared hosting has no scheduler to run kami:sitemap until M8's Tick: each deploy rebuilds a stale sitemap meanwhile.
-        if (Sitemap::isStale()) {
-            $this->components->info('Wrote the sitemap: ' . Sitemap::build() . ' URLs.');
-        }
+        $this->call('kami:sitemap');
 
         $this->components->info('Kami is installed.');
 

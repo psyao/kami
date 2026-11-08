@@ -19,13 +19,7 @@ final class SitemapCommand extends Command
 {
     public function handle(): int
     {
-        if (! Sitemap::isStale()) {
-            $this->components->info('The sitemap is up to date.');
-
-            return self::SUCCESS;
-        }
-
-        $this->components->info('Wrote the sitemap: ' . Sitemap::build() . ' URLs.');
+        $this->components->info(Sitemap::isStale() ? 'Wrote the sitemap: ' . Sitemap::build() . ' URLs.' : 'The sitemap is up to date.');
 
         return self::SUCCESS;
     }
