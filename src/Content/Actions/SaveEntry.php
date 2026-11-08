@@ -131,8 +131,6 @@ final class SaveEntry
         });
 
         $saved = Entry::query()->withUnpublished()->findOrFail($id);
-        // At a caller's own commit, as the events are: a rolled back write leaves the file as it was.
-
         // After commit, so a listener never sees a write rolled back; a caller's own transaction defers them to its commit (ADR 0029).
         event(new EntrySaved($saved, $locale, ! $entry instanceof Entry, $actor));
 

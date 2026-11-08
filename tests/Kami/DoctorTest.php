@@ -788,9 +788,12 @@ it('warns when the page cache cannot write to its directory, and only while it i
     config(['kami.page_cache.enabled' => $enabled]);
 
     $warning = 'The page cache cannot write to storage/framework/kami/pages/';
-    $enabled
-        ? $this->artisan('kami:doctor')->expectsOutputToContain($warning)->expectsOutputToContain('docs/guide/page-cache.md#storage')->assertSuccessful()
-        : $this->artisan('kami:doctor')->doesntExpectOutputToContain($warning)->assertSuccessful();
+    if ($enabled) {
+        $this->artisan('kami:doctor')->expectsOutputToContain($warning)->expectsOutputToContain('docs/guide/page-cache.md#storage')->assertSuccessful();
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain($warning)->assertFailed();
+    } else {
+        $this->artisan('kami:doctor', ['--strict' => true])->doesntExpectOutputToContain($warning)->assertSuccessful();
+    }
 
     chmod("{$storage}/framework", 0755);
     File::deleteDirectory($storage);

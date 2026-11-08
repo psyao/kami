@@ -22,6 +22,9 @@ final class PageCache
     /** Set on the request by `Kami::withoutPageCache()`. */
     public const string SKIP = 'kami.without_page_cache';
 
+    /** The version read once per request: an unwritable `storage/` would otherwise recompute it, with a query, on every call. */
+    private const string VERSION = 'kami.content_version';
+
     private const int MAX_AGE = 3600;
 
     public static function enabled(): bool
@@ -30,15 +33,25 @@ final class PageCache
     }
 
     /**
-     * The Content version; a missing, malformed or passed manifest is recomputed and rewritten first.
+     * The Content version, read once per request; a missing, malformed or passed manifest is recomputed and rewritten first.
      */
     public static function version(): string
     {
+        $known = request()->attributes->get(self::VERSION);
+
+        if (is_string($known)) {
+            return $known;
+        }
+
         $manifest = self::manifest();
 
-        return $manifest === null || ($manifest['next_change_at'] ?? PHP_INT_MAX) <= now()->getTimestamp()
-            ? self::invalidate()
-            : $manifest['version'];
+        if ($manifest === null || ($manifest['next_change_at'] ?? PHP_INT_MAX) <= now()->getTimestamp()) {
+            return self::invalidate();
+        }
+
+        request()->attributes->set(self::VERSION, $manifest['version']);
+
+        return $manifest['version'];
     }
 
     /**
@@ -63,6 +76,7 @@ final class PageCache
     public static function invalidate(): string
     {
         $version = bin2hex(random_bytes(8));
+        request()->attributes->set(self::VERSION, $version);
 
         rescue(function () use ($version): void {
             if (! File::isDirectory(self::directory())) {
@@ -78,7 +92,11 @@ final class PageCache
         return $version;
     }
 
-    /** Deletes the files of every version but the manifest's. */
+    /**
+     * Deletes the files of every version but the manifest's.
+     *
+     * ponytail: run after each new version and by `kami:cache:clear` only; M8's Tick schedules it as the backstop ADR 0021 names, for a `defer()` that never ran.
+     */
     public static function prune(): void
     {
         $current = self::manifest()['version'] ?? null;
@@ -93,7 +111,7 @@ final class PageCache
     /** The fresh cached page for the request, answering 304 to a matching `If-None-Match`; null on a miss. */
     public static function hit(Request $request): ?Response
     {
-        $path = self::pagePath($request);
+        $path = self::pagePath($request, self::version());
         $handle = @filemtime($path) > now()->getTimestamp() - self::MAX_AGE ? @fopen($path, 'rb') : false;
 
         if ($handle === false) {
@@ -122,12 +140,13 @@ final class PageCache
     public static function store(Request $request, Response $response): void
     {
         $body = (string) $response->getContent();
-        $etag = '"' . self::version() . '-' . hash('xxh128', $body) . '"';
+        $version = self::version();
+        $etag = '"' . $version . '-' . hash('xxh128', $body) . '"';
         // Set per hit, or describing this one only.
         $headers = array_diff_key($response->headers->allPreserveCaseWithoutCookies(), array_flip(['Date', 'Cache-Control', 'ETag']));
 
-        rescue(function () use ($request, $headers, $etag, $body): void {
-            $path = self::pagePath($request);
+        rescue(function () use ($request, $version, $headers, $etag, $body): void {
+            $path = self::pagePath($request, $version);
             File::ensureDirectoryExists(dirname($path));
             File::replace($path, json_encode(['headers' => $headers, 'etag' => $etag], JSON_THROW_ON_ERROR) . "\n" . $body);
         });
@@ -137,13 +156,13 @@ final class PageCache
 
     private static function fresh(Response $response, string $etag): Response
     {
-        // Browsers revalidate every time, so they never show a stale page.
-        return $response->setEtag($etag)->setPublic()->setCache(['no_cache' => true]);
+        // Browsers revalidate every time, so they never show a stale page; `private` keeps shared proxies from storing it.
+        return $response->setEtag($etag)->setCache(['no_cache' => true]);
     }
 
-    private static function pagePath(Request $request): string
+    private static function pagePath(Request $request, string $version): string
     {
-        return self::directory(self::version() . '/' . hash('xxh128', $request->getHost() . $request->getRequestUri()));
+        return self::directory($version . '/' . hash('xxh128', $request->getHost() . $request->getRequestUri()));
     }
 
     private static function directory(string $file = ''): string

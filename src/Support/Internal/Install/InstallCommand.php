@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -107,6 +108,8 @@ final class InstallCommand extends Command
 
         // A deploy may bring views, dates, a database or a storage/ the manifest has not seen (ADR 0021).
         PageCache::invalidate();
+        // Kami 0.6's per-Site files, which the manifest replaced.
+        File::delete(File::glob(storage_path('framework/kami/visibility-*.json')));
 
         $this->components->info('Kami is installed.');
 

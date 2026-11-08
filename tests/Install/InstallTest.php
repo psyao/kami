@@ -77,10 +77,12 @@ it('makes a new Content version, as views may have changed, with the next visibi
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => '2099-01-01 09:00']);
     $before = PageCache::version();
     File::put("{$storage}/framework/kami/pages/manifest.json", json_encode(['version' => $before, 'next_change_at' => null]));
+    File::put("{$storage}/framework/kami/visibility-default.json", '{"next_change_at":null}');
 
     install()->assertSuccessful();
 
-    expect(PageCache::manifest()['version'] ?? null)->not->toBe($before)
+    expect("{$storage}/framework/kami/visibility-default.json")->not->toBeFile()
+        ->and(PageCache::manifest()['version'] ?? null)->not->toBe($before)
         ->and(PageCache::manifest()['next_change_at'] ?? null)->toBe(CarbonImmutable::parse('2099-01-01 09:00', 'UTC')->getTimestamp());
 
     File::deleteDirectory($storage);

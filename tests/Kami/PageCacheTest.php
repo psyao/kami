@@ -76,7 +76,7 @@ it('replays the stored headers with an ETag, no-cache and a 304 on a match', fun
     $hit = $this->get('/articles/hello-world')->assertOk()->assertHeader('ETag', $etag);
 
     expect($etag)->toMatch('~^"[0-9a-f]{16}-[0-9a-f]+"$~')
-        ->and($hit->headers->get('Cache-Control'))->toContain('no-cache')
+        ->and($hit->headers->get('Cache-Control'))->toContain('no-cache')->toContain('private')
         ->and($hit->headers->get('Content-Security-Policy'))->toBe($first->headers->get('Content-Security-Policy'))
         ->and($hit->headers->get('Content-Type'))->toBe($first->headers->get('Content-Type'));
 
@@ -255,4 +255,17 @@ it('answers HEAD from a stored page, and never stores HEAD\'s empty body', funct
 
     $this->call('HEAD', '/articles/hello-world')->assertOk()->assertHeader('ETag');
     $this->get('/articles/hello-world')->assertSee('Hello world');
+});
+
+it('recomputes the version once per request when storage/ cannot be written, and still serves the page', function () {
+    cachedArticle();
+    $pages = storage_path('framework/kami/pages');
+    File::delete("{$pages}/manifest.json");
+    chmod($pages, 0555);
+    DB::enableQueryLog();
+
+    $this->get('/articles/hello-world')->assertOk()->assertSee('Hello world');
+
+    chmod($pages, 0755);
+    expect(array_filter(DB::getQueryLog(), fn (array $query): bool => str_contains($query['query'], 'min(')))->toHaveCount(1);
 });
