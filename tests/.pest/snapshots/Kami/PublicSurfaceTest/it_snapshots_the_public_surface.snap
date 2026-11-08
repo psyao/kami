@@ -267,6 +267,9 @@ class Psyao\Kami\Users\HasKamiRoles::kamiRoles() public function kamiRoles(): ar
 class Psyao\Kami\Users\KamiUser interface
 class Psyao\Kami\Users\KamiUser::kamiRoles() abstract public function kamiRoles(): array
 command kami:audit:prune
+command kami:bench
+command kami:bench --user [--user [USER]]
+command kami:bench path [<path>] = '/'
 command kami:cache:clear
 command kami:doctor
 command kami:doctor --strict [--strict]

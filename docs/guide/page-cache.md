@@ -95,6 +95,10 @@ Pages live under `storage/framework/kami/pages/`, one directory per Content vers
 
 It works the same on shared hosting and on a server: a hit reads the manifest and one file, with no query, and with the line above it compiles about a hundred lines of PHP rather than Laravel, which matters where OPcache is off. The files sit on the web server's own disk, so an installation behind several web servers either shares `storage/` between them or turns the page cache off. The line reads the host from the request's `Host` header: behind a proxy that rewrites it, it finds no page and every request boots Laravel, which still serves the cached page.
 
+## Measuring
+
+`php artisan kami:bench` prints the median server time of a page served from the page cache and rendered by Laravel, measured from the host ([Deployment](deployment.md#measuring-page-speed)).
+
 ## Clearing
 
 `php artisan kami:cache:clear` makes every page and fragment stale and deletes every stored page. `php artisan optimize:clear` runs it too.

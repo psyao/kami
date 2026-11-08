@@ -39,6 +39,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Fix a Path clash, or Paths that do not follow the declarations | `vendor/psyao/kami/docs/guide/routing-and-rendering.md#after-a-deploy` |
 | Deploy a site for the first time | `vendor/psyao/kami/docs/guide/deployment.md#first-deploy` |
 | Deploy again, update Kami, or ship a changed Prefix or Locale | `vendor/psyao/kami/docs/guide/deployment.md#later-deploys` |
+| Measure a page's cached and uncached server time against the budgets (`kami:bench`) | `vendor/psyao/kami/docs/guide/deployment.md#measuring-page-speed` |
 | Decide whether something can run on the host (cron, queue, Node, PHP limits) | `vendor/psyao/kami/docs/guide/hosting.md` |
 | Understand why Kami works the way it does | `vendor/psyao/kami/docs/adr/` |
 

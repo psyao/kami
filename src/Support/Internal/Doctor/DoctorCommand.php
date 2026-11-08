@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Media\Internal\ImageFormats;
+use Psyao\Kami\Routing\Internal\BenchCommand;
 use Throwable;
 
 /** @internal */
@@ -22,6 +23,7 @@ final class DoctorCommand extends Command
     public function handle(Doctor $doctor, ImageFormats $formats): int
     {
         $this->printFormats($formats);
+        $this->printBench();
         $problems = $doctor->problems();
 
         $this->printProblems($problems);
@@ -67,6 +69,24 @@ final class DoctorCommand extends Command
         }
 
         $this->components->twoColumnDetail('JPEG, PNG', Config::string('images.default', 'gd') . ', the fallback');
+        $this->newLine();
+    }
+
+    /** The last `kami:bench`, not a Problem: it measures the web, which the doctor cannot. */
+    private function printBench(): void
+    {
+        $bench = BenchCommand::lastResult();
+
+        if ($bench === null) {
+            $this->components->twoColumnDetail('<options=bold>Page speed</>', 'never measured, run kami:bench');
+            $this->newLine();
+
+            return;
+        }
+
+        $this->components->twoColumnDetail('<options=bold>Page speed</>', sprintf('%s, %s', $bench['url'], $bench['measured_at']->utc()->format('Y-m-d H:i \U\T\C')));
+        $this->components->twoColumnDetail('Cached', sprintf('%.1f ms', $bench['cached_ms']));
+        $this->components->twoColumnDetail('Uncached', sprintf('%.1f ms', $bench['uncached_ms']));
         $this->newLine();
     }
 

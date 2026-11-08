@@ -66,10 +66,14 @@ beforeEach(function () {
         smallDatasetPageQueries(pageQueries());
         measure('Generate 30,000 Entries', fn () => $dataset->fill(Dataset::ENTRIES));
 
-        // MySQL and MariaDB keep their statistics up to date; PostgreSQL's arrive with autovacuum, some time later.
-        if (DB::getDriverName() === 'pgsql') {
-            DB::statement('analyze');
-        }
+        // Statistics as a site that has been running has them. PostgreSQL's arrive with autovacuum, some time later. MySQL and
+        // MariaDB recalculate theirs in the background at a moment the suite cannot predict: one taken halfway through the
+        // inserts made MySQL read every Translation for each Entry's visibility check, 24 s for 2,000 Entries (#222).
+        match (DB::getDriverName()) {
+            'pgsql' => DB::statement('analyze'),
+            'mysql', 'mariadb' => DB::statement('analyze table kami_entries, kami_translations, kami_paths, kami_references, kami_type_project, kami_type_article'),
+            default => null,
+        };
     }
 });
 
@@ -90,7 +94,13 @@ it('walks a listing in its index, sorting nothing, the Trash left out', function
         ->and(plan($query))->toContain('kami_entries_type_position_id_index')->not->toContain('filesort')->not->toContain('Sort')->not->toContain('TEMP B-TREE')
         ->and(measure('Listing, 50 rows', fn () => (clone $query)->get()))->toHaveCount(50);
 
-    measure('Listing in a Site', fn () => Entry::query()->where('site', 'default')->ofType(Project::class)->ordered()->limit(50)->get());
+    // #222: an `exists` made MariaDB materialise every published Translation, and MySQL sort the type through the Site index.
+    $inSite = Entry::query()->where('site', 'default')->ofType(Project::class)->ordered()->limit(50);
+    expect(plan($inSite))->toContain('kami_entries_type_position_id_index')->not->toContain('MATERIALIZED')->not->toContain('filesort');
+    // 138 ms before #222's fix on MariaDB, 5 to 10 ms after on the four engines, hydration included: 30 ms leaves a runner its margin.
+    $start = microtime(true);
+    expect(measure('Listing in a Site', fn () => (clone $inSite)->get()))->toHaveCount(50)
+        ->and(microtime(true) - $start)->toBeLessThan(0.03);
     measure('Listing with Drafts', fn () => Entry::query()->withUnpublished()->ofType(Project::class)->ordered()->limit(50)->get());
 });
 

@@ -31,6 +31,7 @@ use Psyao\Kami\Media\Internal\ImagePresets;
 use Psyao\Kami\Media\Internal\PruneMediaCommand;
 use Psyao\Kami\Media\Internal\StripMetadata;
 use Psyao\Kami\Media\Internal\WarmMediaCommand;
+use Psyao\Kami\Routing\Internal\BenchCommand;
 use Psyao\Kami\Routing\Internal\CachePages;
 use Psyao\Kami\Routing\Internal\ClearCacheCommand;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -57,7 +58,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasTranslations()
             ->hasViews()
             // ponytail: `kami:media:prune` and `kami:audit:prune` run when an operator starts them, from the shell or a host cron; M8's Tick schedules them.
-            ->hasCommands([ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void

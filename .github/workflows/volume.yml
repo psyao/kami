@@ -14,6 +14,7 @@ jobs:
     name: Volume (MariaDB 10.11)
     runs-on: ubuntu-latest
     # The suite takes about a minute at 30,000 Entries (#162); it reports its numbers in this job's log.
+    # Every engine: their planners differ, and #222's listing was slow on MariaDB and MySQL for two different reasons.
     timeout-minutes: 10
     services:
       mariadb:
@@ -37,6 +38,87 @@ jobs:
           persist-credentials: false
 
       - uses: ./.github/actions/setup
+
+      - name: Volume suite
+        run: vendor/bin/pest --testsuite=Volume --ci
+
+  mysql:
+    name: Volume (MySQL 8.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: kami
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: kami
+      DB_USERNAME: root
+      DB_PASSWORD: password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Volume suite
+        run: vendor/bin/pest --testsuite=Volume --ci
+
+  postgresql:
+    name: Volume (PostgreSQL 15)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: kami
+        ports:
+          - 5432:5432
+        options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: kami
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Volume suite
+        run: vendor/bin/pest --testsuite=Volume --ci
+
+  sqlite:
+    name: Volume (SQLite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # A file: the suite's dataset outlives one test, which the default in-memory database does not.
+    env:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ${{ github.workspace }}/volume.sqlite
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Create the database
+        run: touch "$DB_DATABASE"
 
       - name: Volume suite
         run: vendor/bin/pest --testsuite=Volume --ci
