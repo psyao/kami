@@ -66,10 +66,14 @@ beforeEach(function () {
         smallDatasetPageQueries(pageQueries());
         measure('Generate 30,000 Entries', fn () => $dataset->fill(Dataset::ENTRIES));
 
-        // MySQL and MariaDB keep their statistics up to date; PostgreSQL's arrive with autovacuum, some time later.
-        if (DB::getDriverName() === 'pgsql') {
-            DB::statement('analyze');
-        }
+        // Statistics as a site that has been running has them. PostgreSQL's arrive with autovacuum, some time later. MySQL and
+        // MariaDB recalculate theirs in the background at a moment the suite cannot predict: one taken halfway through the
+        // inserts made MySQL read every Translation for each Entry's visibility check, 24 s for 2,000 Entries (#222).
+        match (DB::getDriverName()) {
+            'pgsql' => DB::statement('analyze'),
+            'mysql', 'mariadb' => DB::statement('analyze table kami_entries, kami_translations, kami_paths, kami_references, kami_type_project, kami_type_article'),
+            default => null,
+        };
     }
 });
 
