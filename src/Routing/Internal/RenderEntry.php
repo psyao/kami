@@ -46,6 +46,8 @@ final class RenderEntry
         $entry = $entryId === null ? null : Entry::query()->whereKey($entryId)->first();
         $type = $entry?->contentType() ?? abort(404);
         abort_unless($type->isRoutable(), 404);
+        // The page's Entry, for what the layout renders around it: `<x-kami::locales />`.
+        $request->attributes->set('kami.entry', $entry);
 
         return app()->call($type->render(...), ['entry' => $entry]);
     }

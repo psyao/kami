@@ -80,6 +80,24 @@ It may return any view or response: a redirect, JSON, or a controller's response
 
 `<x-kami::image :media="$entry->cover" preset="card" />` renders a Media item as a `<picture>` with its formats, a `srcset`, its dimensions, lazy loading and its alt text ([Media](media.md#showing-an-image)). It renders nothing for a null Media item, so an empty optional Field needs no `@if`.
 
+### Dates
+
+`<x-kami::date :value="$entry->published_at" />` renders a `<time class="kami-date">` whose `datetime` is the moment in UTC (ISO 8601), shown in the Site's `timezone` and the page's language. `format` takes a Carbon `isoFormat()` pattern, `LL` by default: "1 mars 2026", "March 1, 2026"; `format="LLL"` adds the time. A Date Field holds a day, not a moment: pass `day` so no time zone shifts it, and `datetime` holds the day alone:
+
+```blade
+<x-kami::date :value="$entry->event_day" day />
+```
+
+It renders nothing for a null value.
+
+### Language switcher
+
+`<x-kami::locales />` links the page's Entry in its other Locales ([Multilingual](multilingual.md#language-switcher)).
+
+### Overriding a component
+
+Each `x-kami::` component is an anonymous Blade view. Its name and props are public API; its markup is yours to change. A file at `resources/views/vendor/kami/components/locales.blade.php` replaces `<x-kami::locales />`: copy the package's file there and edit the copy. `php artisan vendor:publish --tag=kami-views` copies all of Kami's views at once, which then no longer follow its updates.
+
 ### The Preview banner
 
 The admin's Preview calls the same `render()` with an Entry that was never saved ([Publishing](publishing.md#preview)), and a [Preview link](publishing.md#preview-links) with a Draft or Scheduled one: `render()` must not assume its Entry is stored or visible. Put the banner at the top of your layout's `<body>`:

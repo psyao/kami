@@ -26,6 +26,7 @@ final class PreviewResponse
         app()->setLocale($entry->readLocale());
         $request->attributes->set('kami.preview', true);
         $request->attributes->set('kami.preview.banner', $banner);
+        $request->attributes->set('kami.entry', $entry);
 
         $response = Route::toResponse($request, app()->call($type->render(...), ['entry' => $entry]));
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow');

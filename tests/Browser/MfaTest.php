@@ -17,11 +17,10 @@ it('sets MFA up from the QR code\'s secret, then asks a code at the next sign-in
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator']);
 
     $page = visit('/admin/login', ['reducedMotion' => 'reduce']);
-    signInPassword($page, 'grace@example.test')
-        // A manager without MFA lands on its set-up, not on the dashboard.
-        ->assertPathIs('/admin/multi-factor-authentication/set-up')
-        // Reached by a redirect, which nothing waits for: pressed before Livewire starts, "Set up" opens nothing (#369).
-        ->waitForEvent('load')
+    // A manager without MFA lands on its set-up, not on the dashboard.
+    signInPassword($page, 'grace@example.test')->assertPathIs('/admin/multi-factor-authentication/set-up');
+    // Reached by a redirect, which nothing waits for: pressed before Livewire starts, "Set up" opens nothing (#369).
+    livewireStarted($page)
         ->press('internal:role=button[name="Set up"s]')
         ->assertSee('Or enter this code manually');
 
