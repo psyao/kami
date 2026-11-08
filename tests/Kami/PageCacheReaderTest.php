@@ -7,6 +7,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
+use Livewire\Livewire;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
@@ -26,6 +27,8 @@ beforeEach(function () {
     Http::allowStrayRequests();
 
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello world', 'status' => 'published', 'author' => 'Ada Lovelace']);
+    // An admin test earlier in this process leaves Livewire injecting its styles into the response after the page is stored (#434).
+    Livewire::flushState();
     $this->stored = $this->get('/articles/hello-world')->assertOk();
 
     $socket = stream_socket_server('tcp://127.0.0.1:0');
