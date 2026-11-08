@@ -151,6 +151,85 @@ it('keeps a page out of search engines on a Site that is not indexable, or when 
     $this->get('/en/articles/hello')->assertSee('<meta name="robots" content="noindex, nofollow">', escape: false);
 });
 
+it('links a page to its visible Translations not Hidden from search engines, in both directions, with x-default', function () {
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    $entry = seoArticle(['title' => 'Bonjour']);
+    seoArticle(['title' => 'Hello'], 'en', $entry);
+    seoArticle(['title' => 'Hallo', 'noindex' => true], 'de', $entry);
+    $links = [
+        '<link rel="alternate" hreflang="fr" href="http://localhost/articles/bonjour">',
+        '<link rel="alternate" hreflang="en" href="http://localhost/en/articles/hello">',
+        '<link rel="alternate" hreflang="x-default" href="http://localhost/articles/bonjour">',
+    ];
+
+    $this->get('/articles/bonjour')->assertSeeInOrder($links, escape: false)->assertDontSee('rel="alternate" hreflang="de"', escape: false);
+    $this->get('/en/articles/hello')->assertSeeInOrder($links, escape: false)->assertDontSee('rel="alternate" hreflang="de"', escape: false);
+    // A hidden page leaves hreflang in both directions.
+    $this->get('/de/articles/hallo')->assertOk()->assertDontSee('rel="alternate"', escape: false);
+    // A page that is not indexable as a whole keeps them.
+    config(['kami.indexable' => false]);
+    $this->get('/articles/bonjour')->assertSeeInOrder($links, escape: false);
+});
+
+it('links no x-default when the default Locale\'s Translation is hidden or not visible, and nothing below two links', function () {
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    $entry = seoArticle(['title' => 'Bonjour', 'status' => 'draft']);
+    seoArticle(['title' => 'Hello'], 'en', $entry);
+    seoArticle(['title' => 'Hallo'], 'de', $entry);
+
+    $this->get('/en/articles/hello')->assertSeeInOrder([
+        '<link rel="alternate" hreflang="en" href="http://localhost/en/articles/hello">',
+        '<link rel="alternate" hreflang="de" href="http://localhost/de/articles/hallo">',
+    ], escape: false)->assertDontSee('x-default', escape: false)->assertDontSee('rel="alternate" hreflang="fr"', escape: false);
+
+    seoArticle(['title' => 'Hallo', 'noindex' => true], 'de', $entry);
+    $this->get('/en/articles/hello')->assertDontSee('rel="alternate"', escape: false);
+    expect(Kami::seo()->alternates)->toBe([]);
+});
+
+it('links no Translation on a monolingual Site, and the Paths of an untranslatable Entry to each other', function () {
+    resolve(SaveEntry::class)->handle('label', ['title' => 'Urgent', 'status' => 'published']);
+
+    $this->get('/en/label/urgent')->assertOk()->assertSeeInOrder([
+        '<link rel="alternate" hreflang="fr" href="http://localhost/label/urgent">',
+        '<link rel="alternate" hreflang="en" href="http://localhost/en/label/urgent">',
+        '<link rel="alternate" hreflang="x-default" href="http://localhost/label/urgent">',
+    ], escape: false);
+
+    config(['kami.sites.default.locales' => ['fr']]);
+    $this->get('/label/urgent')->assertOk()->assertDontSee('rel="alternate"', escape: false);
+});
+
+it('leaves hreflang out of a Preview', function () {
+    $user = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
+    $entry = seoArticle(['title' => 'Bonjour']);
+    seoArticle(['title' => 'Hello'], 'en', $entry);
+
+    $this->get(PreviewLink::issue($entry, 'fr', 7, $user))->assertOk()->assertDontSee('rel="alternate"', escape: false);
+});
+
+it('gives og:locale and its alternates from a Locale\'s region, in its options or its code, and nothing without one', function () {
+    config(['kami.sites.default.locales' => ['fr' => ['region' => 'ch'], 'en-gb', 'de']]);
+    $entry = seoArticle(['title' => 'Bonjour']);
+    seoArticle(['title' => 'Hello'], 'en-gb', $entry);
+    seoArticle(['title' => 'Hallo'], 'de', $entry);
+    Route::get('contact', fn () => Blade::render('<x-kami::seo title="Contact" />'));
+
+    $this->get('/contact')->assertSee('<meta property="og:locale" content="fr_CH">', escape: false)->assertDontSee('og:locale:alternate', escape: false);
+    $this->get('/articles/bonjour')->assertSeeInOrder([
+        '<link rel="alternate" hreflang="en-gb" href="http://localhost/en-gb/articles/hello">',
+        '<meta property="og:type" content="article">',
+        '<meta property="og:locale" content="fr_CH">',
+        '<meta property="og:locale:alternate" content="en_GB">',
+        '<meta name="twitter:card"',
+    ], escape: false)->assertDontSee('content="de', escape: false);
+    $this->get('/de/articles/hallo')->assertDontSee('property="og:locale"', escape: false)->assertSeeInOrder([
+        '<meta property="og:locale:alternate" content="fr_CH">',
+        '<meta property="og:locale:alternate" content="en_GB">',
+    ], escape: false);
+    expect(Kami::seo())->ogLocale->toBeNull()->ogLocaleAlternates->toBe(['fr_CH', 'en_GB']);
+});
+
 it('heads a Preview with noindex and the saved URL as canonical, none for a Draft', function () {
     $user = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
     $published = seoArticle(['title' => 'Bonjour']);

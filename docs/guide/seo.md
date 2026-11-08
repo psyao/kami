@@ -1,6 +1,6 @@
 # SEO
 
-Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL, robots tag and social card, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
+Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL, language links, robots tag and social card, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
 
 ## The head
 
@@ -20,10 +20,15 @@ On a page Kami renders, it prints:
 <meta name="description" content="The start of the article…">
 <link rel="canonical" href="https://example.com/en/articles/hello">
 <meta property="og:url" content="https://example.com/en/articles/hello">
+<link rel="alternate" hreflang="fr" href="https://example.com/articles/bonjour">
+<link rel="alternate" hreflang="en" href="https://example.com/en/articles/hello">
+<link rel="alternate" hreflang="x-default" href="https://example.com/articles/bonjour">
 <meta property="og:title" content="Hello – Kami">
 <meta property="og:description" content="The start of the article…">
 <meta property="og:site_name" content="Kami">
 <meta property="og:type" content="article">
+<meta property="og:locale" content="en_GB">
+<meta property="og:locale:alternate" content="fr_CH">
 <meta property="article:published_time" content="2026-11-08T09:00:00+00:00">
 <meta property="article:modified_time" content="2026-11-08T10:30:00+00:00">
 <meta property="og:image" content="https://example.com/media/01k…/3f9a1c2b/kami-social-1200.jpg">
@@ -61,6 +66,25 @@ None of these values falls back to another Locale: a page described in another l
 ### Canonical URL
 
 The page's absolute URL, built from the Site's declared `url`, its Locale segment and its Path. It never uses the request's host, so a forged `Host` header cannot change it, and it drops the query string, `utm_*` parameters included. `og:url` takes the same value.
+
+### Languages
+
+On a Site with several Locales, a page links to its Translations with `hreflang`, its own included, in the order of the Site's Locales:
+
+- only the Translations visible to visitors and not Hidden from search engines, so a hidden page neither links nor is linked to;
+- `x-default` to the default Locale's Translation, when it is one of them;
+- nothing below two links, so a page in a single Locale, and every page of a Site with one Locale, has none;
+- an untranslatable Entry links its Path in each Locale to the others.
+
+`hreflang` is the Locale's code as declared, which is also its URL segment. A Preview has no language links.
+
+`og:locale` needs a region, which no language code alone gives. Declare it on the Locale ([Multilingual](multilingual.md#locales)):
+
+```php
+'locales' => ['fr' => ['region' => 'CH'], 'en' => ['region' => 'GB']],
+```
+
+This gives `og:locale` `fr_CH` on French pages and `en_GB` on English ones. A region in the code, `fr-ch`, gives the same, with `fr-ch` as hreflang and URL segment. Without a region, a Locale's pages have no `og:locale`. `og:locale:alternate` lists the other Locales of the page's language links that have a region.
 
 ### Robots
 
@@ -131,11 +155,11 @@ On your own routes and on error pages, pass the title and the description:
 <x-kami::seo :title="__('Contact')" :description="__('Write to us.')" />
 ```
 
-The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL; `og:type` is `website`, and the image is the Site's default Social image. A page Kami renders ignores both props.
+The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL and no language link; `og:type` is `website`, `og:locale` that of the default Locale, and the image is the Site's default Social image. A page Kami renders ignores both props.
 
 ### Reading the values
 
-`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots`, `siteName`, `image`, `imageWidth`, `imageHeight`, `imageAlt`, `ogType`, `publishedTime` and `modifiedTime`, each `null` when it has no value but `title`, `siteName` and `ogType`. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
+`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots`, `siteName`, `image`, `imageWidth`, `imageHeight`, `imageAlt`, `ogType`, `publishedTime`, `modifiedTime` and `ogLocale`, each `null` when it has no value but `title`, `siteName` and `ogType`; `alternates`, the language links' URLs by Locale code then `x-default`, and `ogLocaleAlternates`, empty without any. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
 
 In a Preview, the head is that of the unsaved form, with the saved URL as canonical: none while the saved Translation is not visible, a Draft for instance.
 

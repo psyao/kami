@@ -24,6 +24,12 @@ The default Locale has no segment of its own; every other Locale answers under i
 
 Each Locale answers only its own slugs: `/en/articles/bonjour` is a 404. Kami makes the page's Locale the application locale, so `__()`, dates and `app()->getLocale()` in a view follow it.
 
+A Locale may carry a `region`, which only gives `og:locale` ([SEO](seo.md#languages)); a region in the code reads the same, and keeps it in the URL:
+
+```php
+'locales' => ['fr' => ['region' => 'CH'], 'en-gb'], // og:locale fr_CH under /, en_GB under /en-gb
+```
+
 Adding a Locale is one more code in the list. It creates no Translation: nothing answers in that Locale until a Translation is published there, except the Entries of an untranslatable type, which answer there once `kami:install` has run ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
 Removing a Locale deletes nothing: its Translations and Field values are kept, answer nowhere, and come back when the Locale is listed again. `kami:doctor` warns about them. To delete them, see [Schema changes](content-types.md#schema-changes).
@@ -95,6 +101,8 @@ On `/en/articles/hello` with a blank English summary, this prints `<p lang="fr">
 ```
 
 It renders a `<nav class="kami-locales">` labelled "Languages" in the page's Locale, around a list of links. Each link names its language in that language ("Français", "English"), with `hreflang` and `lang`; the current page's carries `aria-current="page"`. It renders nothing outside an Entry page (a 404, a route of your own), nor when the Entry is visible in a single Locale. It carries no CSS: style `.kami-locales` and `[aria-current]` as you wish.
+
+Search engines get the same links in the head from `<x-kami::seo />`, without the Translations Hidden from search engines ([SEO](seo.md#languages)).
 
 ## Reading in a Locale
 

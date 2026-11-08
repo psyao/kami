@@ -14,6 +14,7 @@ use Psyao\Kami\Media\Internal\Picture;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Seo\PageMeta;
+use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Derives a page's `PageMeta` from what is already loaded, with no cross-Locale fallback but the Site name's (#23 decision 2).
@@ -33,6 +34,8 @@ final class ResolvePageMeta
         $home = Path::of($type, $entry->slug) === '';
         $image = self::image($settings, fn (): mixed => $entry->getAttribute('seo_image'), fn (): ?Media => $type->socialImage($entry));
         $article = $type->ogType() === 'article';
+        $site = Site::current();
+        $alternates = $preview || $entry->noindex === true ? [] : self::alternates($site, $entry);
 
         return new PageMeta(
             title: self::filled($entry->meta_title) ?? self::title($home ? null : $entry->title, $siteName),
@@ -53,6 +56,9 @@ final class ResolvePageMeta
             publishedTime: $article ? $entry->published_at : null,
             // A Preview of an Entry never saved has no save to date.
             modifiedTime: $article && $entry->hasAttribute('updated_at') ? $entry->updated_at?->toImmutable() : null,
+            alternates: $alternates,
+            ogLocale: $site->ogLocales[$entry->readLocale()] ?? null,
+            ogLocaleAlternates: array_values(array_intersect_key($site->ogLocales, array_diff_key($alternates, [$entry->readLocale() => true]))),
         );
     }
 
@@ -62,6 +68,7 @@ final class ResolvePageMeta
         $settings = SiteSettings::entry();
         $siteName = self::siteName($settings);
         $image = self::image($settings);
+        $site = Site::current();
 
         return new PageMeta(
             title: self::title($title, $siteName),
@@ -73,7 +80,32 @@ final class ResolvePageMeta
             imageWidth: $image?->width,
             imageHeight: $image?->height,
             imageAlt: self::filled($image?->alt),
+            ogLocale: $site->ogLocales[$site->currentLocale()] ?? null,
         );
+    }
+
+    /**
+     * The Entry's URL in each Locale it is visible in and not Hidden from search engines, with `x-default` to the default Locale's; none below two.
+     *
+     * @return array<string, string>
+     */
+    private static function alternates(Site $site, Entry $entry): array
+    {
+        $urls = [];
+
+        foreach ($site->locales as $locale) {
+            $url = $entry->translation($locale)?->noindex === true ? null : $entry->url($locale);
+
+            if ($url !== null) {
+                $urls[$locale] = $url;
+            }
+        }
+
+        if (count($urls) < 2) {
+            return [];
+        }
+
+        return isset($urls[$site->defaultLocale()]) ? [...$urls, 'x-default' => $urls[$site->defaultLocale()]] : $urls;
     }
 
     /**

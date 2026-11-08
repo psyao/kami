@@ -258,6 +258,7 @@ class Psyao\Kami\Schema\ContentMigrator::makeTypeTranslatable() public static fu
 class Psyao\Kami\Schema\ContentMigrator::renameField() public static function renameField(string $type, string $from, string $to): void
 class Psyao\Kami\Schema\ContentMigrator::renameType() public static function renameType(string $from, string $to): void
 class Psyao\Kami\Seo\PageMeta final readonly class
+class Psyao\Kami\Seo\PageMeta::$alternates public protected(set) readonly array $alternates
 class Psyao\Kami\Seo\PageMeta::$canonical public protected(set) readonly ?string $canonical
 class Psyao\Kami\Seo\PageMeta::$description public protected(set) readonly ?string $description
 class Psyao\Kami\Seo\PageMeta::$image public protected(set) readonly ?string $image
@@ -265,12 +266,14 @@ class Psyao\Kami\Seo\PageMeta::$imageAlt public protected(set) readonly ?string 
 class Psyao\Kami\Seo\PageMeta::$imageHeight public protected(set) readonly ?int $imageHeight
 class Psyao\Kami\Seo\PageMeta::$imageWidth public protected(set) readonly ?int $imageWidth
 class Psyao\Kami\Seo\PageMeta::$modifiedTime public protected(set) readonly ?Carbon\CarbonImmutable $modifiedTime
+class Psyao\Kami\Seo\PageMeta::$ogLocale public protected(set) readonly ?string $ogLocale
+class Psyao\Kami\Seo\PageMeta::$ogLocaleAlternates public protected(set) readonly array $ogLocaleAlternates
 class Psyao\Kami\Seo\PageMeta::$ogType public protected(set) readonly string $ogType
 class Psyao\Kami\Seo\PageMeta::$publishedTime public protected(set) readonly ?Carbon\CarbonImmutable $publishedTime
 class Psyao\Kami\Seo\PageMeta::$robots public protected(set) readonly ?string $robots
 class Psyao\Kami\Seo\PageMeta::$siteName public protected(set) readonly string $siteName
 class Psyao\Kami\Seo\PageMeta::$title public protected(set) readonly string $title
-class Psyao\Kami\Seo\PageMeta::__construct() public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL)
+class Psyao\Kami\Seo\PageMeta::__construct() public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL, array $alternates = [], ?string $ogLocale = NULL, array $ogLocaleAlternates = [])
 class Psyao\Kami\Support\SecurityHeaders final class
 class Psyao\Kami\Support\SecurityHeaders::handle() public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Users\Actions\AssignRoles final class
