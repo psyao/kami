@@ -73,6 +73,7 @@ final class RearrangedCommissionForm extends EntryForm
             $this->field('links'),
             $this->field('published_at'),
             Actions::make([Action::make('inline')]),
+            $this->seo()->description('Placed by the site'),
         ];
     }
 
@@ -126,6 +127,7 @@ final class FormReadingItsRecord extends EntryForm
             $this->field('address'),
             $this->field('links'),
             $this->field('published_at'),
+            $this->seo(),
         ];
     }
 }
@@ -157,7 +159,7 @@ final class FormLeavingOutATab extends EntryForm
 {
     public function components(): array
     {
-        return [$this->field('title'), $this->field('slug'), $this->field('client'), $this->field('published_at')];
+        return [$this->field('title'), $this->field('slug'), $this->field('client'), $this->field('published_at'), $this->seo()];
     }
 }
 
@@ -171,6 +173,22 @@ final class SettingsForm extends EntryForm
     public function actions(): array
     {
         return [Action::make('purge')];
+    }
+}
+
+final class FormLeavingOutTheSeoSection extends EntryForm
+{
+    public function components(): array
+    {
+        return array_values(array_filter(parent::components(), fn (Component $component): bool => $component !== $this->seo()));
+    }
+}
+
+final class SettingsFormPlacingSeo extends EntryForm
+{
+    public function components(): array
+    {
+        return [...parent::components(), $this->seo()];
     }
 }
 
@@ -369,6 +387,7 @@ describe('EntryForm', function () {
         projectPage(CreateEntry::class)
             ->assertSee('Ask the client first.')
             ->assertSee('Chained by the site')
+            ->assertSee('Placed by the site')
             ->set('data.title', 'Refonte')
             ->set('data.client', 'Acme')
             ->set('data.address.city', 'Vevey')
@@ -431,6 +450,22 @@ describe('EntryForm', function () {
 
         projectPage(CreateEntry::class);
     })->throws('FormInventingAField adds [invented]');
+
+    it('refuses the SEO section left out, as the inputs it holds', function () {
+        kamiPlugin()->forms([Commission::class => FormLeavingOutTheSeoSection::class]);
+
+        projectPage(CreateEntry::class);
+    })->throws('FormLeavingOutTheSeoSection leaves out [meta_title, meta_description, noindex, seo_image]');
+
+    it('refuses to place an SEO section on a type with no URL', function () {
+        config(['kami.types' => [SiteSettings::class]]);
+        kamiPlugin()->forms([SiteSettings::class => SettingsFormPlacingSeo::class]);
+        resolve(SaveEntry::class)->handle(SiteSettings::class, [], locale: 'fr');
+        Filament::setCurrentPanel('admin');
+        Filament::setCurrentResourceConfigurationKey('site_settings');
+
+        Livewire::test(EditEntry::class);
+    })->throws('SettingsFormPlacingSeo places the SEO section, which Psyao\\Kami\\Content\\SiteSettings has none of: it has no URL.');
 
     it('refuses a declared Field left out', function () {
         kamiPlugin()->forms([Commission::class => FormLeavingOutAField::class]);

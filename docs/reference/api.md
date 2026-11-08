@@ -11,6 +11,7 @@ A Content Type's form in the admin, registered with `KamiPlugin::make()->forms([
 - `public function actions(): array`: The edit page's header actions.
 - `public function components(): array`: What the form shows. It holds every input the generated form has and no other: anything else stops the page when the form is built.
 - `final protected function field(string $handle): Filament\Schemas\Components\Component`: A generated component by its handle: `client`, `title`, or `address.city` inside a Group. The same one `parent::components()` holds.
+- `final protected function seo(): Filament\Schemas\Components\Component`: The generated SEO section, which ends the form of a type with a URL: a form of its own places it among its components. The same one `parent::components()` holds.
 
 ## `Psyao\Kami\Admin\EntryTable`
 

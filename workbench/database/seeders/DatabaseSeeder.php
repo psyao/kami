@@ -37,13 +37,13 @@ class DatabaseSeeder extends Seeder
 
         $published = ['status' => 'published'];
 
-        // Published in both Locales, every Article Field filled.
-        $both = $save->handle(Article::class, [...$published, 'title' => 'Bonjour', 'summary' => 'Un article publié dans les deux langues.', 'body' => ['type' => 'doc', 'content' => [['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => 'Un intertitre']]], ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Du texte '], ['type' => 'text', 'text' => 'mis en forme', 'marks' => [['type' => 'bold']]], ['type' => 'text', 'text' => '.']]], ['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Un point']]]]]]], ['type' => 'codeBlock', 'attrs' => ['language' => 'php'], 'content' => [['type' => 'text', 'text' => 'echo 1;']]]]], 'author' => 'Ada', 'featured' => true, 'accent' => '#0f766e', 'website' => 'https://example.test', 'contact' => 'ada@example.test', 'pages' => 12, 'rating' => 4.5, 'starts_on' => '2026-12-01', 'starts_at' => '2026-12-01 09:00:00', 'kind' => 'review'], locale: 'fr', actor: $admin);
+        // Published in both Locales, every Article Field filled, and a Meta title and description in fr.
+        $both = $save->handle(Article::class, [...$published, 'title' => 'Bonjour', 'summary' => 'Un article publié dans les deux langues.', 'body' => ['type' => 'doc', 'content' => [['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [['type' => 'text', 'text' => 'Un intertitre']]], ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Du texte '], ['type' => 'text', 'text' => 'mis en forme', 'marks' => [['type' => 'bold']]], ['type' => 'text', 'text' => '.']]], ['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Un point']]]]]]], ['type' => 'codeBlock', 'attrs' => ['language' => 'php'], 'content' => [['type' => 'text', 'text' => 'echo 1;']]]]], 'author' => 'Ada', 'featured' => true, 'accent' => '#0f766e', 'website' => 'https://example.test', 'contact' => 'ada@example.test', 'pages' => 12, 'rating' => 4.5, 'starts_on' => '2026-12-01', 'starts_at' => '2026-12-01 09:00:00', 'kind' => 'review', 'meta_title' => 'Bonjour, en deux langues', 'meta_description' => 'La description que les moteurs de recherche affichent, écrite dans la section SEO.'], locale: 'fr', actor: $admin);
         $save->handle(Article::class, [...$published, 'title' => 'Hello', 'summary' => 'An article published in both languages.'], $both, 'en', $admin);
 
-        // Published in fr, Draft in en.
+        // Published in fr, Draft in en, Hidden from search engines in en.
         $french = $save->handle(Article::class, [...$published, 'title' => 'Seulement en français', 'summary' => 'La traduction anglaise est un brouillon.', 'author' => 'Ada'], locale: 'fr', actor: $admin);
-        $save->handle(Article::class, ['title' => 'French only so far', 'summary' => 'Still being translated.'], $french, 'en', $admin);
+        $save->handle(Article::class, ['title' => 'French only so far', 'summary' => 'Still being translated.', 'noindex' => true], $french, 'en', $admin);
 
         // Scheduled.
         $save->handle(Article::class, [...$published, 'title' => 'À paraître', 'author' => 'Ada', 'published_at' => now()->addMonth()], locale: 'fr', actor: $admin);

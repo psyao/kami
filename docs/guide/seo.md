@@ -163,6 +163,28 @@ The title becomes `Contact – Kami` through the same `kami::seo.title` string; 
 
 In a Preview, the head is that of the unsaved form, with the saved URL as canonical: none while the saved Translation is not visible, a Draft for instance.
 
+## The SEO section
+
+On every type with a URL, Terms and Singletons included, the edit screen ends with a collapsed SEO section. Global Sets have none. Editors leave it closed for most pages: the head derives its values from the content, and each input shows what applies when it is left blank.
+
+- **Meta title.** One per language. Left blank, the title and the Site name, `Hello – Kami`, which the placeholder shows as the title is typed. A counter shows the length against the 60 characters or so that search results show; a longer title is saved all the same.
+- **Meta description.** One per language. Left blank, the type's `summary()`, else the Site's default description on the home page, as the placeholder shows from the saved page. The counter advises about 160 characters, without a limit.
+- **Hide from search engines.** One per language: the page stays on the site, with `noindex` in its head, and leaves the sitemap and the language links. Its help text says so.
+- **Social image.** Shared by all languages, so locked like any Shared Field for a User without `publish` while another Translation is Published or Scheduled. The picker offers images only and no SVG, and refuses an SVG uploaded from it, as link previews read JPEG and PNG only. Left blank, the placeholder names the image the page uses instead: the type's `socialImage()`, else the Site's default.
+
+The values are saved with the rest of the form through `SaveEntry`, and need the Permissions the Translation needs. Preview shows the unsaved ones in its head.
+
+The Site settings screen holds the default description, one per language, and the default Social image, shared, with the same picker.
+
+A form of your own places the section with `$this->seo()`, as it places an input with `field()` ([Your own form](content-types.md#your-own-form)):
+
+```php
+public function components(): array
+{
+    return [$this->field('title'), $this->field('slug'), /* … */ $this->seo()];
+}
+```
+
 ## Indexable switch
 
 `KAMI_INDEXABLE` in `.env` sets `kami.indexable`. Left unset, it is on in production (`APP_ENV=production`) and off everywhere else, so a staging copy stays out of search engines with nothing to configure:
