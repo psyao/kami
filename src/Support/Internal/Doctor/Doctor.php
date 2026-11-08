@@ -850,10 +850,11 @@ final readonly class Doctor
         // Created on the first write: until then, its nearest existing parent decides.
         for ($existing = storage_path('framework/kami/pages'); ! file_exists($existing); $existing = dirname($existing));
 
-        return PageCache::enabled() && ! is_writable($existing) ? new Problem(
+        // `Kami::remember()` keys its fragments on the manifest's version, page cache on or off.
+        return ! is_writable($existing) ? new Problem(
             Severity::Warning,
-            'The page cache cannot write to storage/framework/kami/pages/: every page boots Laravel.',
-            'make storage/framework/ writable by PHP, or set kami.page_cache.enabled to false.',
+            'Kami cannot write to storage/framework/kami/pages/: ' . (PageCache::enabled() ? 'every page boots Laravel, and ' : '') . 'Kami::remember() caches nothing.',
+            'make storage/framework/ writable by PHP.',
             'page-cache.md#storage',
         ) : null;
     }

@@ -258,7 +258,7 @@ Every save, publication, Trash, restore or deletion marks the sitemap stale, and
 - On a server, Kami registers `kami:sitemap` `hourly()` in Laravel's scheduler: run `schedule:run` from cron, as Laravel's documentation shows.
 - On shared hosting, with no scheduler, `kami:install` rebuilds a stale sitemap on each deploy, until Kami gets a scheduler of its own that runs on visits.
 
-When the files are missing, on a fresh install for instance, the first request for `/sitemap.xml` or for a Locale's file reaches Laravel through the usual "file not found" rewrite. Kami builds the files in that request, then serves them; later requests get the static files. The page cache never stores them. `kami:doctor` warns about a sitemap stale for more than two hours, while the Site is indexable.
+When the files are missing, on a fresh install for instance, the first request for `/sitemap.xml` or for a Locale's file reaches Laravel through the usual "file not found" rewrite. Kami builds the files in that request, then serves them; later requests get the static files. One build runs at a time: a request arriving during one waits for it, then serves the files it wrote. The page cache never stores them. `kami:doctor` warns about a sitemap stale for more than two hours, while the Site is indexable.
 
 ## Host routes
 

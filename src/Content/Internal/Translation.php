@@ -28,6 +28,7 @@ use Psyao\Kami\Content\Entry;
  * @property string|null $meta_title
  * @property string|null $meta_description
  * @property bool $noindex
+ * @property bool $was_public
  * @property Carbon|null $updated_at
  * @property-read Entry $entry
  */
@@ -59,16 +60,16 @@ final class Translation extends Model
     }
 
     /**
-     * Whether visitors may have seen it: a stored publication date already passed, which unpublishing keeps (ADR 0008, ADR 0019).
+     * Whether visitors may have seen it: a stored publication date already passed, which unpublishing keeps, or one that had passed before a save moved it (ADR 0008, ADR 0019).
      * A Draft given a past date by hand and never published counts too; its moved address then answers 404 until it is visible.
      */
     public function wasPublic(): bool
     {
-        return $this->published_at?->lessThanOrEqualTo(now()) ?? false;
+        return $this->was_public || ($this->published_at?->lessThanOrEqualTo(now()) ?? false);
     }
 
     protected function casts(): array
     {
-        return ['published_at' => 'immutable_datetime', 'noindex' => 'boolean'];
+        return ['published_at' => 'immutable_datetime', 'noindex' => 'boolean', 'was_public' => 'boolean'];
     }
 }
