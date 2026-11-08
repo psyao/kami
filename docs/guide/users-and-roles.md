@@ -21,9 +21,9 @@ class User extends Authenticatable implements HasAppAuthentication, HasAppAuthen
 }
 ```
 
-`HasKamiMfa` stores the User's authenticator for [MFA](#mfa); a model without it, or without Filament's two contracts, makes the sign-in page fail, and `kami:doctor` reports an error.
+`HasKamiMfa` stores the User's authenticator for [MFA](#mfa); a model without it, or without Filament's two contracts, makes the sign-in page fail.
 
-Until it does, `kami:install` stops before changing anything, and `kami:doctor` reports an error naming the model and what to add.
+Until the model implements `KamiUser` and Filament's two contracts, `kami:install` stops before changing anything, and `kami:doctor` reports an error naming the model and what to add.
 
 That model is also `auth.providers.users.model`: `kami_role_user`, the authorship of Entries and `kami:install`'s first administrator all point at it. A panel whose guard signs in through another provider would give Roles to Users nobody signs in as, so `kami:install` stops and `kami:doctor` reports an error naming both models. A Role source of the host's own lifts this in a later version.
 

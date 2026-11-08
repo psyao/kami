@@ -42,7 +42,7 @@ final class RecentlyEdited extends TableWidget
             ->paginated(false)
             ->emptyStateHeading(__('kami::admin.widgets.recently_edited.empty'))
             ->columns([
-                TextColumn::make('title')->label(__('kami::admin.fields.title'))->state(EntryTitles::of(...)),
+                TextColumn::make('title')->label(__('kami::admin.fields.title'))->state(fn (Entry $record): string => EntryTitles::of($record)),
                 TextColumn::make('type')->label(__('kami::admin.widgets.type'))->state(fn (Entry $record): string => EntryResource::withConfiguration($record->type, EntryResource::getModelLabel(...))),
                 TextColumn::make('updated_at')->label(__('kami::admin.widgets.recently_edited.updated_at'))->since()->dateTimeTooltip(timezone: Site::current()->timezone),
             ])

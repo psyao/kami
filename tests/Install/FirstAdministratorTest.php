@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Auth\Pages\PasswordReset\ResetPassword;
 use Filament\Facades\Filament;
 use Illuminate\Auth\Authenticatable;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Psyao\Kami\Admin\HasKamiMfa;
 use Psyao\Kami\Users\HasKamiRoles;
 use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -110,9 +113,10 @@ it('creates the first administrator without KAMI_ADMIN_PASSWORD and prints a one
 });
 
 /** A host's User model that Laravel's password broker cannot reset. */
-final class UserWithoutPasswordReset extends Model implements AuthenticatableContract, KamiUser
+final class UserWithoutPasswordReset extends Model implements AuthenticatableContract, HasAppAuthentication, HasAppAuthenticationRecovery, KamiUser
 {
     use Authenticatable;
+    use HasKamiMfa;
     use HasKamiRoles;
 
     protected $table = 'users';
