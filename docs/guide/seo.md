@@ -233,7 +233,7 @@ Disallow: /
 
 ### Owning the file
 
-The first line is Kami's marker. `kami:install` rewrites the file while it starts with that line. Delete the line and the file is yours: Kami never touches it again. `kami:doctor` then warns when your file names no sitemap, while the Site is indexable. It also warns when the managed file differs from what `kami:install` would write, such as after a change to the switch or the panel path without a deploy.
+The first line is Kami's marker. `kami:install` rewrites the file while it starts with that line. Delete the line and the file is yours: Kami never touches it again. Laravel's default `public/robots.txt` has no marker, so Kami leaves it alone too: delete that file, then run `kami:install`, for Kami to write and keep its own. `kami:doctor` then warns when your file names no sitemap, while the Site is indexable. It also warns when the managed file differs from what `kami:install` would write, such as after a change to the switch or the panel path without a deploy.
 
 ## Sitemap
 

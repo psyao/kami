@@ -160,7 +160,7 @@ Both run over SSH and can be started again when cut short: `warm` skips the file
 
 ## A staging copy
 
-A staging copy runs the same steps on its own subdomain, with its own database and `.env`. Kami has no indexing switch yet, so keep a staging copy out of search engines by putting the whole site behind a password. Protect it before its root folder points at `public/`, or the subdomain answers publicly, with Laravel's error page until Kami is installed.
+A staging copy runs the same steps on its own subdomain, with its own database and `.env`. The [indexable switch](seo.md#indexable-switch) keeps it out of search engines with nothing to configure: outside `APP_ENV=production` it is off, so `kami:install` writes a `robots.txt` that disallows everything and every page carries `X-Robots-Tag: noindex, nofollow`. A password keeps people out as well, for a site not yet launched: put the whole site behind one, and measure it with `kami:bench --user=` ([Measuring page speed](#measuring-page-speed)). Protect it before its root folder points at `public/`, or the subdomain answers publicly, with Laravel's error page until Kami is installed.
 
 On Infomaniak, the setting is **Web Hosting → Security → Folder protection**, with Digest authentication, which keeps the password out of plain HTTP before the redirect to HTTPS. Protect the clone's directory (`sites/staging.example.com`), not `public/`: the protection writes `.htaccess` and `.htdigest` into the folder it protects, and in `public/` it would write into the site's own `public/.htaccess` and break the next `git pull`. Apache applies the parent directory's `.htaccess` to `public/`, and `.htdigest`, outside `public/`, is never served. Then keep the two files out of `git status`, in the clone:
 
