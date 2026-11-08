@@ -1,6 +1,7 @@
 name: volume
 
 on:
+  pull_request:
   schedule:
     - cron: '17 3 * * *' # nightly, on the default branch
   workflow_dispatch:

@@ -14,7 +14,7 @@ The parent session runs the milestone from outside the tickets:
 
 - **Next ticket.** Once the previous session is archived, ask Steve "je lance #X ?" for a frontier ticket of the milestone (every blocker closed), the critical-path pick first. Start it on his answer naming the ticket: the auto mode refuses a start on "#N fait" alone.
 - **Notes.** Relay each ticket session's note to Steve in one line. Approvals he gives go to the session that acts, never through the parent.
-- **"#N fait".** Match N against the linked session that just finished, then check in one command that the issue is closed, carries its `## Hand-over` comment, that `main` matches `origin/main`, and that the last nightly `volume` run is green (no pull request runs that suite). A red run goes to Steve before the next ticket starts. Archive the session, then ask for the next ticket.
+- **"#N fait".** Match N against the linked session that just finished, then check in one command that the issue is closed, carries its `## Hand-over` comment, and that `main` matches `origin/main`. Archive the session, then ask for the next ticket.
 
 ## Steps
 
