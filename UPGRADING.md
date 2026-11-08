@@ -8,6 +8,10 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 - **Upgrade floor.** From 1.0, a release that squashes Kami's migrations is a major, and its section names the release a site must reach first.
 - **Security fixes.** A patch that tightens a default for security reasons is listed here too, though it breaks the rule above.
 
+## 0.7.0
+
+1. **Pages are cached.** With `APP_DEBUG` off, a page Kami renders is stored under `storage/framework/kami/pages/` and served again until a core write, a `kami:install`, the next scheduled publication or one hour at most ([Page cache](docs/guide/page-cache.md)). A page showing the time of day or something per visitor calls `Kami::withoutPageCache()` while it renders; code writing data a page shows without a core action, your application's tables for instance, calls `Kami::flushCache()` after it. To keep every page rendered per request, set `kami.page_cache.enabled` to `false`. `kami:doctor` warns, so `--strict` fails, when the page cache cannot write to its directory. `optimize:clear` now also clears Kami's cache.
+
 ## 0.6.0
 
 1. **Deleting the last User who may manage Users is refused.** `HasKamiRoles` now boots model hooks on your User: `$user->delete()` on the only User holding `kami.users.manage` throws a `ValidationException` and records `kami.users.lockout-refused`. Code or tests that delete that User give the right to another User first, through `AssignRoles` ([The lockout guard](docs/guide/users-and-roles.md#the-lockout-guard)). Creating and deleting a User through Eloquent also writes a row to the Audit log.
