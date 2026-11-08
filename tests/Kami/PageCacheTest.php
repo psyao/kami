@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -284,18 +285,23 @@ it('answers HEAD from a stored page, and never stores HEAD\'s empty body', funct
     $this->get('/articles/hello-world')->assertSee('Hello world');
 });
 
-it('serves the page with no visibility query when storage/ cannot be written', function () {
+it('serves the page with no visibility query and nothing reported when storage/ cannot be written', function (string $readOnly) {
     cachedArticle();
-    $pages = storage_path('framework/kami/pages');
-    File::delete("{$pages}/manifest.json");
-    chmod($pages, 0555);
+    File::deleteDirectory(storage_path('framework/kami'));
+    File::ensureDirectoryExists($directory = storage_path($readOnly));
+    chmod($directory, 0555);
+    Exceptions::fake();
     DB::enableQueryLog();
 
     $this->get('/articles/hello-world')->assertOk()->assertSee('Hello world');
 
-    chmod($pages, 0755);
+    chmod($directory, 0755);
     expect(array_filter(DB::getQueryLog(), fn (array $query): bool => str_contains($query['query'], 'min(')))->toBe([]);
-});
+    Exceptions::assertNothingReported();
+})->with([
+    'its directory' => 'framework/kami/pages',
+    'a parent, the directory missing' => 'framework/kami',
+]);
 
 it('runs each fragment of Kami::remember() uncached, storing nothing, when storage/ cannot be written', function () {
     $pages = storage_path('framework/kami/pages');

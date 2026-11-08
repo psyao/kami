@@ -82,16 +82,16 @@ final class Sitemap
     }
 
     /**
-     * Builds unless `$built`, asked once the lock is held, says a build that ran meanwhile wrote what the caller needs (#441).
+     * Builds unless `$present`, asked once the lock is held, says the files the caller needs exist, a build that ran meanwhile included (#441).
      *
-     * @param  Closure(): bool  $built
+     * @param  Closure(): bool  $present
      */
-    public static function buildUnless(Closure $built): void
+    public static function buildUnless(Closure $present): void
     {
-        self::locked(function () use ($built): void {
+        self::locked(function () use ($present): void {
             clearstatcache();
 
-            if (! $built()) {
+            if (! $present()) {
                 self::write();
             }
         });

@@ -49,9 +49,7 @@ final class PageCache
         $manifest = self::manifest();
 
         if ($manifest === null || ($manifest['next_change_at'] ?? PHP_INT_MAX) <= now()->getTimestamp()) {
-            self::invalidate();
-
-            return self::version();
+            return self::invalidate();
         }
 
         request()->attributes->set(self::VERSION, $manifest['version']);
@@ -85,9 +83,11 @@ final class PageCache
     /**
      * Makes every cached page and fragment stale: a new Content version, with the next visibility change recomputed, in one atomic write; old versions' files go after the response.
      * A failure is reported, never thrown, as the write it follows has committed; the next request finds the manifest unknown and tries again.
-     * An unwritable directory skips the visibility query: `kami:doctor` reports it, and the request caches nothing.
+     * An unwritable directory skips the visibility query, with nothing reported: `kami:doctor` reports it, and the request caches nothing.
+     *
+     * @return string|null The new version; null when it could not be written.
      */
-    public static function invalidate(): void
+    public static function invalidate(): ?string
     {
         $version = bin2hex(random_bytes(8));
 
@@ -97,14 +97,14 @@ final class PageCache
         }
 
         $written = rescue(function () use ($version): bool {
+            if (! self::writable()) {
+                return false;
+            }
+
             if (! File::isDirectory(self::directory())) {
                 File::ensureDirectoryExists(self::directory());
                 // Describes this machine's content: kept out of git, as Laravel does cache/, sessions/ and views/.
                 File::put(dirname(self::directory()) . '/.gitignore', "*\n!.gitignore\n");
-            }
-
-            if (! is_writable(self::directory())) {
-                return false;
             }
 
             File::replace(self::directory('manifest.json'), json_encode(['version' => $version, 'next_change_at' => Visibility::nextChange()?->getTimestamp()], JSON_THROW_ON_ERROR));
@@ -114,6 +114,16 @@ final class PageCache
         }, false);
 
         request()->attributes->set(self::VERSION, $written ? $version : false);
+
+        return $written ? $version : null;
+    }
+
+    /** Whether the pages directory can be written, or created when missing: its nearest existing parent decides. */
+    public static function writable(): bool
+    {
+        for ($existing = self::directory(); ! file_exists($existing); $existing = dirname($existing));
+
+        return is_writable($existing);
     }
 
     /**

@@ -19,11 +19,7 @@ final readonly class ServeSitemap
 
         // A built sitemap without that file has nothing more to give: one build per missing sitemap, never one per request.
         // A request arriving during a build waits for it, then serves what it wrote.
-        $built = fn (): bool => is_file($path) || ($file !== null && is_dir(public_path('sitemaps')));
-
-        if (! $built()) {
-            Sitemap::buildUnless($built);
-        }
+        Sitemap::buildUnless(fn (): bool => is_file($path) || ($file !== null && is_dir(public_path('sitemaps'))));
 
         abort_unless(is_file($path), 404);
 

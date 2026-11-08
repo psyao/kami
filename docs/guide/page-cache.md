@@ -92,7 +92,7 @@ With it off, `Kami::remember()` still caches fragments. The line in `public/inde
 
 ## Storage
 
-Pages live under `storage/framework/kami/pages/`, one directory per Content version, and the files of former versions are deleted after the response that replaced them. `kami:doctor` warns when that directory cannot be written, whether the page cache is on or off: every page then boots Laravel, and `Kami::remember()` runs each fragment's callback with nothing cached, as its keys carry the version the manifest holds.
+Pages live under `storage/framework/kami/pages/`, one directory per Content version, and the files of former versions are deleted after the response that replaced them. `kami:doctor` warns when that directory cannot be written, whether the page cache is on or off: every page then boots Laravel, and `Kami::remember()` runs each fragment's callback with nothing cached, as its keys carry the version the manifest holds. A manifest left behind in a directory that became read-only is worse: no write can replace its version, so pages and fragments stay as they were until they expire. Fix the permissions, then run `php artisan kami:cache:clear`.
 
 It works the same on shared hosting and on a server: a hit reads the manifest and one file, with no query, and with the line above it compiles about a hundred lines of PHP rather than Laravel, which matters where OPcache is off. The files sit on the web server's own disk, so an installation behind several web servers either shares `storage/` between them or turns the page cache off. The line reads the host from the request's `Host` header: behind a proxy that rewrites it, it finds no page and every request boots Laravel, which still serves the cached page.
 
