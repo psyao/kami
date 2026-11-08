@@ -26,10 +26,8 @@
 @endif
 @if ($seo->image !== null)
 <meta property="og:image" content="{{ $seo->image }}">
-@if ($seo->imageWidth !== null)
 <meta property="og:image:width" content="{{ $seo->imageWidth }}">
 <meta property="og:image:height" content="{{ $seo->imageHeight }}">
-@endif
 @if ($seo->imageAlt !== null)
 <meta property="og:image:alt" content="{{ $seo->imageAlt }}">
 @endif

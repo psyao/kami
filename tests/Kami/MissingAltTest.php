@@ -16,6 +16,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Workbench\App\Content\Article;
 use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
@@ -88,6 +89,14 @@ it('warns, without stopping the save, of the images a published or scheduled Tra
     'scheduled' => ['draft', fn ($page) => $page->fillForm(['published_at' => now()->addDay()->toDateTimeString()])->callAction(publishAction())],
     'saved while published' => ['published', fn ($page) => $page->call('save')],
 ]);
+
+it('warns of a Social image without alt text, which the page\'s card describes it with', function () {
+    $pixel = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'));
+    $article = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published', 'seo_image' => $pixel->id], locale: 'fr');
+
+    entriesPage(EditEntry::class, parameters: ['record' => $article->id])->call('save')
+        ->assertNotified(missingAltWarning('pixel'));
+});
 
 it('replaces an Entry\'s alt text warning in a Locale on a save again, rather than stacking another', function () {
     $project = illustrated('published');
