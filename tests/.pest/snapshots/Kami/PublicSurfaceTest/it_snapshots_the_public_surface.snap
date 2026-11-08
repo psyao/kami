@@ -213,6 +213,7 @@ class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed
 class Psyao\Kami\Kami::routes() public function routes(): void
 class Psyao\Kami\Kami::seo() public function seo(): Psyao\Kami\Seo\PageMeta
+class Psyao\Kami\Kami::sitemapUrls() public function sitemapUrls(): array
 class Psyao\Kami\Kami::withoutPageCache() public function withoutPageCache(): void
 class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTools\PackageServiceProvider
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
@@ -309,6 +310,7 @@ command kami:media:prune
 command kami:media:warm
 command kami:media:warm --entry [--entry [ENTRY]]
 command kami:media:warm --preset [--preset [PRESET]]
+command kami:sitemap
 command kami:user:grant
 command kami:user:grant email <email>
 command kami:user:grant role <role>

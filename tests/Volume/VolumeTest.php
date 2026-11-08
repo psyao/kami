@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
@@ -13,6 +14,7 @@ use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Tests\Volume\Dataset;
 use Workbench\App\Content\Project;
 use Workbench\App\Models\User;
@@ -154,6 +156,24 @@ it('reorders a type whose Positions tie within a shared host\'s limits', functio
         measure('Next reorder', fn () => resolve(ReorderEntries::class)->handle($type, $ids));
     } finally {
         DB::rollBack();
+    }
+});
+
+it('builds the sitemap in one run within a shared host\'s memory', function () {
+    app()->usePublicPath($public = temporaryPath());
+    app()->useStoragePath($storage = temporaryPath());
+    File::ensureDirectoryExists($public);
+
+    try {
+        // Two Locales of every Project and Article, Tags having no address, beside the Workbench seeder's pages.
+        expect(measure('Sitemap of 30,000 Entries', fn () => Sitemap::build()))->toBeGreaterThanOrEqual(59_000)
+            // Half of Infomaniak's web `memory_limit`: a missing sitemap is built in a request.
+            ->and(memory_get_peak_usage(true))->toBeLessThan(320 * 1024 * 1024)
+            ->and(array_map(fn (string $url) => basename($url), Kami::sitemapUrls()))->toBe(['fr-1.xml', 'fr-2.xml', 'fr-3.xml', 'en-1.xml', 'en-2.xml', 'en-3.xml'])
+            ->and(substr_count(File::get("{$public}/sitemaps/fr-1.xml"), '<url>'))->toBe(Sitemap::URLS_PER_FILE);
+    } finally {
+        File::deleteDirectory($public);
+        File::deleteDirectory($storage);
     }
 });
 

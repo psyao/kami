@@ -15,6 +15,8 @@ use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Routing\Internal\RenderPreviewLink;
 use Psyao\Kami\Seo\Internal\ResolvePageMeta;
+use Psyao\Kami\Seo\Internal\ServeSitemap;
+use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Seo\PageMeta;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 
@@ -22,7 +24,7 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 final class Kami
 {
     /**
-     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG.
+     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, and `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing.
      *
      * The fallback lets the site's own routes always win. All run without the `web` group's session, cookies and CSRF, even when called inside it; the fallback in the `kami` middleware group.
      */
@@ -38,6 +40,12 @@ final class Kami
             ->middleware(FrontSecurityHeaders::class . ':Content-Security-Policy=' . PublicMedia::SVG_HEADERS['Content-Security-Policy'])
             ->withoutMiddleware('web');
         Route::get('media/{media}/{version}/{file}', RenderConversion::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
+        // A route of the application registered earlier keeps `/sitemap.xml`: Laravel would let the last one registered win (ADR 0038).
+        if (! isset(Route::getRoutes()->get('GET')['sitemap.xml'])) {
+            Route::get('sitemap.xml', ServeSitemap::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
+        }
+
+        Route::get('sitemaps/{file}', ServeSitemap::class)->where('file', '[A-Za-z0-9_-]+-[1-9][0-9]*\.xml')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::fallback(RenderEntry::class)->middleware('kami')->withoutMiddleware('web');
     }
 
@@ -66,6 +74,16 @@ final class Kami
     public function withoutPageCache(): void
     {
         request()->attributes->set(PageCache::SKIP, true);
+    }
+
+    /**
+     * The absolute URLs of Kami's per-Locale sitemap files, built first when missing, for an application that answers `/sitemap.xml` itself to list in its own index.
+     *
+     * @return list<string>
+     */
+    public function sitemapUrls(): array
+    {
+        return Sitemap::urls();
     }
 
     /** Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data. */

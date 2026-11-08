@@ -36,6 +36,7 @@ use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\Internal\Install\RobotsTxt;
@@ -831,7 +832,7 @@ final readonly class Doctor
     }
 
     /**
-     * The indexable switch against the environment, `robots.txt` against what `kami:install` writes, and the host routes Kami's files would shadow (ADR 0027, ADR 0038).
+     * The indexable switch against the environment, `robots.txt` against what `kami:install` writes, the sitemap's freshness, and the host routes Kami's files would shadow (ADR 0027, ADR 0038).
      *
      * @return list<Problem>
      */
@@ -856,9 +857,13 @@ final readonly class Doctor
             $problems[] = new Problem(Severity::Warning, "public/robots.txt, the site's own, names no sitemap.", 'add a line Sitemap: ' . RobotsTxt::sitemapUrl() . ' to it.', 'seo.md#robotstxt');
         }
 
+        if ($indexable && ($since = Sitemap::staleSince()) !== null && $since < now()->getTimestamp() - 7200) {
+            $problems[] = new Problem(Severity::Warning, 'The sitemap has been stale for more than two hours, since ' . date('Y-m-d H:i', $since) . ' UTC.', "run php artisan kami:sitemap; on a server, run Laravel's scheduler from cron, which runs it hourly.", 'seo.md#sitemap');
+        }
+
         foreach (['robots.txt', 'sitemap.xml'] as $file) {
             if (RobotsTxt::hostRouteAnswers("/{$file}")) {
-                $problems[] = new Problem(Severity::Warning, "A route of the application answers /{$file}: Kami writes no public/{$file}, as the file would shadow the route.", $file === 'robots.txt' ? 'make sure it disallows the Kami panel and names the sitemap, or remove the route so kami:install writes the file.' : 'make sure it lists the Site\'s pages, or remove the route.', 'seo.md#host-routes');
+                $problems[] = new Problem(Severity::Warning, "A route of the application answers /{$file}: Kami writes no public/{$file}, as the file would shadow the route.", $file === 'robots.txt' ? 'make sure it disallows the Kami panel and names the sitemap, or remove the route so kami:install writes the file.' : 'list the files Kami::sitemapUrls() returns in its index, or remove the route.', 'seo.md#host-routes');
             }
         }
 

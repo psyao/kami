@@ -1,6 +1,6 @@
 # SEO
 
-Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL, language links, robots tag and social card, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
+Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL, language links, robots tag and social card, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response. A static sitemap lists every page with its language links, rebuilt when it is stale (ADR 0027).
 
 ## The head
 
@@ -213,9 +213,44 @@ Disallow: /
 
 The first line is Kami's marker. `kami:install` rewrites the file while it starts with that line. Delete the line and the file is yours: Kami never touches it again. `kami:doctor` then warns when your file names no sitemap, while the Site is indexable. It also warns when the managed file differs from what `kami:install` would write, such as after a change to the switch or the panel path without a deploy.
 
+## Sitemap
+
+`/sitemap.xml` is a sitemap index over one file per Locale, `/sitemaps/{locale}-{n}.xml`, each holding at most 10,000 URLs. Both are static files in `public/`, which Apache or nginx serve without PHP. Each URL has its absolute address, its `lastmod`, the date its Translation was last saved, and the same language links as the page's head, `x-default` included:
+
+```xml
+<url>
+  <loc>https://example.com/articles/bonjour</loc>
+  <lastmod>2026-11-08T10:00:00+00:00</lastmod>
+  <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/articles/bonjour"/>
+  <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/articles/hello"/>
+  <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/articles/bonjour"/>
+</url>
+```
+
+It lists the visible Translations that have a URL and are not [Hidden from search engines](#robots). The home page appears once per Locale, at `/` and `/en`. Global Sets, Entries of a type without URLs, Drafts, Scheduled Entries before their time and the Trash are left out. There is no `priority` and no `changefreq`.
+
+### When it is rebuilt
+
+Every save, publication, Trash, restore or deletion marks the sitemap stale, and so does a Scheduled Entry once its time has come. `php artisan kami:sitemap` rebuilds it when it is stale and does nothing otherwise. It writes the files into a temporary directory, then swaps it in, so a crawler never reads half a sitemap.
+
+- On a server, Kami registers `kami:sitemap` `hourly()` in Laravel's scheduler: run `schedule:run` from cron, as Laravel's documentation shows.
+- On shared hosting, with no scheduler, `kami:install` rebuilds a stale sitemap on each deploy, until Kami gets a scheduler of its own that runs on visits.
+
+When the files are missing, on a fresh install for instance, the first request for `/sitemap.xml` or for a Locale's file reaches Laravel through the usual "file not found" rewrite. Kami builds the files in that request, then serves them; later requests get the static files. The page cache never stores them. `kami:doctor` warns about a sitemap stale for more than two hours, while the Site is indexable.
+
 ## Host routes
 
-Apache serves a file in `public/` before Laravel sees the request, so a file would shadow a route of your application at the same address. When one of your routes answers `/robots.txt`, `kami:install` writes no `robots.txt`, and `kami:doctor` warns about it, and about a route answering `/sitemap.xml` too (ADR 0038). Make sure your `robots.txt` disallows the Kami panel and names the sitemap, and that your sitemap lists the Site's pages.
+Apache serves a file in `public/` before Laravel sees the request, so a file would shadow a route of your application at the same address. When one of your routes answers `/robots.txt`, `kami:install` writes no `robots.txt`; when one answers `/sitemap.xml`, Kami writes no sitemap index. `kami:doctor` warns about both (ADR 0038). Make sure your `robots.txt` disallows the Kami panel and names the sitemap.
+
+Kami still writes its per-Locale files. A sitemap index cannot list another index, so list them in yours: `Kami::sitemapUrls()` returns their absolute URLs, building them first when they are missing.
+
+```php
+use Psyao\Kami\Facades\Kami;
+
+foreach (Kami::sitemapUrls() as $url) {
+    // <sitemap><loc>{$url}</loc></sitemap>
+}
+```
 
 ## Shared hosting and a server
 
@@ -224,3 +259,4 @@ Apache serves a file in `public/` before Laravel sees the request, so a file wou
 | **The head** | Computed in the request from the page's Entry, its Social image and the Site settings, a constant number of queries; stored with the page in the [page cache](page-cache.md) | The same |
 | **`robots.txt`** | A static file `kami:install` writes over SSH; the host never answers its own | The same; Apache or nginx serve it |
 | **`X-Robots-Tag`** | Set in the request, and replayed with cached pages; on Conversions Apache serves, from the `.htaccess` `kami:install` writes | The same; on nginx, in its `location` blocks for `/media/` |
+| **Sitemap** | Static files Apache serves; rebuilt by `kami:install` on a deploy when stale, until Kami's own scheduler; built in the request only when missing | `kami:sitemap` hourly from Laravel's scheduler in cron; nginx's `try_files` reaches Kami when a file is missing |

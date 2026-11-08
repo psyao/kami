@@ -222,7 +222,7 @@ it('carries the Home\'s SEO in its head in each language', function (): void {
     }
 });
 
-// aguet.dev's robots expectations, its environment switch now `kami.indexable`. Its sitemap expectation comes with #410.
+// aguet.dev's robots expectations, its environment switch now `kami.indexable`.
 it('keeps the admin out of robots.txt when indexable, and everything out otherwise', function (bool $indexable, string $rules, ?string $header): void {
     installAguetDev($indexable);
     resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], Entry::query()->withUnpublished()->ofType(Home::class)->sole(), 'fr');
@@ -235,3 +235,40 @@ it('keeps the admin out of robots.txt when indexable, and everything out otherwi
     'indexable' => [true, "Disallow: /admin\n\nSitemap: https://aguet.dev/sitemap.xml\n", null],
     'not indexable' => [false, "Disallow: /\n", 'noindex, nofollow'],
 ]);
+
+// aguet.dev's sitemap expectation: the index now over one file per Locale, whose URLs it reads in turn.
+it('lists both homes in the sitemap, with their alternates, and nothing else', function (): void {
+    installAguetDev(indexable: true);
+    $save = resolve(SaveEntry::class);
+    $home = Entry::query()->withUnpublished()->ofType(Home::class)->sole();
+    $save->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], $home, 'fr');
+    $save->handle(Home::class, ['title' => 'Home', 'status' => 'published'], $home->refresh(), 'en');
+    // In a later second than the saves: a build in the same one is stale already.
+    $this->travel(1)->minute();
+    $this->artisan('kami:sitemap')->assertSuccessful();
+
+    $index = simplexml_load_string($this->get('/sitemap.xml')->assertOk()->streamedContent());
+    $index->registerXPathNamespace('s', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+    $urls = [];
+
+    foreach ($index->xpath('//s:sitemap/s:loc') as $file) {
+        $xml = simplexml_load_string($this->get((string) parse_url((string) $file, PHP_URL_PATH))->assertOk()->streamedContent());
+        $xml->registerXPathNamespace('s', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+
+        foreach ($xml->xpath('//s:url') as $url) {
+            $url->registerXPathNamespace('s', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+            $url->registerXPathNamespace('x', 'http://www.w3.org/1999/xhtml');
+            $alternates = [];
+
+            foreach ($url->xpath('x:link') as $link) {
+                $alternates[(string) $link['hreflang']] = (string) $link['href'];
+            }
+
+            ksort($alternates);
+            $urls[(string) $url->xpath('s:loc')[0]] = $alternates;
+        }
+    }
+
+    $alternates = ['en' => 'https://aguet.dev/en', 'fr' => 'https://aguet.dev', 'x-default' => 'https://aguet.dev'];
+    expect($urls)->toBe(['https://aguet.dev' => $alternates, 'https://aguet.dev/en' => $alternates]);
+});

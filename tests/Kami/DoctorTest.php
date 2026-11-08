@@ -32,6 +32,7 @@ use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\ImageFormats;
+use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\Severity;
 use Psyao\Kami\Support\SecurityHeaders;
@@ -832,11 +833,14 @@ describe('search engines', function () {
         // Not the skeleton's public/: tests running in parallel would see each other's robots.txt.
         File::ensureDirectoryExists($this->public = temporaryPath());
         $this->app->usePublicPath($this->public);
+        // The sitemap's state, too.
+        $this->app->useStoragePath($this->storage = temporaryPath());
         config(['kami.indexable' => false]);
     });
 
     afterEach(function () {
         File::deleteDirectory($this->public);
+        File::deleteDirectory($this->storage);
     });
 
     /** @return list<array{Severity, string}> */
@@ -889,6 +893,25 @@ describe('search engines', function () {
 
         expect(seoProblems())->toBe([[Severity::Warning, "A route of the application answers /{$path}: Kami writes no public/{$path}, as the file would shadow the route."]]);
     })->with(['robots.txt', 'sitemap.xml']);
+
+    it('warns about a sitemap stale for more than two hours, only while the Site is indexable', function () {
+        config(['kami.indexable' => true, 'app.env' => 'production']);
+        $this->artisan('migrate')->assertSuccessful();
+        $this->travelTo('2026-11-08 10:00:00');
+        Sitemap::build();
+        $this->travelTo('2026-11-08 10:05:00');
+        Sitemap::markStale();
+
+        $this->travelTo('2026-11-08 12:05:00');
+        expect(seoProblems())->toBe([]);
+
+        $this->travelTo('2026-11-08 12:06:00');
+        expect(seoProblems())->toBe([[Severity::Warning, 'The sitemap has been stale for more than two hours, since 2026-11-08 10:05 UTC.']]);
+        $this->artisan('kami:doctor')->expectsOutputToContain('Fix: run php artisan kami:sitemap; on a server, run Laravel\'s scheduler from cron, which runs it hourly.');
+
+        config(['kami.indexable' => false, 'app.env' => 'local']);
+        expect(seoProblems())->toBe([]);
+    });
 
     it('counts neither Kami\'s fallback nor a missing route as a route of the application', function () {
         Kami::routes();

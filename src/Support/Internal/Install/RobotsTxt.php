@@ -7,6 +7,7 @@ namespace Psyao\Kami\Support\Internal\Install;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use Psyao\Kami\Seo\Internal\ServeSitemap;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -50,12 +51,16 @@ final class RobotsTxt
         return mb_rtrim(Site::current()->url, '/') . '/sitemap.xml';
     }
 
-    /** Whether a route of the host, not Kami's fallback, answers this address on the Site: Apache would serve a file in its place, so Kami writes none there (ADR 0038). */
+    /** Whether a route of the host, neither Kami's fallback nor its sitemap route, answers this address on the Site: Apache would serve a file in its place, so Kami writes none there (ADR 0038). */
     public static function hostRouteAnswers(string $path): bool
     {
         $request = Request::create(mb_rtrim(Site::current()->url, '/') . $path);
 
-        return rescue(fn (): bool => ! Route::getRoutes()->match($request)->isFallback, false, report: false);
+        return rescue(function () use ($request): bool {
+            $route = Route::getRoutes()->match($request);
+
+            return ! $route->isFallback && $route->getControllerClass() !== ServeSitemap::class;
+        }, false, report: false);
     }
 
     /**

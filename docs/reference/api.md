@@ -440,8 +440,9 @@ What a site calls on Kami through the `Kami` facade.
 
 - `public function flushCache(): void`: Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data.
 - `public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed`: Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
-- `public function routes(): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links and `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG.
+- `public function routes(): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, and `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing.
 - `public function seo(): Psyao\Kami\Seo\PageMeta`: The current page's head values: a Kami page's own, or the Site's on a site route or an error page.
+- `public function sitemapUrls(): array`: The absolute URLs of Kami's per-Locale sitemap files, built first when missing, for an application that answers `/sitemap.xml` itself to list in its own index.
 - `public function withoutPageCache(): void`: Keeps the current response out of the page cache, as for a page showing the time of day.
 
 ## `Psyao\Kami\KamiServiceProvider`

@@ -75,7 +75,7 @@ abstract class InstallTestCase extends Orchestra
         }
 
         File::deleteDirectories(public_path());
-        File::delete(public_path('robots.txt'));
+        File::delete([public_path('robots.txt'), public_path('sitemap.xml')]);
     }
 
     protected function tearDown(): void
