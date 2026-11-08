@@ -106,7 +106,7 @@ The Static job checks both:
 
 ## Shared-hosting smoke
 
-The CI's Smoke job installs a site from [`psyao/kami-starter`](https://github.com/psyao/kami-starter) with your checkout of Kami on a simulated Infomaniak host, then checks it over HTTP ([test strategy](https://github.com/psyao/kami/issues/29#issuecomment-6425423526), decision 4). It takes the starter kit's `main` from Packagist, as `laravel new` does, so a starter kit change that breaks Kami fails the next pull request here. To run it locally, with Docker running:
+The CI's Smoke job installs a site from [`psyao/kami-starter`](https://github.com/psyao/kami-starter) with your checkout of Kami on a simulated Infomaniak host, then checks it over HTTP ([test strategy](https://github.com/psyao/kami/issues/29#issuecomment-6425423526), decision 4). It takes the starter kit's `next` branch, which requires Kami's `dev-main` and carries the milestone's starter changes until the release merges it into `main` ([ADR 0039](adr/0039-starter-kit-next-branch-requires-kami-dev-main.md)), so a starter kit change that breaks Kami fails the next pull request here. `STARTER_VERSION=dev-main` runs it on the `main` that `laravel new` installs, and `STARTER_VERSION=dev-<branch>` on any other starter kit branch. To run it locally, with Docker running:
 
 ```bash
 tests/Smoke/run.sh

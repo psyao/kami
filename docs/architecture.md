@@ -481,7 +481,7 @@ Kami also calls one of Laravel's own dependencies directly: `dragonmantank/cron-
 | Ceiling of 64 Blocks per install | Upgrade path named in `BlockSlot`: classes generated into `bootstrap/cache` | ADR 0024 |
 | Coarse invalidation: any write empties the page cache | Deliberate for small sites; dependency tracking is a V1 option | ADR 0021 |
 | The sitemap is rebuilt in one task run, which fits 30k Entries but not 1 M | Resume across Ticks, an internal change | ADR 0027 |
-| A solo maintainer working in phases: the playground, backports, CI drift | One local playground update per milestone, a staging deploy only where the real host matters; a bounded 6-month security window; the CI smoke on the starter kit's `main`, the branch `laravel new` installs | [#29](https://github.com/psyao/kami/issues/29), [#30](https://github.com/psyao/kami/issues/30), [#31](https://github.com/psyao/kami/issues/31) |
+| A solo maintainer working in phases: the playground, backports, CI drift | One local playground update per milestone, a staging deploy only where the real host matters; a bounded 6-month security window; the CI smoke on the starter kit's `next`, merged at each release into `main`, which `laravel new` installs | [#29](https://github.com/psyao/kami/issues/29), [#30](https://github.com/psyao/kami/issues/30), [#31](https://github.com/psyao/kami/issues/31), ADR 0039 |
 
 ### Open decisions
 
@@ -530,3 +530,4 @@ All ADRs live in `docs/adr/`. Gaps in the numbering are numbers reserved for par
 | [0034](adr/0034-mit-licence-held-for-good.md) | MIT for good |
 | [0035](adr/0035-package-migrations-append-only-squashed-only-in-a-major.md) | Append-only package migrations |
 | [0038](adr/0038-host-applications-may-mount-kami-pages-in-their-session.md) | Host applications may mount Kami pages in their session |
+| [0039](adr/0039-starter-kit-next-branch-requires-kami-dev-main.md) | Starter kit `next` branch on Kami's `dev-main` |

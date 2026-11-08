@@ -5,7 +5,7 @@ set -euo pipefail
 
 composer create-project psyao/kami-starter . "$STARTER_VERSION" --no-install --no-scripts --no-interaction
 
-# The checkout replaces the Kami release the starter kit requires.
+# The checkout replaces the Kami the starter kit requires: dev-main on `next` and its branches, a release on `main`.
 composer config repositories.kami '{"type":"path","url":"/kami","options":{"versions":{"psyao/kami":"dev-main"}}}'
 composer require psyao/kami:dev-main --no-update
 
