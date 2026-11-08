@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.7.0](https://github.com/psyao/kami/compare/v0.6.0...v0.7.0) (2026-11-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* keep moved addresses after a reschedule, cache nothing on an unwritable manifest, lock sitemap builds ([#448](https://github.com/psyao/kami/issues/448))
+* a Prefix starting with sitemaps or kami fails at boot, a slug taking a reserved segment or whole Path is refused at save, and kami:doctor --strict fails on hidden Paths. See UPGRADING.md section 0.7.0 item 6.
+* an EntryForm building its own list for a type with a URL places the SEO section with $this->seo(), or the edit screen throws.
+* `seo_image` is a reserved Field handle, ContentType gains socialImage(), and an EntryForm for SiteSettings must place `default_social_image`. See UPGRADING.md section 0.7.0 item 4.
+* ContentType gains a public summary(Entry $entry): ?string, so a type declaring its own summary() with another signature fails to load. An EntryForm of the site's own for SiteSettings must place or hide the new default_description Field. kami:doctor --strict fails on a routable type with the default summary() and no RichText Field.
+* pages are cached by default unless APP_DEBUG is on.
+
+### Features
+
+* hreflang, x-default, og:locale and the Locale region option ([#430](https://github.com/psyao/kami/issues/430)) ([df8f4a4](https://github.com/psyao/kami/commit/df8f4a49401ec77313d7ec859f0f9b450126773d))
+* KAMI_INDEXABLE, X-Robots-Tag and the managed robots.txt ([#427](https://github.com/psyao/kami/issues/427)) ([be0dabc](https://github.com/psyao/kami/commit/be0dabc169baa8675ff5975efc47d42dc9245be4))
+* Kami::exceptions() renders error pages in the URL's Locale ([#438](https://github.com/psyao/kami/issues/438)) ([2f6589f](https://github.com/psyao/kami/commit/2f6589f76758fb5cb34636664d193f146caa7141))
+* Kami::routes(session: true) keeps a host application's session on Kami's pages ([#439](https://github.com/psyao/kami/issues/439)) ([e64d3ad](https://github.com/psyao/kami/commit/e64d3ad18ab8cb3e2ae81a93ebdfc67858da66fc))
+* kami:bench, its last result in kami:doctor, and the public listing on MariaDB and MySQL ([#426](https://github.com/psyao/kami/issues/426)) ([daa8b6b](https://github.com/psyao/kami/commit/daa8b6b8873e69b70732385d73dd86519a0b767b))
+* old addresses redirect after a slug or Prefix change, and Kami's own segments are reserved ([#437](https://github.com/psyao/kami/issues/437)) ([4c94fbb](https://github.com/psyao/kami/commit/4c94fbb06959517f832b85958d17bea4c415ce46))
+* page cache with one Content version, manifest and writer ([#417](https://github.com/psyao/kami/issues/417)) ([6e8b70a](https://github.com/psyao/kami/commit/6e8b70a35007fc061bb08dfc9f69ecbaec9e71f6))
+* serve cached pages before Laravel boots ([#424](https://github.com/psyao/kami/issues/424)) ([1a192cc](https://github.com/psyao/kami/commit/1a192cc6e52040060363334e291c229b96d69eef))
+* the Open Graph image and cards ([#429](https://github.com/psyao/kami/issues/429)) ([6acd1b7](https://github.com/psyao/kami/commit/6acd1b72166b14ed5315054e86b666500baa8159))
+* the SEO head, PageMeta and Kami::seo() ([#428](https://github.com/psyao/kami/issues/428)) ([885e0d9](https://github.com/psyao/kami/commit/885e0d9136ad1bdf8d561fd8fd3e66f447e9504a)), closes [#402](https://github.com/psyao/kami/issues/402)
+* the SEO section in the admin ([#436](https://github.com/psyao/kami/issues/436)) ([83a4a22](https://github.com/psyao/kami/commit/83a4a22179dee50077980420259e6329e4fb8788))
+* the static sitemap, kami:sitemap and Kami::sitemapUrls() ([#435](https://github.com/psyao/kami/issues/435)) ([a008e27](https://github.com/psyao/kami/commit/a008e2711397c4a55cc8f2a5e15668d0cb0f6421))
+* x-kami::locales, x-kami::date and Entry::langAttribute() ([#421](https://github.com/psyao/kami/issues/421)) ([c7f9795](https://github.com/psyao/kami/commit/c7f97956222db0f87ed0bf2e8c2b42142d36b053))
+
+
+### Bug Fixes
+
+* keep moved addresses after a reschedule, cache nothing on an unwritable manifest, lock sitemap builds ([#448](https://github.com/psyao/kami/issues/448)) ([2efb440](https://github.com/psyao/kami/commit/2efb4407cbed15b7b046be20d3f48e705829716c))
+
 ## [0.6.0](https://github.com/psyao/kami/compare/v0.5.0...v0.6.0) (2026-11-08)
 
 
