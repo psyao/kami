@@ -58,12 +58,6 @@ final class RobotsTxt
         return rescue(fn (): bool => ! Route::getRoutes()->match($request)->isFallback, false, report: false);
     }
 
-    /** Whether the file starts with the marker; `false` when it is missing. */
-    public static function managed(string $file): bool
-    {
-        return is_file($file) && str_starts_with(File::get($file), self::MARKER);
-    }
-
     /**
      * Writes the file when it is missing or managed and out of date.
      *

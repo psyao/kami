@@ -816,7 +816,7 @@ final readonly class Doctor
     {
         $env = Config::string('app.env');
         $indexable = (bool) config('kami.indexable');
-        $robots = public_path('robots.txt');
+        $robots = is_file($path = public_path('robots.txt')) ? File::get($path) : null;
         $problems = [];
 
         if ($env === 'production' && ! $indexable) {
@@ -825,9 +825,11 @@ final readonly class Doctor
             $problems[] = new Problem(Severity::Warning, "The Site is indexable outside production ({$env}): search engines may index this copy.", 'set KAMI_INDEXABLE=false, or remove it, then run kami:install.', 'seo.md#indexable-switch');
         }
 
-        if (RobotsTxt::managed($robots) && File::get($robots) !== RobotsTxt::expected()) {
-            $problems[] = new Problem(Severity::Warning, 'public/robots.txt differs from what kami:install writes.', 'run kami:install, or delete its first line to own the file.', 'seo.md#robotstxt');
-        } elseif ($indexable && is_file($robots) && ! RobotsTxt::managed($robots) && preg_match('/^\s*sitemap\s*:/im', File::get($robots)) !== 1) {
+        if ($robots !== null && str_starts_with($robots, RobotsTxt::MARKER)) {
+            if ($robots !== RobotsTxt::expected()) {
+                $problems[] = new Problem(Severity::Warning, 'public/robots.txt differs from what kami:install writes.', 'run kami:install, or delete its first line to own the file.', 'seo.md#robotstxt');
+            }
+        } elseif ($indexable && $robots !== null && preg_match('/^\s*sitemap\s*:/im', $robots) !== 1) {
             $problems[] = new Problem(Severity::Warning, "public/robots.txt, the site's own, names no sitemap.", 'add a line Sitemap: ' . RobotsTxt::sitemapUrl() . ' to it.', 'seo.md#robotstxt');
         }
 
