@@ -177,7 +177,7 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **MVP features (6).** 18 custom Blocks (Block pool, `Image`, click-to-load `Video`, `kami:make:block`) · 20 internal link picker (`kami://`) · 50 hierarchical URLs · 52 Redirect manager (`SaveRedirect`, query-string and key-only 410 Redirects) · 108 menu builder · 109 menu locations.
 
-**Also.** Archives with cursor pagination; Term Archives; RSS Feeds; oEmbed videos through the `Video` Block.
+**Also.** Archives with cursor pagination; Term Archives; RSS Feeds; oEmbed videos through the `Video` Block; the page cache stores the first page of each Archive and the Feeds (ADR 0021), as M7 caches Entries only.
 
 **Acceptance.** psyao.ch's content model is declarable as in its research note; Feeds and Archives are valid; legacy query-string URLs answer 301 and key-only ones 410.
 
