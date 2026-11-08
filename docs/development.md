@@ -30,7 +30,7 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | `Kami` | `tests/Kami/` | Testbench with the Workbench | `composer test`, pre-push, every CI job but Browser and Smoke |
 | `Install` | `tests/Install/` | Testbench without the Workbench, so no panel carries Kami until a test adds it | `composer test`, pre-push, the coverage step |
 | `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says |
-| `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Nightly (`volume.yml`) |
+| `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Every pull request and nightly (`volume.yml`) |
 
 The suites take another engine from the environment, as CI does. On Steve's machine, Herd serves MySQL on 3306 and MariaDB on 3307 (user `root`, no password); PostgreSQL runs in Docker:
 
@@ -61,7 +61,7 @@ DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=55432 DB_DATABASE=kami DB_USERNAME
 | Browser | SQLite | `Browser` suite in Chromium |
 | Smoke | MariaDB 10.11 | The [shared-hosting smoke](#shared-hosting-smoke) |
 
-Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite nightly on MariaDB, in about a minute, printing each measure's duration and peak memory in its log, and `release.yml` runs [release-please](#releases) on every push to `main`.
+Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite on MariaDB on every pull request and nightly on `main`, in about a minute, printing each measure's duration and peak memory in its log, and `release.yml` runs [release-please](#releases) on every push to `main`.
 
 ### Licences
 
