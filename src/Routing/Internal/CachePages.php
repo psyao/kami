@@ -38,8 +38,10 @@ final class CachePages
 
     private function cacheable(Request $request): bool
     {
-        // A forged `Host` must not fill the disk; a query string or credentials make a page of their own.
+        // A forged `Host` must not fill the disk; a query string or credentials make a page of their own; a session is one visitor's, and the `web` group
+        // around the `kami` group sets its cookie only once this middleware has returned (ADR 0038).
         return PageCache::enabled()
+            && ! $request->hasSession()
             && $request->isMethodCacheable()
             && $request->getQueryString() === null
             && ! $request->headers->has('Authorization')

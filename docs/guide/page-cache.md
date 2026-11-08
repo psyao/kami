@@ -7,6 +7,7 @@ A page Kami has rendered once is stored and served again, with no query and no r
 Kami stores a response of its Entry route only when all of these hold:
 
 - the request is `GET` or `HEAD`, with no query string and no `Authorization` header;
+- the request carries no session, as under [`Kami::routes(session: true)`](existing-application.md#keep-your-members-signed-in);
 - the request's host is the Site's, as `url` sets it in `config/kami.php`, so a forged `Host` header cannot fill the disk;
 - the response is a 200 and sets no cookie;
 - the response did not call [`Kami::withoutPageCache()`](#keeping-a-page-out).

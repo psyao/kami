@@ -50,7 +50,20 @@ Add one line to `public/index.php`, right after Laravel's maintenance check, so 
 (require __DIR__ . '/../vendor/psyao/kami/resources/page-cache.php')(__DIR__ . '/../storage');
 ```
 
-It only answers what Kami has cached, its own pages, and lets every other request through. Without it the page cache still works, once Laravel has booted ([Page cache](page-cache.md#serving-before-laravel-boots)).
+It only answers what Kami has cached, its own pages, and lets every other request through. Without it the page cache still works, once Laravel has booted ([Page cache](page-cache.md#serving-before-laravel-boots)). Leave it out when you [keep your members signed in](#keep-your-members-signed-in): nothing is cached then, and the line would read a file on every request for nothing.
+
+## Keep your members signed in
+
+Kami's pages run without your `web` group: no session, no cookie, so the page cache can serve them. When your layout shows who is signed in, with `@auth` or a logout form, a signed-in member would appear signed out on them. Mount Kami's pages in your session instead, in `routes/web.php`:
+
+```php
+Kami::routes(session: true);
+```
+
+Kami's pages then run in your `web` group, with your session, cookies and CSRF. Media files, Preview links and the sitemap stay out of it.
+
+- **The cost.** A page in a session belongs to one visitor, so the page cache never stores it: each request boots Laravel and renders the page, within the uncached budget of 200 ms rather than the cached 30 ms ([Measuring](deployment.md#measuring-page-speed)). It costs the same on shared hosting and on a server; on shared hosting, without OPcache, the whole budget goes to it. `Kami::remember()` still caches fragments.
+- **The Content Security Policy.** Your layout's scripts must fit Kami's front policy, which has no nonce so that a page can be cached ([Security](security.md#kamis-pages)). Livewire's `csp_safe` build with Alpine's CSP build runs under it, as long as your Alpine expressions stay within Alpine's CSP subset: no arrow functions, template literals, spread or globals, with complex logic moved to `Alpine.data()`. An inline `<script>` or `<style>`, such as `@livewireStyles` or a theme script, goes into `security.csp` as its `sha256` hash ([Extending the policy](security.md#extending-the-policy)). Otherwise add `'unsafe-eval'` or `'unsafe-inline'`, which `kami:doctor` reports as a weakening ([Weakening options](security.md#weakening-options)).
 
 ## Localise your error pages
 

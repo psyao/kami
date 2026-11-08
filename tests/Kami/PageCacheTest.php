@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -126,6 +128,29 @@ it('never stores a response that sets a cookie or calls withoutPageCache()', fun
         return response((string) $entry->title);
     }],
 ]);
+
+it('keeps the host\'s session on Kami::routes(session: true), its pages neither stored nor served from the page cache', function (bool $inWebGroup) {
+    cachedArticle();
+    $this->get('/articles/hello-world');
+    $inWebGroup ? Route::middleware('web')->group(fn () => Kami::routes(session: true)) : Kami::routes(session: true);
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/articles/hello-world')->assertOk()->assertSee('Unseen')->assertCookie(config('session.cookie'));
+
+    retitleBehindKamisBack('Unstored');
+
+    $this->get('/articles/hello-world')->assertSee('Unstored');
+    $this->get('/articles/nowhere')->assertNotFound()->assertCookie(config('session.cookie'));
+})->with([
+    'in routes/web.php' => [true],
+    'outside the web group' => [false],
+]);
+
+it('keeps media, Preview links and the sitemap out of the session on Kami::routes(session: true)', function (string $uri) {
+    Kami::routes(session: true);
+
+    expect(Route::getRoutes()->match(Request::create($uri))->gatherMiddleware())->not->toContain('web');
+})->with(['/kami/share/token', '/media/1/abc/photo.jpg', '/media/1/abc/logo.svg', '/sitemap.xml', '/sitemaps/fr-1.xml']);
 
 it('stores nothing with the page cache off', function () {
     config(['kami.page_cache.enabled' => false]);
