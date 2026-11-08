@@ -16,8 +16,9 @@ return static function (string $storage): void {
     $server = static fn (string $key): string => is_string($_SERVER[$key] ?? null) ? $_SERVER[$key] : '';
     $method = $server('REQUEST_METHOD');
 
-    // What CachePages never stores; a query string is part of the URI, so its page is never found.
-    if (! in_array($method, ['GET', 'HEAD'], true)
+    // What CachePages never stores; a query string is part of the URI, so its page is never found. Laravel's own
+    // maintenance check lets the request through when `php artisan down` prerendered no page: its middleware answers 503.
+    if (! in_array($method, ['GET', 'HEAD'], true) || file_exists($storage . '/framework/down')
         || array_intersect_key($_SERVER, array_flip(['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'PHP_AUTH_USER', 'PHP_AUTH_DIGEST'])) !== []) {
         return;
     }
@@ -26,8 +27,13 @@ return static function (string $storage): void {
     $manifest = json_decode((string) @file_get_contents($directory . 'manifest.json'), true);
 
     // A missing, unreadable or malformed manifest is unknown (#268), and a passed visibility change makes every page stale: Laravel rewrites it.
-    if (! is_array($manifest) || ! is_string($manifest['version'] ?? null) || ! array_key_exists('next_change_at', $manifest)
-        || ! ($manifest['next_change_at'] === null || (is_int($manifest['next_change_at']) && $manifest['next_change_at'] > time()))) {
+    if (! is_array($manifest) || ! is_string($manifest['version'] ?? null) || ! array_key_exists('next_change_at', $manifest)) {
+        return;
+    }
+
+    $next = $manifest['next_change_at'];
+
+    if ($next !== null && (! is_int($next) || $next <= time())) {
         return;
     }
 

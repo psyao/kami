@@ -27,7 +27,7 @@ if (file_exists($maintenance = __DIR__ . '/../storage/framework/maintenance.php'
 (require __DIR__ . '/../vendor/psyao/kami/resources/page-cache.php')(__DIR__ . '/../storage');
 ```
 
-The line reads the manifest and one file, sends the stored page and stops. Anything else, a stale page, a page never stored or an unknown manifest, lets the request through to Laravel. Keep it after the maintenance check: `php artisan down` then answers 503 before any cached page. A `storage/` moved elsewhere is the path the line passes.
+The line reads the manifest and one file, sends the stored page and stops. Anything else, a stale page, a page never stored or an unknown manifest, lets the request through to Laravel. Keep it after the maintenance check. While `php artisan down` is on, the line sends no cached page and Laravel answers 503: it looks for the `storage/framework/down` file that Laravel's default `file` maintenance driver writes. With `MAINTENANCE_DRIVER=cache` there is no such file: run `php artisan kami:cache:clear` right after `php artisan down`, and nothing is stored again until the site is up. A `storage/` moved elsewhere is the path the line passes.
 
 Without the line the page cache still works: Kami's middleware serves the same pages once Laravel has booted, with no query and no rendering. An [existing application](existing-application.md#serve-cached-pages-before-laravel-boots) adds the line by hand.
 
@@ -93,7 +93,7 @@ With it off, `Kami::remember()` still caches fragments. The line in `public/inde
 
 Pages live under `storage/framework/kami/pages/`, one directory per Content version, and the files of former versions are deleted after the response that replaced them. `kami:doctor` warns when that directory cannot be written while the page cache is on: every page then boots Laravel.
 
-It works the same on shared hosting and on a server: a hit reads the manifest and one file, with no query, and with the line above it compiles about a hundred lines of PHP rather than Laravel, which matters where OPcache is off. The files sit on the web server's own disk, so an installation behind several web servers either shares `storage/` between them or turns the page cache off.
+It works the same on shared hosting and on a server: a hit reads the manifest and one file, with no query, and with the line above it compiles about a hundred lines of PHP rather than Laravel, which matters where OPcache is off. The files sit on the web server's own disk, so an installation behind several web servers either shares `storage/` between them or turns the page cache off. The line reads the host from the request's `Host` header: behind a proxy that rewrites it, it finds no page and every request boots Laravel, which still serves the cached page.
 
 ## Clearing
 
