@@ -145,7 +145,7 @@ It calls the page on the Site URL ten times, served from the [page cache](page-c
 
 `kami:doctor` shows the last result, with the address and the time it was measured.
 
-Behind a staging password, pass its user: `kami:bench --user=preview` asks for the password, never as an argument, and signs in with Digest. Apache answers the first request of each sign-in with a 401 before the page; the measure covers only the page.
+Behind a staging password, pass its user: `kami:bench --user=preview` asks for the password, never as an argument, and signs in with Digest. Apache answers the first request with a 401 before the page, a round trip on the host itself that the figure may include.
 
 ## Media files
 

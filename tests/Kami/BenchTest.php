@@ -25,7 +25,11 @@ beforeEach(function () {
 function serving(array $cached, array $uncached, ?string $user = null): void
 {
     Http::fake(function (Request $request, array $options) use (&$cached, &$uncached, $user) {
-        if ($user !== null && ! str_starts_with($request->header('Authorization')[0] ?? '', "Digest username=\"{$user}\"")) {
+        // Guzzle 8 answers the challenge in its auth middleware; Guzzle 7 leaves Digest to cURL, as options.
+        $signedIn = str_starts_with($request->header('Authorization')[0] ?? '', "Digest username=\"{$user}\"")
+            || ($options['curl'][CURLOPT_HTTPAUTH] ?? null) === CURLAUTH_DIGEST && str_starts_with($options['curl'][CURLOPT_USERPWD] ?? '', "{$user}:");
+
+        if ($user !== null && ! $signedIn) {
             return Http::response('', 401, ['WWW-Authenticate' => 'Digest realm="staging", nonce="0123456789abcdef", qop="auth"']);
         }
         $server = str_contains($request->url(), 'kami-bench=') ? array_shift($uncached) : array_shift($cached);

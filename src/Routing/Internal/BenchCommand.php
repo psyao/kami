@@ -37,7 +37,8 @@ final class BenchCommand extends Command
 
     public function handle(): int
     {
-        $url = rtrim(Site::current()->url, '/') . '/' . ltrim($this->argument('path'), '/');
+        $path = $this->input->getArgument('path');
+        $url = rtrim(Site::current()->url, '/') . '/' . ltrim(is_string($path) ? $path : '', '/');
         $client = Http::connectTimeout(3)->timeout(30)->withoutRedirecting();
 
         if (is_string($user = $this->option('user'))) {
