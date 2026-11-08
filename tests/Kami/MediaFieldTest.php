@@ -164,11 +164,12 @@ it('loads with the Entries in two queries, the Media items and their Translation
 
 it('throws on an unloaded read among several Entries under strict mode, and loads a single one', function (): void {
     $media = storedMedia();
-    saveIllustrated(['cover' => $media->id]);
+    $illustrated = saveIllustrated(['cover' => $media->id]);
     saveIllustrated(['title' => 'Second']);
 
+    // By key: an unordered first() may return the Entry without a cover on PostgreSQL (#433).
     expect(fn () => Entry::query()->ofType('illustrated')->get()->first()->cover)->toThrow(LazyLoadingViolationException::class)
-        ->and(Entry::query()->ofType('illustrated')->first()->cover?->id)->toBe($media->id);
+        ->and(Entry::query()->ofType('illustrated')->find($illustrated->getKey())->cover?->id)->toBe($media->id);
 });
 
 it('keeps its links in a duplicate', function (): void {
