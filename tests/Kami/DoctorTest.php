@@ -780,3 +780,18 @@ describe('Conversions', function () {
             ->and(Storage::disk('public')->allFiles('media'))->toBe(['media/.htaccess']);
     });
 });
+
+it('warns when the page cache cannot write to its directory, and only while it is on', function (bool $enabled) {
+    $this->app->useStoragePath($storage = temporaryPath());
+    File::ensureDirectoryExists("{$storage}/framework");
+    chmod("{$storage}/framework", 0555);
+    config(['kami.page_cache.enabled' => $enabled]);
+
+    $warning = 'The page cache cannot write to storage/framework/kami/pages/';
+    $enabled
+        ? $this->artisan('kami:doctor')->expectsOutputToContain($warning)->expectsOutputToContain('docs/guide/page-cache.md#storage')->assertSuccessful()
+        : $this->artisan('kami:doctor')->doesntExpectOutputToContain($warning)->assertSuccessful();
+
+    chmod("{$storage}/framework", 0755);
+    File::deleteDirectory($storage);
+})->with(['on' => true, 'off' => false]);

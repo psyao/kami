@@ -12,9 +12,7 @@ use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryDeleted;
 use Psyao\Kami\Content\Internal\EntryTitles;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Routing\Internal\Path;
-use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Deletes an Entry from the Trash for good, with its Translations, Field values, References and Preview links. Its addresses, in every Locale, become 301s to a replacement Entry, or 410s, so none falls silently to a 404 (ADR 0008). It does not authorise: the caller checks the actor's `force-delete` Permission first (ADR 0011).
@@ -52,7 +50,6 @@ final class DeleteEntry
             resolve(RecordAuditEvent::class)->handle('kami.entries.force-deleted', $entry, actor: $actor);
         });
 
-        DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryDeleted($entry->id, $entry->type, $entry->site, $replacement?->id, $actor));
     }
 }

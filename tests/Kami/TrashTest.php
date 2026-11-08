@@ -17,11 +17,10 @@ use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryRestored;
 use Psyao\Kami\Content\Events\EntryTrashed;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Term;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\Path;
-use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
@@ -114,7 +113,7 @@ it('rewrites the next visibility change, leaving the Trash out', function () {
 
     resolve(TrashEntry::class)->handle($sooner);
 
-    expect(Visibility::nextChangeAt(Site::current())?->toIso8601String())->toBe(now()->addWeek()->toIso8601String());
+    expect(PageCache::manifest()['next_change_at'] ?? null)->toBe(now()->addWeek()->getTimestamp());
 
     File::deleteDirectory($storage);
 });
@@ -146,21 +145,29 @@ it('restores an Entry with its states and Paths as they were', function () {
     expect(Entry::query()->withUnpublished()->inLocale('en')->find($entry->id)?->status)->toBe('draft');
 });
 
-it('records the actor and dispatches EntryRestored once, then rewrites the next visibility change', function () {
-    Event::fake([EntryRestored::class]);
-    $this->freezeSecond();
-    $this->app->useStoragePath($storage = temporaryPath());
+it('records the actor and dispatches EntryRestored once', function () {
     $ada = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
-    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()]);
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published']);
     resolve(TrashEntry::class)->handle($entry);
-    expect(Visibility::nextChangeAt(Site::current()))->toBeNull();
+    Event::fake([EntryRestored::class]);
 
     resolve(RestoreEntry::class)->handle($entry, $ada);
 
-    expect(Entry::query()->withUnpublished()->sole()->updated_by)->toBe($ada->id)
-        ->and(Visibility::nextChangeAt(Site::current())?->toIso8601String())->toBe(now()->addDay()->toIso8601String());
+    expect(Entry::query()->withUnpublished()->sole()->updated_by)->toBe($ada->id);
     Event::assertDispatchedTimes(EntryRestored::class, 1);
     Event::assertDispatched(EntryRestored::class, fn (EntryRestored $event): bool => $event->entry->id === $entry->id && $event->actor === $ada);
+});
+
+it('rewrites the next visibility change on a restore', function () {
+    $this->freezeSecond();
+    $this->app->useStoragePath($storage = temporaryPath());
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()]);
+    resolve(TrashEntry::class)->handle($entry);
+    expect(PageCache::manifest())->toMatchArray(['next_change_at' => null]);
+
+    resolve(RestoreEntry::class)->handle($entry);
+
+    expect(PageCache::manifest()['next_change_at'] ?? null)->toBe(now()->addDay()->getTimestamp());
 
     File::deleteDirectory($storage);
 });

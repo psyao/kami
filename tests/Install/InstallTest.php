@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Artisan;
@@ -11,10 +12,9 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\SiteSettings;
-use Psyao\Kami\Sites\Internal\Site;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Tests\Install\InstallTestCase as TestCase;
 use Psyao\Kami\Users\HasKamiRoles;
@@ -69,17 +69,19 @@ it('installs Kami on SQLite without a terminal', function () {
         ->and(public_path('js/filament/filament/app.js'))->toBeFile();
 });
 
-it('writes the Site\'s next visibility change, which a deploy may have left stale', function () {
+it('makes a new Content version, as views may have changed, with the next visibility change a deploy may have left stale', function () {
     $this->bootWithTypes([Article::class]);
     $this->app->useStoragePath($storage = temporaryPath());
     File::ensureDirectoryExists($storage);
     install()->assertSuccessful();
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => '2099-01-01 09:00']);
-    File::deleteDirectory("{$storage}/framework/kami");
+    $before = PageCache::version();
+    File::put("{$storage}/framework/kami/pages/manifest.json", json_encode(['version' => $before, 'next_change_at' => null]));
 
     install()->assertSuccessful();
 
-    expect(Visibility::nextChangeAt(Site::current())?->toIso8601String())->toBe('2099-01-01T09:00:00+00:00');
+    expect(PageCache::manifest()['version'] ?? null)->not->toBe($before)
+        ->and(PageCache::manifest()['next_change_at'] ?? null)->toBe(CarbonImmutable::parse('2099-01-01 09:00', 'UTC')->getTimestamp());
 
     File::deleteDirectory($storage);
 });

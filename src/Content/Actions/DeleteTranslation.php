@@ -12,9 +12,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Content\Internal\Translation;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Routing\Internal\Path;
-use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Deletes a Translation that was never published, with its Field values, References and Preview links in that Locale, and frees its Paths; Shared values stay with the Entry. It does not authorise: the caller checks the actor's `delete` Permission first (ADR 0011).
@@ -54,7 +52,6 @@ final class DeleteTranslation
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()])->save();
         });
 
-        DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new TranslationDeleted($entry->id, $entry->type, $entry->site, $locale, $actor));
     }
 }

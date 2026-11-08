@@ -14,9 +14,8 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Text;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
-use Psyao\Kami\Sites\Internal\Site;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
 use Workbench\App\Content\Label;
@@ -192,25 +191,23 @@ it('schedules, backdates, unpublishes and republishes as ADR 0019 states', funct
     $this->get('/articles/earlier')->assertOk();
 });
 
-it('writes the Site\'s next visibility change after each save, read with no query', function () {
+it('writes the next visibility change after each save, read with no query', function () {
     $this->freezeSecond();
     $this->app->useStoragePath($storage = temporaryPath());
-    $site = Site::current();
-
     $later = save(['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addWeek()]);
     $sooner = save(['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()]);
     save(['title' => 'Draft', 'author' => 'Ada', 'published_at' => now()->addHour()]);
     save(['title' => 'Now', 'author' => 'Ada', 'status' => 'published']);
 
     DB::enableQueryLog();
-    expect(Visibility::nextChangeAt($site)?->toIso8601String())->toBe(now()->addDay()->toIso8601String())
+    expect(PageCache::manifest()['next_change_at'] ?? null)->toBe(now()->addDay()->getTimestamp())
         ->and(DB::getQueryLog())->toBeEmpty();
 
     save(['status' => 'draft'], $sooner);
-    expect(Visibility::nextChangeAt($site)?->toIso8601String())->toBe(now()->addWeek()->toIso8601String());
+    expect(PageCache::manifest()['next_change_at'] ?? null)->toBe(now()->addWeek()->getTimestamp());
 
     save(['status' => 'draft'], $later);
-    expect(Visibility::nextChangeAt($site))->toBeNull();
+    expect(PageCache::manifest())->toMatchArray(['next_change_at' => null]);
 
     File::deleteDirectory($storage);
 });

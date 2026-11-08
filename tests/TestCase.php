@@ -26,7 +26,8 @@ abstract class TestCase extends Orchestra
     {
         // A lazy load, a discarded or a missing Eloquent attribute throws.
         Model::shouldBeStrict();
-        $app->make('config')->set($this->bootConfig);
+        // Parallel processes share the skeleton's `storage/`: a test of the page cache turns it on over a `storage/` of its own.
+        $app->make('config')->set(['kami.page_cache.enabled' => false, ...$this->bootConfig]);
 
         $this->useOwnDatabaseInParallel($app);
     }

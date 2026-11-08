@@ -18,11 +18,10 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryDeleted;
 use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\PreviewLink;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\SyncPaths;
-use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
@@ -101,21 +100,29 @@ it('removes the References from and to the Entry, links kept for it in the Trash
     expect(Entry::query()->withUnpublished()->with('related')->findOrFail($project->id)->related)->toBeEmpty();
 });
 
-it('dispatches EntryDeleted once with values, after commit, and rewrites the next visibility change', function () {
-    Event::fake([EntryDeleted::class]);
-    $this->freezeSecond();
-    $this->app->useStoragePath($storage = temporaryPath());
+it('dispatches EntryDeleted once with values, after commit', function () {
     $ada = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
-    $sooner = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()]);
-    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addWeek()]);
+    $sooner = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published']);
     resolve(TrashEntry::class)->handle($sooner);
-    File::delete(storage_path('framework/kami/visibility-default.json'));
+    Event::fake([EntryDeleted::class]);
 
     resolve(DeleteEntry::class)->handle($sooner, actor: $ada);
 
-    expect(Visibility::nextChangeAt(Site::current())?->toIso8601String())->toBe(now()->addWeek()->toIso8601String());
     Event::assertDispatchedTimes(EntryDeleted::class, 1);
     Event::assertDispatched(EntryDeleted::class, fn (EntryDeleted $event): bool => $event->entryId === $sooner->id && $event->type === 'article' && $event->site === 'default' && $event->replacementId === null && $event->actor === $ada);
+});
+
+it('rewrites the next visibility change on a delete', function () {
+    $this->freezeSecond();
+    $this->app->useStoragePath($storage = temporaryPath());
+    $sooner = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Sooner', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()]);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Later', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addWeek()]);
+    resolve(TrashEntry::class)->handle($sooner);
+    File::delete(storage_path('framework/kami/pages/manifest.json'));
+
+    resolve(DeleteEntry::class)->handle($sooner);
+
+    expect(PageCache::manifest()['next_change_at'] ?? null)->toBe(now()->addWeek()->getTimestamp());
 
     File::deleteDirectory($storage);
 });
@@ -210,24 +217,32 @@ it('refuses a Translation once published, and the last one, with the reason', fu
         ->and(fn () => resolve(DeleteTranslation::class)->handle(resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Seul', 'author' => 'Ada']), 'fr'))->toThrow(ValidationException::class, 'only');
 });
 
-it('records the actor, dispatches TranslationDeleted once with values, and rewrites the next visibility change', function () {
+it('records the actor and dispatches TranslationDeleted once with values', function () {
     Event::fake([TranslationDeleted::class]);
     $this->freezeSecond();
-    $this->app->useStoragePath($storage = temporaryPath());
     $ada = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
-    File::delete(storage_path('framework/kami/visibility-default.json'));
     $this->travel(1)->minute();
 
     resolve(DeleteTranslation::class)->handle($entry, 'en', $ada);
 
     $stored = Entry::query()->withUnpublished()->sole();
     expect($stored->updated_by)->toBe($ada->id)
-        ->and($stored->updated_at?->toIso8601String())->toBe(now()->toIso8601String())
-        ->and(File::exists(storage_path('framework/kami/visibility-default.json')))->toBeTrue();
+        ->and($stored->updated_at?->toIso8601String())->toBe(now()->toIso8601String());
     Event::assertDispatchedTimes(TranslationDeleted::class, 1);
     Event::assertDispatched(TranslationDeleted::class, fn (TranslationDeleted $event): bool => $event->entryId === $entry->id && $event->type === 'article' && $event->site === 'default' && $event->locale === 'en' && $event->actor === $ada);
+});
+
+it('makes a new Content version on a Translation delete', function () {
+    $this->app->useStoragePath($storage = temporaryPath());
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
+    $before = PageCache::version();
+
+    resolve(DeleteTranslation::class)->handle($entry, 'en');
+
+    expect(PageCache::manifest()['version'] ?? null)->not->toBe($before);
 
     File::deleteDirectory($storage);
 });

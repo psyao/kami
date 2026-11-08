@@ -22,9 +22,9 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Media\Internal\PublicMedia;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
@@ -105,11 +105,8 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        // A deploy may bring dates, a database or a storage/ the file has not seen.
-        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite writes every Site's.
-        Visibility::writeNextChange(Site::current());
-
-        // ponytail: Kami keeps no cache until M7; clearing them (the Content version bump, ADR 0021) lands here in M7.
+        // A deploy may bring views, dates, a database or a storage/ the manifest has not seen (ADR 0021).
+        PageCache::invalidate();
 
         $this->components->info('Kami is installed.');
 
