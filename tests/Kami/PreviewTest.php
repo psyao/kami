@@ -20,7 +20,6 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Sites\Internal\Site;
 use Workbench\App\Content\Article;
@@ -111,7 +110,6 @@ it('runs none of the save\'s side effects', function () {
 
     Event::assertNothingDispatched();
     expect(Entry::query()->sole()->updated_at?->toDateTimeString())->toBe($updatedAt)
-        ->and(Visibility::nextChangeAt(Site::current()))->toBeNull()
         ->and(File::exists($storage))->toBeFalse();
 });
 

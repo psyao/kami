@@ -12,9 +12,7 @@ use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryTrashed;
 use Psyao\Kami\Content\Internal\EntryTitles;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
-use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Moves an Entry to the Trash in all its Locales: it reads as absent everywhere and answers 404, its Paths stay reserved, and `RestoreEntry` brings it back as it was. It does not authorise: the caller checks the actor's `delete` Permission first (ADR 0011).
@@ -52,7 +50,6 @@ final class TrashEntry
             resolve(RecordAuditEvent::class)->handle('kami.entries.trashed', $entry, actor: $actor);
         });
 
-        DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryTrashed($entry, $actor));
     }
 }

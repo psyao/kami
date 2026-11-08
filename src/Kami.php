@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Psyao\Kami;
 
+use Closure;
+use DateInterval;
+use DateTimeInterface;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Internal\RenderConversion;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Routing\Internal\RenderPreviewLink;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -32,5 +37,30 @@ final class Kami
             ->withoutMiddleware('web');
         Route::get('media/{media}/{version}/{file}', RenderConversion::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::fallback(RenderEntry::class)->middleware('kami')->withoutMiddleware('web');
+    }
+
+    /**
+     * Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
+     *
+     * @template TValue
+     *
+     * @param  Closure(): TValue  $callback
+     * @return TValue
+     */
+    public function remember(string $key, DateTimeInterface | DateInterval | int $ttl, Closure $callback): mixed
+    {
+        return Cache::remember('kami:' . PageCache::version() . ":{$key}", $ttl, $callback);
+    }
+
+    /** Keeps the current response out of the page cache, as for a page showing the time of day. */
+    public function withoutPageCache(): void
+    {
+        request()->attributes->set(PageCache::SKIP, true);
+    }
+
+    /** Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data. */
+    public function flushCache(): void
+    {
+        PageCache::invalidate();
     }
 }

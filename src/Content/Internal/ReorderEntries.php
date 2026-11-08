@@ -8,10 +8,11 @@ use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\DB;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
- * Rewrites the Positions of an orderable type's siblings in the current Site. It does not authorise, and dispatches no event: no catalogue event covers it (ADR 0029).
+ * Rewrites the Positions of an orderable type's siblings in the current Site. It does not authorise, and dispatches no event: no catalogue event covers it (ADR 0029). So it makes the new Content version itself, as the order may show on any page.
  *
  * @internal
  */
@@ -49,6 +50,8 @@ final class ReorderEntries
                 DB::table('kami_entries')->whereIn('id', array_keys($chunk))->update(['position' => new Expression("case {$cases} end")]);
             }
         });
+
+        DB::afterCommit(PageCache::invalidate(...));
     }
 
     /** The Position of a new last child of the Parent; of the root when null. */

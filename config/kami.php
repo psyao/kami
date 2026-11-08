@@ -86,4 +86,12 @@ return [
         'csp_report_only' => false,
     ],
 
+    /*
+    | The page cache (ADR 0021): a page Kami rendered once is served again until anything visitors might see changes.
+    | `enabled`: on unless `APP_DEBUG`, so a page being debugged is never a cached one (docs/guide/page-cache.md).
+    */
+    'page_cache' => [
+        'enabled' => ! env('APP_DEBUG', false),
+    ],
+
 ];

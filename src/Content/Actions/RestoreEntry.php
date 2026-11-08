@@ -12,8 +12,6 @@ use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryRestored;
 use Psyao\Kami\Content\Internal\EntryTitles;
-use Psyao\Kami\Content\Internal\Visibility;
-use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Brings an Entry back from the Trash with its states and Paths as they were: a Published Translation is visible again at once. It does not authorise: the caller checks the actor's `restore` Permission first, and `publish` when a Translation is published (ADR 0011, ADR 0019).
@@ -47,7 +45,6 @@ final class RestoreEntry
             resolve(RecordAuditEvent::class)->handle('kami.entries.restored', $entry, actor: $actor);
         });
 
-        DB::afterCommit(fn () => Visibility::writeNextChange(Site::current()));
         event(new EntryRestored($entry, $actor));
     }
 }

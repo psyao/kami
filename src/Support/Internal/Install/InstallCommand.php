@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -22,9 +23,9 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
-use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Media\Internal\PublicMedia;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
@@ -105,11 +106,10 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        // A deploy may bring dates, a database or a storage/ the file has not seen.
-        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite writes every Site's.
-        Visibility::writeNextChange(Site::current());
-
-        // ponytail: Kami keeps no cache until M7; clearing them (the Content version bump, ADR 0021) lands here in M7.
+        // A deploy may bring views, dates, a database or a storage/ the manifest has not seen (ADR 0021).
+        PageCache::invalidate();
+        // Kami 0.6's per-Site files, which the manifest replaced.
+        File::delete(File::glob(storage_path('framework/kami/visibility-*.json')));
 
         $this->components->info('Kami is installed.');
 

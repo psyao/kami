@@ -32,6 +32,7 @@ use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Media;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
@@ -94,14 +95,14 @@ final readonly class Doctor
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
             ...$this->insecureTransport(),
-            ...$this->replacedLoginPages($panels),
-            ...$this->replacedResetPages($panels),
+            ...$this->replacedPages($panels, 'replacedLoginPage', 'sign-in', 'login', 'throttling sign-in per email', 'limit attempts per email as well as per IP address', 'sign-in'),
+            ...$this->replacedPages($panels, 'replacedResetPage', 'password reset', 'passwordReset', 'keeping it from revealing who has an account', 'answer every address the same way, after the response', 'password-reset'),
             ...$this->replacedMfa($panels),
             ...$this->mfaModels($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
-            ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia()]),
+            ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia(), $this->pageCacheStorage()]),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
@@ -319,31 +320,20 @@ final readonly class Doctor
     }
 
     /**
+     * A host's own page in place of Kami's, whose protection is then the host's.
+     *
      * @param  list<PanelReport>  $panels
+     * @param  'replacedLoginPage'|'replacedResetPage'  $key
      * @return list<Problem>
      */
-    private function replacedLoginPages(array $panels): array
+    private function replacedPages(array $panels, string $key, string $page, string $method, string $duty, string $fix, string $anchor): array
     {
         return array_values(array_map(fn (array $panel): Problem => new Problem(
             Severity::Warning,
-            "The panel {$panel['id']} replaces Kami's sign-in page with {$panel['replacedLoginPage']}: throttling sign-in per email is then yours.",
-            "remove the class from ->login() on the panel {$panel['id']}, or make its page limit attempts per email as well as per IP address.",
-            'security.md#sign-in',
-        ), array_filter($panels, fn (array $panel): bool => $panel['replacedLoginPage'] !== null)));
-    }
-
-    /**
-     * @param  list<PanelReport>  $panels
-     * @return list<Problem>
-     */
-    private function replacedResetPages(array $panels): array
-    {
-        return array_values(array_map(fn (array $panel): Problem => new Problem(
-            Severity::Warning,
-            "The panel {$panel['id']} replaces Kami's password reset page with {$panel['replacedResetPage']}: keeping it from revealing who has an account is then yours.",
-            "remove the class from ->passwordReset() on the panel {$panel['id']}, or make its page answer every address the same way, after the response.",
-            'security.md#password-reset',
-        ), array_filter($panels, fn (array $panel): bool => $panel['replacedResetPage'] !== null)));
+            "The panel {$panel['id']} replaces Kami's {$page} page with {$panel[$key]}: {$duty} is then yours.",
+            "remove the class from ->{$method}() on the panel {$panel['id']}, or make its page {$fix}.",
+            "security.md#{$anchor}",
+        ), array_filter($panels, fn (array $panel): bool => $panel[$key] !== null)));
     }
 
     /**
@@ -797,6 +787,20 @@ final readonly class Doctor
             "The default cache store, {$store}, uses the {$driver} driver: its locks hold within one PHP worker, so two visitors can generate the same Conversion at once.",
             'set CACHE_STORE to file or database in .env, as the starter kit does.',
             'hosting.md#conversions',
+        ) : null;
+    }
+
+    /** A page cache that cannot write stores nothing: every page then boots Laravel (ADR 0021). */
+    private function pageCacheStorage(): ?Problem
+    {
+        // Created on the first write: until then, its nearest existing parent decides.
+        for ($existing = storage_path('framework/kami/pages'); ! file_exists($existing); $existing = dirname($existing));
+
+        return PageCache::enabled() && ! is_writable($existing) ? new Problem(
+            Severity::Warning,
+            'The page cache cannot write to storage/framework/kami/pages/: every page boots Laravel.',
+            'make storage/framework/ writable by PHP, or set kami.page_cache.enabled to false.',
+            'page-cache.md#storage',
         ) : null;
     }
 

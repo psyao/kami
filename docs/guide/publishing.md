@@ -54,7 +54,7 @@ $save->handle(Article::class, ['status' => 'draft'], $entry);                   
 - A date to come schedules: the page appears at that moment, with no task to run.
 - Unpublishing keeps `published_at`, so republishing without a date keeps the original one.
 
-After each save and each `kami:install`, Kami writes the Site's next visibility change, the earliest date a Scheduled Translation appears, to a file under `storage/framework/kami/`. Its format is internal: Kami's page cache reads it with no query to know when cached pages go stale, so nothing needs to run at that moment.
+After each write and each `kami:install`, Kami records the next visibility change, the earliest date a Scheduled Translation of any Site appears, in the [page cache](page-cache.md#when-pages-go-stale)'s manifest. The page cache reads it with no query to know when cached pages go stale, so nothing needs to run at that moment.
 
 ### In the admin
 

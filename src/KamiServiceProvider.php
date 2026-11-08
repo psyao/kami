@@ -16,13 +16,24 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Event;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Audit\Internal\PruneAuditCommand;
+use Psyao\Kami\Content\Events\EntryDeleted;
+use Psyao\Kami\Content\Events\EntryDuplicated;
+use Psyao\Kami\Content\Events\EntryRestored;
+use Psyao\Kami\Content\Events\EntrySaved;
+use Psyao\Kami\Content\Events\EntryTrashed;
+use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
+use Psyao\Kami\Media\Events\MediaDeleted;
+use Psyao\Kami\Media\Events\MediaSaved;
 use Psyao\Kami\Media\Internal\ImagePresets;
 use Psyao\Kami\Media\Internal\PruneMediaCommand;
 use Psyao\Kami\Media\Internal\StripMetadata;
 use Psyao\Kami\Media\Internal\WarmMediaCommand;
+use Psyao\Kami\Routing\Internal\CachePages;
+use Psyao\Kami\Routing\Internal\ClearCacheCommand;
+use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Psyao\Kami\Support\Internal\Doctor\DoctorCommand;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -46,11 +57,12 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasTranslations()
             ->hasViews()
             // ponytail: `kami:media:prune` and `kami:audit:prune` run when an operator starts them, from the shell or a host cron; M8's Tick schedules them.
-            ->hasCommands([DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void
     {
+        $this->optimizes(clear: 'kami:cache:clear');
         $this->app->singleton(PluginRegistration::class);
         $this->app->singleton(ContentTypes::class);
         $this->app->singleton(ImagePresets::class);
@@ -74,8 +86,11 @@ final class KamiServiceProvider extends PackageServiceProvider
 
         // Names only, inert until the host calls `Kami::routes()` or adds the alias to its panel; declared here, not with the route, because `route:cache` stores neither.
         $router = $this->app->make(Router::class);
-        $router->middlewareGroup('kami', [FrontSecurityHeaders::class, ResolveLocale::class]);
+        $router->middlewareGroup('kami', [CachePages::class, FrontSecurityHeaders::class, ResolveLocale::class]);
         $router->aliasMiddleware('kami.security-headers', SecurityHeaders::class);
+
+        // Every public write action dispatches one of these after commit (ADR 0029); `EntrySaved` comes with each `EntryPublished` and `EntryUnpublished`.
+        Event::listen([EntrySaved::class, EntryDuplicated::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class, MediaSaved::class, MediaDeleted::class], PageCache::invalidate(...));
 
         // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
         $this->callAfterResolving(Gate::class, Permissions::register(...));
