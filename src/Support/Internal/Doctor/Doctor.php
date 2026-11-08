@@ -14,6 +14,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,7 @@ use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
+use Psyao\Kami\Support\Internal\Install\RobotsTxt;
 use Psyao\Kami\Support\Internal\SecurityPolicy;
 use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\Internal\Permissions;
@@ -48,7 +50,7 @@ use Throwable;
  *
  * @internal
  *
- * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedLoginPage: ?string, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
+ * @phpstan-type PanelReport array{id: string, guard: string, strict: bool, path: string, domains: list<string>, remoteAvatars: bool, admits: Closure(Authenticatable): bool, middleware: list<string>, replacedLoginPage: ?string, replacedResetPage: ?string, setPasswordLink: (Closure(CanResetPassword): array{url: string, minutes: int})|null, requiresKamiMfa: bool, storesMfa: Closure(string): bool, hasMfa: Closure(Authenticatable): bool}
  */
 final readonly class Doctor
 {
@@ -103,6 +105,7 @@ final readonly class Doctor
             ...$this->missingViews(),
             ...$this->missingLabels(),
             ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia(), $this->pageCacheStorage()]),
+            ...$this->searchEngines(),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
@@ -802,6 +805,39 @@ final readonly class Doctor
             'make storage/framework/ writable by PHP, or set kami.page_cache.enabled to false.',
             'page-cache.md#storage',
         ) : null;
+    }
+
+    /**
+     * The indexable switch against the environment, `robots.txt` against what `kami:install` writes, and the host routes Kami's files would shadow (ADR 0027, ADR 0038).
+     *
+     * @return list<Problem>
+     */
+    private function searchEngines(): array
+    {
+        $env = Config::string('app.env');
+        $indexable = (bool) config('kami.indexable');
+        $robots = public_path('robots.txt');
+        $problems = [];
+
+        if ($env === 'production' && ! $indexable) {
+            $problems[] = new Problem(Severity::Warning, 'The Site is not indexable in production: search engines are kept out of it.', 'set KAMI_INDEXABLE=true once the site is launched, then run kami:install.', 'seo.md#indexable-switch');
+        } elseif ($env !== 'production' && $indexable) {
+            $problems[] = new Problem(Severity::Warning, "The Site is indexable outside production ({$env}): search engines may index this copy.", 'set KAMI_INDEXABLE=false, or remove it, then run kami:install.', 'seo.md#indexable-switch');
+        }
+
+        if (RobotsTxt::managed($robots) && File::get($robots) !== RobotsTxt::expected()) {
+            $problems[] = new Problem(Severity::Warning, 'public/robots.txt differs from what kami:install writes.', 'run kami:install, or delete its first line to own the file.', 'seo.md#robotstxt');
+        } elseif ($indexable && is_file($robots) && ! RobotsTxt::managed($robots) && preg_match('/^\s*sitemap\s*:/im', File::get($robots)) !== 1) {
+            $problems[] = new Problem(Severity::Warning, "public/robots.txt, the site's own, names no sitemap.", 'add a line Sitemap: ' . mb_rtrim(Site::current()->url, '/') . '/sitemap.xml to it.', 'seo.md#robotstxt');
+        }
+
+        foreach (['robots.txt', 'sitemap.xml'] as $file) {
+            if (RobotsTxt::hostRouteAnswers("/{$file}")) {
+                $problems[] = new Problem(Severity::Warning, "A route of the application answers /{$file}: Kami writes no public/{$file}, as the file would shadow the route.", $file === 'robots.txt' ? 'make sure it disallows the Kami panel and names the sitemap, or remove the route so kami:install writes the file.' : "list Kami's per-Locale sitemaps in yours, or remove the route.", 'seo.md#host-routes');
+            }
+        }
+
+        return $problems;
     }
 
     /** Originals keep their metadata: a disk the web server serves bypasses the stripping every Conversion goes through. */

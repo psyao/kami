@@ -98,6 +98,11 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
+        // On every deploy, before the steps that may stop it: a host answering a missing robots.txt itself disallows nothing (ADR 0027).
+        if (($robots = RobotsTxt::write()) !== null) {
+            $this->components->info($robots);
+        }
+
         if (! $this->syncPaths($syncPaths)) {
             return self::FAILURE;
         }

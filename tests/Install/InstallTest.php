@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -323,6 +324,53 @@ describe('public/media', function () {
         install()->expectsOutputToContain('kami.media.public_disk is remote, whose driver is s3')->assertFailed();
 
         expect(file_exists(public_path('media')))->toBeFalse();
+    });
+});
+
+describe('public/robots.txt', function () {
+    beforeEach(function () {
+        $this->bootWithKamiOnAPanel();
+        config(['app.url' => 'https://example.test', 'kami.sites.default.url' => 'https://example.test', 'kami.indexable' => true]);
+    });
+
+    it('writes the managed file: the panel disallowed and the sitemap named, or everything disallowed when not indexable', function (bool $indexable, string $rules) {
+        config(['kami.indexable' => $indexable]);
+
+        install()->expectsOutputToContain('Wrote public/robots.txt.')->assertSuccessful();
+
+        expect(File::get(public_path('robots.txt')))->toBe("# Managed by Kami (kami:install). Delete this line to own this file.\nUser-agent: *\n{$rules}");
+    })->with([
+        'indexable' => [true, "Disallow: /admin\n\nSitemap: https://example.test/sitemap.xml\n"],
+        'not indexable' => [false, "Disallow: /\n"],
+    ]);
+
+    it('disallows no panel at the root or on a domain of its own', function (string $path, array $domains) {
+        Filament::getPanel('admin')->path($path)->domains($domains);
+
+        install()->assertSuccessful();
+
+        expect(File::get(public_path('robots.txt')))->toBe("# Managed by Kami (kami:install). Delete this line to own this file.\nUser-agent: *\n\nSitemap: https://example.test/sitemap.xml\n");
+    })->with([
+        'root' => ['', []],
+        'own domain' => ['admin', ['admin.example.test']],
+    ]);
+
+    it('rewrites a file starting with the marker, and never touches one without it', function () {
+        File::put(public_path('robots.txt'), "# Managed by Kami (kami:install). Delete this line to own this file.\nUser-agent: *\nDisallow: /\n");
+        install()->assertSuccessful();
+        expect(File::get(public_path('robots.txt')))->toContain('Sitemap: https://example.test/sitemap.xml');
+
+        File::put(public_path('robots.txt'), "User-agent: *\nDisallow: /private\n");
+        install()->expectsOutputToContain('public/robots.txt is the site\'s own')->assertSuccessful();
+        expect(File::get(public_path('robots.txt')))->toBe("User-agent: *\nDisallow: /private\n");
+    });
+
+    it('writes nothing when a route of the application answers /robots.txt, which the file would shadow', function () {
+        Route::get('robots.txt', fn () => 'User-agent: *');
+
+        install()->expectsOutputToContain('a route of the application answers /robots.txt')->assertSuccessful();
+
+        expect(public_path('robots.txt'))->not->toBeFile();
     });
 });
 

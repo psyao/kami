@@ -143,6 +143,8 @@ Shared hosting and a server behave the same: the headers are sent by PHP on ever
 
 While `npm run dev` runs, Vite writes `public/hot`, and both profiles add its dev server's origin to `script-src`, `style-src`, `img-src`, `font-src` and `connect-src`, with its websocket for hot reloading. Nothing to configure.
 
+A CSP source cannot name an IPv6 address, so an origin on `[::1]`, where Vite lands when `localhost` resolves to IPv6, is added as `localhost` with the same scheme and port: `http://[::1]:5173` becomes `http://localhost:5173`, which Laravel's Vite plugin also answers. `127.0.0.1` is added as written. This only matters locally: shared hosting runs no dev server.
+
 That file must never reach production: pages would load their scripts from a dev server, and the policy would allow it. `kami:doctor` fails when it finds `public/hot` in production.
 
 ## Local development over HTTP

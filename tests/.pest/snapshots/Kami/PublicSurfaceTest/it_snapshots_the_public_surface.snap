@@ -297,6 +297,7 @@ component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::locales
 component x-kami::preview-banner
 config kami.audit.retention
+config kami.indexable
 config kami.media.avif
 config kami.media.max_pixels
 config kami.media.mimes.document
