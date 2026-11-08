@@ -21,6 +21,9 @@ final readonly class PageMeta
      * @param  string  $ogType  The type's `$ogType`; `website` on a page Kami does not render.
      * @param  CarbonImmutable|null  $publishedTime  For an `article`: its Translation's publication date.
      * @param  CarbonImmutable|null  $modifiedTime  For an `article`: its Entry's last save, in any Locale.
+     * @param  array<string, string>  $alternates  hreflang: the URL of each Locale the page is visible in and not Hidden from search engines, by Locale code, then `x-default` to the default Locale's; empty below two Locales, and on a hidden page.
+     * @param  string|null  $ogLocale  The page's Locale with its region (`fr_CH`), `null` without one.
+     * @param  list<string>  $ogLocaleAlternates  The other Locales of `alternates` that have a region.
      */
     public function __construct(
         public string $title,
@@ -35,5 +38,8 @@ final readonly class PageMeta
         public string $ogType = 'website',
         public ?CarbonImmutable $publishedTime = null,
         public ?CarbonImmutable $modifiedTime = null,
+        public array $alternates = [],
+        public ?string $ogLocale = null,
+        public array $ogLocaleAlternates = [],
     ) {}
 }

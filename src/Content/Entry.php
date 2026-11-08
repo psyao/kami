@@ -285,8 +285,12 @@ class Entry extends Model
         return $this->locale ?? Site::current()->currentLocale();
     }
 
-    /** The Translation read in a Locale: that Locale's, or the `'*'` one of an untranslatable type. */
-    private function translation(string $locale): ?Translation
+    /**
+     * The Translation read in a Locale: that Locale's, or the `'*'` one of an untranslatable type.
+     *
+     * @internal
+     */
+    public function translation(string $locale): ?Translation
     {
         return $this->translations->firstWhere('locale', $locale) ?? $this->translations->firstWhere('locale', '*');
     }

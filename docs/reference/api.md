@@ -518,6 +518,7 @@ What a migration calls to move data a schema change cannot express (ADR 0006). E
 
 What the page's head says to search engines and networks, as `<x-kami::seo />` prints it: read with `Kami::seo()`, as an Inertia site passes it in its props.
 
+- `public protected(set) readonly array $alternates`
 - `public protected(set) readonly ?string $canonical`
 - `public protected(set) readonly ?string $description`
 - `public protected(set) readonly ?string $image`
@@ -525,12 +526,14 @@ What the page's head says to search engines and networks, as `<x-kami::seo />` p
 - `public protected(set) readonly ?int $imageHeight`
 - `public protected(set) readonly ?int $imageWidth`
 - `public protected(set) readonly ?Carbon\CarbonImmutable $modifiedTime`
+- `public protected(set) readonly ?string $ogLocale`
+- `public protected(set) readonly array $ogLocaleAlternates`
 - `public protected(set) readonly string $ogType`
 - `public protected(set) readonly ?Carbon\CarbonImmutable $publishedTime`
 - `public protected(set) readonly ?string $robots`
 - `public protected(set) readonly string $siteName`
 - `public protected(set) readonly string $title`
-- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL)`
+- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL, array $alternates = [], ?string $ogLocale = NULL, array $ogLocaleAlternates = [])`
 
 ## `Psyao\Kami\Support\SecurityHeaders`
 

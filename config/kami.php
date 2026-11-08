@@ -37,7 +37,8 @@ return [
 
     /*
     | The Sites this installation serves, by handle. Each has its URL, its Locales (the first is the default)
-    | and the time zone its dates are displayed in; dates are stored in UTC (ADR 0004).
+    | and the time zone its dates are displayed in; dates are stored in UTC (ADR 0004). A Locale is a code, or a code
+    | with its options: `'fr' => ['region' => 'CH']` gives `og:locale` `fr_CH`, as `fr-ch` does (docs/guide/seo.md#languages).
     */
     'sites' => [
         'default' => [

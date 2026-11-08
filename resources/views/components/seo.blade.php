@@ -9,6 +9,9 @@
 <link rel="canonical" href="{{ $seo->canonical }}">
 <meta property="og:url" content="{{ $seo->canonical }}">
 @endif
+@foreach ($seo->alternates as $locale => $url)
+<link rel="alternate" hreflang="{{ $locale }}" href="{{ $url }}">
+@endforeach
 @if ($seo->robots !== null)
 <meta name="robots" content="{{ $seo->robots }}">
 @endif
@@ -18,6 +21,12 @@
 @endif
 <meta property="og:site_name" content="{{ $seo->siteName }}">
 <meta property="og:type" content="{{ $seo->ogType }}">
+@if ($seo->ogLocale !== null)
+<meta property="og:locale" content="{{ $seo->ogLocale }}">
+@endif
+@foreach ($seo->ogLocaleAlternates as $ogLocale)
+<meta property="og:locale:alternate" content="{{ $ogLocale }}">
+@endforeach
 @if ($seo->publishedTime !== null)
 <meta property="article:published_time" content="{{ $seo->publishedTime->toIso8601String() }}">
 @endif
