@@ -12,6 +12,6 @@ The brief requires CI on every supported engine (SQLite, MySQL/MariaDB, PostgreS
 
 ## Consequences
 
-- Every pull request runs the whole matrix with no minute budget: MariaDB 10.11 (PHP floor, lowest dependencies, under `tests/infomaniak.ini`), SQLite (newest PHP and dependencies, plus Pint, Larastan, Rector, coverage, gitleaks, `composer audit`, zizmor), PostgreSQL and MySQL (newest), the `Browser` suite and the shared-hosting end-to-end smoke. The `Volume` suite runs nightly on `main`.
+- Every pull request runs the whole matrix with no minute budget: MariaDB 10.11 (PHP floor, lowest dependencies, under `tests/infomaniak.ini`), SQLite (newest PHP and dependencies, plus Pint, Larastan, Rector, coverage, gitleaks, `composer audit`, zizmor), PostgreSQL and MySQL (newest), the `Browser` suite and the shared-hosting end-to-end smoke. The `Volume` suite runs on every pull request and nightly on `main`: nightly only until M6, where a fixture #351 broke stayed unseen until the milestone ritual (#376).
 - Secrets must never reach the history: gitleaks runs on every commit (lefthook) and in CI, workflows pin actions by SHA with `persist-credentials: false`, and zizmor checks them.
 - Sites' private data never enters either repository. Fixtures are synthetic, and the reference sites' content and URL inventories stay in their own private repositories.
