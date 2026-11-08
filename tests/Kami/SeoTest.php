@@ -200,6 +200,24 @@ it('links no Translation on a monolingual Site, and the Paths of an untranslatab
     $this->get('/label/urgent')->assertOk()->assertDontSee('rel="alternate"', escape: false);
 });
 
+it('adds no query with the number of a page\'s language links', function () {
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    seoArticle(['title' => 'Seul']);
+    $entry = seoArticle(['title' => 'Bonjour']);
+    seoArticle(['title' => 'Hello'], 'en', $entry);
+    seoArticle(['title' => 'Hallo'], 'de', $entry);
+    $queries = function (string $path): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->get($path)->assertOk();
+
+        return count(DB::getQueryLog());
+    };
+
+    expect($queries('/articles/bonjour'))->toBe($queries('/articles/seul'));
+    $this->get('/articles/bonjour')->assertSee('hreflang="x-default"', escape: false);
+});
+
 it('leaves hreflang out of a Preview', function () {
     $user = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
     $entry = seoArticle(['title' => 'Bonjour']);

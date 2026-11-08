@@ -18,7 +18,7 @@ final readonly class Site
      * @param  string  $timezone  The one its dates are displayed in; they are stored in UTC.
      * @param  array<string, string>  $ogLocales  `og:locale` by Locale code, for the Locales with a region (`fr_CH`).
      */
-    public function __construct(public string $handle, public string $url, public array $locales, public string $timezone, public array $ogLocales = []) {}
+    public function __construct(public string $handle, public string $url, public array $locales, public string $timezone, private array $ogLocales) {}
 
     // ponytail: the `default` Site only; V1 multisite resolves it from the request here.
     public static function current(): self
@@ -41,6 +41,12 @@ final readonly class Site
         }
 
         return new self('default', $site['url'], $locales, $site['timezone'], $ogLocales);
+    }
+
+    /** `og:locale` for a Locale with a region (`fr_CH`), `null` without one. */
+    public function ogLocale(string $locale): ?string
+    {
+        return $this->ogLocales[$locale] ?? null;
     }
 
     public function defaultLocale(): string

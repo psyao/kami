@@ -155,7 +155,7 @@ On your own routes and on error pages, pass the title and the description:
 <x-kami::seo :title="__('Contact')" :description="__('Write to us.')" />
 ```
 
-The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL and no language link; `og:type` is `website`, `og:locale` that of the default Locale, and the image is the Site's default Social image. A page Kami renders ignores both props.
+The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL and no language link; `og:type` is `website`, `og:locale` that of the page's Locale, and the image is the Site's default Social image. A page Kami renders ignores both props.
 
 ### Reading the values
 
