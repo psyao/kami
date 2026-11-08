@@ -11,6 +11,8 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 ## 0.7.0
 
 1. **Pages are cached.** With `APP_DEBUG` off, a page Kami renders is stored under `storage/framework/kami/pages/` and served again until a core write, a `kami:install`, the next scheduled publication or one hour at most ([Page cache](docs/guide/page-cache.md)). A page showing the time of day or something per visitor calls `Kami::withoutPageCache()` while it renders; code writing data a page shows without a core action, your application's tables for instance, calls `Kami::flushCache()` after it. To keep every page rendered per request, set `kami.page_cache.enabled` to `false`. `kami:doctor` warns, so `--strict` fails, when the page cache cannot write to its directory. `optimize:clear` now also clears Kami's cache.
+2. **`summary()` describes pages.** `ContentType` gains a public `summary(Entry $entry): ?string`, and `Entry` a `summary()` that calls it ([Description](docs/guide/seo.md#description)). A type of yours that already declares a `summary()` method with another signature now fails to load: rename it, or give it that signature. A Field named `summary` keeps reading as `$entry->summary`. `kami:doctor` warns, so `--strict` fails, about a type with a URL, the default `summary()` and no RichText Field: override `summary()` in it, returning `null` if it has nothing to say.
+3. **The Site settings gain `default_description`.** `kami:install` adds its column. An `EntryForm` of yours for `SiteSettings` places the new Field, or hides it with `->hidden()`, or the Site settings screen throws ([Your own form](docs/guide/content-types.md#your-own-form)).
 
 ## 0.6.0
 

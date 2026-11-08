@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Workbench\App\Content;
 
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
 use Psyao\Kami\Content\Fields\Entries;
@@ -54,5 +55,12 @@ final class Project extends ContentType
             Media::make('cover')->images(),
             Media::make('gallery')->multiple(),
         ];
+    }
+
+    /** No description of its own: its pages show the Meta description editors write, or none. */
+    #[\Override]
+    public function summary(Entry $entry): ?string
+    {
+        return null;
     }
 }

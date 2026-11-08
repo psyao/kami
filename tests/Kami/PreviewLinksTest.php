@@ -222,8 +222,8 @@ it('lifts the scope for the linked Translation only, within an exact query count
     DB::enableQueryLog();
     $this->get($url)->assertOk()->assertSee('Chantier')->assertSee('Visible')->assertDontSee('Cible en brouillon');
 
-    // The link; the Entry, its Translations and type rows; the snapshot's type rows and References; the visible targets, their Translations and type rows.
-    expect(DB::getQueryLog())->toHaveCount(9);
+    // The link; the Entry, its Translations and type rows; the snapshot's type rows and References; the visible targets, their Translations and type rows; the head's look for the Site settings and for the saved Entry's URL, a Draft's none.
+    expect(DB::getQueryLog())->toHaveCount(11);
 });
 
 it('prunes expired links only', function () {

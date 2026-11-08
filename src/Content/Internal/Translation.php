@@ -24,6 +24,9 @@ use Psyao\Kami\Content\Entry;
  * @property string|null $slug
  * @property string|null $status
  * @property CarbonImmutable|null $published_at
+ * @property string|null $meta_title
+ * @property string|null $meta_description
+ * @property bool $noindex
  * @property-read Entry $entry
  */
 #[Unguarded]
@@ -33,7 +36,10 @@ final class Translation extends Model
     use HasUlids;
 
     /** The attributes an Entry reads from its Translation. */
-    public const array ATTRIBUTES = ['title', 'slug', 'status', 'published_at'];
+    public const array ATTRIBUTES = ['title', 'slug', 'status', 'published_at', ...self::SEO];
+
+    /** What it says to search engines, on a routable type only (#23 decision 1). */
+    public const array SEO = ['meta_title', 'meta_description', 'noindex'];
 
     /** The two stored statuses; Scheduled is a published Translation whose date is to come (ADR 0019). */
     public const string DRAFT = 'draft';
@@ -52,6 +58,6 @@ final class Translation extends Model
 
     protected function casts(): array
     {
-        return ['published_at' => 'immutable_datetime'];
+        return ['published_at' => 'immutable_datetime', 'noindex' => 'boolean'];
     }
 }

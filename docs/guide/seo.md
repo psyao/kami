@@ -1,6 +1,92 @@
 # SEO
 
-One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
+Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL and robots tag, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
+
+## The head
+
+Put `<x-kami::seo />` in your layout's `<head>`, in place of its `<title>`:
+
+```blade
+<head>
+    <meta charset="utf-8">
+    <x-kami::seo />
+</head>
+```
+
+On a page Kami renders, it prints:
+
+```html
+<title>Hello – Kami</title>
+<meta name="description" content="The start of the article…">
+<link rel="canonical" href="https://example.com/en/articles/hello">
+<meta property="og:url" content="https://example.com/en/articles/hello">
+```
+
+Every value is escaped, and a tag with no value is left out.
+
+### Title
+
+The Translation's Meta title, else the page's title and the Site name through the translation string `kami::seo.title`, `:title – :site`. Change the separator in `lang/vendor/kami/{locale}/seo.php`. The page at the Site's root Path, a home Singleton for instance, shows the Site name alone.
+
+The Site name is `site_name` in the Site settings, in the page's Locale. Left blank, it reads the default Locale's, then the application's name (`APP_NAME`).
+
+### Description
+
+The Translation's Meta description, else the type's `summary()`, else the Site settings' default description on the page at the root Path only. With none of them, no tag.
+
+`summary()` defaults to the first 160 characters of the type's first RichText Field, cut at a word. Override it on the type to read another Field. `$entry->summary()` calls it; `$entry->summary`, with no call, still reads a Field you named `summary`:
+
+```php
+public function summary(Entry $entry): ?string
+{
+    return $entry->fallbackLocale('summary') === null ? $entry->summary : null;
+}
+```
+
+None of these values falls back to another Locale: a page described in another language would be described wrongly. A Field shown through the Fallback on the page is left out of its description, so check `fallbackLocale()` as above when you read one yourself.
+
+`kami:doctor` warns about a type with a URL, the default `summary()` and no RichText Field: its pages have no description unless editors write one. Override `summary()`, returning `null` if the type has nothing to say.
+
+### Canonical URL
+
+The page's absolute URL, built from the Site's declared `url`, its Locale segment and its Path. It never uses the request's host, so a forged `Host` header cannot change it, and it drops the query string, `utm_*` parameters included. `og:url` takes the same value.
+
+### Robots
+
+- `noindex, nofollow` while the Site is not [indexable](#indexable-switch);
+- `noindex` for a Translation Hidden from search engines (`noindex`);
+- `noindex` in a Preview, always;
+- no tag otherwise.
+
+### Writing the values
+
+`meta_title` (255 characters at most), `meta_description` and `noindex` are Translation attributes, one value per Locale. `SaveEntry` writes them on a type with a URL and refuses them on any other, Global Sets included:
+
+```php
+resolve(SaveEntry::class)->handle(Article::class, [
+    'meta_title' => 'A title for search results',
+    'meta_description' => 'What the article says, in a sentence.',
+    'noindex' => false,
+], $entry, 'en');
+```
+
+They read as `$entry->meta_title`, `$entry->meta_description` and `$entry->noindex`. The Site's `default_description` is a Field of `SiteSettings`, written through `SaveEntry` as its `site_name`.
+
+### Pages Kami does not render
+
+On your own routes and on error pages, pass the title and the description:
+
+```blade
+<x-kami::seo :title="__('Contact')" :description="__('Write to us.')" />
+```
+
+The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL. A page Kami renders ignores both props.
+
+### Reading the values
+
+`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots` and `siteName`, each `null` when it has no value but `title` and `siteName`. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
+
+In a Preview, the head is that of the unsaved form, with the saved URL as canonical: none while the saved Translation is not visible, a Draft for instance.
 
 ## Indexable switch
 
@@ -60,5 +146,6 @@ Apache serves a file in `public/` before Laravel sees the request, so a file wou
 
 | Subject | Shared hosting | Server |
 | --- | --- | --- |
+| **The head** | Computed in the request from the page's Entry and the Site settings, a constant number of queries; stored with the page in the [page cache](page-cache.md) | The same |
 | **`robots.txt`** | A static file `kami:install` writes over SSH; the host never answers its own | The same; Apache or nginx serve it |
 | **`X-Robots-Tag`** | Set in the request, and replayed with cached pages; on Conversions Apache serves, from the `.htaccess` `kami:install` writes | The same; on nginx, in its `location` blocks for `/media/` |

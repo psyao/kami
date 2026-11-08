@@ -8,6 +8,7 @@ return [
         'label' => 'Site settings',
         'fields' => [
             'site_name' => ['label' => 'Site name'],
+            'default_description' => ['label' => 'Default description', 'help' => 'Describes the home page to search engines when it has no description of its own.'],
         ],
     ],
 ];

@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
@@ -103,6 +104,7 @@ final readonly class Doctor
             ...$this->mfaModels($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
+            ...$this->undescribedTypes(),
             ...$this->missingLabels(),
             ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia(), $this->pageCacheStorage()]),
             ...$this->searchEngines(),
@@ -441,6 +443,27 @@ final readonly class Doctor
             "create resources/views/kami/{$type->handle()}.blade.php, or override render() in " . $type::class . '.',
             'routing-and-rendering.md#rendering',
         ), $viewless));
+    }
+
+    /**
+     * A routable type whose `summary()` is the default with no RichText Field to read: its pages have no description but a Meta description.
+     *
+     * @return list<Problem>
+     */
+    private function undescribedTypes(): array
+    {
+        $undescribed = array_filter(
+            resolve(ContentTypes::class)->all(),
+            fn (ContentType $type): bool => $type->isRoutable() && new ReflectionMethod($type, 'summary')->getDeclaringClass()->getName() === ContentType::class
+                && array_filter($type->flatFields(), fn (Field $field): bool => $field instanceof RichText) === [],
+        );
+
+        return array_values(array_map(fn (ContentType $type): Problem => new Problem(
+            Severity::Warning,
+            "The Content Type {$type->handle()} has no RichText Field for summary() to read: its pages have no description unless editors write one.",
+            'override summary() in ' . $type::class . ' to return a Field, or add a RichText Field.',
+            'seo.md#description',
+        ), $undescribed));
     }
 
     /** @return list<string> */

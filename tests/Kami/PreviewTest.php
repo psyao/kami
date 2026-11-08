@@ -241,11 +241,11 @@ it('leaves a Draft target out and renders within an exact query count, under str
     DB::enableQueryLog();
     $this->get($url)->assertOk()->assertSee('Visible')->assertDontSee('Brouillon');
 
-    // The visible targets, their Translations and type rows: the Preview itself comes from the cache. The manager's authenticator, read by the MFA requirement, is not the Preview's.
-    expect(previewQueries())->toHaveCount(3);
+    // The visible targets, their Translations and type rows: the Preview itself comes from the cache. The head reads the Site settings, and looks for the saved Entry's canonical URL: a Draft has none. The manager's authenticator, read by the MFA requirement, is not the Preview's.
+    expect(previewQueries())->toHaveCount(5);
 });
 
-it('renders a rich text Preview with no query, under strict mode', function () {
+it('renders a rich text Preview with no query of its own, under strict mode', function () {
     $page = previewPage(EditEntry::class, ['record' => previewedArticle()->id])
         ->fillForm(['body' => RichTextInput::toEditor(['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Du texte riche']]]]])])
         ->call('preview');
@@ -255,8 +255,8 @@ it('renders a rich text Preview with no query, under strict mode', function () {
     DB::enableQueryLog();
     $this->get($url)->assertOk()->assertSee('<p>Du texte riche</p>', escape: false);
 
-    // Everything comes from the cache.
-    expect(previewQueries())->toBeEmpty();
+    // Everything comes from the cache but the head's: the Site settings, and the saved Entry for its canonical URL.
+    expect(previewQueries())->toHaveCount(4);
 });
 
 it('shows the Preview banner in a Preview only', function () {

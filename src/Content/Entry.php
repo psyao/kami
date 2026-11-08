@@ -40,6 +40,9 @@ use Psyao\Kami\Sites\Internal\Site;
  * @property-read string|null $slug
  * @property-read string|null $status `draft` or `published`.
  * @property-read CarbonImmutable|null $published_at
+ * @property-read string|null $meta_title Its Meta title in the Locale it is read in, never another's.
+ * @property-read string|null $meta_description Its Meta description in the Locale it is read in, never another's.
+ * @property-read bool|null $noindex Whether it is Hidden from search engines in the Locale it is read in; `null` before it is saved.
  * @property-read int $position Its hand-set place among its siblings, on an orderable type.
  * @property-read string|null $parent_id Its Parent's id, on a hierarchical type.
  * @property-read int|string|null $created_by The Creator's User key.
@@ -169,10 +172,12 @@ class Entry extends Model
             return $this->translation($this->readLocale())?->getAttribute($key);
         }
 
-        $field = array_key_exists($key, $this->attributes) || method_exists($this, $key) ? null : $this->field($key);
+        // `summary` is both: the method is the type's hook, the attribute a Field a type may declare (#402).
+        $field = array_key_exists($key, $this->attributes) || ($key !== 'summary' && method_exists($this, $key)) ? null : $this->field($key);
 
         if (! $field instanceof Field) {
-            return parent::getAttribute($key);
+            // Eloquent would take the `summary()` method for a relation and throw: absent, as any missing attribute.
+            return $key === 'summary' ? $this->throwMissingAttributeExceptionIfApplicable($key) : parent::getAttribute($key);
         }
 
         if ($field->isReference()) {
@@ -244,6 +249,12 @@ class Entry extends Model
         }
 
         return Visibility::isVisible($this->translations->firstWhere('locale', $default)) ? $default : null;
+    }
+
+    /** Its type's `summary()`: the page's description when it has no Meta description. `$entry->summary`, with no call, reads a Field of that name. */
+    public function summary(): ?string
+    {
+        return $this->contentType()?->summary($this);
     }
 
     /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL. */

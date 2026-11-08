@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Workbench\App\Content;
 
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Textarea;
 
 /** A translatable type at the root of the Site, with no Prefix, in a tree ordered by hand. */
@@ -24,5 +25,12 @@ final class Page extends ContentType
         return [
             Textarea::make('body'),
         ];
+    }
+
+    /** No description of its own: its pages show the Meta description editors write, or none. */
+    #[\Override]
+    public function summary(Entry $entry): ?string
+    {
+        return null;
     }
 }

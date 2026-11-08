@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
@@ -87,13 +88,14 @@ it('escapes markup in a title and a Field value', function () {
 
 it('renders an Entry page in an exact number of queries', function () {
     saveArticle();
+    resolve(SaveEntry::class)->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr');
     expect(Model::preventsLazyLoading())->toBeTrue();
 
     DB::enableQueryLog();
     $this->get('/articles/hello-world')->assertOk();
 
-    // The Path, the Entry with its visibility, its Translations, its type rows.
-    expect(DB::getQueryLog())->toHaveCount(4);
+    // The Path, the Entry with its visibility, its Translations, its type rows; the head's Site settings, their Translations and type rows.
+    expect(DB::getQueryLog())->toHaveCount(7);
 });
 
 it('renders related Entries in pick order, a Draft left out, in an exact number of queries', function () {
@@ -105,8 +107,8 @@ it('renders related Entries in pick order, a Draft left out, in an exact number 
     DB::enableQueryLog();
     $response = $this->get('/project/kami')->assertOk()->assertSeeInOrder(['Last', 'First'])->assertDontSee('Hidden');
 
-    // The page's four, the rows, the targets, their Translations, the Articles' rows, the view's `tags` and `cover` rows.
-    expect(DB::getQueryLog())->toHaveCount(10);
+    // The page's four, the rows, the targets, their Translations, the Articles' rows, the view's `tags` and `cover` rows, the head's look for the Site settings.
+    expect(DB::getQueryLog())->toHaveCount(11);
     $response->assertSee('/articles/last');
 });
 

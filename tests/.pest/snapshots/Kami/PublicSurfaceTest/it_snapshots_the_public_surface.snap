@@ -68,6 +68,7 @@ class Psyao\Kami\Content\ContentType::optionLabel() final public function option
 class Psyao\Kami\Content\ContentType::pluralLabel() final public function pluralLabel(): string
 class Psyao\Kami\Content\ContentType::render() public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Content\ContentType::sectionLabel() final public function sectionLabel(string $section): string
+class Psyao\Kami\Content\ContentType::summary() public function summary(Psyao\Kami\Content\Entry $entry): ?string
 class Psyao\Kami\Content\ContentType::tabLabel() final public function tabLabel(string $tab): string
 class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Content\Entry::$forceDeleting protected $forceDeleting = false
@@ -76,6 +77,7 @@ class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminat
 class Psyao\Kami\Content\Entry::langAttribute() public function langAttribute(string $field): Illuminate\Support\HtmlString
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
 class Psyao\Kami\Content\Entry::ordered() protected function ordered(Illuminate\Database\Eloquent\Builder $query): void
+class Psyao\Kami\Content\Entry::summary() public function summary(): ?string
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Events\EntryDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
@@ -208,6 +210,7 @@ class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed
 class Psyao\Kami\Kami::routes() public function routes(): void
+class Psyao\Kami\Kami::seo() public function seo(): Psyao\Kami\Seo\PageMeta
 class Psyao\Kami\Kami::withoutPageCache() public function withoutPageCache(): void
 class Psyao\Kami\KamiServiceProvider final class extends Spatie\LaravelPackageTools\PackageServiceProvider
 class Psyao\Kami\KamiServiceProvider::configurePackage() public function configurePackage(Spatie\LaravelPackageTools\Package $package): void
@@ -252,6 +255,13 @@ class Psyao\Kami\Schema\ContentMigrator::makeTypeShared() public static function
 class Psyao\Kami\Schema\ContentMigrator::makeTypeTranslatable() public static function makeTypeTranslatable(string $type, string $locale): void
 class Psyao\Kami\Schema\ContentMigrator::renameField() public static function renameField(string $type, string $from, string $to): void
 class Psyao\Kami\Schema\ContentMigrator::renameType() public static function renameType(string $from, string $to): void
+class Psyao\Kami\Seo\PageMeta final readonly class
+class Psyao\Kami\Seo\PageMeta::$canonical public protected(set) readonly ?string $canonical
+class Psyao\Kami\Seo\PageMeta::$description public protected(set) readonly ?string $description
+class Psyao\Kami\Seo\PageMeta::$robots public protected(set) readonly ?string $robots
+class Psyao\Kami\Seo\PageMeta::$siteName public protected(set) readonly string $siteName
+class Psyao\Kami\Seo\PageMeta::$title public protected(set) readonly string $title
+class Psyao\Kami\Seo\PageMeta::__construct() public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName)
 class Psyao\Kami\Support\SecurityHeaders final class
 class Psyao\Kami\Support\SecurityHeaders::handle() public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Users\Actions\AssignRoles final class
@@ -296,6 +306,7 @@ component x-kami::date ['value', 'format' => 'LL', 'day' => false]
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::locales
 component x-kami::preview-banner
+component x-kami::seo ['title' => null, 'description' => null]
 config kami.audit.retention
 config kami.indexable
 config kami.media.avif

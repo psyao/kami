@@ -21,10 +21,13 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryUnpublished;
+use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
@@ -212,11 +215,10 @@ final class SaveEntry
             }
         }
 
-        $attributes = match (true) {
-            $contentType instanceof GlobalSet => ['title'],
-            $contentType->hasSlug() => Translation::ATTRIBUTES,
-            default => array_diff(Translation::ATTRIBUTES, ['slug']),
-        };
+        $attributes = $contentType instanceof GlobalSet ? ['title'] : array_diff(Translation::ATTRIBUTES, [
+            ...($contentType->hasSlug() ? [] : ['slug']),
+            ...($contentType->isRoutable() ? [] : Translation::SEO),
+        ]);
         $outOfScope = array_keys(Arr::except($values, [...array_keys($fields), ...($writesTranslation ? $attributes : []), ...($contentType->isOrderable() ? ['position'] : []), ...($contentType->isHierarchical() ? ['parent'] : [])]));
 
         // Laravel's own `prohibited` message, translated and named as the host's other errors are.
@@ -275,6 +277,11 @@ final class SaveEntry
             $data['slug'] = $data['slug'] === '' ? null : $data['slug'];
         }
 
+        if ($writesTranslation) {
+            // Its column takes no null: a blank or a type with no URL stores "not hidden".
+            $data['noindex'] ??= false;
+        }
+
         $publishing = ! $draft && ($data['status'] ?? null) === Translation::PUBLISHED;
         $rules = $writesTranslation ? [
             // A Singleton's form has no slug: what its Prefix breaks shows on the title.
@@ -282,6 +289,10 @@ final class SaveEntry
             ...($contentType->hasSlug() ? ['slug' => [$publishing ? 'required' : 'nullable', 'string', 'max:255', $this->pathRule($contentType, $site, $locale)]] : []),
             'status' => ['required', 'in:draft,published'],
             'published_at' => ['nullable', 'date'],
+            // As a Text, a Textarea and a Boolean Field check their own columns.
+            ...Text::make('meta_title')->rulesAt('meta_title', false),
+            ...Textarea::make('meta_description')->rulesAt('meta_description', false),
+            ...Boolean::make('noindex')->rulesAt('noindex', false),
         ] : [];
 
         if ($contentType->isOrderable()) {
