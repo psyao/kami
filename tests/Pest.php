@@ -89,7 +89,7 @@ function signInPassword(mixed $page, string $email): mixed
 /**
  * The page once its document has loaded and Livewire has started its components, so a field filled now is not emptied by Alpine and a button pressed now acts.
  *
- * ponytail: stands in for `waitForEvent('load')`, which sends nothing in pest-plugin-browser 5.2.0 (`Page::waitForLoadState()` never runs the client's generator, #396); drop it once that is fixed upstream.
+ * ponytail: stands in for `waitForEvent('load')`, which sends nothing in pest-plugin-browser 5.2.0 (`Page::waitForLoadState()` never runs the client's generator, #396); #420 drops it once that is fixed upstream.
  */
 function livewireStarted(mixed $page): mixed
 {

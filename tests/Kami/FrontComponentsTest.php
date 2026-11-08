@@ -49,6 +49,13 @@ it('renders no switcher for an Entry visible in one Locale, nor without a curren
     expect(Blade::render('<x-kami::locales />'))->toBe('');
 });
 
+it('renders no switcher on a Site with one Locale', function () {
+    config(['kami.sites.default.locales' => ['fr']]);
+    localisedArticle('fr', ['title' => 'Bonjour']);
+
+    $this->get('/articles/bonjour')->assertOk()->assertDontSee('kami-locales');
+});
+
 it('shows a moment in the Site\'s time zone and the page\'s language, its datetime in UTC', function () {
     $moment = CarbonImmutable::parse('2026-02-28 23:30', 'UTC');
     app()->setLocale('fr');

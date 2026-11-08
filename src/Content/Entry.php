@@ -208,7 +208,7 @@ class Entry extends Model
     /**
      * ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
      *
-     * `<p{{ $entry->langAttribute('subtitle') }}>{{ $entry->subtitle }}</p>`. A RichText Field and `<x-kami::image>` mark it themselves.
+     * `<p{{ $entry->langAttribute('subtitle') }}>{{ $entry->subtitle }}</p>`. A RichText or Markdown value and `<x-kami::image>`'s alt text mark it themselves.
      */
     public function langAttribute(string $field): HtmlString
     {
