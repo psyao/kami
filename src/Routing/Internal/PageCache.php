@@ -7,6 +7,7 @@ namespace Psyao\Kami\Routing\Internal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Seo\Internal\Sitemap;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -70,6 +71,14 @@ final class PageCache
             : null;
     }
 
+    /** The visibility change the manifest records, once it has passed, as a Unix timestamp. */
+    public static function passedChange(): ?int
+    {
+        $next = self::manifest()['next_change_at'] ?? null;
+
+        return $next !== null && $next <= now()->getTimestamp() ? $next : null;
+    }
+
     /**
      * Makes every cached page and fragment stale: a new Content version, with the next visibility change recomputed, in one atomic write; old versions' files go after the response.
      * A failure is reported, never thrown, as the write it follows has committed; the next request finds the manifest unknown and tries again.
@@ -78,6 +87,11 @@ final class PageCache
     {
         $version = bin2hex(random_bytes(8));
         request()->attributes->set(self::VERSION, $version);
+
+        // The manifest about to be rewritten may hold a change that has passed: the sitemap must still see it (#410).
+        if (($passed = self::passedChange()) !== null) {
+            Sitemap::markStale($passed);
+        }
 
         rescue(function () use ($version): void {
             if (! File::isDirectory(self::directory())) {

@@ -250,6 +250,22 @@ docker compose run -T --rm cli php artisan down >/dev/null
 expect 503 /smoke
 docker compose run -T --rm cli php artisan up >/dev/null
 
+# The sitemap (psyao/kami#410): missing, both files are built through the `!-f` fallback by the first request, then
+# Apache serves them without PHP.
+docker compose run -T --rm cli rm -rf public/sitemap.xml public/sitemaps
+expect 200 /sitemap.xml
+sitemap=$(curl --silent --show-error --header 'X-Forwarded-Proto: https' "$base_url/sitemaps/fr-1.xml" || true)
+if grep -qF '/smoke</loc>' <<<"$sitemap"; then
+    echo "GET /sitemaps/fr-1.xml: lists /smoke"
+else
+    echo "GET /sitemaps/fr-1.xml: does not list /smoke"
+    failed=1
+fi
+docker compose stop php >/dev/null 2>&1
+expect 200 /sitemap.xml
+expect 200 /sitemaps/fr-1.xml
+docker compose up --detach --wait php >/dev/null 2>&1
+
 logs=$(docker compose exec -T php sh -c 'cat /var/log/php/error.log /var/www/site/storage/logs/*.log 2>/dev/null' || true)
 if [ -n "$logs" ]; then
     echo "The error logs are not empty:"

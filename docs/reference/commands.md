@@ -56,6 +56,10 @@ Generate the Conversions of every Media item, or of those an Entry uses, skippin
 - `[--entry [ENTRY]]`: Only the Media items this Entry uses, by its id
 - `[--preset [PRESET]]`: Only these Image Presets; file for a document's or an SVG's own file
 
+## `kami:sitemap`
+
+Rebuild the sitemap when it is stale
+
 ## `kami:user:grant`
 
 Give a Role to an existing User, found by email

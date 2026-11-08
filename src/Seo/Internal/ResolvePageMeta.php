@@ -36,7 +36,7 @@ final class ResolvePageMeta
         $article = $type->ogType() === 'article';
         $site = Site::current();
         $locale = $entry->readLocale();
-        $alternates = $preview || $entry->noindex === true ? [] : self::alternates($site, $entry);
+        $alternates = $preview || $entry->noindex === true ? [] : self::alternates($site, self::indexableUrls($site, $entry));
 
         return new PageMeta(
             title: self::filled($entry->meta_title) ?? self::title($home ? null : $entry->title, $siteName),
@@ -86,14 +86,23 @@ final class ResolvePageMeta
     }
 
     /**
-     * The Entry's URL in each Locale it is visible in and not Hidden from search engines, with `x-default` to the default Locale's; none below two.
+     * The Entry's URL in each Locale it is visible in and not Hidden from search engines: what the sitemap lists and the language links name.
      *
      * @return array<string, string>
      */
-    private static function alternates(Site $site, Entry $entry): array
+    public static function indexableUrls(Site $site, Entry $entry): array
     {
-        $urls = array_filter(array_combine($site->locales, array_map(fn (string $locale): ?string => $entry->translation($locale)?->noindex === true ? null : $entry->url($locale), $site->locales)));
+        return array_filter(array_combine($site->locales, array_map(fn (string $locale): ?string => $entry->translation($locale)?->noindex === true ? null : $entry->url($locale), $site->locales)));
+    }
 
+    /**
+     * The language links between those URLs, with `x-default` to the default Locale's; none below two.
+     *
+     * @param  array<string, string>  $urls  From `indexableUrls()`.
+     * @return array<string, string>
+     */
+    public static function alternates(Site $site, array $urls): array
+    {
         if (count($urls) < 2) {
             return [];
         }

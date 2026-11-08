@@ -23,6 +23,7 @@ use Psyao\Kami\Users\KamiUser;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
+use Workbench\App\Content\Label;
 use Workbench\App\Models\User as WorkbenchUser;
 
 /** A second Singleton on Home's address. */
@@ -379,6 +380,46 @@ describe('public/robots.txt', function () {
         install()->expectsOutputToContain('a route of the application answers /robots.txt')->assertSuccessful();
 
         expect(public_path('robots.txt'))->not->toBeFile();
+    });
+});
+
+describe('the sitemap', function () {
+    beforeEach(function () {
+        $this->bootWithTypes([Label::class]);
+        // Its state lives in storage/, which the skeleton keeps from one run to the next.
+        $this->app->useStoragePath($this->storage = temporaryPath());
+        File::ensureDirectoryExists($this->storage);
+        config(['kami.sites.default.locales' => ['fr']]);
+    });
+
+    afterEach(function () {
+        File::deleteDirectory($this->storage);
+    });
+
+    // Until M8's Tick, a deploy is shared hosting's only rebuild.
+    it('rebuilds a stale sitemap, and leaves a fresh one', function () {
+        $this->travelTo('2026-11-08 10:00:00');
+        install()->expectsOutputToContain('Wrote the sitemap: 0 URLs.')->assertSuccessful();
+        resolve(SaveEntry::class)->handle(Label::class, ['title' => 'Partout', 'status' => 'published']);
+
+        $this->travelTo('2026-11-08 10:01:00');
+        install()->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+
+        $this->travelTo('2026-11-08 10:02:00');
+        install()->doesntExpectOutputToContain('Wrote the sitemap')->assertSuccessful();
+        expect(public_path('sitemap.xml'))->toBeFile();
+    });
+
+    it('makes the sitemap stale when Paths follow a new Locale', function () {
+        $this->travelTo('2026-11-08 10:00:00');
+        install()->assertSuccessful();
+        resolve(SaveEntry::class)->handle(Label::class, ['title' => 'Partout', 'status' => 'published']);
+        $this->travelTo('2026-11-08 10:01:00');
+        install()->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+
+        $this->travelTo('2026-11-08 10:02:00');
+        config(['kami.sites.default.locales' => ['fr', 'en']]);
+        install()->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
     });
 });
 

@@ -8,7 +8,7 @@ Kami runs on PHP 8.5 or later, on the command line and on the web. On shared hos
 
 PHP extensions:
 
-- **Required:** ctype, dom, fileinfo, filter, hash, iconv, intl, json, libxml, mbstring, openssl, pcre, session, tokenizer, xmlreader, zip, and the PDO driver of your database (`pdo_sqlite`, `pdo_mysql` or `pdo_pgsql`).
+- **Required:** ctype, dom, fileinfo, filter, hash, iconv, intl, json, libxml, mbstring, openssl, pcre, session, tokenizer, xmlreader, xmlwriter, zip, and the PDO driver of your database (`pdo_sqlite`, `pdo_mysql` or `pdo_pgsql`).
 - **Recommended:** gd or imagick. Kami runs without either, but will need one to resize images.
 
 ### Writable directories

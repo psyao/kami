@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static mixed remember(string $key, \DateTimeInterface|\DateInterval|int $ttl, \Closure $callback)
  * @method static void withoutPageCache()
  * @method static void flushCache()
+ * @method static list<string> sitemapUrls()
  *
  * @see \Psyao\Kami\Kami
  */

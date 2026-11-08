@@ -65,7 +65,13 @@ It only answers what Kami has cached, its own pages, and lets every other reques
 - **Dashboard widgets.** `KamiPlugin` adds three widgets to the panel's dashboard, after your own: **Recently edited**, **Scheduled** and **Needs attention**, each shown only to a User allowed to see it. A dashboard page of yours that lists its own widgets in `getWidgets()` decides whether they appear. They cannot be turned off otherwise yet.
 - **Global search on Kami's panel.** Filament's own search leaves Kami's types out, so the panel carrying `KamiPlugin` gets Kami's, which searches Entries first and then your Resources, as Filament's does. A provider of your own, or `->globalSearch(false)`, wins; your other panels keep Filament's.
 
-Kami adds no route or scheduled task to your application until you ask for them, and applies no middleware to your routes or your panel: it only names the `kami` middleware group and the `kami.security-headers` alias.
+- **The sitemap.** Kami writes `public/sitemaps/` and, unless one of your routes answers `/sitemap.xml`, `public/sitemap.xml`. It registers `kami:sitemap` `hourly()` in Laravel's scheduler, which rebuilds them when stale ([SEO](seo.md#sitemap)).
+
+Kami adds no route to your application until you call `Kami::routes()`, and applies no middleware to your routes or your panel: it only names the `kami` middleware group and the `kami.security-headers` alias.
+
+## Your own sitemap
+
+When your application answers `/sitemap.xml` itself, Kami writes no index over it, and `kami:doctor` says so. List Kami's per-Locale files in your index with `Kami::sitemapUrls()`, which returns their absolute URLs ([SEO](seo.md#host-routes)).
 
 ## Testing your site
 

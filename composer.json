@@ -22,6 +22,7 @@
     "require": {
         "php": "^8.5",
         "ext-fileinfo": "*",
+        "ext-xmlwriter": "*",
         "filament/filament": "^5.10.2",
         "intervention/image": "^4.2",
         "laravel/framework": "^13.32",

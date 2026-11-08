@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Psyao\Kami\Content\Entry;
 
 /**
@@ -27,6 +28,7 @@ use Psyao\Kami\Content\Entry;
  * @property string|null $meta_title
  * @property string|null $meta_description
  * @property bool $noindex
+ * @property Carbon|null $updated_at
  * @property-read Entry $entry
  */
 #[Unguarded]

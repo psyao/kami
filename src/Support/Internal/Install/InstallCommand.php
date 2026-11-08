@@ -27,6 +27,7 @@ use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\ChecksPrompting;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
@@ -116,6 +117,9 @@ final class InstallCommand extends Command
         // Kami 0.6's per-Site files, which the manifest replaced.
         File::delete(File::glob(storage_path('framework/kami/visibility-*.json')));
 
+        // ponytail: shared hosting has no scheduler to run kami:sitemap until M8's Tick: each deploy rebuilds a stale sitemap meanwhile.
+        $this->call('kami:sitemap');
+
         $this->components->info('Kami is installed.');
 
         return self::SUCCESS;
@@ -153,6 +157,11 @@ final class InstallCommand extends Command
     {
         $result = $syncPaths();
         $this->components->info("Paths: {$result['created']} created, {$result['rewritten']} rewritten, {$result['deleted']} deleted.");
+
+        // A Prefix or a Locale changed what the sitemap lists, with no core write to say so.
+        if ($result['created'] + $result['rewritten'] + $result['deleted'] > 0) {
+            Sitemap::markStale();
+        }
 
         foreach ($result['clashes'] as $clash) {
             $this->components->error("Entry {$clash['entry_id']} cannot take /{$clash['path']} in {$clash['locale']}: Entry {$clash['holder']} holds it. Change one of the two slugs, then run kami:install again.");
