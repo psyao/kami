@@ -10,6 +10,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
+use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
 
@@ -106,6 +107,22 @@ it('moves Entries to their new addresses after a Prefix change', function () {
         'fr label/urgent' => $label->id,
         'fr pages/a-propos' => $about->id,
     ]);
+});
+
+it('keeps a once-public Translation\'s former address as a 301 to its Entry, and rewrites a never-public one in place', function () {
+    installedSite();
+    $about = saved(Page::class, ['title' => 'À propos', 'slug' => 'a-propos'], locale: 'fr');
+    saved(Page::class, ['title' => 'About', 'slug' => 'about', 'status' => 'draft'], $about, 'en');
+    config(['kami.types' => [PageUnderPages::class, Label::class]]);
+
+    install()->expectsOutputToContain('Paths: 0 created, 2 rewritten, 0 deleted.')->assertSuccessful();
+
+    expect(DB::table('kami_paths')->where('status', '!=', 200)->get(['locale', 'path', 'entry_id', 'status'])->map(fn (object $row) => (array) $row)->all())
+        ->toBe([['locale' => 'fr', 'path' => 'a-propos', 'entry_id' => $about->id, 'status' => 301]]);
+
+    Kami::routes();
+    $this->get('/a-propos')->assertMovedPermanently()->assertRedirectContains('/pages/a-propos');
+    $this->get('/en/about')->assertNotFound();
 });
 
 it('gives untranslatable Entries a Path in a new Locale, and nothing else', function () {

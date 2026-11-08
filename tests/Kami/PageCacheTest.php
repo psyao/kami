@@ -269,3 +269,12 @@ it('recomputes the version once per request when storage/ cannot be written, and
     chmod($pages, 0755);
     expect(array_filter(DB::getQueryLog(), fn (array $query): bool => str_contains($query['query'], 'min(')))->toHaveCount(1);
 });
+
+it('answers a moved address with its 301 at once, never the 200 it stored there', function () {
+    $entry = cachedArticle();
+    $this->get('/articles/hello-world')->assertOk();
+
+    resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+
+    $this->get('/articles/hello-world')->assertMovedPermanently();
+});

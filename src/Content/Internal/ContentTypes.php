@@ -112,8 +112,8 @@ final class ContentTypes
             $handles[$type->handle()] = $class;
             $this->validateModel($class, $type);
 
-            if (explode('/', Path::of($type, 'slug') ?? '')[0] === Path::MEDIA) {
-                throw new InvalidArgumentException("{$class}: the Prefix \"{$type->prefix()}\" is reserved for Media Conversions; set another \$prefix.");
+            if (Path::isReserved(Path::of($type, 'slug') ?? '')) {
+                throw new InvalidArgumentException("{$class}: the Prefix \"{$type->prefix()}\" takes a segment Kami answers itself (" . implode(', ', [...Path::RESERVED_SEGMENTS, ...Path::RESERVED_PATHS]) . '); set another $prefix.');
             }
             $fields = [];
 

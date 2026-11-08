@@ -28,11 +28,23 @@ A [Singleton](content-types.md#singletons)'s Path is its Prefix, and a [type wit
 
 An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404. The address of an Entry [deleted for good](content-types.md#deleting-for-good) answers 301 to its replacement's current URL, or 410 Gone.
 
+### Changing an address
+
+When a slug or a Prefix changes, the former address keeps answering, as a 301 to the Entry's current URL, once the Translation has been public: its publication date has passed, even if it was unpublished since. A Redirect always leads to the final address in one step, so a bookmark, a search result or a browser's cached Redirect never ends on a 404. A Translation never public moves without leaving anything behind.
+
+A Redirect lasts until another Entry takes its address, which replaces it. A Draft given a past publication date by hand counts as public too: its former address answers 404 until the Entry is visible, then redirects.
+
+### Reserved paths
+
+Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, and `sitemap.xml` and `robots.txt` whole. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, and a type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
+
+Adding a Locale later can hide a Path saved before: a page at `/de/about` stops answering once `de` is a Locale. `kami:doctor` lists those Paths; change their slug.
+
 ## After a deploy
 
 Saving an Entry reserves its Path, a Draft's included. A change in code moves Paths only when `kami:install` runs, as every deploy does ([Deployment](deployment.md#later-deploys)):
 
-- a new Prefix moves the type's Entries to their new addresses; Kami does not redirect the former ones yet, so they answer 404;
+- a new Prefix moves the type's Entries to their new addresses; the former ones redirect there [once public](#changing-an-address);
 - a new Locale gives each Entry of an untranslatable type its Path there;
 - a Path whose Translation is gone is deleted.
 

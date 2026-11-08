@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Http\Client\ConnectionException;
@@ -35,6 +36,7 @@ use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\PageCache;
+use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Sites\Internal\Site;
@@ -109,7 +111,7 @@ final readonly class Doctor
             ...$this->missingLabels(),
             ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia(), $this->pageCacheStorage()]),
             ...$this->searchEngines(),
-            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent()] : []),
+            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
@@ -545,6 +547,31 @@ final readonly class Doctor
             "Paths do not follow the declarations yet: kami:install would create {$drift['created']}, rewrite {$drift['rewritten']} and delete {$drift['deleted']}.",
             'run php artisan kami:install, as every deploy does: until then, Entries answer at their former addresses.',
             'routing-and-rendering.md#after-a-deploy',
+        );
+    }
+
+    /** Paths saved before a Locale or a segment Kami answers was declared: `ResolveLocale` or Kami's own route answers their address in the default Locale (ADR 0008). */
+    private function hiddenPaths(): ?Problem
+    {
+        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
+        $site = Site::current();
+        $segments = [...Path::RESERVED_SEGMENTS, ...array_slice($site->locales, 1)];
+        // 200 rows only: a hidden Redirect or 410 has no slug to change, and no screen manages Redirects before M10.
+        $hidden = Path::query()->where(['site' => $site->handle, 'locale' => $site->defaultLocale(), 'status' => 200])
+            ->where(function (Builder $query) use ($segments): void {
+                foreach ([...Path::RESERVED_PATHS, ...$segments] as $reserved) {
+                    $query->orWhere('path', 'like', "{$reserved}%");
+                }
+            })
+            ->orderBy('path')->get(['path'])->map(fn (Path $row): string => $row->path)
+            // LIKE matches more: `_` in a Locale code reads as any character, and `media` matches `medias`.
+            ->filter(fn (string $path): bool => Path::isReserved($path) || in_array(explode('/', $path)[0], $segments, true))->values();
+
+        return $hidden->isEmpty() ? null : new Problem(
+            Severity::Warning,
+            "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' of the default Locale ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code or a segment Kami answers itself: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
+            "change their slug, or their type's Prefix: until then, they answer nowhere.",
+            'routing-and-rendering.md#reserved-paths',
         );
     }
 

@@ -244,7 +244,6 @@ final class EntryResource extends FilamentResource
                     }
                 })] : []),
             ...($hasSlug ? [TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
-                // ponytail: a warning, as the old address answers 404; M7's redirect on slug change removes it.
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help'))] : []),
             ...(self::type()->isHierarchical() ? [self::parentInput()] : []),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),

@@ -69,7 +69,7 @@ A handle is snake_case (lowercase letters and digits, words joined by single und
 | `'articles'` | `/articles/hello` |
 | `''` | `/hello` |
 
-`media` is reserved for [Media Conversions](media.md#conversions): a Prefix starting with it, or a type with no `$prefix` whose handle is `media`, fails like an invalid handle.
+A Prefix may not take a segment Kami answers itself ([Reserved paths](routing-and-rendering.md#reserved-paths)): one starting with `media`, `sitemaps` or `kami`, or a type with no `$prefix` whose handle is one of them, fails like an invalid handle.
 
 Changing a Prefix moves the type's Entries on the next `kami:install` ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
@@ -652,7 +652,7 @@ ContentMigrator::makeTranslatable('article', 'summary'); // Every Text and Texta
 
 Back to untranslatable, it is `makeTypeShared('article', keep: 'fr')` and `makeShared('article', 'summary', keep: 'fr')`.
 
-The next `kami:install` runs the migration, then moves Paths to follow. A renamed type's default Prefix follows its handle, so its addresses change and the former ones answer 404: keep them with `$prefix`. Rename the type in your `kami-types` labels and `config/kami.php` Roles too, and in views, as nothing in the database holds them.
+The next `kami:install` runs the migration, then moves Paths to follow. A renamed type's default Prefix follows its handle, so its addresses change and the former ones redirect to the new ones once public ([Changing an address](routing-and-rendering.md#changing-an-address)): keep them with `$prefix`. Rename the type in your `kami-types` labels and `config/kami.php` Roles too, and in views, as nothing in the database holds them.
 
 Each operation works in batches, but for `renameType`'s one update, and runs from the command line, so it can take as long as the Entries need. An operation that stops can run again: a batch that moves values is one transaction, and a second `renameType` finishes what the first left, while two unrelated types still clash. It knows its own table by the constraint names still following the old handle, so a hand-written table with none stays refused, and so does a `renameType` that finished but whose migration was not recorded: take the call out of `up()`. They have no `down()`: going back is a new migration with the inverse call, `makeShared` for `makeTranslatable` while the Locales agree, the same rename with its arguments swapped. A drop cannot be undone.
 
