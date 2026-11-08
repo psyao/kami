@@ -84,17 +84,11 @@ final class BenchCommand extends Command
     {
         $result = json_decode((string) @file_get_contents(self::resultPath()), true);
 
-        if (! is_array($result) || ! is_string($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ! is_numeric($result['cached_ms'] ?? null) || ! is_numeric($result['uncached_ms'] ?? null)) {
+        if (! is_array($result) || ! is_int($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ! is_numeric($result['cached_ms'] ?? null) || ! is_numeric($result['uncached_ms'] ?? null)) {
             return null;
         }
 
-        try {
-            $measuredAt = CarbonImmutable::parse($result['measured_at']);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return ['measured_at' => $measuredAt, 'url' => $result['url'], 'cached_ms' => (float) $result['cached_ms'], 'uncached_ms' => (float) $result['uncached_ms']];
+        return ['measured_at' => CarbonImmutable::createFromTimestamp($result['measured_at']), 'url' => $result['url'], 'cached_ms' => (float) $result['cached_ms'], 'uncached_ms' => (float) $result['uncached_ms']];
     }
 
     /**
@@ -134,7 +128,7 @@ final class BenchCommand extends Command
             // What this machine measured: kept out of git, as `kami:doctor` keeps its report.
             File::put(dirname(self::resultPath()) . '/.gitignore', "*\n!.gitignore\n");
             File::replace(self::resultPath(), json_encode([
-                'measured_at' => now()->toIso8601String(),
+                'measured_at' => now()->getTimestamp(),
                 'url' => $url,
                 'cached_ms' => $medians['cached'],
                 'uncached_ms' => $medians['uncached'],

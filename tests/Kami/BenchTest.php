@@ -107,7 +107,7 @@ it('shows its last result in the doctor, or that it never ran', function () {
     expect(Artisan::output())->toMatch('/Page speed\W+never measured, run kami:bench/');
 
     File::ensureDirectoryExists(dirname(BenchCommand::resultPath()));
-    File::put(BenchCommand::resultPath(), '{"measured_at": "yesterday-ish", "url": "http://localhost/", "cached_ms": 8, "uncached_ms": 150}');
+    File::put(BenchCommand::resultPath(), '{"measured_at": "yesterday", "url": "http://localhost/", "cached_ms": 8, "uncached_ms": 150}');
     Artisan::call('kami:doctor');
     expect(Artisan::output())->toMatch('/Page speed\W+never measured, run kami:bench/');
 
