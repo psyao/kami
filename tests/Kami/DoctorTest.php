@@ -370,7 +370,8 @@ it('blocks on a panel whose User model does not implement KamiUser, naming what 
         ->expectsOutputToContain('docs/guide/users-and-roles.md#the-user-model')
         ->assertFailed();
 
-    expect((new Doctor)->blocking())->toHaveCount(1);
+    // Laravel's User cannot store an authenticator either.
+    expect((new Doctor)->blocking())->toHaveCount(2);
 });
 
 it('blocks on a panel whose guard signs in with another model than auth.providers.users.model, naming both', function (?string $users, string $message, string $fix) {
@@ -424,6 +425,8 @@ it('blocks on a panel whose User model cannot store an authenticator, naming wha
         ->expectsOutputToContain('Fix: add implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery to the User model, and use \\Psyao\\Kami\\Admin\\HasKamiMfa; in its body.')
         ->expectsOutputToContain('docs/guide/users-and-roles.md#the-user-model')
         ->assertFailed();
+
+    expect((new Doctor)->blocking())->toHaveCount(1);
 });
 
 it('warns when a Kami panel does not authorize strictly, even when turned off after the plugin', function () {

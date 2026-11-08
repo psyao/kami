@@ -9,6 +9,14 @@ composer create-project psyao/kami-starter . "$STARTER_VERSION" --no-install --n
 composer config repositories.kami '{"type":"path","url":"/kami","options":{"versions":{"psyao/kami":"dev-main"}}}'
 composer require psyao/kami:dev-main --no-update
 
+# ponytail: the starter kit's User gains the MFA contracts only once it requires Kami 0.6 (psyao/kami#355 step 8), which lifts this.
+if ! grep -q HasKamiMfa app/Models/User.php; then
+    sed -i \
+        -e '/^class User /s/ implements / implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery, /' \
+        -e 's/^    use HasKamiRoles;/    use \\Psyao\\Kami\\Admin\\HasKamiMfa;\n    use HasKamiRoles;/' \
+        app/Models/User.php
+fi
+
 cp .env.example .env
 sed -i \
     -e 's|^APP_ENV=.*|APP_ENV=production|' \

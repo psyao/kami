@@ -17,6 +17,8 @@ use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Tests\Install\InstallTestCase as TestCase;
+use Psyao\Kami\Users\HasKamiRoles;
+use Psyao\Kami\Users\KamiUser;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
@@ -32,6 +34,14 @@ final class TakenHome extends Singleton
 /** A User model a host panel may sign in with through a provider of its own. */
 final class InstallEditor extends WorkbenchUser
 {
+    protected $table = 'users';
+}
+
+/** A User model with Roles but nowhere to store an authenticator. */
+final class InstallUserWithoutMfa extends User implements KamiUser
+{
+    use HasKamiRoles;
+
     protected $table = 'users';
 }
 
@@ -123,6 +133,18 @@ it('refuses before migrating, naming what to add, while the panel\'s User model 
     install()
         ->expectsOutputToContain('The panel admin signs Users in with Illuminate\\Foundation\\Auth\\User, which does not implement Psyao\\Kami\\Users\\KamiUser')
         ->expectsOutputToContain('Fix: add implements \\Psyao\\Kami\\Users\\KamiUser to the User model, and use \\Psyao\\Kami\\Users\\HasKamiRoles; in its body.')
+        ->assertFailed();
+
+    expect(Schema::hasTable('migrations'))->toBeFalse();
+});
+
+it('refuses before migrating, naming what to add, while the panel\'s User model cannot store an authenticator', function () {
+    $this->bootWithKamiOnAPanel();
+    config(['auth.providers.users.model' => InstallUserWithoutMfa::class]);
+
+    install()
+        ->expectsOutputToContain('The panel admin signs Users in with InstallUserWithoutMfa, which cannot store an authenticator')
+        ->expectsOutputToContain('Fix: add implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery to the User model, and use \\Psyao\\Kami\\Admin\\HasKamiMfa; in its body.')
         ->assertFailed();
 
     expect(Schema::hasTable('migrations'))->toBeFalse();

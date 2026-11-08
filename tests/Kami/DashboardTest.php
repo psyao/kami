@@ -19,6 +19,7 @@ use Psyao\Kami\Content\Internal\Translation;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Fields\Colour;
 use Workbench\App\Content\Page;
+use Workbench\App\Content\Tag;
 
 uses(RefreshDatabase::class);
 
@@ -80,6 +81,16 @@ it('lists the last 10 Entries the User may view, Drafts included and the Trash l
         ->assertTableColumnStateSet('title', 'Article 11', $last)
         ->assertTableColumnStateSet('type', 'Article', $last)
         ->assertSeeHtml("/admin/articles/{$last->id}/edit\"");
+});
+
+// Filament fills a closure parameter by type only for the record's exact class: a Term is not an Entry to it (#383).
+it('titles a Term among the recently edited Entries', function () {
+    $tag = resolve(SaveEntry::class)->handle(Tag::class, ['title' => 'Vevey']);
+
+    entriesPage(RecentlyEdited::class, ['kami.entries.tag.view'], type: null)
+        ->assertCanSeeTableRecords([$tag])
+        ->assertTableColumnStateSet('title', 'Vevey', $tag)
+        ->assertTableColumnStateSet('type', 'Tag', $tag);
 });
 
 it('lists the Translations to come, soonest first, dated in the Site\'s time zone and leading to their Locale', function () {

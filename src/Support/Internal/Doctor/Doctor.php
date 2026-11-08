@@ -96,7 +96,8 @@ final readonly class Doctor
             ...$this->insecureTransport(),
             ...$this->replacedLoginPages($panels),
             ...$this->replacedResetPages($panels),
-            ...$this->mfa($panels),
+            ...$this->replacedMfa($panels),
+            ...$this->mfaModels($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->missingLabels(),
@@ -117,7 +118,7 @@ final readonly class Doctor
     {
         $panels = $this->panels();
 
-        return array_values(array_filter([...$this->environment(), ...$this->userModels($panels), ...$this->guardModels($panels), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
+        return array_values(array_filter([...$this->environment(), ...$this->userModels($panels), ...$this->guardModels($panels), ...$this->mfaModels($panels), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
     }
 
     /** @return list<Problem> */
@@ -351,32 +352,33 @@ final readonly class Doctor
      * @param  list<PanelReport>  $panels
      * @return list<Problem>
      */
-    private function mfa(array $panels): array
+    private function replacedMfa(array $panels): array
     {
-        $problems = [];
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
+            Severity::Error,
+            "The panel {$panel['id']} does not require Kami's MFA: Users who may manage Users sign in with a password alone.",
+            "remove ->multiFactorAuthentication() and ->requiresMultiFactorAuthentication() from the panel {$panel['id']}: KamiPlugin sets them.",
+            'security.md#mfa',
+        ), array_filter($panels, fn (array $panel): bool => ! $panel['requiresKamiMfa'])));
+    }
 
-        foreach ($panels as $panel) {
-            if (! $panel['requiresKamiMfa']) {
-                $problems[] = new Problem(
-                    Severity::Error,
-                    "The panel {$panel['id']} does not require Kami's MFA: Users who may manage Users sign in with a password alone.",
-                    "remove ->multiFactorAuthentication() and ->requiresMultiFactorAuthentication() from the panel {$panel['id']}: KamiPlugin sets them.",
-                    'security.md#mfa',
-                );
-            }
+    /**
+     * Blocking: `kami:install` would otherwise leave an admin nobody may sign in to.
+     *
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function mfaModels(array $panels): array
+    {
+        // A guard with no Eloquent model is already an error of userModels().
+        $lacking = array_filter($panels, fn (array $panel): bool => ($model = $this->userModel($panel['guard'])) !== null && ! ($panel['storesMfa'])($model));
 
-            // A guard with no Eloquent model is already an error of userModels().
-            if (($model = $this->userModel($panel['guard'])) !== null && ! ($panel['storesMfa'])($model)) {
-                $problems[] = new Problem(
-                    Severity::Error,
-                    "The panel {$panel['id']} signs Users in with {$model}, which cannot store an authenticator: Users who may manage Users cannot set MFA up, nor sign in.",
-                    'add implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery to the User model, and use \\Psyao\\Kami\\Admin\\HasKamiMfa; in its body.',
-                    'users-and-roles.md#the-user-model',
-                );
-            }
-        }
-
-        return $problems;
+        return array_values(array_map(fn (array $panel): Problem => new Problem(
+            Severity::Error,
+            "The panel {$panel['id']} signs Users in with {$this->userModel($panel['guard'])}, which cannot store an authenticator: Users who may manage Users cannot set MFA up, nor sign in.",
+            'add implements \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthentication, \\Filament\\Auth\\MultiFactor\\App\\Contracts\\HasAppAuthenticationRecovery to the User model, and use \\Psyao\\Kami\\Admin\\HasKamiMfa; in its body.',
+            'users-and-roles.md#the-user-model',
+        ), $lacking));
     }
 
     /**
@@ -390,7 +392,7 @@ final readonly class Doctor
         foreach ($panels as $panel) {
             $model = $this->userModel($panel['guard']);
 
-            // The errors of mfa() and userModels() already cover these panels.
+            // The errors of replacedMfa(), mfaModels() and userModels() already cover these panels.
             if (! $panel['requiresKamiMfa'] || $model === null || ! is_a($model, Model::class, true) || ! ($panel['storesMfa'])($model)) {
                 continue;
             }
