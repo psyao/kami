@@ -209,6 +209,7 @@ class Psyao\Kami\Content\Term class extends Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\Term::ancestors() public function ancestors(): Illuminate\Database\Eloquent\Collection
 class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
+class Psyao\Kami\Facades\Kami::exceptions() public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed

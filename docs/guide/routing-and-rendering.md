@@ -127,6 +127,28 @@ The admin's Preview calls the same `render()` with an Entry that was never saved
 
 It renders nothing on a public page. In a Preview it renders an `<aside class="kami-preview-banner">` landmark saying the page holds unsaved changes visitors do not see, in the Preview's Locale; through a Preview link, that visitors may not see this saved version, and when the link expires, in the Site's time zone. It carries no CSS: style `.kami-preview-banner` as you wish. Kami does not change your HTML, so a layout without the component shows no banner.
 
+## Error pages
+
+Kami ships no error views: Laravel renders `resources/views/errors/{code}.blade.php`, yours, as for any application. The starter kit ships them. To render them in the visitor's Locale, call `Kami::exceptions()` in `bootstrap/app.php`, before your own callbacks:
+
+```php
+use Illuminate\Foundation\Configuration\Exceptions;
+use Psyao\Kami\Facades\Kami;
+
+->withExceptions(function (Exceptions $exceptions): void {
+    Kami::exceptions($exceptions);
+})
+```
+
+The Locale then comes from the URL's first segment, as on Kami's pages: `/en/unknown` answers its 404 in English, on Kami's route, on your own routes and when no route answers. `__()`, `app()->getLocale()` and Kami's components use it. Kami renders nothing itself; a callback of yours registered before Kami's and returning a response skips it.
+
+Write the views in two kinds:
+
+- **4xx** (403, 404, 410, 419, 429) can use your layout, with `<x-kami::seo :title="__('Not Found')" />` for a head of `{title} – {Site}` with no canonical URL ([SEO](seo.md#the-head)). `<x-kami::locales />` renders nothing there, as there is no Entry.
+- **5xx** (500, 503) stand alone: no database query, no `@vite`, no script, a `<meta name="robots" content="noindex">`, and a stylesheet served as a file from `public/`. A 500 may mean the database or the build is the problem, and an inline `<style>` breaks the Content Security Policy.
+
+An error raised on a route keeps that route's security headers: Kami's route sends its own, and your routes theirs once `SecurityHeaders` is in the `web` group ([Security](security.md#your-own-pages)). Maintenance mode's 503 answers before any route, so it carries none: keep that view static, with no visitor input in it. `php artisan down` answers it before any cached page ([Page cache](page-cache.md#serving-before-laravel-boots)). With `--render`, the command renders the view once, outside any request, so in no visitor's Locale.
+
 ## Query count
 
 An Entry page costs four queries before your view runs: its Path, the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. Kami's tests assert that number, so it does not grow unnoticed.

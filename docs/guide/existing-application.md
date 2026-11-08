@@ -52,6 +52,10 @@ Add one line to `public/index.php`, right after Laravel's maintenance check, so 
 
 It only answers what Kami has cached, its own pages, and lets every other request through. Without it the page cache still works, once Laravel has booted ([Page cache](page-cache.md#serving-before-laravel-boots)).
 
+## Localise your error pages
+
+Call `Kami::exceptions($exceptions)` first in `bootstrap/app.php`'s `withExceptions()`, so your error views render in the Locale of the URL, `/en/…` in English, on your routes as on Kami's. Kami ships no error views and leaves yours as they are ([Error pages](routing-and-rendering.md#error-pages)).
+
 ## What Kami changes in your application
 
 - **The time zone.** Kami sets `app.timezone` to UTC, whatever `config/app.php` says, so dates are stored and computed in UTC.
