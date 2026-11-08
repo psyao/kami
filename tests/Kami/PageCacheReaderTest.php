@@ -15,6 +15,11 @@ uses(RefreshDatabase::class);
 
 // The pre-boot reader as public/index.php requires it, run by PHP's built-in web server: the CLI sends no headers.
 beforeEach(function () {
+    // The Lowest job disables proc_open (tests/infomaniak.ini); the smoke runs the reader under the same settings in FPM.
+    if (! function_exists('proc_open')) {
+        $this->markTestSkipped('The built-in web server needs proc_open.');
+    }
+
     $this->app->useStoragePath($this->storage = temporaryPath());
     config(['kami.page_cache.enabled' => true]);
     Kami::routes();
@@ -35,8 +40,10 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    $this->server->signal(SIGTERM);
-    File::deleteDirectory($this->storage);
+    if (isset($this->server)) {
+        $this->server->signal(SIGTERM);
+        File::deleteDirectory($this->storage);
+    }
 });
 
 /** A request to the reader for the Site's host, the port left in `Host` as browsers send it. */
