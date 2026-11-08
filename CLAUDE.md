@@ -12,7 +12,7 @@ Laravel + Filament CMS, successor to Velox (`~/Code/velox`). `docs/brief.md` is 
 
 From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they do not say:
 
-- Pre-push runs `phpstan analyse`, `pest --parallel` and the `Install` suite; the other engines, the `Browser` suite and the shared-hosting smoke run in CI only.
+- Pre-push runs `phpstan analyse`, `pest --parallel` and the `Install` suite; the other engines, the `Browser` suite and the shared-hosting smoke run in CI only. Another engine locally: `docs/development.md` § Suites.
 - `Browser` suite locally: `npm ci`, `npx playwright install chromium`, then `mkdir -p tests/Browser/Traces` (until pest-plugin-browser's next release) and `pest --testsuite=Browser`.
 - An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters.
 - Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
@@ -54,7 +54,7 @@ A core that covers the basics natively (SEO, redirects, simple forms, multilingu
 
 - Typed PHP, Pest tests, Larastan, Rector, Pint.
 - Database-agnostic: SQLite, MySQL/MariaDB, PostgreSQL. Engine-specific SQL sits behind an abstraction.
-- Core (domain, content, front rendering) independent of Filament; Filament serves the admin only.
+- Core (domain, content, front rendering) independent of Filament; Filament serves the admin only, from `src/Admin`.
 - Before writing or changing Filament code (resources, pages, schemas, tables, actions, panel config) or its tests, load the `filament-development` skill.
 - Before writing or changing Laravel code, load the `laravel-best-practices` skill; before writing or changing tests, `testing-best-practices`. The conventions of this repo and its ADRs win over both.
 - Narrow public API: internals marked `@internal`, kept apart from public classes.

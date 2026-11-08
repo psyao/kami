@@ -15,7 +15,19 @@ What a reviewer of a Kami diff weighs beyond `CLAUDE.md`, the ADRs and `docs/age
 - **`ponytail:` marks a shortcut.** It names a ceiling and the ticket, milestone or V1 that lifts it. A design Steve decided is not a shortcut and carries no marker; a marker naming a closed ticket is a finding.
 - **Two runtimes.** A subsystem states its behaviour on shared hosting and on a server; a guide or ADR describing only one is a finding.
 
+## State, failure and concurrency
+
+Each defect M7's ritual found had passed its ticket's review on one of these (#441, #408).
+
+- **History is stored.** A fact about the past ("was ever public", "once sent") lives in a column or a file, never derived from current state a later write can change. List the writes that change its inputs (reschedule, unpublish, rename) and look for a test of that sequence.
+- **A write can fail.** On shared hosting a storage, cache or file write meets a read-only directory or a full quota. The diff says what the next request sees: no cache, never a new key or a new version per request.
+- **Two requests at once.** Costly work or a shared-file write started from a request is serialised (`Cache::lock()` as in `Conversion`, or `flock()` on a file under `storage/` as in `Sitemap`), and the diff says what the waiting request serves.
+- **A path around the kernel.** Code that runs before Laravel boots, or outside a middleware group, lists the middleware it skips (maintenance mode, authentication, security headers) and handles each.
+
 ## Tests
 
+- **Reach beyond the diff.** Grep the tests that read what the diff changes, outside the diff too: a Workbench view feeds the `Browser` suite, which pre-push does not run (#412).
+- **Query counts go up for a reason.** A raised `expectsDatabaseQueryCount()` names the query added; the reviewer checks it is needed, not that the number matches (#405).
+- **Debug tests stay out.** A throwaway test lives in the scratchpad and runs by path, never in `tests/Kami`, where a commit can take it along.
 - **A test's default connection stays put.** Under `RefreshDatabase`, switching `database.default` mid-test leaves the transaction open on MySQL, MariaDB and PostgreSQL, and the next test waits on its lock until CI's timeout (#307). SQLite hides it. Test an empty or other database in a test of its own, before anything writes.
 - **CI-only engines.** Pre-push runs SQLite; a change to SQL, locking, transactions or schema is reviewed for the three other engines, where CI alone runs it.
