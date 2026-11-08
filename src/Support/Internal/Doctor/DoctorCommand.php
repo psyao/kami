@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Support\Internal\Doctor;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -76,17 +75,16 @@ final class DoctorCommand extends Command
     /** The last `kami:bench`, not a Problem: it measures the web, which the doctor cannot. */
     private function printBench(): void
     {
-        $bench = json_decode((string) @file_get_contents(BenchCommand::resultPath()), true);
+        $bench = BenchCommand::lastResult();
 
-        // Written whole by kami:bench, but a file anyone may edit: the doctor never throws on it.
-        if (! is_array($bench) || ! is_string($bench['url'] ?? null) || ! is_string($bench['measured_at'] ?? null) || ! is_numeric($bench['cached_ms'] ?? null) || ! is_numeric($bench['uncached_ms'] ?? null)) {
+        if ($bench === null) {
             $this->components->twoColumnDetail('<options=bold>Page speed</>', 'never measured, run kami:bench');
             $this->newLine();
 
             return;
         }
 
-        $this->components->twoColumnDetail('<options=bold>Page speed</>', sprintf('%s, %s', $bench['url'], CarbonImmutable::parse($bench['measured_at'])->utc()->format('Y-m-d H:i \U\T\C')));
+        $this->components->twoColumnDetail('<options=bold>Page speed</>', sprintf('%s, %s', $bench['url'], $bench['measured_at']->utc()->format('Y-m-d H:i \U\T\C')));
         $this->components->twoColumnDetail('Cached', sprintf('%.1f ms', $bench['cached_ms']));
         $this->components->twoColumnDetail('Uncached', sprintf('%.1f ms', $bench['uncached_ms']));
         $this->newLine();

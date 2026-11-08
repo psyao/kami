@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Routing\Internal;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
@@ -50,7 +50,7 @@ final class BenchCommand extends Command
                 'cached' => $this->median($client, array_fill(0, self::RUNS, $url)),
                 'uncached' => $this->median($client, array_map(fn (int $run): string => "{$url}?kami-bench={$run}", range(1, self::RUNS))),
             ];
-        } catch (ConnectionException | RuntimeException $exception) {
+        } catch (Throwable $exception) {
             $this->components->warn("Nothing measured: {$exception->getMessage()}");
 
             return self::SUCCESS;
@@ -76,6 +76,28 @@ final class BenchCommand extends Command
     }
 
     /**
+     * The last result, or null when none was kept or the file was edited out of shape: `kami:doctor` never throws on it.
+     *
+     * @return array{measured_at: CarbonImmutable, url: string, cached_ms: float, uncached_ms: float}|null
+     */
+    public static function lastResult(): ?array
+    {
+        $result = json_decode((string) @file_get_contents(self::resultPath()), true);
+
+        if (! is_array($result) || ! is_string($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ! is_numeric($result['cached_ms'] ?? null) || ! is_numeric($result['uncached_ms'] ?? null)) {
+            return null;
+        }
+
+        try {
+            $measuredAt = CarbonImmutable::parse($result['measured_at']);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return ['measured_at' => $measuredAt, 'url' => $result['url'], 'cached_ms' => (float) $result['cached_ms'], 'uncached_ms' => (float) $result['uncached_ms']];
+    }
+
+    /**
      * Server time as the client's transfer statistics give it: from the TLS handshake's end to the response's first byte.
      *
      * @param  list<string>  $urls
@@ -91,8 +113,13 @@ final class BenchCommand extends Command
                 throw new RuntimeException("{$url} answers {$response->status()}.");
             }
 
-            // cURL's, in seconds.
+            // cURL's, in seconds. PHP's stream wrapper, Guzzle's fallback without ext-curl, gives none.
             $stats = $response->handlerStats();
+
+            if (! isset($stats['starttransfer_time'], $stats['appconnect_time'])) {
+                throw new RuntimeException('the HTTP client gives no transfer statistics: load the PHP extension curl.');
+            }
+
             $times[] = (Arr::float($stats, 'starttransfer_time') - Arr::float($stats, 'appconnect_time')) * 1000;
         }
 

@@ -6,6 +6,7 @@ use GuzzleHttp\TransferStats;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Psyao\Kami\Routing\Internal\BenchCommand;
 
@@ -82,6 +83,16 @@ it('measures nothing when the site cannot be reached', function () {
     expect(BenchCommand::resultPath())->not->toBeFile();
 });
 
+it('measures nothing when the HTTP client gives no transfer statistics, as without ext-curl', function () {
+    Http::fake();
+
+    $this->artisan('kami:bench')
+        ->expectsOutputToContain('load the PHP extension curl')
+        ->assertSuccessful();
+
+    expect(BenchCommand::resultPath())->not->toBeFile();
+});
+
 it('signs in with Digest behind a staging password, asked for and never an argument', function () {
     serving(array_fill(0, 10, 8.0), array_fill(0, 10, 150.0), user: 'ada');
 
@@ -92,6 +103,11 @@ it('signs in with Digest behind a staging password, asked for and never an argum
 });
 
 it('shows its last result in the doctor, or that it never ran', function () {
+    Artisan::call('kami:doctor');
+    expect(Artisan::output())->toMatch('/Page speed\W+never measured, run kami:bench/');
+
+    File::ensureDirectoryExists(dirname(BenchCommand::resultPath()));
+    File::put(BenchCommand::resultPath(), '{"measured_at": "yesterday-ish", "url": "http://localhost/", "cached_ms": 8, "uncached_ms": 150}');
     Artisan::call('kami:doctor');
     expect(Artisan::output())->toMatch('/Page speed\W+never measured, run kami:bench/');
 

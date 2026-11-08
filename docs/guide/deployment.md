@@ -141,7 +141,7 @@ php artisan kami:bench
 php artisan kami:bench /blog
 ```
 
-It calls the page on the Site URL ten times, served from the [page cache](page-cache.md), then ten times with `?kami-bench=1` to `10`, which the page cache never serves, and prints the median of each. The time is the server's: from the end of the TLS handshake to the first byte of the response, with no network between you and the host. It warns above the budgets, 30 ms cached and 200 ms uncached, and never fails, so a deploy script can run it. A page that does not answer 200, a redirect included, stops the measure: bench the address the page lives at.
+It calls the page on the Site URL ten times, served from the [page cache](page-cache.md), then ten times with `?kami-bench=1` to `10`, which the page cache never serves, and prints the median of each. The time is the server's: from the end of the TLS handshake to the first byte of the response, with no network between you and the host. Over plain `http`, it also counts the connection, a local one. It warns above the budgets, 30 ms cached and 200 ms uncached, and never fails, so a deploy script can run it. A page that does not answer 200, a redirect included, stops the measure: bench the address the page lives at. So does a host that cannot reach its own public address, as some servers behind NAT cannot: it prints why and measures nothing, the same on shared hosting and on a server.
 
 `kami:doctor` shows the last result, with the address and the time it was measured.
 

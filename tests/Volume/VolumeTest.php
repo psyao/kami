@@ -93,6 +93,7 @@ it('walks a listing in its index, sorting nothing, the Trash left out', function
     // #222: an `exists` made MariaDB materialise every published Translation, and MySQL sort the type through the Site index.
     $inSite = Entry::query()->where('site', 'default')->ofType(Project::class)->ordered()->limit(50);
     expect(plan($inSite))->toContain('kami_entries_type_position_id_index')->not->toContain('MATERIALIZED')->not->toContain('filesort');
+    // 138 ms before #222's fix on MariaDB, 5 to 10 ms after on the four engines, hydration included: 30 ms leaves a runner its margin.
     $start = microtime(true);
     expect(measure('Listing in a Site', fn () => (clone $inSite)->get()))->toHaveCount(50)
         ->and(microtime(true) - $start)->toBeLessThan(0.03);
