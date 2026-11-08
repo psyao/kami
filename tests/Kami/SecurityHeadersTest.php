@@ -51,6 +51,23 @@ it('sends the front policy and its companion headers on a page and on a 404', fu
     'failing' => ['/failing', 500],
 ]);
 
+it('keeps every front response out of search engines unless the Site is indexable', function (string $path, int $status) {
+    config(['kami.indexable' => false]);
+    $this->get($path)->assertStatus($status)->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+
+    config(['kami.indexable' => true]);
+    $this->get($path)->assertStatus($status)->assertHeaderMissing('X-Robots-Tag');
+})->with([
+    'page' => ['/articles/hello-world', 200],
+    'missing' => ['/articles/nowhere', 404],
+]);
+
+it('keeps the admin out of search engines, even on an indexable Site', function () {
+    config(['kami.indexable' => true]);
+
+    $this->get('/admin/login')->assertOk()->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+});
+
 it('merges the sources a site adds, keeping every default', function () {
     config(['kami.security.csp' => ['img-src' => ['https://cdn.example.com'], 'object-src' => ['https://embed.example.com'], 'manifest-src' => ["'self'"]]]);
 
@@ -85,9 +102,10 @@ it('reports violations to the configured address, and only reports them in repor
         ->assertHeader('Content-Security-Policy-Report-Only', FRONT_POLICY . '; report-uri https://reports.example.com/csp');
 });
 
-it('adds the Vite dev server while it runs hot', function () {
+// CSP host sources take no IPv6 literal: Vite on `localhost` resolving to `[::1]` would be dropped by the browser (#386).
+it('adds the Vite dev server while it runs hot, an IPv6 loopback as localhost', function (string $written, string $origin) {
     // Not public/hot itself: tests running in parallel would see it.
-    File::put($hot = sys_get_temp_dir() . '/kami-hot-' . uniqid(), "http://[::1]:5173\n");
+    File::put($hot = sys_get_temp_dir() . '/kami-hot-' . uniqid(), "{$written}\n");
     Vite::useHotFile($hot);
 
     try {
@@ -97,12 +115,17 @@ it('adds the Vite dev server while it runs hot', function () {
         File::delete($hot);
     }
 
-    expect($front)->toContain("script-src 'self' http://[::1]:5173;")
-        ->toContain("style-src 'self' http://[::1]:5173;")
-        ->toContain("connect-src 'self' http://[::1]:5173 ws://[::1]:5173;")
-        ->and($admin)->toContain("'unsafe-eval' http://[::1]:5173;")
-        ->toContain("connect-src 'self' http://[::1]:5173 ws://[::1]:5173;");
-});
+    $socket = (string) preg_replace('#^http#', 'ws', $origin);
+    expect($front)->toContain("script-src 'self' {$origin};")
+        ->toContain("style-src 'self' {$origin};")
+        ->toContain("connect-src 'self' {$origin} {$socket};")
+        ->and($admin)->toContain("'unsafe-eval' {$origin};")
+        ->toContain("connect-src 'self' {$origin} {$socket};");
+})->with([
+    'IPv6 loopback' => ['http://[::1]:5173', 'http://localhost:5173'],
+    'IPv6 loopback over https' => ['https://[::1]:5173/', 'https://localhost:5173'],
+    'IPv4 loopback' => ['http://127.0.0.1:5173', 'http://127.0.0.1:5173'],
+]);
 
 it('sends the admin policy with a nonce that signs every inline script of the panel', function () {
     $response = $this->get('/admin/login')->assertOk()

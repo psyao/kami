@@ -67,7 +67,7 @@ abstract class InstallTestCase extends Orchestra
         $_SERVER['KAMI_ADMIN_PASSWORD'] = 'correct horse battery';
     }
 
-    /** The `public/media` link first: deleting it as a directory would empty its target and keep the link. */
+    /** The `public/media` link first: deleting it as a directory would empty its target and keep the link. Then what `kami:install` writes at the root. */
     private function deletePublicFiles(): void
     {
         if (is_link($media = public_path('media'))) {
@@ -75,6 +75,7 @@ abstract class InstallTestCase extends Orchestra
         }
 
         File::deleteDirectories(public_path());
+        File::delete(public_path('robots.txt'));
     }
 
     protected function tearDown(): void

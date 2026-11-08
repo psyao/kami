@@ -36,6 +36,7 @@ php artisan serve
 - [Audit log](docs/guide/audit-log.md): what Kami records, privacy, recording your own events with `RecordAuditEvent`, and batches
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths and a type's `render()`
 - [Page cache](docs/guide/page-cache.md): what is cached and when it goes stale, `Kami::withoutPageCache()`, `Kami::remember()`, `Kami::flushCache()` and `kami:cache:clear`
+- [SEO](docs/guide/seo.md): the indexable switch (`KAMI_INDEXABLE`), `X-Robots-Tag` and the `robots.txt` `kami:install` writes
 - [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server

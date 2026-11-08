@@ -99,7 +99,8 @@ final class SecurityHeaders
      */
     private function withHotServer(array $policy): array
     {
-        $origin = mb_rtrim(trim((string) file_get_contents(Vite::hotFile())), '/');
+        // CSP host sources take no IPv6 literal (#386); Laravel's Vite plugin answers on localhost too. Local only: shared hosting runs no dev server.
+        $origin = (string) preg_replace('#^(https?://)\[::1\]#', '$1localhost', mb_rtrim(trim((string) file_get_contents(Vite::hotFile())), '/'));
 
         foreach (SecurityPolicy::HOT_DIRECTIVES as $directive) {
             $policy[$directive][] = $origin;

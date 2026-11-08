@@ -43,6 +43,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\Login;
 use Psyao\Kami\Admin\Internal\MediaResource;
+use Psyao\Kami\Admin\Internal\NoIndex;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RequireMfa;
@@ -175,6 +176,9 @@ final class KamiPlugin implements Plugin
             'id' => $panel->getId(),
             'guard' => $panel->getAuthGuard(),
             'strict' => $panel->isAuthorizationStrict(),
+            // Where `robots.txt` disallows it (ADR 0027).
+            'path' => $panel->getPath(),
+            'domains' => array_values($panel->getDomains()),
             // Filament's default sends Users' initials to ui-avatars.com; the doctor warns, since the setting is the host's (ADR 0023).
             'remoteAvatars' => is_a($panel->getDefaultAvatarProvider(), UiAvatarsProvider::class, true),
             // Filament's own rule (its `Authenticate` middleware): a User that is not a FilamentUser gets in locally only.
@@ -212,6 +216,9 @@ final class KamiPlugin implements Plugin
         }
 
         $panel->resources([$media, AuditEventResource::class]);
+
+        // The sign-in page included, whatever the host's own middleware (ADR 0027).
+        $panel->middleware([NoIndex::class]);
 
         // A front page, so the front's headers in place of the panel's (ADR 0018); but for the admin's opener policy,
         // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.

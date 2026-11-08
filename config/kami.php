@@ -30,6 +30,12 @@ return [
     ],
 
     /*
+    | Whether search engines are welcome (ADR 0027): on in production, off elsewhere. Off, every front response carries
+    | `X-Robots-Tag: noindex, nofollow` and `robots.txt` disallows everything (docs/guide/seo.md). The admin is never indexed.
+    */
+    'indexable' => (bool) env('KAMI_INDEXABLE', app()->isProduction()),
+
+    /*
     | The Sites this installation serves, by handle. Each has its URL, its Locales (the first is the default)
     | and the time zone its dates are displayed in; dates are stored in UTC (ADR 0004).
     */

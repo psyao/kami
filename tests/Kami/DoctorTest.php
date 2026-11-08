@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
@@ -29,6 +30,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
+use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
 use Psyao\Kami\Support\Internal\Doctor\Severity;
@@ -575,7 +577,7 @@ it('warns once, upper case included, for a Site URL that is APP_URL, as config/k
 });
 
 it('fails with --strict on each production transport warning, and only then', function (array $config, bool $fails) {
-    config(['app.env' => 'production', 'session.secure' => true, 'app.url' => 'https://example.com', 'kami.sites.default.url' => 'https://example.com', 'kami.sites.blog.url' => 'https://blog.example.com', ...$config]);
+    config(['app.env' => 'production', 'kami.indexable' => true, 'session.secure' => true, 'app.url' => 'https://example.com', 'kami.sites.default.url' => 'https://example.com', 'kami.sites.blog.url' => 'https://blog.example.com', ...$config]);
 
     $doctor = $this->artisan('kami:doctor', ['--strict' => true]);
     $fails ? $doctor->assertFailed() : $doctor->assertSuccessful();
@@ -798,3 +800,83 @@ it('warns when the page cache cannot write to its directory, and only while it i
     chmod("{$storage}/framework", 0755);
     File::deleteDirectory($storage);
 })->with(['on' => true, 'off' => false]);
+
+// Here rather than with the other search-engine checks, whose public/ has no public/media link, an error of its own.
+it('fails with --strict on a search-engine warning, as on any other', function () {
+    config(['kami.indexable' => true]);
+    $this->artisan('kami:doctor')->expectsOutputToContain('The Site is indexable outside production (testing)')->expectsOutputToContain('docs/guide/seo.md#indexable-switch')->assertSuccessful();
+    $this->artisan('kami:doctor', ['--strict' => true])->assertFailed();
+
+    config(['kami.indexable' => false]);
+    $this->artisan('kami:doctor', ['--strict' => true])->assertSuccessful();
+});
+
+describe('search engines', function () {
+    beforeEach(function () {
+        // Not the skeleton's public/: tests running in parallel would see each other's robots.txt.
+        File::ensureDirectoryExists($this->public = temporaryPath());
+        $this->app->usePublicPath($this->public);
+        config(['kami.indexable' => false]);
+    });
+
+    afterEach(function () {
+        File::deleteDirectory($this->public);
+    });
+
+    /** @return list<array{Severity, string}> */
+    function seoProblems(): array
+    {
+        return collect(resolve(Doctor::class)->problems())
+            ->filter(fn ($problem) => str_starts_with($problem->guide, 'seo.md#'))
+            ->map(fn ($problem) => [$problem->severity, $problem->message])
+            ->values()->all();
+    }
+
+    it('warns when the indexable switch contradicts the environment', function (string $env, bool $indexable, array $expected) {
+        config(['app.env' => $env, 'kami.indexable' => $indexable]);
+
+        expect(seoProblems())->toBe($expected);
+    })->with([
+        'production, not indexable' => ['production', false, [[Severity::Warning, 'The Site is not indexable in production: search engines are kept out of it.']]],
+        'staging, indexable' => ['staging', true, [[Severity::Warning, 'The Site is indexable outside production (staging): search engines may index this copy.']]],
+        'production, indexable' => ['production', true, []],
+        'local, not indexable' => ['local', false, []],
+    ]);
+
+    it('warns when the managed robots.txt differs from what kami:install writes', function () {
+        File::put("{$this->public}/robots.txt", "# Managed by Kami (kami:install). Delete this line to own this file.\nUser-agent: *\nDisallow: /\n");
+        expect(seoProblems())->toBe([]);
+
+        File::append("{$this->public}/robots.txt", "Disallow: /drafts\n");
+        expect(seoProblems())->toBe([[Severity::Warning, 'public/robots.txt differs from what kami:install writes.']]);
+
+        // Not its exit code: public/media is missing from this public/.
+        $this->artisan('kami:doctor')->expectsOutputToContain('Fix: run kami:install, or delete its first line to own the file.')->expectsOutputToContain('docs/guide/seo.md#robotstxt');
+    });
+
+    it('warns when the site\'s own robots.txt names no sitemap, only while the Site is indexable', function () {
+        config(['kami.indexable' => true, 'app.env' => 'production']);
+        File::put("{$this->public}/robots.txt", "User-agent: *\nDisallow: /admin\n");
+        expect(seoProblems())->toBe([[Severity::Warning, 'public/robots.txt, the site\'s own, names no sitemap.']]);
+
+        File::append("{$this->public}/robots.txt", "sitemap: http://localhost/sitemap.xml\n");
+        expect(seoProblems())->toBe([]);
+
+        File::put("{$this->public}/robots.txt", "User-agent: *\nDisallow: /\n");
+        config(['kami.indexable' => false, 'app.env' => 'local']);
+        expect(seoProblems())->toBe([]);
+    });
+
+    it('warns when a route of the application answers an address Kami writes a file at', function (string $path) {
+        Route::get($path, fn () => '');
+        Kami::routes();
+
+        expect(seoProblems())->toBe([[Severity::Warning, "A route of the application answers /{$path}: Kami writes no public/{$path}, as the file would shadow the route."]]);
+    })->with(['robots.txt', 'sitemap.xml']);
+
+    it('counts neither Kami\'s fallback nor a missing route as a route of the application', function () {
+        Kami::routes();
+
+        expect(seoProblems())->toBe([]);
+    });
+});
