@@ -65,6 +65,7 @@ final class Kami
 
     /**
      * Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
+     * Runs the callback uncached while `storage/framework/kami/pages/` cannot be written, which `kami:doctor` reports.
      *
      * @template TValue
      *
@@ -73,7 +74,9 @@ final class Kami
      */
     public function remember(string $key, DateTimeInterface | DateInterval | int $ttl, Closure $callback): mixed
     {
-        return Cache::remember('kami:' . PageCache::version() . ":{$key}", $ttl, $callback);
+        $version = PageCache::version();
+
+        return $version === null ? $callback() : Cache::remember("kami:{$version}:{$key}", $ttl, $callback);
     }
 
     /** Keeps the current response out of the page cache, as for a page showing the time of day. */

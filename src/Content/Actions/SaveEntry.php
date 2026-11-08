@@ -96,6 +96,8 @@ final class SaveEntry
                     $translation->published_at ??= now()->toImmutable();
                 }
 
+                // Read before the save: a date moved to the future no longer says the Translation was seen.
+                $translation->was_public = $wasPublic;
                 $translation->save();
             }
 

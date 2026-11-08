@@ -800,23 +800,21 @@ describe('Conversions', function () {
     });
 });
 
-it('warns when the page cache cannot write to its directory, and only while it is on', function (bool $enabled) {
+it('warns when Kami cannot write to the page cache directory, whether the page cache is on or off', function (bool $enabled, string $warning) {
     $this->app->useStoragePath($storage = temporaryPath());
     File::ensureDirectoryExists("{$storage}/framework");
     chmod("{$storage}/framework", 0555);
     config(['kami.page_cache.enabled' => $enabled]);
 
-    $warning = 'The page cache cannot write to storage/framework/kami/pages/';
-    if ($enabled) {
-        $this->artisan('kami:doctor')->expectsOutputToContain($warning)->expectsOutputToContain('docs/guide/page-cache.md#storage')->assertSuccessful();
-        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain($warning)->assertFailed();
-    } else {
-        $this->artisan('kami:doctor', ['--strict' => true])->doesntExpectOutputToContain($warning)->assertSuccessful();
-    }
+    $this->artisan('kami:doctor')->expectsOutputToContain($warning)->expectsOutputToContain('docs/guide/page-cache.md#storage')->assertSuccessful();
+    $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain($warning)->assertFailed();
 
     chmod("{$storage}/framework", 0755);
     File::deleteDirectory($storage);
-})->with(['on' => true, 'off' => false]);
+})->with([
+    'on' => [true, 'Kami cannot write to storage/framework/kami/pages/: every page boots Laravel, and Kami::remember() caches nothing.'],
+    'off' => [false, 'Kami cannot write to storage/framework/kami/pages/: Kami::remember() caches nothing.'],
+]);
 
 // Here rather than with the other search-engine checks, whose public/ has no public/media link, an error of its own.
 it('fails with --strict on a search-engine warning, as on any other', function () {

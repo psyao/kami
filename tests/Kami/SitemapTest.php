@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
@@ -180,6 +181,20 @@ it('builds the files missing on a fresh install in the request, and serves them'
     File::deleteDirectory("{$this->public}/sitemaps");
     expect($this->get('/sitemaps/fr-1.xml')->assertOk()->streamedContent())->toContain('<loc>http://localhost/articles/bonjour</loc>');
 });
+
+it('serves what a concurrent build wrote once its lock is released, never building a second time', function () {
+    sitemapArticle('fr', ['title' => 'Bonjour']);
+    File::ensureDirectoryExists("{$this->storage}/framework/kami");
+    // Another request's build: it holds the lock, writes the index, then releases the lock.
+    $build = Process::start([PHP_BINARY, '-r', '$lock = fopen($argv[1], "c"); flock($lock, LOCK_EX); echo "locked\n"; usleep(500000); file_put_contents($argv[2], "the other build\'s"); flock($lock, LOCK_UN);', "{$this->storage}/framework/kami/sitemap-lock", "{$this->public}/sitemap.xml"]);
+    $build->waitUntil(fn (string $type, string $output): bool => str_contains($output, 'locked'));
+
+    // Read before the other build ends: the response streams the file when sent.
+    $index = $this->get('/sitemap.xml')->assertOk()->streamedContent();
+
+    $build->wait();
+    expect($index)->toBe('the other build\'s');
+})->skip(! function_exists('proc_open'), 'proc_open is disabled (tests/infomaniak.ini).');
 
 it('answers a file a built sitemap does not have with a 404, building nothing', function () {
     $this->artisan('kami:sitemap')->assertSuccessful();

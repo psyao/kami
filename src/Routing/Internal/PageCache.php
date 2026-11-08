@@ -36,13 +36,14 @@ final class PageCache
 
     /**
      * The Content version, read once per request; a missing, malformed or passed manifest is recomputed and rewritten first.
+     * Null when no manifest can be written: nothing is cached then, as a version kept for one request would add files and cache keys on every one (#441).
      */
-    public static function version(): string
+    public static function version(): ?string
     {
         $known = request()->attributes->get(self::VERSION);
 
-        if (is_string($known)) {
-            return $known;
+        if (is_string($known) || $known === false) {
+            return $known ?: null;
         }
 
         $manifest = self::manifest();
@@ -82,18 +83,24 @@ final class PageCache
     /**
      * Makes every cached page and fragment stale: a new Content version, with the next visibility change recomputed, in one atomic write; old versions' files go after the response.
      * A failure is reported, never thrown, as the write it follows has committed; the next request finds the manifest unknown and tries again.
+     * An unwritable directory skips the visibility query, with nothing reported: `kami:doctor` reports it, and the request caches nothing.
+     *
+     * @return string|null The new version; null when it could not be written.
      */
-    public static function invalidate(): string
+    public static function invalidate(): ?string
     {
         $version = bin2hex(random_bytes(8));
-        request()->attributes->set(self::VERSION, $version);
 
         // The manifest about to be rewritten may hold a change that has passed: the sitemap must still see it (#410).
         if (($passed = self::passedChange()) !== null) {
             Sitemap::markStale($passed);
         }
 
-        rescue(function () use ($version): void {
+        $written = rescue(function () use ($version): bool {
+            if (! self::writable()) {
+                return false;
+            }
+
             if (! File::isDirectory(self::directory())) {
                 File::ensureDirectoryExists(self::directory());
                 // Describes this machine's content: kept out of git, as Laravel does cache/, sessions/ and views/.
@@ -102,9 +109,21 @@ final class PageCache
 
             File::replace(self::directory('manifest.json'), json_encode(['version' => $version, 'next_change_at' => Visibility::nextChange()?->getTimestamp()], JSON_THROW_ON_ERROR));
             defer(self::prune(...));
-        });
 
-        return $version;
+            return true;
+        }, false);
+
+        request()->attributes->set(self::VERSION, $written ? $version : false);
+
+        return $written ? $version : null;
+    }
+
+    /** Whether the pages directory can be written, or created when missing: its nearest existing parent decides. */
+    public static function writable(): bool
+    {
+        for ($existing = self::directory(); ! file_exists($existing); $existing = dirname($existing));
+
+        return is_writable($existing);
     }
 
     /**
@@ -126,7 +145,11 @@ final class PageCache
     /** The fresh cached page for the request, answering 304 to a matching `If-None-Match`; null on a miss. */
     public static function hit(Request $request): ?Response
     {
-        $path = self::pagePath($request, self::version());
+        if (($version = self::version()) === null) {
+            return null;
+        }
+
+        $path = self::pagePath($request, $version);
         $handle = @filemtime($path) > now()->getTimestamp() - self::MAX_AGE ? @fopen($path, 'rb') : false;
 
         if ($handle === false) {
@@ -150,12 +173,15 @@ final class PageCache
     }
 
     /**
-     * Stores the response, atomically, then marks it as a fresh hit.
+     * Stores the response, atomically, then marks it as a fresh hit; with no version, stores nothing.
      */
     public static function store(Request $request, Response $response): void
     {
+        if (($version = self::version()) === null) {
+            return;
+        }
+
         $body = (string) $response->getContent();
-        $version = self::version();
         $etag = '"' . $version . '-' . hash('xxh128', $body) . '"';
         // Set per hit, or describing this one only.
         $headers = array_diff_key($response->headers->allPreserveCaseWithoutCookies(), array_flip(['Date', 'Cache-Control', 'ETag']));

@@ -167,6 +167,16 @@ describe('a moved address', function () {
         $this->get('/articles/hello-world')->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-again');
     });
 
+    it('keeps it for a published Translation rescheduled to the future, then renamed in a later save', function () {
+        $entry = saveArticle();
+        resolve(SaveEntry::class)->handle(Article::class, ['published_at' => now()->addDay()], $entry);
+
+        resolve(SaveEntry::class)->handle(Article::class, ['slug' => 'hello-again'], $entry);
+
+        $this->travel(2)->days();
+        $this->get('/articles/hello-world')->assertMovedPermanently()->assertRedirect('http://localhost/articles/hello-again');
+    });
+
     it('gives an address back to the Entry moving back to it, the one it leaves redirecting', function () {
         $entry = saveArticle();
 

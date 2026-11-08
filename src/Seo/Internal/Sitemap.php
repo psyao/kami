@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Seo\Internal;
 
+use Closure;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
@@ -71,11 +72,64 @@ final class Sitemap
 
     /**
      * Rebuilds every file into a temporary directory, swapped in by rename, so a crawler never reads half a sitemap.
-     * The index is left out when a route of the application answers `/sitemap.xml` (ADR 0038).
+     * The index is left out when a route of the application answers `/sitemap.xml` (ADR 0038). One build runs at a time.
      *
      * @return int The URLs written.
      */
     public static function build(): int
+    {
+        return self::locked(self::write(...));
+    }
+
+    /**
+     * Builds unless `$present`, asked once the lock is held, says the files the caller needs exist, a build that ran meanwhile included (#441).
+     *
+     * @param  Closure(): bool  $present
+     */
+    public static function buildUnless(Closure $present): void
+    {
+        self::locked(function () use ($present): void {
+            clearstatcache();
+
+            if (! $present()) {
+                self::write();
+            }
+        });
+    }
+
+    /**
+     * Runs the callback holding an exclusive `flock()` on a file under `storage/framework/kami/`, waiting for it: a lock any local disk gives, with no cache store or process.
+     * When the lock file cannot be opened, the callback runs unlocked rather than not at all.
+     *
+     * @template TValue
+     *
+     * @param  Closure(): TValue  $callback
+     * @return TValue
+     */
+    private static function locked(Closure $callback): mixed
+    {
+        $handle = rescue(function () {
+            File::ensureDirectoryExists(dirname($lock = self::state('lock')));
+
+            return fopen($lock, 'c');
+        }, false);
+
+        if ($handle === false) {
+            return $callback();
+        }
+
+        flock($handle, LOCK_EX);
+
+        try {
+            return $callback();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
+    }
+
+    /** @return int The URLs written. */
+    private static function write(): int
     {
         $site = Site::current();
         $started = now()->getTimestamp();
@@ -139,7 +193,7 @@ final class Sitemap
     public static function urls(): array
     {
         if (! is_dir(public_path('sitemaps'))) {
-            self::build();
+            self::buildUnless(fn (): bool => is_dir(public_path('sitemaps')));
         }
 
         $site = Site::current();

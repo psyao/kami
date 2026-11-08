@@ -30,7 +30,7 @@ An Entry answers only while it is visible. A Draft, an Entry whose publication d
 
 ### Changing an address
 
-When a slug or a Prefix changes, the former address keeps answering, as a 301 to the Entry's current URL, once the Translation has been public: its publication date has passed, even if it was unpublished since. A Redirect always leads to the final address in one step, so a bookmark, a search result or a browser's cached Redirect never ends on a 404. A Translation never public moves without leaving anything behind.
+When a slug or a Prefix changes, the former address keeps answering, as a 301 to the Entry's current URL, once the Translation has been public: its publication date has passed, even if it was unpublished or rescheduled to a later date since. A Redirect always leads to the final address in one step, so a bookmark, a search result or a browser's cached Redirect never ends on a 404. A Translation never public moves without leaving anything behind.
 
 A Redirect lasts until another Entry takes its address, which replaces it. A Draft given a past publication date by hand counts as public too: its former address answers 404 until the Entry is visible, then redirects.
 

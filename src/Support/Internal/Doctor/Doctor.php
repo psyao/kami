@@ -844,16 +844,14 @@ final readonly class Doctor
         ) : null;
     }
 
-    /** A page cache that cannot write stores nothing: every page then boots Laravel (ADR 0021). */
+    /** A page cache that cannot write stores nothing: every page then boots Laravel, and `Kami::remember()` caches nothing (ADR 0021). */
     private function pageCacheStorage(): ?Problem
     {
-        // Created on the first write: until then, its nearest existing parent decides.
-        for ($existing = storage_path('framework/kami/pages'); ! file_exists($existing); $existing = dirname($existing));
-
-        return PageCache::enabled() && ! is_writable($existing) ? new Problem(
+        // `Kami::remember()` keys its fragments on the manifest's version, page cache on or off.
+        return ! PageCache::writable() ? new Problem(
             Severity::Warning,
-            'The page cache cannot write to storage/framework/kami/pages/: every page boots Laravel.',
-            'make storage/framework/ writable by PHP, or set kami.page_cache.enabled to false.',
+            'Kami cannot write to storage/framework/kami/pages/: ' . (PageCache::enabled() ? 'every page boots Laravel, and ' : '') . 'Kami::remember() caches nothing.',
+            'make storage/framework/ writable by PHP.',
             'page-cache.md#storage',
         ) : null;
     }
