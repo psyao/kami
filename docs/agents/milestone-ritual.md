@@ -2,6 +2,8 @@
 
 `/to-tickets` makes the ritual the milestone's last ticket, `ready-for-human`, blocked by every other one. What it must meet is in `docs/roadmap.md` § Acceptance criteria for every milestone; these are the steps, in order.
 
+What a later step or session needs (briefs, findings, Steve's decisions) goes in a comment on the ritual ticket, never only in a local notes file: other sessions read the repo and the tracker.
+
 1. **Review.** Check that the last scheduled `volume` run on `main` is green. `/code-review high` on `<last tag>...HEAD` for `src` and `database`, with `docs/agents/coding-standards.md`. Reproduce what can be, on the engines concerned. Defects to fix before the release go in one ticket; the others go to `needs-triage` with a target.
 2. **Version.** Read `docs/development.md` § Releases, and name the number the milestone's changes call for. If it differs from the release pull request's, a `Release-As:` footer sets it, with its `UPGRADING.md` section when it is a minor.
 3. **Debt.** `/ponytail:ponytail-debt`, then `/ponytail:ponytail-audit`, on `main`. Each audit finding kept goes where step 1's do: the fixes ticket if it should hold the release, else `needs-triage` with a target.
