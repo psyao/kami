@@ -240,6 +240,16 @@ else
     failed=1
 fi
 
+# The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped. `php artisan down`
+# answers 503 before any cached page, as public/index.php checks maintenance before it requires Kami's reader.
+expect_page /smoke Bonjour
+docker compose stop mariadb >/dev/null 2>&1
+expect_page /smoke Bonjour
+docker compose up --detach --wait mariadb >/dev/null 2>&1
+docker compose run -T --rm cli php artisan down >/dev/null
+expect 503 /smoke
+docker compose run -T --rm cli php artisan up >/dev/null
+
 logs=$(docker compose exec -T php sh -c 'cat /var/log/php/error.log /var/www/site/storage/logs/*.log 2>/dev/null' || true)
 if [ -n "$logs" ]; then
     echo "The error logs are not empty:"

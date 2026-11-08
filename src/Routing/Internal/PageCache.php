@@ -10,7 +10,7 @@ use Psyao\Kami\Content\Internal\Visibility;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The page cache's files under `storage/framework/kami/pages/` (ADR 0021), kept readable by plain PHP for the pre-boot reader:
+ * The page cache's files under `storage/framework/kami/pages/` (ADR 0021), kept readable by plain PHP for the pre-boot reader, `resources/page-cache.php`, which repeats this format, the hash and the expiry:
  *
  * - `manifest.json`: `{"version": "<16 hex>", "next_change_at": <Unix timestamp>|null}`; null means nothing is Scheduled, and a missing, unreadable or malformed manifest is unknown, never "nothing Scheduled" (#268);
  * - `{version}/{xxh128(host . request URI)}`: a first line of JSON, `{"headers": {...}, "etag": "\"...\""}`, then the body; a page expires one hour after its file was written.
@@ -25,6 +25,7 @@ final class PageCache
     /** The version read once per request: an unwritable `storage/` would otherwise recompute it, with a query, on every call. */
     private const string VERSION = 'kami.content_version';
 
+    /** Repeated by `resources/page-cache.php`. */
     private const int MAX_AGE = 3600;
 
     public static function enabled(): bool

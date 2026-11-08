@@ -41,6 +41,17 @@ Until a panel carries `KamiPlugin` and its User model implements `KamiUser` and 
 
 On its first run it makes sure someone can manage Users. Give it the email of one of your existing Users, with `--email` or at its prompt, and that User gets the `administrator` Role and keeps their password, after a confirmation in a terminal. An unknown email creates a new User with the Role, from `--email` and `--name` with a one-time link to set the password or the `KAMI_ADMIN_PASSWORD` environment variable, or at its prompts ([Installation](installation.md#the-first-user)).
 
+## Serve cached pages before Laravel boots
+
+Add one line to `public/index.php`, right after Laravel's maintenance check, so a cached page is sent before Laravel boots:
+
+```php
+// Serve a page from Kami's page cache...
+(require __DIR__ . '/../vendor/psyao/kami/resources/page-cache.php')(__DIR__ . '/../storage');
+```
+
+It only answers what Kami has cached, its own pages, and lets every other request through. Without it the page cache still works, once Laravel has booted ([Page cache](page-cache.md#serving-before-laravel-boots)).
+
 ## What Kami changes in your application
 
 - **The time zone.** Kami sets `app.timezone` to UTC, whatever `config/app.php` says, so dates are stored and computed in UTC.
