@@ -79,12 +79,31 @@ function signIn(): mixed
 function signInPassword(mixed $page, string $email): mixed
 {
     // Typed before the password field's lazy component loads or after, the password is kept (`Browser/SignInTest`, #128).
-    // Not before Alpine starts, which empties the email: after a redirect, such as signing out, the page may still be loading (#369).
-    return $page
-        ->waitForEvent('load')
+    // Not before Alpine starts, which empties the email: after a redirect, such as signing out, the page may still be loading (#369, #396).
+    return livewireStarted($page)
         ->fill('[id="form.email"]', $email)
         ->fill('[id="form.password"]', 'secret-password')
         ->press('internal:role=button[name="Sign in"s]');
+}
+
+/**
+ * The page once its document has loaded and Livewire has started its components, so a field filled now is not emptied by Alpine and a button pressed now acts.
+ *
+ * ponytail: stands in for `waitForEvent('load')`, which sends nothing in pest-plugin-browser 5.2.0 (`Page::waitForLoadState()` never runs the client's generator, #396); #420 drops it once that is fixed upstream.
+ */
+function livewireStarted(mixed $page): mixed
+{
+    $page->script(<<<'JS'
+        () => new Promise((resolve, reject) => {
+            const until = Date.now() + 5000;
+            const started = () => document.readyState === 'complete' && [...document.querySelectorAll('[wire\\:id]')].every((element) => element.__livewire)
+                ? resolve()
+                : Date.now() > until ? reject(new Error('Livewire has not started after 5 seconds.')) : setTimeout(started, 20);
+            started();
+        })
+        JS);
+
+    return $page;
 }
 
 /** Through the sign-in page: the password, then the authenticator's current code. A second sign-in within the same 30 seconds is refused: Filament accepts each code once. */

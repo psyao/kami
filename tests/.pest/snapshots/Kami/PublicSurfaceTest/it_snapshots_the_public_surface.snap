@@ -73,6 +73,7 @@ class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Content\Entry::$forceDeleting protected $forceDeleting = false
 class Psyao\Kami\Content\Entry::fallbackLocale() public function fallbackLocale(string $field): ?string
 class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void
+class Psyao\Kami\Content\Entry::langAttribute() public function langAttribute(string $field): Illuminate\Support\HtmlString
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
 class Psyao\Kami\Content\Entry::ordered() protected function ordered(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
@@ -288,7 +289,9 @@ command kami:user:grant email <email>
 command kami:user:grant role <role>
 command kami:user:reset-mfa
 command kami:user:reset-mfa email <email>
+component x-kami::date ['value', 'format' => 'LL', 'day' => false]
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
+component x-kami::locales
 component x-kami::preview-banner
 config kami.audit.retention
 config kami.media.avif

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\ContentTypes;
@@ -202,6 +203,18 @@ class Entry extends Model
         }
 
         return $this->storedFallback($field);
+    }
+
+    /**
+     * ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
+     *
+     * `<p{{ $entry->langAttribute('subtitle') }}>{{ $entry->subtitle }}</p>`. A RichText or Markdown value and `<x-kami::image>`'s alt text mark it themselves.
+     */
+    public function langAttribute(string $field): HtmlString
+    {
+        $locale = $this->fallbackLocale($field);
+
+        return new HtmlString($locale === null || $locale === Site::current()->currentLocale() ? '' : ' lang="' . e($locale) . '"');
     }
 
     /** @return Collection<int, Model> */

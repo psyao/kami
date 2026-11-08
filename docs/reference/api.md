@@ -170,6 +170,7 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `protected $forceDeleting = false`: Indicates if the model is currently force deleting.
 - `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
+- `public function langAttribute(string $field): Illuminate\Support\HtmlString`: ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL.

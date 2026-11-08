@@ -6,9 +6,13 @@
 </head>
 <body>
     <x-kami::preview-banner />
+    <header>
+        <x-kami::locales />
+    </header>
     <main>
         <h1>{{ $entry->title }}</h1>
-        <p @if ($lang = $entry->fallbackLocale('summary'))lang="{{ $lang }}"@endif>{{ $entry->summary }}</p>
+        <p><x-kami::date :value="$entry->published_at" /></p>
+        <p{{ $entry->langAttribute('summary') }}>{{ $entry->summary }}</p>
         {{ $entry->body }}
     </main>
 </body>

@@ -76,13 +76,25 @@ All its Fields are Shared, and each Entry has a single Translation, saved with n
 
 A Translatable Field left blank in a Translation reads the default Locale's value, one hop, never through another Locale. It falls back only while the default Locale's Translation is visible: a Draft or Scheduled default Translation gives `null`, so unreviewed text never reaches a published page. Title and slug never fall back.
 
-When a value came from another Locale, `fallbackLocale()` names it, so the view marks its language for screen readers (WCAG 3.1.2):
+When a value came from another Locale, the element printing it must say so, for screen readers (WCAG 3.1.2). `langAttribute()` gives that attribute, with its leading space, and nothing when the value is in the page's language:
 
 ```blade
-<p @if ($lang = $entry->fallbackLocale('summary'))lang="{{ $lang }}"@endif>{{ $entry->summary }}</p>
+<p{{ $entry->langAttribute('summary') }}>{{ $entry->summary }}</p>
 ```
 
-On `/en/articles/hello` with a blank English summary, this prints `<p lang="fr">Un article.</p>`. Fallback costs no query: every Locale's values load with the Entry.
+On `/en/articles/hello` with a blank English summary, this prints `<p lang="fr">Un article.</p>`. A RichText or Markdown value and `<x-kami::image>`'s alt text mark it themselves; `fallbackLocale()` names the Locale when you need it for something else. Fallback costs no query: every Locale's values load with the Entry.
+
+## Language switcher
+
+`<x-kami::locales />` links the page's Entry in every Locale where it is visible, so a visitor never lands on a missing Translation. Put it in your layout:
+
+```blade
+<header>
+    <x-kami::locales />
+</header>
+```
+
+It renders a `<nav class="kami-locales">` labelled "Languages" in the page's Locale, around a list of links. Each link names its language in that language ("Français", "English"), with `hreflang` and `lang`; the current page's carries `aria-current="page"`. It renders nothing outside an Entry page (a 404, a route of your own), nor when the Entry is visible in a single Locale. It carries no CSS: style `.kami-locales` and `[aria-current]` as you wish.
 
 ## Reading in a Locale
 

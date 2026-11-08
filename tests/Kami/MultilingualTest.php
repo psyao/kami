@@ -88,8 +88,12 @@ it('falls back to the default Locale for a blank Translatable Field, with its la
 
     expect([$english->summary, $english->fallbackLocale('summary')])->toBe(['Un article.', 'fr'])
         ->and([$french->summary, $french->fallbackLocale('summary')])->toBe(['Un article.', null])
-        ->and($english->fallbackLocale('title'))->toBeNull();
+        ->and($english->fallbackLocale('title'))->toBeNull()
+        // The page is French here: an English Entry's French fallback is in the page's language.
+        ->and((string) $english->langAttribute('summary'))->toBe('')
+        ->and((string) $french->langAttribute('summary'))->toBe('');
 
+    // The view prints `<p{{ $entry->langAttribute('summary') }}>`.
     $this->get('/en/articles/hello')->assertOk()->assertSee('<p lang="fr">Un article.</p>', escape: false);
 });
 

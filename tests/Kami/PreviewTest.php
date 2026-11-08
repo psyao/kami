@@ -151,6 +151,19 @@ it('renders in the Locale edited', function () {
     $this->get(previewUrl($page))->assertOk()->assertSee('<html lang="en">', escape: false)->assertSee('<h1>Hello</h1>', escape: false);
 });
 
+it('links the previewed Entry\'s visible Translations in the language switcher', function () {
+    $entry = previewedArticle();
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello', 'status' => 'published'], $entry, 'en');
+
+    $page = previewPage(EditEntry::class, ['record' => $entry->id, 'locale' => 'en'])
+        ->fillForm(['title' => 'Hello again'])
+        ->call('preview');
+
+    $this->get(previewUrl($page))->assertOk()
+        ->assertSee('<a href="http://localhost/articles/bonjour" hreflang="fr" lang="fr">Français</a>', escape: false)
+        ->assertSee('<a href="http://localhost/en/articles/hello" hreflang="en" lang="en" aria-current="page">English</a>', escape: false);
+});
+
 it('keeps one token per page, each Preview replacing the last', function () {
     $page = previewPage(EditEntry::class, ['record' => previewedArticle()->id])
         ->fillForm(['title' => 'Premier'])
