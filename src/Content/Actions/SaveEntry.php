@@ -209,7 +209,7 @@ final class SaveEntry
         $values = array_map(fn (mixed $value): mixed => $value === '' || $value === [] ? null : $value, $values);
         $fields = [];
 
-        foreach ($contentType->flatFields() as $field) {
+        foreach ($contentType->storedFields() as $field) {
             if ($writesTranslation || ! $contentType->isTranslatable($field)) {
                 $fields[$field->handle] = $field;
             }
@@ -317,6 +317,7 @@ final class SaveEntry
 
         foreach (array_keys($rules) as $attribute) {
             $label = match (true) {
+                $attribute === 'seo_image' => (string) __('kami::seo.image'),
                 isset($fields[Str::before($attribute, '.')]) => $contentType->fieldLabel(str_replace(['.*', '.'], ['', '.fields.'], $attribute)),
                 in_array($attribute, ['title', 'slug', 'published_at', 'parent'], true) => (string) __("kami::admin.fields.{$attribute}"),
                 default => null,

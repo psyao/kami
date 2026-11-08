@@ -62,7 +62,7 @@ final class EntrySnapshot
         $relations = array_column($type->relationFields(), 'handle');
         $references = $entry instanceof Entry && $relations !== [] ? References::stored([$entry->id], $relations)[$entry->id] ?? [] : [];
 
-        foreach ($type->flatFields() as $field) {
+        foreach ($type->storedFields() as $field) {
             if (! array_key_exists($field->handle, $data)) {
                 continue;
             }

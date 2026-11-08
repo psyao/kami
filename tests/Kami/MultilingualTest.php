@@ -154,8 +154,8 @@ it('falls back without a query of its own', function () {
     DB::enableQueryLog();
     $this->get('/en/articles/hello')->assertOk()->assertSee('Un article.');
 
-    // The Path, the Entry with its visibility, its Translations, its type rows, the head's look for the Site settings: as on a page with no Fallback.
-    expect(DB::getQueryLog())->toHaveCount(5);
+    // The Path, the Entry with its visibility, its Translations, its type rows, the head's look for the Site settings and the Social image Reference: as on a page with no Fallback.
+    expect(DB::getQueryLog())->toHaveCount(6);
 });
 
 it('warns that Paths lag behind the declarations until the next kami:install', function () {

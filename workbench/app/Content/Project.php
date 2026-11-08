@@ -19,6 +19,7 @@ use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
 use Psyao\Kami\Content\Section;
 use Psyao\Kami\Content\Tab;
+use Psyao\Kami\Media\Media as MediaItem;
 
 /** A form arranged in tabs and a section, with Fields shown only when they apply, a list of rows, a set of named values, links and Media. */
 final class Project extends ContentType
@@ -62,5 +63,14 @@ final class Project extends ContentType
     public function summary(Entry $entry): ?string
     {
         return null;
+    }
+
+    /** Its cover, when its Entry has no Social image of its own. */
+    #[\Override]
+    public function socialImage(Entry $entry): ?MediaItem
+    {
+        $cover = $entry->getAttribute('cover');
+
+        return $cover instanceof MediaItem ? $cover : null;
     }
 }

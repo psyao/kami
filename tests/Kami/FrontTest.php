@@ -94,8 +94,9 @@ it('renders an Entry page in an exact number of queries', function () {
     DB::enableQueryLog();
     $this->get('/articles/hello-world')->assertOk();
 
-    // The Path, the Entry with its visibility, its Translations, its type rows; the head's Site settings, their Translations and type rows.
-    expect(DB::getQueryLog())->toHaveCount(7);
+    // The Path, the Entry with its visibility, its Translations, its type rows; the head's Site settings, their Translations and type rows,
+    // the Entry's Social image Reference, then the Site's default one.
+    expect(DB::getQueryLog())->toHaveCount(9);
 });
 
 it('renders related Entries in pick order, a Draft left out, in an exact number of queries', function () {
@@ -107,8 +108,9 @@ it('renders related Entries in pick order, a Draft left out, in an exact number 
     DB::enableQueryLog();
     $response = $this->get('/project/kami')->assertOk()->assertSeeInOrder(['Last', 'First'])->assertDontSee('Hidden');
 
-    // The page's four, the rows, the targets, their Translations, the Articles' rows, the view's `tags` and `cover` rows, the head's look for the Site settings.
-    expect(DB::getQueryLog())->toHaveCount(11);
+    // The page's four, the rows, the targets, their Translations, the Articles' rows, the view's `tags` rows, the head's look for the Site settings,
+    // its Social image Reference, then the `cover` rows its type's `socialImage()` reads, which the view finds loaded.
+    expect(DB::getQueryLog())->toHaveCount(12);
     $response->assertSee('/articles/last');
 });
 

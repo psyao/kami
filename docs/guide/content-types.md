@@ -580,7 +580,7 @@ The same call replaces the component of one of Kami's own Field types. A declare
 
 A Field handle follows the type handle's rules (snake_case, 40 characters at most) and appears once in its type. It may not take a name Kami keeps for its own attributes, listed in `Field::RESERVED_HANDLES`:
 
-`id`, `site`, `type`, `created_by`, `updated_by`, `created_at`, `updated_at`, `title`, `slug`, `status`, `published_at`, `meta_title`, `meta_description`, `noindex`, `entry_id`, `locale`, `parent`, `parent_id`, `position`, `deleted_at`.
+`id`, `site`, `type`, `created_by`, `updated_by`, `created_at`, `updated_at`, `title`, `slug`, `status`, `published_at`, `meta_title`, `meta_description`, `noindex`, `seo_image`, `entry_id`, `locale`, `parent`, `parent_id`, `position`, `deleted_at`.
 
 Nor may it name a method of `Entry`, Eloquent's included, such as `url`, `translations`, `save` or `touch`: the method would hide the value. The list only grows in a major version. Each rule is checked with the type's handle.
 

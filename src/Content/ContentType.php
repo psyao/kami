@@ -12,6 +12,7 @@ use Psyao\Kami\Content\Fields\Media;
 use Psyao\Kami\Content\Fields\RelationField;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
+use Psyao\Kami\Media\Media as MediaItem;
 use Symfony\Component\HttpFoundation\Response;
 
 /** A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007). */
@@ -31,6 +32,9 @@ abstract class ContentType
 
     /** `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand. */
     protected bool $hierarchical = false;
+
+    /** Its pages' `og:type`; `article` adds `article:published_time` and `article:modified_time`. */
+    protected string $ogType = 'website';
 
     /**
      * The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
@@ -89,7 +93,20 @@ abstract class ContentType
     final public function relationFields(): array
     {
         /** @var list<RelationField|Media> */
-        return array_values(array_filter($this->flatFields(), fn (Field $field): bool => $field->isReference()));
+        return array_values(array_filter($this->storedFields(), fn (Field $field): bool => $field->isReference()));
+    }
+
+    /**
+     * @internal
+     *
+     * Its Fields and, on a routable type, the Social image: a Shared, images-only Media Field under the reserved `seo_image`, which
+     * `SaveEntry` writes and an Entry reads as any other, and which the form leaves to its SEO section (#23 decision 1).
+     *
+     * @return list<Field>
+     */
+    final public function storedFields(): array
+    {
+        return [...$this->flatFields(), ...$this->isRoutable() ? [Media::make('seo_image')->images()] : []];
     }
 
     /**
@@ -167,6 +184,22 @@ abstract class ContentType
         $excerpt = $document instanceof Document ? $document->excerpt(160) : '';
 
         return $excerpt === '' ? null : $excerpt;
+    }
+
+    /**
+     * The page's Social image when its Entry has none of its own, before the Site's default one: `null` by default.
+     *
+     * Override it to return an image Field's value, such as a cover's. An image with no Conversion, an SVG, is skipped.
+     */
+    public function socialImage(Entry $entry): ?MediaItem
+    {
+        return null;
+    }
+
+    /** @internal */
+    final public function ogType(): string
+    {
+        return $this->ogType;
     }
 
     /**

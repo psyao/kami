@@ -104,7 +104,7 @@ final class ImagePresets
         $presets = array_column([
             ImagePreset::make(self::ADMIN_THUMB)->ratio(1, 1)->widths([320]),
             ImagePreset::make(self::ORIGINAL),
-            ImagePreset::make(self::SOCIAL)->ratio(1.91, 1)->widths([1200]),
+            ImagePreset::make(self::SOCIAL)->ratio(40, 21)->widths([1200]),
         ], null, 'handle');
 
         $shipped = [...array_keys($presets), self::FILE];

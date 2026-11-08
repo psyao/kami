@@ -146,6 +146,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 
 - `protected bool $hierarchical = false`: `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand.
 - `protected ?string $model = NULL`: The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
+- `protected string $ogType = 'website'`: Its pages' `og:type`; `article` adds `article:published_time` and `article:modified_time`.
 - `protected bool $orderable = false`: `true` lets editors drag the type's rows, and `ordered()` read that order; a new Entry goes last.
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
 - `protected bool $routable = true`: `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages.
@@ -159,6 +160,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `final public function pluralLabel(): string`: `kami-types.{handle}.plural`, or the humanised handle in the plural.
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
 - `final public function sectionLabel(string $section): string`: `kami-types.{handle}.sections.{section}.label`, or the humanised handle.
+- `public function socialImage(Psyao\Kami\Content\Entry $entry): ?Psyao\Kami\Media\Media`: The page's Social image when its Entry has none of its own, before the Site's default one: `null` by default.
 - `public function summary(Psyao\Kami\Content\Entry $entry): ?string`: The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field, in its own Locale only.
 - `final public function tabLabel(string $tab): string`: `kami-types.{handle}.tabs.{tab}.label`, or the humanised handle.
 
@@ -222,7 +224,7 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 
 - `public protected(set) readonly string $handle`
 - `protected bool $translatable = true`: One value per Locale, or one Shared value for the whole Entry (ADR 0013).
-- `public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'meta_title', 12 => 'meta_description', 13 => 'noindex', 14 => 'entry_id', 15 => 'locale', 16 => 'parent', 17 => 'parent_id', 18 => 'position', 19 => 'deleted_at', )`: Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
+- `public const array RESERVED_HANDLES = array ( 0 => 'id', 1 => 'site', 2 => 'type', 3 => 'created_by', 4 => 'updated_by', 5 => 'created_at', 6 => 'updated_at', 7 => 'title', 8 => 'slug', 9 => 'status', 10 => 'published_at', 11 => 'meta_title', 12 => 'meta_description', 13 => 'noindex', 14 => 'seo_image', 15 => 'entry_id', 16 => 'locale', 17 => 'parent', 18 => 'parent_id', 19 => 'position', 20 => 'deleted_at', )`: Handles a Field may not take: Kami's own attributes of an Entry, its Translation and its type table, present or planned (ADR 0007).
 - `final public function __construct(string $handle)`
 - `protected function baseRules(): array`: The rules every value of this Field type passes, before those of `->rules()`.
 - `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
@@ -518,10 +520,17 @@ What the page's head says to search engines and networks, as `<x-kami::seo />` p
 
 - `public protected(set) readonly ?string $canonical`
 - `public protected(set) readonly ?string $description`
+- `public protected(set) readonly ?string $image`
+- `public protected(set) readonly ?string $imageAlt`
+- `public protected(set) readonly ?int $imageHeight`
+- `public protected(set) readonly ?int $imageWidth`
+- `public protected(set) readonly ?Carbon\CarbonImmutable $modifiedTime`
+- `public protected(set) readonly string $ogType`
+- `public protected(set) readonly ?Carbon\CarbonImmutable $publishedTime`
 - `public protected(set) readonly ?string $robots`
 - `public protected(set) readonly string $siteName`
 - `public protected(set) readonly string $title`
-- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName)`
+- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL)`
 
 ## `Psyao\Kami\Support\SecurityHeaders`
 

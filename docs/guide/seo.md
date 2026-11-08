@@ -1,6 +1,6 @@
 # SEO
 
-Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL and robots tag, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
+Each page gets a head from `<x-kami::seo />`: its title, description, canonical URL, robots tag and social card, derived from what editors wrote with nothing to configure. One switch decides whether search engines are welcome on a Site. It drives a `robots.txt` that `kami:install` writes, and an `X-Robots-Tag` header on every front response (ADR 0027).
 
 ## The head
 
@@ -20,6 +20,17 @@ On a page Kami renders, it prints:
 <meta name="description" content="The start of the article…">
 <link rel="canonical" href="https://example.com/en/articles/hello">
 <meta property="og:url" content="https://example.com/en/articles/hello">
+<meta property="og:title" content="Hello – Kami">
+<meta property="og:description" content="The start of the article…">
+<meta property="og:site_name" content="Kami">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-11-08T09:00:00+00:00">
+<meta property="article:modified_time" content="2026-11-08T10:30:00+00:00">
+<meta property="og:image" content="https://example.com/media/01k…/3f9a1c2b/kami-social-1200.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The lake at dawn">
+<meta name="twitter:card" content="summary_large_image">
 ```
 
 Every value is escaped, and a tag with no value is left out.
@@ -58,6 +69,46 @@ The page's absolute URL, built from the Site's declared `url`, its Locale segmen
 - `noindex` in a Preview, always;
 - no tag otherwise.
 
+### Social card
+
+`og:title`, `og:description` and `og:site_name` repeat the title, the description and the Site name. `og:type` is the type's `$ogType`, `website` by default:
+
+```php
+final class Article extends ContentType
+{
+    protected string $ogType = 'article';
+}
+```
+
+An `article` adds `article:published_time`, the Translation's publication date, and `article:modified_time`, the Entry's last save in any Locale. `twitter:card` is `summary_large_image` with an image and `summary` without; X reads the rest from Open Graph, so no other `twitter:*` tag is printed.
+
+### Social image
+
+The page's image is the first of:
+
+1. the Entry's own Social image, `seo_image`, shared by all its Translations;
+2. its type's `socialImage()`, `null` by default;
+3. the Site settings' `default_social_image`.
+
+With none, no `og:image`. An image with no Conversion, an SVG, is skipped for the next one, as link previews read JPEG and PNG only. Override `socialImage()` to use an image Field the type already has:
+
+```php
+public function socialImage(Entry $entry): ?Media
+{
+    $cover = $entry->getAttribute('cover');
+
+    return $cover instanceof Media ? $cover : null;
+}
+```
+
+`og:image` is the image's `kami-social` Conversion: cut at 40:21 around the centre, 1200 × 630, in JPEG for a JPEG and in PNG for anything else, never AVIF or WebP ([Image Presets](media.md#image-presets)). A smaller image is never upscaled: `og:image:width` and `og:image:height` give the size of the file served. `og:image:alt` is the image's alt text in the page's Locale, else the default Locale's; a decorative image, or one with no alt text, has none.
+
+`seo_image` is written through `SaveEntry`, as a Media item's id, on a type with a URL, and refused on any other. It is a Reference, so the Media item it names cannot be deleted while the Entry uses it, as for a Media Field. The handle `seo_image` is reserved: no Field may take it.
+
+```php
+resolve(SaveEntry::class)->handle(Article::class, ['seo_image' => $media->id], $entry);
+```
+
 ### Writing the values
 
 `meta_title` (255 characters at most), `meta_description` and `noindex` are Translation attributes, one value per Locale. `SaveEntry` writes them on a type with a URL and refuses them on any other, Global Sets included:
@@ -70,7 +121,7 @@ resolve(SaveEntry::class)->handle(Article::class, [
 ], $entry, 'en');
 ```
 
-They read as `$entry->meta_title`, `$entry->meta_description` and `$entry->noindex`. The Site's `default_description` is a Field of `SiteSettings`, written through `SaveEntry` as its `site_name`.
+They read as `$entry->meta_title`, `$entry->meta_description`, `$entry->noindex` and `$entry->seo_image`. The Site's `default_description` and `default_social_image`, an images-only Media Field shared by all Locales, are Fields of `SiteSettings`, written through `SaveEntry` as its `site_name`.
 
 ### Pages Kami does not render
 
@@ -80,11 +131,11 @@ On your own routes and on error pages, pass the title and the description:
 <x-kami::seo :title="__('Contact')" :description="__('Write to us.')" />
 ```
 
-The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL. A page Kami renders ignores both props.
+The title becomes `Contact – Kami` through the same `kami::seo.title` string; without one, the Site name alone. There is no canonical URL; `og:type` is `website`, and the image is the Site's default Social image. A page Kami renders ignores both props.
 
 ### Reading the values
 
-`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots` and `siteName`, each `null` when it has no value but `title` and `siteName`. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
+`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots`, `siteName`, `image`, `imageWidth`, `imageHeight`, `imageAlt`, `ogType`, `publishedTime` and `modifiedTime`, each `null` when it has no value but `title`, `siteName` and `ogType`. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
 
 In a Preview, the head is that of the unsaved form, with the saved URL as canonical: none while the saved Translation is not visible, a Draft for instance.
 
@@ -146,6 +197,6 @@ Apache serves a file in `public/` before Laravel sees the request, so a file wou
 
 | Subject | Shared hosting | Server |
 | --- | --- | --- |
-| **The head** | Computed in the request from the page's Entry and the Site settings, a constant number of queries; stored with the page in the [page cache](page-cache.md) | The same |
+| **The head** | Computed in the request from the page's Entry, its Social image and the Site settings, a constant number of queries; stored with the page in the [page cache](page-cache.md) | The same |
 | **`robots.txt`** | A static file `kami:install` writes over SSH; the host never answers its own | The same; Apache or nginx serve it |
 | **`X-Robots-Tag`** | Set in the request, and replayed with cached pages; on Conversions Apache serves, from the `.htaccess` `kami:install` writes | The same; on nginx, in its `location` blocks for `/media/` |
