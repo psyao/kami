@@ -54,7 +54,6 @@ final class CachePages
             && $response->getStatusCode() === 200
             && $response->getContent() !== false
             && $response->headers->getCookies() === []
-            && ! $response->headers->has('Set-Cookie')
             && $request->attributes->get(PageCache::SKIP) !== true;
     }
 }
