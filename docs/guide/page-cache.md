@@ -13,6 +13,24 @@ Kami stores a response of its Entry route only when all of these hold:
 
 Redirects, 404 and 410 pages, Previews, Preview links, Conversions and your own routes are never stored. A stored page is replayed with its headers, the Content Security Policy included, but `Set-Cookie` and `Date`. It carries an `ETag` and `Cache-Control: no-cache`: browsers ask again each time, and a page that has not changed answers `304 Not Modified` with no body.
 
+## Serving before Laravel boots
+
+The starter kit's `public/index.php` serves a cached page before Laravel boots, with no autoload, no framework and no query. One line does it, right after Laravel's maintenance check:
+
+```php
+// Determine if the application is in maintenance mode...
+if (file_exists($maintenance = __DIR__ . '/../storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// Serve a page from Kami's page cache...
+(require __DIR__ . '/../vendor/psyao/kami/resources/page-cache.php')(__DIR__ . '/../storage');
+```
+
+The line reads the manifest and one file, sends the stored page and stops. Anything else, a stale page, a page never stored or an unknown manifest, lets the request through to Laravel. Keep it after the maintenance check: `php artisan down` then answers 503 before any cached page. A `storage/` moved elsewhere is the path the line passes.
+
+Without the line the page cache still works: Kami's middleware serves the same pages once Laravel has booted, with no query and no rendering. An [existing application](existing-application.md#serve-cached-pages-before-laravel-boots) adds the line by hand.
+
 ## When pages go stale
 
 One Content version covers the whole installation, and every cached page and fragment is keyed by it. A new version makes all of them stale at once:
@@ -69,13 +87,13 @@ The page cache is on unless `APP_DEBUG` is, so a page you debug is never a cache
 ],
 ```
 
-With it off, `Kami::remember()` still caches fragments.
+With it off, `Kami::remember()` still caches fragments. The line in `public/index.php` cannot read the configuration: after turning the page cache off by hand, run `php artisan kami:cache:clear` so it finds no page left. A deploy needs nothing, as `kami:install` makes a new Content version.
 
 ## Storage
 
 Pages live under `storage/framework/kami/pages/`, one directory per Content version, and the files of former versions are deleted after the response that replaced them. `kami:doctor` warns when that directory cannot be written while the page cache is on: every page then boots Laravel.
 
-It works the same on shared hosting and on a server: a hit reads the manifest and one file, with no query. The files sit on the web server's own disk, so an installation behind several web servers either shares `storage/` between them or turns the page cache off.
+It works the same on shared hosting and on a server: a hit reads the manifest and one file, with no query, and with the line above it compiles about a hundred lines of PHP rather than Laravel, which matters where OPcache is off. The files sit on the web server's own disk, so an installation behind several web servers either shares `storage/` between them or turns the page cache off.
 
 ## Clearing
 

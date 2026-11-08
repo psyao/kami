@@ -30,7 +30,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Store or delete an image or a document (`SaveMedia`, `DeleteMedia`), write its alt text, change what the library accepts, or pre-generate and prune Conversions (`kami:media:warm`, `kami:media:prune`) | `vendor/psyao/kami/docs/guide/media.md` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |
 | Render a type, write its view, override `render()` or place `Kami::routes()` | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |
-| Cache a fragment (`Kami::remember()`), keep a page out of the page cache (`Kami::withoutPageCache()`), make it stale after a change Kami cannot see (`Kami::flushCache()`, `kami:cache:clear`) or turn it off | `vendor/psyao/kami/docs/guide/page-cache.md` |
+| Cache a fragment (`Kami::remember()`), keep a page out of the page cache (`Kami::withoutPageCache()`), make it stale after a change Kami cannot see (`Kami::flushCache()`, `kami:cache:clear`), serve it before Laravel boots (the `public/index.php` line) or turn it off | `vendor/psyao/kami/docs/guide/page-cache.md` |
 | Load from another origin, extend the front CSP, or weigh an option that weakens it | `vendor/psyao/kami/docs/guide/security.md` |
 | Give the User model Kami's Roles, declare a Role, or check a Permission | `vendor/psyao/kami/docs/guide/users-and-roles.md` |
 | Read what the Audit log records, record a site's own event (`RecordAuditEvent`), group a long run into one event (`AuditContext::batch()`), or change its retention (`kami:audit:prune`) | `vendor/psyao/kami/docs/guide/audit-log.md` |

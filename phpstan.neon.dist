@@ -9,6 +9,7 @@ parameters:
     paths:
         - config
         - database
+        - resources/page-cache.php
         - src
         - workbench/app
         - workbench/database
