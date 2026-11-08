@@ -276,7 +276,7 @@ class Entry extends Model
 
     private function field(string $handle): ?Field
     {
-        return collect($this->contentType()?->flatFields() ?? [])->firstWhere('handle', $handle);
+        return collect($this->contentType()?->storedFields() ?? [])->firstWhere('handle', $handle);
     }
 
     /** @internal */

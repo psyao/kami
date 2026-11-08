@@ -140,14 +140,14 @@ describe('a Singleton', function () {
         DB::enableQueryLog();
         $this->get('/')->assertOk();
 
-        // The Path, the Entry with its visibility, its Translations, its type rows, the head's look for the Site settings.
-        expect(DB::getQueryLog())->toHaveCount(5);
+        // The Path, the Entry with its visibility, its Translations, its type rows, the head's look for the Site settings, the Social image Reference.
+        expect(DB::getQueryLog())->toHaveCount(6);
 
         resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Home', 'status' => 'published', 'intro' => 'Welcome'], Home::entry(), 'en');
         DB::flushQueryLog();
         $this->get('/en')->assertOk();
 
-        expect(DB::getQueryLog())->toHaveCount(5);
+        expect(DB::getQueryLog())->toHaveCount(6);
     });
 
     it('takes its handle as Prefix when it declares none', function () {

@@ -22,6 +22,9 @@ final class Article extends ContentType
     #[\Override]
     protected ?string $prefix = 'articles';
 
+    #[\Override]
+    protected string $ogType = 'article';
+
     public function fields(): array
     {
         return [

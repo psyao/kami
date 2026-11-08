@@ -17,7 +17,7 @@ abstract class Field
      */
     public const array RESERVED_HANDLES = [
         'id', 'site', 'type', 'created_by', 'updated_by', 'created_at', 'updated_at',
-        'title', 'slug', 'status', 'published_at', 'meta_title', 'meta_description', 'noindex',
+        'title', 'slug', 'status', 'published_at', 'meta_title', 'meta_description', 'noindex', 'seo_image',
         'entry_id', 'locale',
         'parent', 'parent_id', 'position', 'deleted_at',
     ];

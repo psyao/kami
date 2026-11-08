@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content;
 
+use Psyao\Kami\Content\Fields\Media;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 
@@ -15,6 +16,7 @@ final class SiteSettings extends GlobalSet
         return [
             Text::make('site_name'),
             Textarea::make('default_description'),
+            Media::make('default_social_image')->images(),
         ];
     }
 }
