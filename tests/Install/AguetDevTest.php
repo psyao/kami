@@ -104,8 +104,13 @@ function installAguetDev(bool $indexable = false): void
 {
     $test = test();
     $test->bootWithKamiOnAPanel();
-    config(['app.url' => 'https://aguet.dev', 'kami.sites.default.url' => 'https://aguet.dev', 'kami.indexable' => $indexable, 'kami.sites.default.locales' => ['fr' => ['region' => 'CH'], 'en' => ['region' => 'GB']]]);
-    $site = sys_get_temp_dir() . '/kami-aguet-' . uniqid();
+    config([
+        'app.url' => 'https://aguet.dev',
+        'kami.sites.default.url' => 'https://aguet.dev',
+        'kami.indexable' => $indexable,
+        'kami.sites.default.locales' => ['fr' => ['region' => 'CH'], 'en' => ['region' => 'GB']],
+    ]);
+    $site = temporaryPath();
     $test->beforeApplicationDestroyed(fn () => File::deleteDirectory($site));
     app()->useDatabasePath("{$site}/database");
     File::ensureDirectoryExists(database_path('migrations'));
@@ -157,7 +162,7 @@ it('declares aguet.dev, and its Home lists Projects by hand with Tags in pick or
 
 // M7's acceptance: aguet.dev's HomePageTest head assertions, tag by tag, each present once. No Social image is set, as aguet.dev has none.
 it('carries the Home\'s SEO in its head in each language', function (): void {
-    installAguetDev();
+    installAguetDev(indexable: true);
     $save = resolve(SaveEntry::class);
     $save->handle('site_settings', ['site_name' => 'aguet.dev'], SiteSettings::entry(), 'fr');
     $home = Entry::query()->withUnpublished()->ofType(Home::class)->sole();
@@ -220,8 +225,7 @@ it('carries the Home\'s SEO in its head in each language', function (): void {
 // aguet.dev's robots expectations, its environment switch now `kami.indexable`. Its sitemap expectation comes with #410.
 it('keeps the admin out of robots.txt when indexable, and everything out otherwise', function (bool $indexable, string $rules, ?string $header): void {
     installAguetDev($indexable);
-    $save = resolve(SaveEntry::class);
-    $save->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], Entry::query()->withUnpublished()->ofType(Home::class)->sole(), 'fr');
+    resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], Entry::query()->withUnpublished()->ofType(Home::class)->sole(), 'fr');
 
     $response = $this->get('/');
 
