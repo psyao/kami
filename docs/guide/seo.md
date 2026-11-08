@@ -13,7 +13,7 @@ KAMI_INDEXABLE=false
 
 When the Site is not indexable:
 
-- every response of Kami's front routes carries `X-Robots-Tag: noindex, nofollow`: pages, 404s, Conversions and Preview links;
+- every response of Kami's front routes carries `X-Robots-Tag: noindex, nofollow`: pages, 404s, Conversions and Preview links. Conversions Apache serves from `public/media` get it from the `.htaccess` `kami:install` writes; on nginx, add it yourself ([Hosting](hosting.md#nginx));
 - `robots.txt` disallows everything.
 
 The admin panel, the admin Preview and Preview links always send `X-Robots-Tag: noindex, nofollow`, whatever the switch says. Your own routes are yours: Kami adds nothing to them.
@@ -54,11 +54,11 @@ The first line is Kami's marker. `kami:install` rewrites the file while it start
 
 ## Host routes
 
-Apache serves a file in `public/` before Laravel sees the request, so a file would shadow a route of your application at the same address. When one of your routes answers `/robots.txt`, `kami:install` writes no `robots.txt`, and `kami:doctor` warns about it, and about a route answering `/sitemap.xml` too (ADR 0038). Make sure your `robots.txt` disallows the Kami panel and names the sitemap.
+Apache serves a file in `public/` before Laravel sees the request, so a file would shadow a route of your application at the same address. When one of your routes answers `/robots.txt`, `kami:install` writes no `robots.txt`, and `kami:doctor` warns about it, and about a route answering `/sitemap.xml` too (ADR 0038). Make sure your `robots.txt` disallows the Kami panel and names the sitemap, and that your sitemap lists the Site's pages.
 
 ## Shared hosting and a server
 
 | Subject | Shared hosting | Server |
 | --- | --- | --- |
 | **`robots.txt`** | A static file `kami:install` writes over SSH; the host never answers its own | The same; Apache or nginx serve it |
-| **`X-Robots-Tag`** | Set in the request, and replayed with cached pages | The same |
+| **`X-Robots-Tag`** | Set in the request, and replayed with cached pages; on Conversions Apache serves, from the `.htaccess` `kami:install` writes | The same; on nginx, in its `location` blocks for `/media/` |

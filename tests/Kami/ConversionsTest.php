@@ -63,6 +63,7 @@ function tampered(string $url, int $segment, string $value): string
 }
 
 it('generates a Conversion on its first request, writes it, then serves the file on disk', function (): void {
+    config(['kami.indexable' => false]);
     $url = rotatedPhoto()->url('card', 40);
     $path = ltrim((string) parse_url($url, PHP_URL_PATH), '/');
 
@@ -71,6 +72,7 @@ it('generates a Conversion on its first request, writes it, then serves the file
         ->assertHeader('Content-Type', 'image/jpeg')
         ->assertHeader('Cache-Control', 'immutable, max-age=31536000, public')
         ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
         ->assertHeaderMissing('Set-Cookie');
     Storage::disk('public')->assertExists($path);
 

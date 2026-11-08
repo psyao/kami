@@ -28,8 +28,7 @@ final class RobotsTxt
             return self::MARKER . "\nUser-agent: *\nDisallow: /\n";
         }
 
-        $site = Site::current();
-        $host = parse_url($site->url, PHP_URL_HOST);
+        $host = parse_url(Site::current()->url, PHP_URL_HOST);
         $disallowed = [];
 
         // A panel at the root would disallow the front; one on a domain of its own has a robots.txt of its own.
@@ -42,7 +41,13 @@ final class RobotsTxt
             }
         }
 
-        return self::MARKER . "\nUser-agent: *\n" . implode('', array_unique($disallowed)) . "\nSitemap: " . mb_rtrim($site->url, '/') . "/sitemap.xml\n";
+        return self::MARKER . "\nUser-agent: *\n" . implode('', array_unique($disallowed)) . "\nSitemap: " . self::sitemapUrl() . "\n";
+    }
+
+    /** The sitemap index's absolute URL, which ADR 0027 asks `robots.txt` to name. */
+    public static function sitemapUrl(): string
+    {
+        return mb_rtrim(Site::current()->url, '/') . '/sitemap.xml';
     }
 
     /** Whether a route of the host, not Kami's fallback, answers this address on the Site: Apache would serve a file in its place, so Kami writes none there (ADR 0038). */
@@ -66,21 +71,23 @@ final class RobotsTxt
      */
     public static function write(): ?string
     {
-        $file = public_path('robots.txt');
-
         if (self::hostRouteAnswers('/robots.txt')) {
             return 'public/robots.txt was not written: a route of the application answers /robots.txt.';
         }
 
-        if (is_file($file) && ! self::managed($file)) {
+        $file = public_path('robots.txt');
+        $current = is_file($file) ? File::get($file) : null;
+
+        if ($current !== null && ! str_starts_with($current, self::MARKER)) {
             return "public/robots.txt is the site's own, without Kami's first line: left as it is.";
         }
 
-        if (is_file($file) && File::get($file) === self::expected()) {
+        if ($current === ($expected = self::expected())) {
             return null;
         }
 
-        File::put($file, self::expected());
+        // `filament:assets` has just written to public/, so it is writable.
+        File::put($file, $expected);
 
         return 'Wrote public/robots.txt.';
     }

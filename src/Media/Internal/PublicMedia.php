@@ -130,19 +130,22 @@ final class PublicMedia
         return null;
     }
 
-    /** No mod_rewrite directive: one here would replace `public/.htaccess`'s rules, and a missing Conversion would no longer reach Laravel. */
+    /**
+     * No mod_rewrite directive: one here would replace `public/.htaccess`'s rules, and a missing Conversion would no longer reach Laravel.
+     * `X-Robots-Tag` follows `kami.indexable` as at the install, as the front's does on the Conversion's first request (ADR 0027).
+     */
     private static function htaccess(): string
     {
         return sprintf(<<<'APACHE'
             # Written by kami:install at each run: edits are lost.
             <IfModule mod_headers.c>
                 Header always set X-Content-Type-Options "%s"
-                Header set Cache-Control "%s"
+                Header set Cache-Control "%s"%s
                 <FilesMatch "\.svg$">
                     Header always set Content-Security-Policy "%s"
                 </FilesMatch>
             </IfModule>
 
-            APACHE, self::HEADERS['X-Content-Type-Options'], self::HEADERS['Cache-Control'], self::SVG_HEADERS['Content-Security-Policy']);
+            APACHE, self::HEADERS['X-Content-Type-Options'], self::HEADERS['Cache-Control'], config('kami.indexable') ? '' : "\n    Header always set X-Robots-Tag \"noindex, nofollow\"", self::SVG_HEADERS['Content-Security-Policy']);
     }
 }

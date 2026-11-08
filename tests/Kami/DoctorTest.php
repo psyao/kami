@@ -801,6 +801,16 @@ it('warns when the page cache cannot write to its directory, and only while it i
     File::deleteDirectory($storage);
 })->with(['on' => true, 'off' => false]);
 
+// Here rather than with the other search-engine checks, whose public/ has no public/media link, an error of its own.
+it('fails with --strict on a search-engine warning, as on any other', function () {
+    config(['kami.indexable' => true]);
+    $this->artisan('kami:doctor')->expectsOutputToContain('The Site is indexable outside production (testing)')->expectsOutputToContain('docs/guide/seo.md#indexable-switch')->assertSuccessful();
+    $this->artisan('kami:doctor', ['--strict' => true])->assertFailed();
+
+    config(['kami.indexable' => false]);
+    $this->artisan('kami:doctor', ['--strict' => true])->assertSuccessful();
+});
+
 describe('search engines', function () {
     beforeEach(function () {
         // Not the skeleton's public/: tests running in parallel would see each other's robots.txt.

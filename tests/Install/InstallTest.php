@@ -277,6 +277,14 @@ describe('public/media', function () {
             ->not->toContain('RewriteEngine');
     });
 
+    it('keeps the files Apache serves out of search engines while the Site is not indexable', function (bool $indexable) {
+        config(['kami.indexable' => $indexable]);
+
+        install()->assertSuccessful();
+
+        expect(str_contains(File::get(public_path('media/.htaccess')), "\n    Header always set X-Robots-Tag \"noindex, nofollow\"\n"))->toBe(! $indexable);
+    })->with(['indexable' => true, 'not indexable' => false]);
+
     it('writes its .htaccess again at each run, as Kami\'s file', function () {
         install()->assertSuccessful();
         File::put(public_path('media/.htaccess'), 'edited');

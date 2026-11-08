@@ -26,6 +26,8 @@ The companion headers:
 | `Cross-Origin-Opener-Policy` | `same-origin` |
 | `X-Frame-Options` | `DENY` |
 
+While the Site is not indexable, as outside production by default, every response of Kami's routes also carries `X-Robots-Tag: noindex, nofollow`, and so do the files under `public/media` ([SEO](seo.md#indexable-switch)).
+
 Images and files under `public/media`, which Apache serves without PHP, get `nosniff` and, for an SVG, a policy that runs no script and loads nothing, from Kami's `.htaccess` ([Hosting](hosting.md#conversions)). On nginx, add them yourself ([nginx](hosting.md#nginx)).
 
 `X-Powered-By` is removed. Kami sends no `Strict-Transport-Security`: HTTPS is your host's, and Infomaniak sends it once a certificate is active.
@@ -63,7 +65,7 @@ img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'sel
 object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ```
 
-Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` and `X-Frame-Options: DENY`. The admin policy is fixed: the options below change the front only. `kami:doctor` warns when a panel carrying `KamiPlugin` lacks the middleware.
+Its companion headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin` and `X-Frame-Options: DENY`. `KamiPlugin` adds `X-Robots-Tag: noindex, nofollow` to every page of the panel, whatever the Site's [indexable switch](seo.md#indexable-switch) says. The admin policy is fixed: the options below change the front only. `kami:doctor` warns when a panel carrying `KamiPlugin` lacks the middleware.
 
 ## Sign-in
 

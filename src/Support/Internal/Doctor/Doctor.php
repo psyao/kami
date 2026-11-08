@@ -828,12 +828,12 @@ final readonly class Doctor
         if (RobotsTxt::managed($robots) && File::get($robots) !== RobotsTxt::expected()) {
             $problems[] = new Problem(Severity::Warning, 'public/robots.txt differs from what kami:install writes.', 'run kami:install, or delete its first line to own the file.', 'seo.md#robotstxt');
         } elseif ($indexable && is_file($robots) && ! RobotsTxt::managed($robots) && preg_match('/^\s*sitemap\s*:/im', File::get($robots)) !== 1) {
-            $problems[] = new Problem(Severity::Warning, "public/robots.txt, the site's own, names no sitemap.", 'add a line Sitemap: ' . mb_rtrim(Site::current()->url, '/') . '/sitemap.xml to it.', 'seo.md#robotstxt');
+            $problems[] = new Problem(Severity::Warning, "public/robots.txt, the site's own, names no sitemap.", 'add a line Sitemap: ' . RobotsTxt::sitemapUrl() . ' to it.', 'seo.md#robotstxt');
         }
 
         foreach (['robots.txt', 'sitemap.xml'] as $file) {
             if (RobotsTxt::hostRouteAnswers("/{$file}")) {
-                $problems[] = new Problem(Severity::Warning, "A route of the application answers /{$file}: Kami writes no public/{$file}, as the file would shadow the route.", $file === 'robots.txt' ? 'make sure it disallows the Kami panel and names the sitemap, or remove the route so kami:install writes the file.' : "list Kami's per-Locale sitemaps in yours, or remove the route.", 'seo.md#host-routes');
+                $problems[] = new Problem(Severity::Warning, "A route of the application answers /{$file}: Kami writes no public/{$file}, as the file would shadow the route.", $file === 'robots.txt' ? 'make sure it disallows the Kami panel and names the sitemap, or remove the route so kami:install writes the file.' : 'make sure it lists the Site\'s pages, or remove the route.', 'seo.md#host-routes');
             }
         }
 
