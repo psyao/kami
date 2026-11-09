@@ -38,7 +38,7 @@ function plannerCall(object $test, string $time, string $method = 'get'): TestRe
     return $test->{$method}('/kami/tick/planner-token');
 }
 
-it('answers 404 while the token is empty or differs', function (string $configured, string $url): void {
+it('answers 404 while the token is empty or differs', function (?string $configured, string $url): void {
     config(['kami.tick.token' => $configured]);
     hourlyProbe($this);
 
@@ -47,6 +47,7 @@ it('answers 404 while the token is empty or differs', function (string $configur
     $this->assertDatabaseCount('kami_task_runs', 0);
 })->with([
     'empty token' => ['', '/kami/tick/planner-token'],
+    'KAMI_TICK_TOKEN=null' => [null, '/kami/tick/null'],
     'wrong token' => ['planner-token', '/kami/tick/planner-tokem'],
     'a prefix of the token' => ['planner-token', '/kami/tick/planner'],
 ]);
@@ -91,6 +92,7 @@ it('answers 500 FAILED when the Tick cannot start, before kami:install', functio
     plannerCall($this, '2026-11-09 10:30:00')->assertInternalServerError()->assertContent('FAILED');
 
     Exceptions::assertReported(QueryException::class);
+    expect(json_decode(File::get("{$this->storage}/framework/kami/tick-web"), true))->toMatchArray(['result' => 'FAILED']);
 });
 
 // An `exec()` task starts a child process, which shared hosting refuses on the web: it waits for a CLI Tick, and `kami:doctor` names it.
@@ -174,6 +176,20 @@ describe('a visit', function (): void {
             ->and(File::lastModified("{$this->storage}/framework/kami/tick-{$trigger}"))->toBeLessThanOrEqual(time() - 240);
         $this->assertDatabaseEmpty('kami_task_runs');
     })->with(['cli', 'web', 'visit']);
+
+    // With the database down, a visit's failed Tick is reported once, then visits wait five minutes, and the page cache reader keeps serving.
+    it('touches tick-visit with FAILED when the Tick cannot start, so the next visit starts none', function (): void {
+        Exceptions::fake();
+        $this->get('/articles/hello-world')->assertOk();
+        Schema::drop('kami_task_runs');
+        File::delete("{$this->storage}/framework/kami/tick-visit");
+
+        $this->get('/articles/hello-world')->assertOk();
+        $this->get('/articles/hello-world')->assertOk();
+
+        expect(json_decode(File::get("{$this->storage}/framework/kami/tick-visit"), true))->toMatchArray(['result' => 'FAILED']);
+        Exceptions::assertReportedCount(1);
+    });
 
     it('starts no Tick on HEAD, an error status or the tick route', function (string $method, string $url, int $status): void {
         $this->call($method, $url)->assertStatus($status);

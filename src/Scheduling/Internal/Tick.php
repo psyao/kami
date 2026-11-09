@@ -64,7 +64,9 @@ final class Tick
         $failed = false;
 
         try {
-            self::declareSchedule();
+            // A web request declares no task: `routes/console.php` loads with the console kernel's commands, and `withSchedule()` once Artisan starts.
+            // `output()` does both, as `schedule:run` has them, without building every command as `all()` would; on the command line it changes nothing.
+            resolve(ConsoleKernel::class)->output();
             $lastRuns = DB::table('kami_task_runs')->pluck('last_run_at', 'task');
             $paused = Schedule::$pausable && Cache::get('illuminate:schedule:paused', false);
 
@@ -88,13 +90,18 @@ final class Tick
                     $failed = true;
                 }
             }
+        } catch (Throwable $exception) {
+            // No `kami_task_runs` before `kami:install`, or the database down: a failed Tick still touches its file, so visits wait five minutes
+            // before the next, and the page cache reader keeps serving.
+            report($exception);
+            $failed = true;
         } finally {
             $lock->release();
         }
 
         $result = $failed ? 'FAILED' : 'OK';
         // The tasks ran: an unwritable `storage/` is never thrown, and `kami:doctor` sees no Tick. A visit reports nothing, as the page cache
-        // in that `storage/` does not: it would report at every visit, each then starting a Tick.
+        // in that `storage/` does not: it would report at every visit, each then starting a Tick, a bound broken only while the page cache is down too.
         rescue(function () use ($trigger, $start, $result): void {
             File::ensureDirectoryExists(storage_path('framework/kami'));
             File::put(storage_path("framework/kami/tick-{$trigger}"), (string) json_encode([
@@ -110,16 +117,7 @@ final class Tick
     /** Whether every trigger's `tick-*` file is missing or over five minutes old: one `filemtime()` each, no SQL, as the page cache reader checks them. */
     public static function stale(): bool
     {
-        return array_all(self::TRIGGERS, fn (string $trigger): bool => ! (@filemtime(storage_path("framework/kami/tick-{$trigger}")) > time() - self::QUIET));
-    }
-
-    /**
-     * A web request declares no task: `routes/console.php` loads with the console kernel's commands, and `withSchedule()` once Artisan starts.
-     * `output()` does both, as `schedule:run` has them, without building every command as `all()` would; on the command line it changes nothing.
-     */
-    private static function declareSchedule(): void
-    {
-        resolve(ConsoleKernel::class)->output();
+        return max(array_map(fn (string $trigger): int => (int) @filemtime(storage_path("framework/kami/tick-{$trigger}")), self::TRIGGERS)) <= time() - self::QUIET;
     }
 
     /** Listens to Laravel's events, so a native `schedule:run` counts too. A failed write is reported, never thrown: it would stop the host's own scheduler, as before `kami:install` migrates. */

@@ -25,7 +25,7 @@ final class TickOnVisit
         $response = $next($request);
 
         if (! $request->isMethod('HEAD') && $response->getStatusCode() < 400 && Tick::stale()) {
-            // Reported, never thrown: the visitor already has the page.
+            // A cache store that cannot lock is reported, never thrown: the visitor already has the page.
             defer(fn () => rescue(fn (): string => Tick::run('visit', self::BUDGET)));
         }
 

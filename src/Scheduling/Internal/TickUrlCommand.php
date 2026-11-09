@@ -23,13 +23,8 @@ final class TickUrlCommand extends Command
     {
         $token = Str::random(40);
 
-        $this->line('Add this line to .env, replacing any KAMI_TICK_TOKEN line:');
-        $this->newLine();
-        $this->line("KAMI_TICK_TOKEN={$token}");
-        $this->newLine();
-        $this->line('Then have the host\'s planner call this URL, every 15 minutes or as often as it allows:');
-        $this->newLine();
-        $this->line(rtrim(Site::current()->url, '/') . route('kami.tick', $token, absolute: false));
+        $url = rtrim(Site::current()->url, '/') . route('kami.tick', $token, absolute: false);
+        $this->line("Add this line to .env, replacing any KAMI_TICK_TOKEN line:\n\nKAMI_TICK_TOKEN={$token}\n\nThen have the host's planner call this URL, every 15 minutes or as often as it allows:\n\n{$url}");
 
         return self::SUCCESS;
     }
