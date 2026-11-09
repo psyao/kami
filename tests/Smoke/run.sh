@@ -22,6 +22,9 @@ fi
 
 docker compose down --volumes --remove-orphans
 timeout 600 docker compose up --build --detach --wait php mariadb
+# Past the build, Compose's progress is noise: Compose 5 prints a `run`'s container lifecycle on stderr, which the checks
+# below capture with their command's output.
+export COMPOSE_PROGRESS=quiet
 # -T: no TTY, so the runs work in CI; stdin stays attached, which the Page's heredoc below relies on.
 docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
 docker compose run -T --rm node
