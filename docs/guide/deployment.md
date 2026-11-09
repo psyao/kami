@@ -115,7 +115,7 @@ Run `php artisan kami:doctor` once the site answers. It sees the command line's 
 
 ### Scheduled tasks
 
-The starter kit's `routes/console.php` calls `Kami::schedule()`, which declares the sitemap rebuild and Kami's pruning; a site of your own adds that line. `php artisan kami:tick` runs them when overdue, over SSH or from the host's scheduled tasks ([Scheduler](scheduler.md)).
+The starter kit's `routes/console.php` calls `Kami::schedule()`, which declares the sitemap rebuild and Kami's pruning; a site of your own adds that line. `php artisan kami:tick` runs them when overdue, over SSH ([Scheduler](scheduler.md)).
 
 ## Later deploys
 

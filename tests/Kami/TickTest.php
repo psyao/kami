@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Console\Scheduling\CallbackEvent;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Psyao\Kami\Facades\Kami;
 
@@ -92,6 +94,20 @@ it('keeps Laravel\'s filters, and a task they skip stays due', function (): void
     $this->app->maintenanceMode()->deactivate();
     tickAt($this, '2026-11-09 11:20:00');
     expect($this->runs)->toBe(['filtered', 'maintenance']);
+});
+
+it('reports a filter that throws and runs the other tasks', function (): void {
+    Exceptions::fake();
+    hourlyProbe($this, 'broken')->when(function (): bool {
+        throw new RuntimeException('Broken filter.');
+    });
+    hourlyProbe($this);
+    tickAt($this, '2026-11-09 10:30:00');
+
+    tickAt($this, '2026-11-09 11:10:00', 'FAILED');
+
+    expect($this->runs)->toBe(['probe']);
+    Exceptions::assertReported(fn (RuntimeException $exception): bool => $exception->getMessage() === 'Broken filter.');
 });
 
 it('records a failure, reports it, and retries it only at its next due time', function (): void {
@@ -206,4 +222,17 @@ it('runs every task Kami::schedule() declares from a Tick', function (): void {
         'kami:sitemap' => 'succeeded',
         "model:prune --model='Psyao\\Kami\\Content\\Internal\\PreviewLink'" => 'succeeded',
     ]);
+});
+
+// Between `composer update` and `kami:install`, the table is missing: the host's own scheduler keeps working.
+it('leaves a native schedule:run running when the runs cannot be recorded', function (): void {
+    Exceptions::fake();
+    Schema::drop('kami_task_runs');
+    hourlyProbe($this);
+    $this->travelTo('2026-11-09 11:00:00');
+
+    $this->artisan('schedule:run')->assertSuccessful();
+
+    expect($this->runs)->toBe(['probe']);
+    Exceptions::assertReported(QueryException::class);
 });

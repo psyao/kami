@@ -50,13 +50,13 @@ Run the Tick every minute from cron, in place of Laravel's `schedule:run`:
 
 ## On shared hosting
 
-Shared hosting such as Infomaniak's has no crontab. Run `php artisan kami:tick` over SSH, or from a scheduled task of the host's control panel that runs a command. Nothing visible waits for a Tick: Scheduled Entries go live at their time without one, and a missing sitemap is built on its first request.
+Shared hosting such as Infomaniak's has no crontab, and its task planner calls a URL rather than a command. Run `php artisan kami:tick` over SSH, after a deploy for instance. Nothing visible waits for a Tick: Scheduled Entries go live at their time without one, and a missing sitemap is built on its first request.
 
 ## Shared hosting and a server
 
 | Subject | Shared hosting | Server |
 | --- | --- | --- |
-| **Tick** | `php artisan kami:tick` over SSH or from the host's scheduled tasks | `kami:tick` from cron every minute |
+| **Tick** | `php artisan kami:tick` over SSH | `kami:tick` from cron every minute |
 | **Command tasks** | In-process through `Artisan::call()`, with no child process | The same |
 | **`exec()` tasks** | Run as shell commands, where the command line allows them | The same |
 | **Lock** | `Cache::lock` on the `file` or `database` store | Any store with locks |

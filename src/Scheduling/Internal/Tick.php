@@ -36,6 +36,9 @@ final class Tick
     /** Seconds the lock outlives the budget, for a Tick finishing its last task. */
     private const int MARGIN = 10;
 
+    /** `Application::formatCommandString('')`, which looks for the PHP binary on disk: once per process. */
+    private static ?string $prefix = null;
+
     /**
      * Runs the overdue tasks, one after the other, starting none once the budget is spent; the rest wait for the next Tick.
      * Touches `storage/framework/kami/tick-{trigger}` with the duration and the result, unless another Tick holds the lock.
@@ -62,8 +65,14 @@ final class Tick
                     break;
                 }
 
-                if (self::overdue($event, $lastRuns[$event->mutexName()] ?? null) && self::filtersPass($event, $paused)) {
-                    $failed = ! self::runEvent($event) || $failed;
+                // A task whose filter throws is reported and skipped; the others still run.
+                try {
+                    if (self::overdue($event, $lastRuns[$event->mutexName()] ?? null) && self::wouldRun($event, $paused)) {
+                        $failed = ! self::runEvent($event) || $failed;
+                    }
+                } catch (Throwable $exception) {
+                    report($exception);
+                    $failed = true;
                 }
             }
         } finally {
@@ -71,17 +80,20 @@ final class Tick
         }
 
         $result = $failed ? 'FAILED' : 'OK';
-        File::ensureDirectoryExists(storage_path('framework/kami'));
-        File::put(storage_path("framework/kami/tick-{$trigger}"), (string) json_encode([
-            'at' => Date::now()->toIso8601String(),
-            'duration_ms' => (int) round((microtime(true) - $start) * 1000),
-            'result' => $result,
-        ]));
+        // The tasks ran: an unwritable `storage/` is reported, never thrown, and `kami:doctor` sees no Tick.
+        rescue(function () use ($trigger, $start, $result): void {
+            File::ensureDirectoryExists(storage_path('framework/kami'));
+            File::put(storage_path("framework/kami/tick-{$trigger}"), (string) json_encode([
+                'at' => Date::now()->toIso8601String(),
+                'duration_ms' => (int) round((microtime(true) - $start) * 1000),
+                'result' => $result,
+            ]));
+        });
 
         return $result;
     }
 
-    /** Listens to Laravel's events, so a native `schedule:run` counts too. */
+    /** Listens to Laravel's events, so a native `schedule:run` counts too. A failed write is reported, never thrown: it would stop the host's own scheduler, as before `kami:install` migrates. */
     public static function starting(ScheduledTaskStarting $event): void
     {
         self::record($event->task, ['last_run_at' => Date::now(), 'last_status' => 'running']);
@@ -89,7 +101,8 @@ final class Tick
 
     public static function finished(ScheduledTaskFinished $event): void
     {
-        self::update($event->task, (int) $event->task->exitCode === 0 ? 'succeeded' : 'failed');
+        // A non-zero exit code then throws, and `failed()` follows.
+        self::update($event->task, 'succeeded');
     }
 
     public static function failed(ScheduledTaskFailed $event): void
@@ -116,7 +129,7 @@ final class Tick
     }
 
     /** Laravel's own filters, as `schedule:run` applies them: environments, maintenance mode, a paused schedule, `when()` and `skip()`, `withoutOverlapping()`'s among them. */
-    private static function filtersPass(Event $event, bool $paused): bool
+    private static function wouldRun(Event $event, bool $paused): bool
     {
         return $event->runsInEnvironment(app()->environment())
             && ($event->runsInMaintenanceMode() || ! app()->isDownForMaintenance())
@@ -131,7 +144,8 @@ final class Tick
         $start = microtime(true);
 
         try {
-            ($command = self::artisanCommand($event)) === null ? $event->run(app()) : self::runCommand($event, $command);
+            // `StringInput` reads a backslash as an escape, where the shell's single quotes keep it: a class name keeps its own.
+            ($command = self::artisanCommand($event)) === null ? $event->run(app()) : self::runCommand($event, str_replace('\\', '\\\\', $command));
             event(new ScheduledTaskFinished($event, round(microtime(true) - $start, 2)));
 
             if ((int) $event->exitCode !== 0) {
@@ -149,8 +163,7 @@ final class Tick
 
     /**
      * `Event::run()` with `Artisan::call()` in place of the child process its protected `execute()` starts.
-     *
-     * ponytail: mirrors Laravel's `Event::run()` and `start()`; a change to either breaks it, which the Lowest job and the smoke catch (spec #471, Risks).
+     * It mirrors Laravel's `Event::run()` and `start()`: a change to either breaks it, which the Lowest job and the smoke catch (ADR 0020).
      */
     private static function runCommand(Event $event, string $command): void
     {
@@ -178,32 +191,25 @@ final class Tick
      *
      * ponytail: unescapes the POSIX quoting of Laravel's `ProcessUtils` only as far as backslashes go, so an argument holding a single quote reaches the command mangled; V1 if a site schedules one.
      */
-    private static function artisanCommand(Event $event, bool $escaped = true): ?string
+    private static function artisanCommand(Event $event): ?string
     {
-        $prefix = Application::formatCommandString('');
+        $prefix = self::$prefix ??= Application::formatCommandString('');
 
-        if ($event instanceof CallbackEvent || ! str_starts_with((string) $event->command, $prefix)) {
-            return null;
-        }
-
-        $command = substr((string) $event->command, strlen($prefix));
-
-        // `StringInput` reads a backslash as an escape, where the shell's single quotes keep it: a class name keeps its own.
-        return $escaped ? str_replace('\\', '\\\\', $command) : $command;
+        return $event instanceof CallbackEvent || ! str_starts_with((string) $event->command, $prefix) ? null : substr((string) $event->command, strlen($prefix));
     }
 
     /** @param array<string, mixed> $values */
     private static function record(Event $event, array $values): void
     {
-        DB::table('kami_task_runs')->upsert(
-            [['id' => (string) Str::ulid(), 'task' => $event->mutexName(), 'description' => $event->description ?? self::artisanCommand($event, escaped: false) ?? $event->command ?? 'Callback', 'created_at' => Date::now(), 'updated_at' => Date::now(), ...$values]],
+        rescue(fn () => DB::table('kami_task_runs')->upsert(
+            [['id' => (string) Str::ulid(), 'task' => $event->mutexName(), 'description' => $event->description ?? self::artisanCommand($event) ?? $event->command ?? 'Callback', 'created_at' => Date::now(), 'updated_at' => Date::now(), ...$values]],
             ['task'],
             ['description', 'updated_at', ...array_keys($values)],
-        );
+        ));
     }
 
     private static function update(Event $event, string $status): void
     {
-        DB::table('kami_task_runs')->where('task', $event->mutexName())->update(['last_status' => $status, 'updated_at' => Date::now()]);
+        rescue(fn () => DB::table('kami_task_runs')->where('task', $event->mutexName())->update(['last_status' => $status, 'updated_at' => Date::now()]));
     }
 }

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('kami_task_runs', function (Blueprint $table): void {
             $table->ulid('id')->primary();
-            // The event's `mutexName()`: a changed expression is a new task.
-            $table->string('task', 100)->unique();
+            // The event's `mutexName()`, which a site may set with `createMutexNameUsing()`: a changed expression is a new task.
+            $table->string('task')->unique();
             // The command, or the event's description, for `kami:doctor`.
             $table->text('description');
             // UTC. The first sighting's baseline, then each run's start.
