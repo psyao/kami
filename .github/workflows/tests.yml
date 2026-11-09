@@ -246,12 +246,8 @@ jobs:
           npm ci --no-audit --no-fund
           npx playwright install chromium
 
-      # ponytail: pest-plugin-browser 5.1.2 warns when it removes a missing Traces directory, and phpunit.xml fails on warnings.
-      # Fixed on its 5.x branch: drop the mkdir with the next release.
       - name: Browser suite
-        run: |
-          mkdir -p tests/Browser/Traces
-          vendor/bin/pest --testsuite=Browser --ci --trace
+        run: vendor/bin/pest --testsuite=Browser --ci --trace
 
       # A failed test leaves a screenshot and a Playwright trace (console, network, DOM): open the trace on trace.playwright.dev.
       - name: Upload screenshots and traces

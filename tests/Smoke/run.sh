@@ -10,8 +10,19 @@ cd "$(dirname "$0")"
 starter_version=${STARTER_VERSION:-dev-next}
 base_url="http://localhost:${SMOKE_PORT:-8080}"
 
+# A Docker Hub lookup hung a local run for 30 minutes (psyao/kami#455). The build reads the images its Dockerfile names
+# from the local store when they are there; a missing one leaves the smoke to CI, whose builder caches its layers apart
+# from the store. The bound catches a stalled apt mirror or another image's pull.
+missing=$(sed -nE 's/^FROM ([^ ]+).*/\1/p; s/.*--from=([^ ]+).*/\1/p' Dockerfile | while read -r image; do
+    docker image inspect "$image" >/dev/null 2>&1 || echo "$image"
+done)
+if [ "${GITHUB_ACTIONS:-}" != true ] && [ -n "$missing" ]; then
+    echo "CI only: ${missing//$'\n'/ } not cached locally. Pull with \`docker pull <image>\` first, or let CI run the smoke." >&2
+    exit 1
+fi
+
 docker compose down --volumes --remove-orphans
-docker compose up --build --detach --wait php mariadb
+timeout 600 docker compose up --build --detach --wait php mariadb
 # -T: no TTY, so the runs work in CI; stdin stays attached, which the Page's heredoc below relies on.
 docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
 docker compose run -T --rm node

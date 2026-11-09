@@ -75,6 +75,15 @@
             "pest --testsuite=Kami --parallel",
             "pest --testsuite=Install"
         ],
+        "test:infomaniak": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/testbench package:discover --ansi",
+            "bash tests/infomaniak.sh"
+        ],
+        "test:lowest": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash tests/lowest.sh"
+        ],
         "test:coverage": [
             "Composer\\Config::disableProcessTimeout",
             "@php vendor/bin/testbench package:discover --ansi",
