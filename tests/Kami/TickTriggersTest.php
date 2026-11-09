@@ -177,14 +177,12 @@ describe('a visit', function (): void {
         $this->assertDatabaseEmpty('kami_task_runs');
     })->with(['cli', 'web', 'visit']);
 
-    // With the database down, a visit's failed Tick is reported once, then visits wait five minutes, and the page cache reader keeps serving.
-    it('touches tick-visit with FAILED when the Tick cannot start, so the next visit starts none', function (): void {
+    // With the database down, a visit's failed Tick is reported once: its fresh `tick-visit` keeps the next visits quiet, as for any trigger,
+    // and the page cache reader serving. One request: PostgreSQL aborts the test's transaction after the failed query.
+    it('touches tick-visit with FAILED when the Tick cannot start', function (): void {
         Exceptions::fake();
-        $this->get('/articles/hello-world')->assertOk();
         Schema::drop('kami_task_runs');
-        File::delete("{$this->storage}/framework/kami/tick-visit");
 
-        $this->get('/articles/hello-world')->assertOk();
         $this->get('/articles/hello-world')->assertOk();
 
         expect(json_decode(File::get("{$this->storage}/framework/kami/tick-visit"), true))->toMatchArray(['result' => 'FAILED']);
