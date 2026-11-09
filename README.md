@@ -38,6 +38,7 @@ php artisan serve
 - [Page cache](docs/guide/page-cache.md): what is cached and when it goes stale, `Kami::withoutPageCache()`, `Kami::remember()`, `Kami::flushCache()` and `kami:cache:clear`
 - [SEO](docs/guide/seo.md): the indexable switch (`KAMI_INDEXABLE`), `X-Robots-Tag` and the `robots.txt` `kami:install` writes
 - [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them
+- [Scheduler](docs/guide/scheduler.md): `Kami::schedule()`, `kami:tick`, overdue tasks and a server's crontab
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server
 - [Decision records](docs/adr/): why Kami is built the way it is

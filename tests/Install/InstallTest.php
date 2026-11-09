@@ -396,18 +396,14 @@ describe('the sitemap', function () {
         File::deleteDirectory($this->storage);
     });
 
-    // Until M8's Tick, a deploy is shared hosting's only rebuild.
-    it('rebuilds a stale sitemap, and leaves a fresh one', function () {
-        $this->travelTo('2026-11-08 10:00:00');
-        install()->expectsOutputToContain('Wrote the sitemap: 0 URLs.')->assertSuccessful();
+    // A Tick's hourly `kami:sitemap` rebuilds it, and a missing one is built on its first request (ADR 0027).
+    it('builds no sitemap', function () {
+        install()->assertSuccessful();
         resolve(SaveEntry::class)->handle(Label::class, ['title' => 'Partout', 'status' => 'published']);
 
-        $this->travelTo('2026-11-08 10:01:00');
-        install()->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+        install()->assertSuccessful();
 
-        $this->travelTo('2026-11-08 10:02:00');
-        install()->doesntExpectOutputToContain('Wrote the sitemap')->assertSuccessful();
-        expect(public_path('sitemap.xml'))->toBeFile();
+        expect(public_path('sitemap.xml'))->not->toBeFile();
     });
 
     it('makes the sitemap stale when Paths follow a new Locale', function () {
@@ -415,11 +411,12 @@ describe('the sitemap', function () {
         install()->assertSuccessful();
         resolve(SaveEntry::class)->handle(Label::class, ['title' => 'Partout', 'status' => 'published']);
         $this->travelTo('2026-11-08 10:01:00');
-        install()->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+        $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
 
         $this->travelTo('2026-11-08 10:02:00');
         config(['kami.sites.default.locales' => ['fr', 'en']]);
-        install()->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
+        install()->assertSuccessful();
+        $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
     });
 });
 

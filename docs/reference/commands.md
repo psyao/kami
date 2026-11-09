@@ -60,6 +60,10 @@ Generate the Conversions of every Media item, or of those an Entry uses, skippin
 
 Rebuild the sitemap when it is stale
 
+## `kami:tick`
+
+Run every overdue Scheduled task, in-process
+
 ## `kami:user:grant`
 
 Give a Role to an existing User, found by email

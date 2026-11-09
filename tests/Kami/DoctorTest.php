@@ -905,7 +905,7 @@ describe('search engines', function () {
 
         $this->travelTo('2026-11-08 12:06:00');
         expect(seoProblems())->toBe([[Severity::Warning, 'The sitemap has been stale for more than two hours, since 2026-11-08 10:05 UTC.']]);
-        $this->artisan('kami:doctor')->expectsOutputToContain('Fix: run php artisan kami:sitemap; on a server, run Laravel\'s scheduler from cron, which runs it hourly.');
+        $this->artisan('kami:doctor')->expectsOutputToContain('Fix: run php artisan kami:sitemap; Kami::schedule() in routes/console.php has every Tick run it hourly.');
 
         config(['kami.indexable' => false, 'app.env' => 'local']);
         expect(seoProblems())->toBe([]);

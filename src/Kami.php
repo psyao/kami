@@ -7,8 +7,10 @@ namespace Psyao\Kami;
 use Closure;
 use DateInterval;
 use DateTimeInterface;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Internal\RenderConversion;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -99,5 +101,21 @@ final class Kami
     public function flushCache(): void
     {
         PageCache::invalidate();
+    }
+
+    /**
+     * Declares Kami's Scheduled tasks on Laravel's `Schedule`, for `routes/console.php`. A Tick runs them in-process, or `schedule:run` from a server's cron (ADR 0020).
+     *
+     * Each is short and runs once at a time; a mutex held after ten minutes belongs to a run that died, so it no longer stops the next one.
+     */
+    public function schedule(): void
+    {
+        $schedule = resolve(Schedule::class);
+        $schedule->command('kami:sitemap')->hourly()->withoutOverlapping(10);
+        $schedule->command('kami:audit:prune')->daily()->withoutOverlapping(10);
+        $schedule->command('model:prune', ['--model' => PreviewLink::class])->daily()->withoutOverlapping(10);
+        // The backstop for a `defer()` that never ran after a new version (ADR 0021).
+        $schedule->call(PageCache::prune(...))->name('kami:page-cache:prune')->daily()->withoutOverlapping(10);
+        $schedule->command('kami:media:prune')->weekly()->withoutOverlapping(10);
     }
 }

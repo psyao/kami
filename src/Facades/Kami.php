@@ -18,6 +18,7 @@ use Throwable;
  * @method static void withoutPageCache()
  * @method static void flushCache()
  * @method static list<string> sitemapUrls()
+ * @method static void schedule()
  *
  * @see \Psyao\Kami\Kami
  */

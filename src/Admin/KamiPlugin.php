@@ -168,7 +168,6 @@ final class KamiPlugin implements Plugin
     public function register(Panel $panel): void
     {
         $registration = resolve(PluginRegistration::class);
-        $registration->onAPanel = true;
         $registration->userName = EntryResource::userName(...);
         EntryResource::relateUsers();
         $registration->guards[spl_object_id($panel)] = $panel->getAuthGuard(...);

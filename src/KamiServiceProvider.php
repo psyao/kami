@@ -9,7 +9,9 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskStarting;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Image\ImageManager;
@@ -36,6 +38,8 @@ use Psyao\Kami\Routing\Internal\BenchCommand;
 use Psyao\Kami\Routing\Internal\CachePages;
 use Psyao\Kami\Routing\Internal\ClearCacheCommand;
 use Psyao\Kami\Routing\Internal\PageCache;
+use Psyao\Kami\Scheduling\Internal\Tick;
+use Psyao\Kami\Scheduling\Internal\TickCommand;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Seo\Internal\SitemapCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
@@ -60,8 +64,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            // ponytail: `kami:media:prune` and `kami:audit:prune` run when an operator starts them, from the shell or a host cron; M8's Tick schedules them.
-            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void
@@ -97,8 +100,10 @@ final class KamiServiceProvider extends PackageServiceProvider
         Event::listen([EntrySaved::class, EntryDuplicated::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class, MediaSaved::class, MediaDeleted::class], PageCache::invalidate(...));
         // Any save changes a Translation's `updated_at`, the sitemap's `lastmod`, beside publishing, Paths and `noindex` (#410).
         Event::listen([EntrySaved::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class], fn () => Sitemap::markStale());
-        // A server's cron runs it now; on shared hosting, M8's Tick will (ADR 0027).
-        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command(SitemapCommand::class)->hourly());
+        // Every run of a Scheduled task, the Tick's and a native `schedule:run`'s, feeds the overdue rule (ADR 0020).
+        Event::listen(ScheduledTaskStarting::class, Tick::starting(...));
+        Event::listen(ScheduledTaskFinished::class, Tick::finished(...));
+        Event::listen(ScheduledTaskFailed::class, Tick::failed(...));
 
         // Once something asks the Gate, so a front request that never does instantiates no Content Type for it.
         $this->callAfterResolving(Gate::class, Permissions::register(...));

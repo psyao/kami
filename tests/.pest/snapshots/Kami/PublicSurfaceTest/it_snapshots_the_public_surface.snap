@@ -214,6 +214,7 @@ class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed
 class Psyao\Kami\Kami::routes() public function routes(bool $session = false): void
+class Psyao\Kami\Kami::schedule() public function schedule(): void
 class Psyao\Kami\Kami::seo() public function seo(): Psyao\Kami\Seo\PageMeta
 class Psyao\Kami\Kami::sitemapUrls() public function sitemapUrls(): array
 class Psyao\Kami\Kami::withoutPageCache() public function withoutPageCache(): void
@@ -313,6 +314,7 @@ command kami:media:warm
 command kami:media:warm --entry [--entry [ENTRY]]
 command kami:media:warm --preset [--preset [PRESET]]
 command kami:sitemap
+command kami:tick
 command kami:user:grant
 command kami:user:grant email <email>
 command kami:user:grant role <role>
@@ -370,6 +372,7 @@ table kami_paths
 table kami_preview_links
 table kami_references
 table kami_role_user
+table kami_task_runs
 table kami_translations
 table kami_type_site_settings
 table kami_user_mfa

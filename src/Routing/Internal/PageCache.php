@@ -129,7 +129,7 @@ final class PageCache
     /**
      * Deletes the files of every version but the manifest's.
      *
-     * ponytail: run after each new version and by `kami:cache:clear` only; M8's Tick schedules it as the backstop ADR 0021 names, for a `defer()` that never ran.
+     * Run after each new version, by `kami:cache:clear`, and daily by `Kami::schedule()` as the backstop for a `defer()` that never ran (ADR 0021).
      */
     public static function prune(): void
     {

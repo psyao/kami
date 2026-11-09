@@ -159,8 +159,8 @@ final readonly class Conversion
                 fclose($stream);
             }
 
-            // ponytail: a replacement committing between this check and the move still slips through, as in `generate()`, and stays served until
-            // `kami:media:prune` runs, by hand until M8's Tick schedules it weekly.
+            // A replacement committing between this check and the move still slips through, as in `generate()`, and stays served until
+            // the weekly `kami:media:prune`.
             self::isCurrent($media) ? $disk->move($temporary, $path) : $disk->delete($temporary);
         }
 
@@ -260,8 +260,8 @@ final readonly class Conversion
             ?: throw new RuntimeException("The Conversion [{$path}] could not be written.");
 
         // Again, as generating takes time: moving now would serve the former picture at its former URL.
-        // ponytail: a replacement committing between this check and the move still slips through, and stays served until `kami:media:prune`
-        // runs, by hand until M8's Tick schedules it weekly.
+        // A replacement committing between this check and the move still slips through, and stays served until the weekly
+        // `kami:media:prune`.
         if (! self::isCurrent($this->media)) {
             $disk->delete($temporary);
 
