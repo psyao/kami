@@ -12,7 +12,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 
 ## What Kami does not need
 
-- **No cron.** Kami's Scheduled tasks run from a Tick, `php artisan kami:tick`, from a server's cron or over SSH; nothing visible waits for it ([Scheduler](scheduler.md)).
+- **No cron.** Kami's Scheduled tasks run from a Tick: `php artisan kami:tick` from a server's cron, a secret URL the host's planner calls, or visits; nothing visible waits for it ([Scheduler](scheduler.md)).
 - **No queue worker.** Kami dispatches no job, and sends the password reset email itself rather than queue it ([Security](security.md#password-reset)).
 - **No Redis, Memcached or other daemon.** The starter kit uses the `file` cache store and the `database` session driver.
 - **No Node on the server.** Kami's admin assets ship precompiled and `kami:install` copies them to `public/`. The site's own front assets are built before the deploy: see [Deployment](deployment.md#front-assets).
@@ -35,7 +35,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | **MFA** | Pure-PHP codes and an SVG QR code, no extension beyond Laravel's; the last code accepted and a lock per User kept in the `file` or `database` cache | The same, or Redis |
 | **Sign-in throttling** | Attempts per IP address and per email counted in the `file` or `database` cache, with no daemon | The same, or Redis |
 | **Audit log** | One insert inside each action's transaction; `kami:audit:prune` daily from a Tick, to apply the [retention](audit-log.md#retention) | The same |
-| **Scheduled tasks** | Run in-process from a Tick, with no child process ([Scheduler](scheduler.md)) | `kami:tick` from cron every minute |
+| **Scheduled tasks** | Run in-process from a Tick, with no child process: the planner calls `/kami/tick/{token}` every 15 minutes at best, and visits start one after five minutes without ([Scheduler](scheduler.md)) | `kami:tick` from cron every minute |
 | **Reset email** | Sent after the response through `defer()`, as PHP-FPM finishes the request first; under `mod_php`, before it | The same under PHP-FPM |
 | **PHP settings** | The web and the command line differ: on Infomaniak, the web has 60 s and 640 MB, the command line no time limit and 1 GB | Your own `php.ini` |
 
@@ -96,3 +96,12 @@ Facts measured on Infomaniak Web Hosting, on PHP 8.5, that change what a site se
 - **PHP runs as the SSH user,** so `storage/` and `bootstrap/cache/` are writable once cloned. Every site of the account runs as that user too, and can read this site's files, `.env` included.
 - **There is no Node** on the SSH `PATH`.
 - **A missing `robots.txt` is answered by the host,** before the request reaches Laravel, with no rule for the admin. `kami:install` writes the file on every deploy ([SEO](seo.md#robotstxt)).
+
+### The task planner
+
+Infomaniak has no crontab: its task planner calls a URL, every 15 minutes at best. Point it at the Tick's URL:
+
+1. Over SSH, run `php artisan kami:tick:url`, copy its `KAMI_TICK_TOKEN=` line into `.env`, then run `php artisan optimize` so the cached configuration holds it ([Deployment](deployment.md)).
+2. In the Manager, under the hosting's **Cron jobs / Task planner**, add a task calling the printed URL, as often as the plan allows, with the email on failure turned on.
+
+The URL works inside the request, within the web's 60 s, and answers `500 FAILED` when a task failed, which the planner reports. Between its calls, visits start a Tick once the last one is five minutes old ([Scheduler](scheduler.md#on-shared-hosting)).

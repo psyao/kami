@@ -29,5 +29,9 @@ if [ "$(readlink -f vendor/psyao/kami)" != /kami ]; then
     exit 1
 fi
 php artisan key:generate --no-interaction
+# The planner's token, from the command a site owner runs, and Kami's tasks; the starter kit's `next` may already carry either line.
+token=$(php artisan kami:tick:url | sed -n 's/^KAMI_TICK_TOKEN=//p')
+if grep -q '^KAMI_TICK_TOKEN=' .env; then sed -i "s|^KAMI_TICK_TOKEN=.*|KAMI_TICK_TOKEN=$token|" .env; else echo "KAMI_TICK_TOKEN=$token" >> .env; fi
+grep -q 'Kami::schedule()' routes/console.php || echo '\Psyao\Kami\Facades\Kami::schedule();' >> routes/console.php
 KAMI_ADMIN_PASSWORD=smoke-password php artisan kami:install --no-interaction --email=admin@example.test --name=Admin
 php artisan optimize

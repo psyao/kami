@@ -16,6 +16,7 @@ use Psyao\Kami\Media\Internal\RenderConversion;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Routing\Internal\RenderPreviewLink;
+use Psyao\Kami\Scheduling\Internal\RunTick;
 use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Seo\Internal\ServeSitemap;
 use Psyao\Kami\Seo\Internal\Sitemap;
@@ -26,7 +27,7 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 final class Kami
 {
     /**
-     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, and `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing.
+     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, and `/kami/tick/{token}` for a host's planner.
      *
      * The fallback lets the site's own routes always win, in the `kami` middleware group. All run without the `web` group's session, cookies and CSRF, even when called inside it,
      * but the fallback under `$session`: it then joins the `web` group, so the application's signed-in members stay signed in on Kami's pages, which the page cache never stores (ADR 0038).
@@ -48,6 +49,8 @@ final class Kami
             Route::get('sitemap.xml', ServeSitemap::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         }
 
+        // The host's planner calls it with no session or cookie (ADR 0020).
+        Route::match(['GET', 'POST'], 'kami/tick/{token}', RunTick::class)->name('kami.tick')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::get('sitemaps/{file}', ServeSitemap::class)->where('file', '[A-Za-z0-9_-]+-[1-9][0-9]*\.xml')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         $fallback = Route::fallback(RenderEntry::class);
         if ($session) {

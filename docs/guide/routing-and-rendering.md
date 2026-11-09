@@ -16,7 +16,9 @@ Kami::routes();
 
 It registers a single fallback route, so your routes always win: `/contact` stays yours even if an Entry claims it, and an address nobody claims answers your application's 404. Until you call it, Kami adds no route at all.
 
-Kami's route runs in its own `kami` middleware group, without the `web` group's session, cookies and CSRF protection, even when it is called inside that group. A page then sets no cookie. An application whose members sign in keeps its session on Kami's pages with `Kami::routes(session: true)` ([Existing application](existing-application.md#keep-your-members-signed-in)). The group also sends Kami's Content Security Policy and security headers ([Security](security.md)).
+Kami's route runs in its own `kami` middleware group, without the `web` group's session, cookies and CSRF protection, even when it is called inside that group. A page then sets no cookie. An application whose members sign in keeps its session on Kami's pages with `Kami::routes(session: true)` ([Existing application](existing-application.md#keep-your-members-signed-in)). The group also sends Kami's Content Security Policy and security headers ([Security](security.md)). After a page it sends, once no Tick ran for five minutes, it starts one, as the admin does ([Scheduler](scheduler.md#on-shared-hosting)).
+
+Beside Entries, `Kami::routes()` answers `/kami/tick/{token}`, named `kami.tick`, for a host's planner, with no session either. It answers 404 until `KAMI_TICK_TOKEN` is set ([Scheduler](scheduler.md#on-shared-hosting)).
 
 ## Paths
 

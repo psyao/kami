@@ -101,4 +101,12 @@ return [
         'enabled' => ! env('APP_DEBUG', false),
     ],
 
+    /*
+    | The Tick (ADR 0020). `token`: the secret in the URL a host's planner calls, `/kami/tick/{token}`; the URL answers 404
+    | while it is empty. `php artisan kami:tick:url` generates one (docs/guide/scheduler.md).
+    */
+    'tick' => [
+        'token' => env('KAMI_TICK_TOKEN', ''),
+    ],
+
 ];

@@ -9,8 +9,6 @@ declare(strict_types=1);
  *
  * It sends a fresh cached page with no autoload, no framework and no query, then exits; on anything else it returns and Laravel boots.
  * The files are PageCache's (src/Routing/Internal/PageCache.php), and CachePages serves them too when the line is missing.
- *
- * ponytail: no Tick check; M8's Tick adds here ADR 0021's check of the tick-* files, falling through when the last Tick is five minutes old.
  */
 return static function (string $storage): void {
     $server = static fn (string $key): string => is_string($_SERVER[$key] ?? null) ? $_SERVER[$key] : '';
@@ -20,6 +18,13 @@ return static function (string $storage): void {
     // maintenance check lets the request through when `php artisan down` prerendered no page: its middleware answers 503.
     if (! in_array($method, ['GET', 'HEAD'], true) || file_exists($storage . '/framework/down')
         || array_intersect_key($_SERVER, array_flip(['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'PHP_AUTH_USER', 'PHP_AUTH_DIGEST'])) !== []) {
+        return;
+    }
+
+    // With no Tick for five minutes, from any trigger, Laravel answers, and its response starts a visit Tick (ADR 0020, ADR 0021): one filemtime() each, as Tick::stale().
+    $lastTick = max(array_map(static fn (string $trigger): int => (int) @filemtime("{$storage}/framework/kami/tick-{$trigger}"), ['cli', 'web', 'visit']));
+
+    if ($lastTick <= time() - 300) {
         return;
     }
 

@@ -64,6 +64,10 @@ Rebuild the sitemap when it is stale
 
 Run every overdue Scheduled task, in-process
 
+## `kami:tick:url`
+
+Generate a token for the URL a host's planner calls to run the Tick
+
 ## `kami:user:grant`
 
 Give a Role to an existing User, found by email

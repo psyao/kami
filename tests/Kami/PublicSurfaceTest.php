@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputOption;
@@ -18,6 +20,7 @@ const REFERENCE_PAGES = [
     'events.md' => 'Events',
     'middleware.md' => 'Middleware',
     'permissions.md' => 'Permissions',
+    'routes.md' => 'Routes',
     'tables.md' => 'Tables',
 ];
 
@@ -82,6 +85,12 @@ function publicSurface(): array
     $router = app('router');
     collect($router->getMiddleware())->filter(fn (string $class): bool => str_starts_with($class, 'Psyao\\Kami\\'))->each(fn (string $class, string $alias) => $element('middleware', $alias, $class));
     collect($router->getMiddlewareGroups())->only('kami')->each(fn (array $middleware, string $group) => $element('middleware', $group, 'group'));
+
+    // A site links to Kami's named routes, or answers their URL itself, as `Kami::routes()` registers them.
+    Kami::routes();
+    $router->getRoutes()->refreshNameLookups();
+    collect($router->getRoutes()->getRoutesByName())->filter(fn (Route $route, string $name): bool => str_starts_with($name, 'kami.'))
+        ->each(fn (Route $route, string $name) => $element('route', $name, implode('|', $route->methods()) . ' ' . $route->uri()));
 
     // Only the names of `kami_` tables are public, never their columns (ADR 0010). Read from the migrations, as no database is needed.
     foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.php') ?: [] as $migration) {
@@ -157,6 +166,7 @@ function referencePages(array $surface): array
         'config' => 'config.md',
         'middleware' => 'middleware.md',
         'permission' => 'permissions.md',
+        'route' => 'routes.md',
         'table' => 'tables.md',
     };
 
@@ -167,7 +177,7 @@ function referencePages(array $surface): array
         str_contains($element['name'], '::') || str_contains($element['name'], ' ') => "- `{$element['signature']}`" . ($element['summary'] !== '' ? ": {$element['summary']}" : '') . "\n",
         $element['group'] === 'class' => "\n## `{$element['name']}`\n\n`{$element['signature']}`\n\n" . ($element['summary'] !== '' ? "{$element['summary']}\n\n" : ''),
         $element['group'] === 'command' => "\n## `{$element['name']}`\n\n{$element['summary']}\n\n",
-        $element['group'] === 'middleware' => "- `{$element['name']}`: `{$element['signature']}`\n",
+        in_array($element['group'], ['middleware', 'route'], true) => "- `{$element['name']}`: `{$element['signature']}`\n",
         default => "- `{$element['name']}`\n",
     };
 

@@ -34,11 +34,21 @@ It runs every **overdue** task, one after the other, and prints `OK`, or `FAILED
 
 - **First sighting.** A task the Tick has not seen before, on a fresh install or after its expression changed, is recorded and runs at its next due time.
 - **Filters.** Laravel's own apply: `environments()`, maintenance mode unless `evenInMaintenanceMode()`, `schedule:pause`, `when()`, `skip()` and `withoutOverlapping()`. A task they skip stays overdue.
-- **Commands** run in-process through `Artisan::call()`, so a host with `proc_open` disabled runs them. An `exec()` task runs as Laravel runs it, as a shell command.
+- **Commands** run in-process through `Artisan::call()`, so a host with `proc_open` disabled runs them. An `exec()` task runs as Laravel runs it, as a shell command, from `kami:tick` only: the URL and visits below leave it overdue.
 - **Failures.** A task that throws or exits with a non-zero code is reported to your exception handler like any error, and runs again at its next due time, not at the next Tick.
 - **One at a time.** A Tick takes a lock on the cache store; a second Tick while it runs prints `BUSY` and does nothing. A Tick starts no task after 50 seconds: the rest wait for the next one.
 
-Each run is recorded in `kami_task_runs`, by the Tick or by Laravel's own `schedule:run`, so both count. Each Tick writes its time, duration and result to `storage/framework/kami/tick-cli`.
+Each run is recorded in `kami_task_runs`, by the Tick or by Laravel's own `schedule:run`, so both count. Each Tick writes its time, duration and result to `storage/framework/kami/tick-cli`, `tick-web` or `tick-visit`, after what started it.
+
+Three things start a Tick, all always on: there is nothing to choose.
+
+| Trigger | Started by | Stops starting tasks after |
+| --- | --- | --- |
+| `kami:tick` | A server's cron, or you over SSH | 50 seconds |
+| The URL | The host's planner calling `/kami/tick/{token}` | 40 seconds, or `max_execution_time` less 15 |
+| A visit | A front or admin page, once no Tick ran for five minutes | 10 seconds |
+
+A site with cron or a planner keeps a Tick recent, so visits stop starting any. One with neither still runs its tasks from its visits.
 
 ## On a server
 
@@ -50,13 +60,23 @@ Run the Tick every minute from cron, in place of Laravel's `schedule:run`:
 
 ## On shared hosting
 
-Shared hosting such as Infomaniak's has no crontab, and its task planner calls a URL rather than a command. Run `php artisan kami:tick` over SSH, after a deploy for instance. Nothing visible waits for a Tick: Scheduled Entries go live at their time without one, and a missing sitemap is built on its first request.
+Shared hosting such as Infomaniak's has no crontab, and its task planner calls a URL rather than a command. Generate the URL's secret token:
+
+```bash
+php artisan kami:tick:url
+```
+
+It prints a `KAMI_TICK_TOKEN=` line for `.env`, which it never writes itself, and the URL on your Site URL: have the planner call it as often as it allows ([Hosting](hosting.md#the-task-planner)). Running the command again generates another token: the old URL stops working once `.env` holds the new one. While `KAMI_TICK_TOKEN` is empty or the token differs, the URL answers 404.
+
+The URL runs the Tick inside the request and answers `OK`, `BUSY` while another Tick runs, or `FAILED` with status 500, in plain text, so the planner's own failure report fires. It takes no session, cookie or CSRF token, and `GET` or `POST`.
+
+Between the planner's calls, and on a site with no planner, visits start the Tick: after a page is sent, the visitor's PHP worker runs it, so nobody waits for it. Nothing visible waits for a Tick either: Scheduled Entries go live at their time without one, and a missing sitemap is built on its first request.
 
 ## Shared hosting and a server
 
 | Subject | Shared hosting | Server |
 | --- | --- | --- |
-| **Tick** | `php artisan kami:tick` over SSH | `kami:tick` from cron every minute |
+| **Tick** | The planner calls `/kami/tick/{token}` every 15 minutes at best; visits start one after five minutes without | `kami:tick` from cron every minute; the URL and visits stay armed and go quiet |
 | **Command tasks** | In-process through `Artisan::call()`, with no child process | The same |
-| **`exec()` tasks** | Run as shell commands, where the command line allows them | The same |
+| **`exec()` tasks** | Never run from the URL or a visit: only from `kami:tick` over SSH, where the command line allows them | Run from cron's `kami:tick` |
 | **Lock** | `Cache::lock` on the `file` or `database` store | Any store with locks |

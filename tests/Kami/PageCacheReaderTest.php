@@ -30,6 +30,8 @@ beforeEach(function () {
     // An admin test earlier in this process leaves Livewire injecting its styles into the response after the page is stored (#434).
     Livewire::flushState();
     $this->stored = $this->get('/articles/hello-world')->assertOk();
+    // A Tick in the last five minutes, which that request's visit Tick wrote as well.
+    touch("{$this->storage}/framework/kami/tick-cli");
 
     $socket = stream_socket_server('tcp://127.0.0.1:0');
     $this->port = (int) substr(strrchr((string) stream_socket_get_name($socket, false), ':'), 1);
@@ -128,6 +130,27 @@ it('lets Laravel boot once the page is an hour old', function () {
 
     expect(preBootRequest()->get('/articles/hello-world')->body())->toBe($this->stored->getContent());
 });
+
+// With no recent Tick, Laravel answers, and its response starts a visit Tick (ADR 0021).
+it('lets Laravel boot when every Tick is over five minutes old or missing', function (Closure $age) {
+    foreach (['cli', 'web', 'visit'] as $trigger) {
+        $age("{$this->storage}/framework/kami/tick-{$trigger}");
+    }
+
+    expect(preBootRequest()->get('/articles/hello-world')->body())->toBe('Laravel booted');
+})->with([
+    'over five minutes old' => [fn (string $file) => touch($file, time() - 301)],
+    'missing' => [fn (string $file) => @unlink($file)],
+]);
+
+it('serves the page while any Tick ran in the last five minutes', function (string $trigger) {
+    foreach (['cli', 'web', 'visit'] as $old) {
+        touch("{$this->storage}/framework/kami/tick-{$old}", time() - 400);
+    }
+    touch("{$this->storage}/framework/kami/tick-{$trigger}", time() - 240);
+
+    expect(preBootRequest()->get('/articles/hello-world')->body())->toBe($this->stored->getContent());
+})->with(['cli', 'web', 'visit']);
 
 it('lets Laravel boot past the next visibility change, or on a missing or malformed manifest (#268)', function (Closure $manifest) {
     $contents = $manifest(storedVersion());

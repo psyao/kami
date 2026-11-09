@@ -253,6 +253,48 @@ else
     failed=1
 fi
 
+# The Tick (psyao/kami#476), in-process under FPM with `proc_open` off. The planner's URL: a wrong token is a 404; the first call records
+# each task's baseline, then `kami:sitemap`, a `command()` task made overdue, runs inside the second.
+site_php() {
+    docker compose run -T --rm cli php -r '
+        require "vendor/autoload.php";
+        $app = require "bootstrap/app.php";
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        '"$1" 2>&1 || true
+}
+tick_body() {
+    curl --silent --show-error --header 'X-Forwarded-Proto: https' "$base_url/kami/tick/$1" || true
+}
+token=$(docker compose run -T --rm cli sed -n 's/^KAMI_TICK_TOKEN=//p' .env | tr -d '\r')
+expect 404 /kami/tick/not-the-token
+first=$(tick_body "$token")
+site_php 'Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:sitemap")->update(["last_run_at" => now()->subHours(2), "last_status" => null]);' >/dev/null
+second=$(tick_body "$token")
+sitemap_run=$(site_php 'echo Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:sitemap")->where("last_run_at", ">", now()->subMinute())->value("last_status");')
+if [ "$first" = OK ] && [ "$second" = OK ] && [ "$sitemap_run" = succeeded ]; then
+    echo "GET /kami/tick/{token}: OK, kami:sitemap ran in-process"
+else
+    echo "GET /kami/tick/{token}: \"$first\", then \"$second\", kami:sitemap: \"$sitemap_run\""
+    failed=1
+fi
+
+# A visit after five minutes without a Tick passes the pre-boot reader and starts one once FPM has sent the page.
+ticks=/var/www/site/storage/framework/kami
+docker compose exec -T php sh -c "rm -f $ticks/tick-visit; touch -d '10 minutes ago' $ticks/tick-*"
+expect_page /smoke Bonjour
+visit=
+for _ in $(seq 1 20); do
+    visit=$(docker compose exec -T php sh -c "cat $ticks/tick-visit 2>/dev/null" || true)
+    [ -n "$visit" ] && break
+    sleep 0.5
+done
+if grep -q '"result":"OK"' <<<"$visit"; then
+    echo "Visit after a stale Tick: started one"
+else
+    echo "Visit after a stale Tick: tick-visit holds \"$visit\""
+    failed=1
+fi
+
 # The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped. `php artisan down`
 # answers 503 before any cached page, as public/index.php checks maintenance before it requires Kami's reader.
 expect_page /smoke Bonjour
