@@ -8,6 +8,18 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 - **Upgrade floor.** From 1.0, a release that squashes Kami's migrations is a major, and its section names the release a site must reach first.
 - **Security fixes.** A patch that tightens a default for security reasons is listed here too, though it breaks the rule above.
 
+## 0.8.0
+
+1. **Kami's Scheduled tasks are declared by `Kami::schedule()`.** Kami no longer registers `kami:sitemap` on Laravel's scheduler by itself, and `kami:install` no longer rebuilds a stale sitemap on each deploy. Add the line to `routes/console.php`, as the starter kit now does, or the sitemap stays stale once built:
+
+   ```php
+   use Psyao\Kami\Facades\Kami;
+
+   Kami::schedule();
+   ```
+
+   It declares the hourly sitemap rebuild and the pruning of Preview links, old page cache files, the Audit log and stale Conversions ([Scheduler](docs/guide/scheduler.md)). On a server, replace `schedule:run` in the crontab with `php artisan kami:tick`, which runs every overdue task, Kami's and your own, in-process. A cron entry of yours running `kami:audit:prune`, `kami:media:prune` or `model:prune` for Preview links can go.
+
 ## 0.7.0
 
 1. **Pages are cached.** With `APP_DEBUG` off, a page Kami renders is stored under `storage/framework/kami/pages/` and served again until a core write, a `kami:install`, the next scheduled publication or one hour at most ([Page cache](docs/guide/page-cache.md)). A page showing the time of day or something per visitor calls `Kami::withoutPageCache()` while it renders; code writing data a page shows without a core action, your application's tables for instance, calls `Kami::flushCache()` after it. To keep every page rendered per request, set `kami.page_cache.enabled` to `false`. `kami:doctor` warns, so `--strict` fails, when Kami cannot write to that directory, page cache on or off: `Kami::remember()` then caches nothing. `optimize:clear` now also clears Kami's cache.

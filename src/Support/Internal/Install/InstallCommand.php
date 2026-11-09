@@ -62,7 +62,7 @@ final class InstallCommand extends Command
         }
 
         // Kami never edits the host's files (ADR 0001): it says what to add and stops before changing anything.
-        if (! $registration->onAPanel) {
+        if ($registration->panels === []) {
             $this->components->error('No Filament panel carries Kami yet. Add these lines to your panel provider, then run kami:install again.');
             $this->line('    use Psyao\Kami\Admin\KamiPlugin;');
             $this->newLine();
@@ -116,9 +116,6 @@ final class InstallCommand extends Command
         PageCache::invalidate();
         // Kami 0.6's per-Site files, which the manifest replaced.
         File::delete(File::glob(storage_path('framework/kami/visibility-*.json')));
-
-        // ponytail: shared hosting has no scheduler to run kami:sitemap until M8's Tick: each deploy rebuilds a stale sitemap meanwhile.
-        $this->call('kami:sitemap');
 
         $this->components->info('Kami is installed.');
 

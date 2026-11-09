@@ -25,7 +25,7 @@ Each line can be accepted or contested on its own. The link gives the reasons.
 17. **Rich text is Kami's TipTap document**, normalised against an allow-list on write; everything non-text is a Block. ([ADR 0016](adr/0016-rich-text-is-a-kami-document-normalised-on-write.md))
 18. **Image Conversions on first request**, from named presets, written as static files that Apache serves afterwards. ([ADR 0017](adr/0017-conversions-generated-on-first-request.md))
 19. **Page cache before boot**, invalidated by one Content version. ([ADR 0021](adr/0021-page-cache-served-before-boot-invalidated-by-one-content-version.md))
-20. **One Tick runs overdue tasks in-process**, started by cron, a secret URL or visits; the `database` queue is drained within the Tick's budget. ([ADR 0020](adr/0020-overdue-tasks-run-in-process-from-one-tick.md))
+20. **One Tick runs overdue tasks in-process**, started by cron, a secret URL or visits; the `database` queue is drained within the Tick's budget. Kami's tasks are declared by `Kami::schedule()` in the site's `routes/console.php`. ([ADR 0020](adr/0020-overdue-tasks-run-in-process-from-one-tick.md))
 21. **Front forms carry no session**: origin check, honeypot and throttle instead of a CSRF token. ([ADR 0015](adr/0015-front-forms-carry-no-session.md))
 22. **Strict, nonce-free front CSP** owned by Kami; the admin gets Filament's minimum. ([ADR 0018](adr/0018-strict-nonce-free-front-csp-filament-minimum-in-the-admin.md))
 23. **Audit log in a Kami table**, written by the core actions, IPs truncated. ([ADR 0022](adr/0022-audit-log-is-a-kami-table-written-by-core-actions.md))

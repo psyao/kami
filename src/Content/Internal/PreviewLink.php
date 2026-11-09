@@ -39,7 +39,7 @@ final class PreviewLink extends Model
 {
     use HasUlids;
 
-    // ponytail: no schedule runs `model:prune` yet; M8's scheduler registers it with `--model`. Expiry is checked on read meanwhile.
+    // `Kami::schedule()` runs `model:prune` daily; expiry is also checked on read, for a site whose Ticks are rare.
     use Prunable;
 
     public const int MAX_DAYS = 30;

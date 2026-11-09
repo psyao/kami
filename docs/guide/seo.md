@@ -255,8 +255,7 @@ It lists the visible Translations that have a URL and are not [Hidden from searc
 
 Every save, publication, Trash, restore or deletion marks the sitemap stale, and so does a Scheduled Entry once its time has come. `php artisan kami:sitemap` rebuilds it when it is stale and does nothing otherwise. It writes the files into a temporary directory, then swaps it in, so a crawler never reads half a sitemap.
 
-- On a server, Kami registers `kami:sitemap` `hourly()` in Laravel's scheduler: run `schedule:run` from cron, as Laravel's documentation shows.
-- On shared hosting, with no scheduler, `kami:install` rebuilds a stale sitemap on each deploy, until Kami gets a scheduler of its own that runs on visits.
+`Kami::schedule()` in `routes/console.php` runs it hourly from every Tick ([Scheduler](scheduler.md)).
 
 When the files are missing, on a fresh install for instance, the first request for `/sitemap.xml` or for a Locale's file reaches Laravel through the usual "file not found" rewrite. Kami builds the files in that request, then serves them; later requests get the static files. One build runs at a time: a request arriving during one waits for it, then serves the files it wrote. The page cache never stores them. `kami:doctor` warns about a sitemap stale for more than two hours, while the Site is indexable.
 
@@ -281,4 +280,4 @@ foreach (Kami::sitemapUrls() as $url) {
 | **The head** | Computed in the request from the page's Entry, its Social image and the Site settings, a constant number of queries; stored with the page in the [page cache](page-cache.md) | The same |
 | **`robots.txt`** | A static file `kami:install` writes over SSH; the host never answers its own | The same; Apache or nginx serve it |
 | **`X-Robots-Tag`** | Set in the request, and replayed with cached pages; on Conversions Apache serves, from the `.htaccess` `kami:install` writes | The same; on nginx, in its `location` blocks for `/media/` |
-| **Sitemap** | Static files Apache serves; rebuilt by `kami:install` on a deploy when stale, until Kami's own scheduler; built in the request only when missing | `kami:sitemap` hourly from Laravel's scheduler in cron; nginx's `try_files` reaches Kami when a file is missing |
+| **Sitemap** | Static files Apache serves; rebuilt hourly by a Tick when stale; built in the request only when missing | `kami:sitemap` hourly from `kami:tick` in cron; nginx's `try_files` reaches Kami when a file is missing |

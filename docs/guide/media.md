@@ -286,7 +286,7 @@ php artisan kami:media:prune
 
 It deletes, under `media/`, every file no Media item serves any more: another version, a preset, width or format no longer declared, a document's former name, and whatever is left of a deleted item. It keeps AVIF and WebP Conversions whether or not this host encodes them, as long as `kami.media.avif` allows the format: the web may encode one the command line does not. It also deletes what an interrupted write left in `.kami-tmp/`, after an hour. Files at the root of `media/`, such as its `.htaccess`, are never touched. It ends with a count: `Deleted 3 files.`
 
-It walks one Media item at a time, so a run cut short is simply started again. Nothing visible depends on it: a site that never prunes only uses more disk. Replacing or deleting a Media item already deletes its former files at once ([Replacing a file](#replacing-a-file)). Run it after changing the presets, or from a scheduler: Kami does not schedule it yet.
+It walks one Media item at a time, so a run cut short is simply started again. Nothing visible depends on it: a site that never prunes only uses more disk. Replacing or deleting a Media item already deletes its former files at once ([Replacing a file](#replacing-a-file)). `Kami::schedule()` runs it weekly ([Scheduler](scheduler.md)); run it by hand after changing the presets.
 
 ## Configuration
 

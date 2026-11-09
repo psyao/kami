@@ -113,6 +113,10 @@ php artisan optimize
 
 Run `php artisan kami:doctor` once the site answers. It sees the command line's PHP, not the web's ([Hosting](hosting.md#infomaniak-shared-hosting)).
 
+### Scheduled tasks
+
+The starter kit's `routes/console.php` calls `Kami::schedule()`, which declares the sitemap rebuild and Kami's pruning; a site of your own adds that line. `php artisan kami:tick` runs them when overdue, over SSH ([Scheduler](scheduler.md)).
+
 ## Later deploys
 
 Over SSH, in the site's directory:
@@ -128,7 +132,7 @@ git pull --ff-only &&
 
 When `php -v` prints another version than 8.5, put PHP 8.5 first on the `PATH` beforehand, as in [Prepare the host](#prepare-the-host). `--ff-only` makes the deploy fail rather than merge on the server when its branch has diverged from GitHub's. Copy `public/build/` as in [Front assets](#front-assets) when the front changed. Updating Kami is the same deploy, after `composer update psyao/kami` in the site's repository: there is no separate upgrade command.
 
-`kami:install` also moves Paths to follow the code: a new Prefix or Locale takes effect there ([Routing and rendering](routing-and-rendering.md#after-a-deploy)). It creates the Entry of each new [Singleton and Global Set](content-types.md#singletons) too, and never touches an existing one. It rewrites `public/robots.txt` from the [indexable switch](seo.md#robotstxt), unless the file is the site's own. Before writing any of that, it fails on [content model drift](content-types.md#content-model-drift), right after running your migrations.
+`kami:install` also moves Paths to follow the code: a new Prefix or Locale takes effect there ([Routing and rendering](routing-and-rendering.md#after-a-deploy)). It creates the Entry of each new [Singleton and Global Set](content-types.md#singletons) too, and never touches an existing one. It rewrites `public/robots.txt` from the [indexable switch](seo.md#robotstxt), unless the file is the site's own; it no longer rebuilds the sitemap, which a Tick does hourly ([Scheduler](scheduler.md)). Before writing any of that, it fails on [content model drift](content-types.md#content-model-drift), right after running your migrations.
 
 When a step fails, `kami:install` included, the deploy stops before `php artisan up` and the site stays in maintenance mode: fix the problem it prints, then run the chained command again, from `git pull`.
 
@@ -170,4 +174,4 @@ printf '/.htaccess\n/.htdigest\n' >> .git/info/exclude
 
 ## On a server
 
-The same commands run over SSH. Point the web server's document root at `public/`. On nginx, send every request that matches no file to `index.php`, as Laravel's [deployment guide](https://laravel.com/docs/13.x/deployment#nginx) shows, and give `public/media` the headers [Hosting](hosting.md#nginx) lists. Kami needs no cron, queue worker or daemon there either.
+The same commands run over SSH. Point the web server's document root at `public/`. On nginx, send every request that matches no file to `index.php`, as Laravel's [deployment guide](https://laravel.com/docs/13.x/deployment#nginx) shows, and give `public/media` the headers [Hosting](hosting.md#nginx) lists. Run `php artisan kami:tick` from cron every minute, in place of Laravel's `schedule:run` ([Scheduler](scheduler.md#on-a-server)); Kami needs no queue worker or daemon.

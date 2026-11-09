@@ -57,6 +57,11 @@ function docTypeNames(string | false $docComment, array $imports): array
     return $names;
 }
 
+// Shared hosting disables them on the web SAPI, where a Tick runs Scheduled tasks in-process (ADR 0020).
+arch('nothing starts a process')
+    ->expect('Psyao\Kami')
+    ->not->toUse(['exec', 'shell_exec', 'system', 'passthru', 'proc_open', 'popen', 'Symfony\Component\Process', 'Illuminate\Process', 'Illuminate\Support\Facades\Process']);
+
 arch('Filament stays in Admin (ADR 0011)')
     ->expect('Psyao\Kami')
     ->not->toUse('Filament')

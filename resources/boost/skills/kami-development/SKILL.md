@@ -41,6 +41,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Deploy a site for the first time | `vendor/psyao/kami/docs/guide/deployment.md#first-deploy` |
 | Deploy again, update Kami, or ship a changed Prefix or Locale | `vendor/psyao/kami/docs/guide/deployment.md#later-deploys` |
 | Measure a page's cached and uncached server time against the budgets (`kami:bench`) | `vendor/psyao/kami/docs/guide/deployment.md#measuring-page-speed` |
+| Run Kami's Scheduled tasks and the site's own (`Kami::schedule()`, `kami:tick`, a server's crontab) | `vendor/psyao/kami/docs/guide/scheduler.md` |
 | Decide whether something can run on the host (cron, queue, Node, PHP limits) | `vendor/psyao/kami/docs/guide/hosting.md` |
 | Understand why Kami works the way it does | `vendor/psyao/kami/docs/adr/` |
 

@@ -15,8 +15,6 @@ use Illuminate\Contracts\Auth\CanResetPassword;
  */
 final class PluginRegistration
 {
-    public bool $onAPanel = false;
-
     /**
      * Keyed by panel object, one per panel carrying `KamiPlugin`, asked when the doctor runs, since the host may configure the panel after `->plugin()`.
      * `remoteAvatars` when it still draws avatars with Filament's `UiAvatarsProvider`; `admits` answers as Filament does when a User signs in;

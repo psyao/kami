@@ -13,7 +13,7 @@ Columns:
 - `ip`, truncated to /24 for IPv4 and /48 for IPv6;
 - `context`: a short JSON object, such as the Locale or the old and new Role, never a content diff.
 
-There is no user agent. Events are kept 12 months by default (`kami.audit.retention`) and pruned by `kami:audit:prune`, a Scheduled task once M8's Tick runs them; until then an operator runs it from the shell or a host cron (amended in #347).
+There is no user agent. Events are kept 12 months by default (`kami.audit.retention`) and pruned by `kami:audit:prune`, which `Kami::schedule()` runs daily from a Tick (amended in #347 and #475).
 
 The truncated IP trades part of security's forensic value (principle 1) for privacy (principle 2). A /24 or /48 still shows the network and the region of a suspicious sign-in, and no longer identifies a single visitor's connection.
 

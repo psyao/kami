@@ -883,7 +883,7 @@ final readonly class Doctor
         }
 
         if ($indexable && ($since = Sitemap::staleSince()) !== null && $since < now()->getTimestamp() - 7200) {
-            $problems[] = new Problem(Severity::Warning, 'The sitemap has been stale for more than two hours, since ' . date('Y-m-d H:i', $since) . ' UTC.', "run php artisan kami:sitemap; on a server, run Laravel's scheduler from cron, which runs it hourly.", 'seo.md#sitemap');
+            $problems[] = new Problem(Severity::Warning, 'The sitemap has been stale for more than two hours, since ' . date('Y-m-d H:i', $since) . ' UTC.', 'run php artisan kami:sitemap; Kami::schedule() in routes/console.php has every Tick run it hourly.', 'seo.md#sitemap');
         }
 
         foreach (['robots.txt', 'sitemap.xml'] as $file) {

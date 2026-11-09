@@ -80,7 +80,7 @@ The link answers at `/kami/share/{token}` on the Site's URL, to anyone holding i
 
 An unknown, expired or revoked link is a plain 404, and so is the link of an Entry in the Trash; restoring the Entry brings an unexpired link back. Hard deletion removes its links. The response carries the front's headers with `X-Robots-Tag: noindex, nofollow`, `Cache-Control: no-store` and `Referrer-Policy: no-referrer`, so the token leaves through no outbound link.
 
-Expired links stay in `kami_preview_links` until pruned: run `php artisan model:prune --model="Psyao\Kami\Content\Internal\PreviewLink"` from your scheduler if the table grows. The expiry is checked on every read, so a link left there opens nothing.
+Expired links stay in `kami_preview_links` until `Kami::schedule()`'s daily `model:prune` deletes them ([Scheduler](scheduler.md)). The expiry is checked on every read, so a link left there opens nothing.
 
 ## Validation
 

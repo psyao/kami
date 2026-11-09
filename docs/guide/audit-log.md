@@ -129,7 +129,7 @@ Events are kept 12 months by default, then deleted by `kami:audit:prune`, so the
 
 A retention under one month is refused: a typo would otherwise erase the trail of an incident. The command deletes in chunks of 1000 rows, so a run cut short is simply started again.
 
-Kami does not schedule it yet. Run it from time to time:
+`Kami::schedule()` runs it daily ([Scheduler](scheduler.md)). Run it by hand with:
 
 ```bash
 php artisan kami:audit:prune
@@ -137,4 +137,4 @@ php artisan kami:audit:prune
 
 ## Shared hosting and server
 
-Recording behaves the same on both: one insert inside the action's transaction, no queue, no cron, no extension. On shared hosting, run `kami:audit:prune` over SSH or from a cron job of the host's control panel, as [Hosting](hosting.md#shared-hosting-and-a-server) shows; on a server, from cron.
+Recording behaves the same on both: one insert inside the action's transaction, no queue, no cron, no extension. Pruning runs daily from a Tick on both ([Scheduler](scheduler.md)).
