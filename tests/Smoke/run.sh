@@ -10,8 +10,21 @@ cd "$(dirname "$0")"
 starter_version=${STARTER_VERSION:-dev-next}
 base_url="http://localhost:${SMOKE_PORT:-8080}"
 
+# A Docker Hub lookup hung a local run for 30 minutes (psyao/kami#455). Every image the stack and its Dockerfile name is
+# read from the local store when it is there; a missing one leaves the smoke to CI, whose builder caches its layers apart
+# from the store. The bound catches a stalled apt mirror.
+if [ "${GITHUB_ACTIONS:-}" != true ]; then
+    images=$( (docker compose --profile '*' config --images | grep -vx kami-smoke-php; sed -nE 's/^FROM ([^ ]+).*/\1/p; s/.*--from=([^ ]+).*/\1/p' Dockerfile) | sort -u)
+    for image in $images; do
+        docker image inspect "$image" >/dev/null 2>&1 || { echo "CI only: $image is not cached locally. Pull it with \`docker pull $image\` first, or let CI run the smoke." >&2; exit 1; }
+    done
+fi
+
 docker compose down --volumes --remove-orphans
-docker compose up --build --detach --wait php mariadb
+timeout 600 docker compose up --build --detach --wait php mariadb
+# Past the build, Compose's progress is noise: Compose 5 prints a `run`'s container lifecycle on stderr, which the checks
+# below capture with their command's output.
+export COMPOSE_PROGRESS=quiet
 # -T: no TTY, so the runs work in CI; stdin stays attached, which the Page's heredoc below relies on.
 docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
 docker compose run -T --rm node
