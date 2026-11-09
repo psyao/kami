@@ -29,15 +29,18 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | --- | --- | --- | --- |
 | `Kami` | `tests/Kami/` | Testbench with the Workbench | `composer test`, pre-push, every CI job but Browser and Smoke |
 | `Install` | `tests/Install/` | Testbench without the Workbench, so no panel carries Kami until a test adds it | `composer test`, pre-push, the coverage step |
-| `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says |
+| `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says, and before a push that changes a Workbench view or component |
 | `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Every pull request and nightly (`volume.yml`) |
 
-The suites take another engine from the environment, as CI does. On Steve's machine, Herd serves MySQL on 3306 and MariaDB on 3307 (user `root`, no password); PostgreSQL runs in Docker:
+The suites take another engine from the environment, as CI does. `tests/engine.sh` starts CI's image of one in Docker (`mysql:8.4` on 53306, `mariadb:10.11` on 53307, `postgres:15` on 55432), waits for its health check and runs the `Kami` suite, a named suite or any command with the engine's `DB_*` set; the container stays up for the next run, `docker stop kami-<engine>` removes it. Herd's own MySQL is 9.4, not CI's version.
 
 ```bash
-docker run -d --rm --name kami-pg -e POSTGRES_PASSWORD=password -e POSTGRES_DB=kami -p 55432:5432 postgres:15
-DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=55432 DB_DATABASE=kami DB_USERNAME=postgres DB_PASSWORD=password vendor/bin/pest --testsuite=Kami
+tests/engine.sh pgsql
+tests/engine.sh mysql Volume --filter=listing
+tests/engine.sh mariadb composer test:lowest
 ```
+
+CI's Lowest job is `composer test:lowest`: `tests/lowest.sh` copies the checkout to `$TMPDIR/kami-lowest`, resolves `--prefer-lowest` there and runs the `Kami` suite serially under `tests/infomaniak.ini`. `composer test:infomaniak` runs the same suite under the ini on the checkout's own dependencies.
 
 `tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`.
 
