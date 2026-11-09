@@ -10,15 +10,14 @@ cd "$(dirname "$0")"
 starter_version=${STARTER_VERSION:-dev-next}
 base_url="http://localhost:${SMOKE_PORT:-8080}"
 
-# A Docker Hub lookup hung a local run for 30 minutes (psyao/kami#455). The build reads the images its Dockerfile names
-# from the local store when they are there; a missing one leaves the smoke to CI, whose builder caches its layers apart
-# from the store. The bound catches a stalled apt mirror or another image's pull.
-missing=$(sed -nE 's/^FROM ([^ ]+).*/\1/p; s/.*--from=([^ ]+).*/\1/p' Dockerfile | while read -r image; do
-    docker image inspect "$image" >/dev/null 2>&1 || echo "$image"
-done)
-if [ "${GITHUB_ACTIONS:-}" != true ] && [ -n "$missing" ]; then
-    echo "CI only: ${missing//$'\n'/ } not cached locally. Pull with \`docker pull <image>\` first, or let CI run the smoke." >&2
-    exit 1
+# A Docker Hub lookup hung a local run for 30 minutes (psyao/kami#455). Every image the stack and its Dockerfile name is
+# read from the local store when it is there; a missing one leaves the smoke to CI, whose builder caches its layers apart
+# from the store. The bound catches a stalled apt mirror.
+if [ "${GITHUB_ACTIONS:-}" != true ]; then
+    images=$( (docker compose --profile '*' config --images | grep -vx kami-smoke-php; sed -nE 's/^FROM ([^ ]+).*/\1/p; s/.*--from=([^ ]+).*/\1/p' Dockerfile) | sort -u)
+    for image in $images; do
+        docker image inspect "$image" >/dev/null 2>&1 || { echo "CI only: $image is not cached locally. Pull it with \`docker pull $image\` first, or let CI run the smoke." >&2; exit 1; }
+    done
 fi
 
 docker compose down --volumes --remove-orphans

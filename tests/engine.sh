@@ -20,7 +20,7 @@ case "$engine" in
         ;;
     pgsql)
         image=postgres:15 port=55432 inner=5432 user=postgres
-        run=(-e POSTGRES_PASSWORD=password -e POSTGRES_DB=kami --health-cmd=pg_isready)
+        run=(-e POSTGRES_PASSWORD=password -e POSTGRES_DB=kami --health-cmd='pg_isready -h 127.0.0.1')
         ;;
     *)
         echo "Usage: tests/engine.sh mysql|mariadb|pgsql [suite [pest arguments] | command]" >&2
@@ -38,15 +38,15 @@ fi
 
 for _ in $(seq 120); do
     status=$(docker inspect --format '{{.State.Health.Status}}' "$container")
-    [ "$status" = healthy ] && break
+    [ "$status" = healthy ] || [ "$status" = unhealthy ] && break
     sleep 1
 done
-[ "$status" = healthy ] || { echo "$container is $status after 120 s: docker logs $container" >&2; exit 1; }
+[ "$status" = healthy ] || { echo "$container is $status: docker logs $container" >&2; exit 1; }
 
 export DB_CONNECTION=$engine DB_HOST=127.0.0.1 DB_PORT=$port DB_DATABASE=kami DB_USERNAME=$user DB_PASSWORD=password
 
 case "${1:-Kami}" in
     Kami) shift $(($# > 0)); exec vendor/bin/pest --testsuite=Kami --parallel "$@" ;;
-    Install | Volume | Browser) suite=$1; shift; exec vendor/bin/pest --testsuite="$suite" "$@" ;;
+    Install | Volume) suite=$1; shift; exec vendor/bin/pest --testsuite="$suite" "$@" ;;
     *) exec "$@" ;;
 esac

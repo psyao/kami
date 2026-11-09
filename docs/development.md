@@ -40,7 +40,7 @@ tests/engine.sh mysql Volume --filter=listing
 tests/engine.sh mariadb composer test:lowest
 ```
 
-CI's Lowest job is `composer test:lowest`: `tests/lowest.sh` copies the checkout to `$TMPDIR/kami-lowest`, resolves `--prefer-lowest` there and runs the `Kami` suite serially under `tests/infomaniak.ini`. `composer test:infomaniak` runs the same suite under the ini on the checkout's own dependencies.
+`composer test:lowest` mirrors CI's Lowest job on SQLite: `tests/lowest.sh` copies the files git knows to `$TMPDIR/kami-lowest`, resolves `--prefer-lowest` there and runs the `Kami` suite serially under `tests/infomaniak.ini`; `tests/engine.sh mariadb composer test:lowest` is the job exactly. `composer test:infomaniak` runs the same suite under the ini on the checkout's own dependencies.
 
 `tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`.
 

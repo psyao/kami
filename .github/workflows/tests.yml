@@ -45,15 +45,9 @@ jobs:
         with:
           dependencies: lowest
 
-      # Loaded last, after Composer, which needs proc_open. Serial: Paratest needs it too.
-      - name: Load the Infomaniak ini
-        run: |
-          sudo cp tests/infomaniak.ini "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/zz-infomaniak.ini"
-          php -i | grep -E '^(disable_functions|opcache.enable_cli|memory_limit|allow_url_fopen|zend.assertions|date.timezone) '
-
-
-      - name: Kami suite
-        run: vendor/bin/pest --testsuite=Kami --ci
+      # The ini is loaded by the script, after Composer, which needs proc_open; serial, since Paratest needs it too.
+      - name: Kami suite under the Infomaniak ini
+        run: bash tests/infomaniak.sh --ci
 
   static:
     name: Static (SQLite, checks and coverage)
