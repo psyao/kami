@@ -8,6 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
+use Psyao\Kami\Forms\Internal\Forms;
 
 /**
  * The default notification of a Submission: a plain-text mail to the Form's `recipients()`, in the Admin language, with the visitor's
@@ -25,6 +26,7 @@ final class SubmissionReceived extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        // ponytail: no link to the Submission in the admin until SubmissionResource exists; #484 adds it.
         $message = (new MailMessage)
             ->subject(trim("[{$this->form->label()}] {$this->form->summary($this->submission)}"))
             ->text('kami::mail.submission', [
@@ -39,21 +41,19 @@ final class SubmissionReceived extends Notification
     }
 
     /**
-     * Each stored value with its `validation.attributes` label, in the order of `rules()`.
+     * Each stored value with its `validation.attributes` label, in the order of `rules()`; two fields may share a label.
      *
-     * @return array<string, string>
+     * @return list<array{label: string, value: string}>
      */
     private function fields(): array
     {
         $fields = [];
 
-        foreach (array_unique(array_map(fn (string $key): string => Str::before($key, '.'), array_keys($this->form->rules()))) as $key) {
-            if (! array_key_exists($key, $this->submission->data)) {
-                continue;
+        foreach (Forms::fields($this->form) as $key) {
+            if (array_key_exists($key, $this->submission->data)) {
+                $label = Lang::has("validation.attributes.{$key}") ? (string) __("validation.attributes.{$key}") : Str::headline($key);
+                $fields[] = ['label' => Str::ucfirst($label), 'value' => self::text($this->submission->data[$key])];
             }
-
-            $label = Lang::has("validation.attributes.{$key}") ? (string) __("validation.attributes.{$key}") : Str::headline($key);
-            $fields[Str::ucfirst($label)] = self::text($this->submission->data[$key]);
         }
 
         return $fields;

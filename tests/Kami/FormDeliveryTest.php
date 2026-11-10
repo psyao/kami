@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Defer\DeferredCallbackCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -62,6 +63,49 @@ final class ChatForm extends Form
     }
 }
 
+/** A channel each of whose sends takes 15 seconds. */
+final class SlowChannel
+{
+    public function send(object $notifiable, Notification $notification): void
+    {
+        test()->travel(15)->seconds();
+    }
+}
+
+/** A Form whose notification goes through the slow channel only. */
+final class SlowForm extends Form
+{
+    public function rules(): array
+    {
+        return ['message' => ['required', 'string']];
+    }
+
+    public function notification(Submission $submission): Notification
+    {
+        return new class extends Notification
+        {
+            public function via(object $notifiable): array
+            {
+                return [SlowChannel::class];
+            }
+        };
+    }
+}
+
+/** A Form with two fields a site labels the same. */
+final class PhonesForm extends Form
+{
+    public function rules(): array
+    {
+        return ['phone' => ['string'], 'mobile' => ['string']];
+    }
+
+    public function recipients(): array
+    {
+        return ['owner@example.com'];
+    }
+}
+
 /** A Form with no recipient. */
 final class OrphanForm extends Form
 {
@@ -111,12 +155,13 @@ it('mails a Submission to its recipients once the response is sent, in the Admin
     expect($delivery->attempts)->toBe(1)->and($delivery->delivered_at)->not->toBeNull()->and($delivery->last_error)->toBeNull();
 });
 
-it('delivers each channel on its own, one failing never blocking the other', function () {
+it('delivers each channel on its own once the response is sent, one failing never blocking the other', function () {
     Exceptions::fake();
-    $submission = storedSubmission('chat', ['message' => 'Hi']);
+    $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], locale: 'fr');
 
-    deferred();
+    $this->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/chat', ['_kami_origin' => "{$home->id}:fr", 'message' => 'Hi'])->assertStatus(303);
 
+    $submission = Submission::query()->sole();
     expect(sentMails())->toHaveCount(1);
     Exceptions::assertReported(fn (RuntimeException $exception): bool => $exception->getMessage() === 'kChat is down');
     expect(DB::table('kami_form_deliveries')->where('submission_id', $submission->id)->orderBy('channel')->get(['channel', 'attempts', 'last_error'])->map(fn ($row): array => (array) $row)->all())->toBe([
@@ -152,6 +197,29 @@ it('retries what failed or never ran from kami:forms:deliver, a minute later, ab
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $failed->id, 'attempts' => 5, 'last_error' => null]);
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $fresh->id, 'attempts' => 0, 'delivered_at' => null]);
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $abandoned->id, 'attempts' => 5, 'delivered_at' => null]);
+});
+
+it('starts no delivery once kami:forms:deliver has spent 20 seconds, leaving the rest to the next run', function () {
+    config(['kami.forms' => [SlowForm::class]]);
+    $this->travelTo(now()->subMinutes(5));
+    foreach (range(1, 3) as $n) {
+        storedSubmission('slow', ['message' => "Hi {$n}"]);
+    }
+    $this->travelBack();
+
+    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 2 of 2 pending deliveries. Out of time: the rest waits for the next run.')->assertSuccessful();
+
+    expect(DB::table('kami_form_deliveries')->whereNotNull('delivered_at')->count())->toBe(2);
+});
+
+it('lists two fields sharing a label each on its own line', function () {
+    Lang::addLines(['validation.attributes.phone' => 'Phone', 'validation.attributes.mobile' => 'Phone'], 'en');
+    config(['kami.forms' => [PhonesForm::class]]);
+
+    storedSubmission('phones', ['phone' => '021 000 00 00', 'mobile' => '079 000 00 00']);
+    deferred();
+
+    expect(sentMails()->sole()->getTextBody())->toContain("Phone:\n021 000 00 00\n\nPhone:\n079 000 00 00");
 });
 
 it('delivers at most 50 Submissions per run of kami:forms:deliver, the oldest first', function () {

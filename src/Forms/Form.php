@@ -8,6 +8,7 @@ use Carbon\CarbonInterval;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
+use Psyao\Kami\Forms\Internal\Forms;
 
 /**
  * A front form a site declares under `kami.forms`: its handle, Laravel rules whose keys are its fields, and what becomes of a Submission (ADR 0015).
@@ -57,7 +58,7 @@ abstract class Form
     public function summary(Submission $submission): string
     {
         // In the order of `rules()`: MySQL's json column reorders an object's keys.
-        $text = collect(array_keys($this->rules()))->map(fn (string $key): mixed => $submission->data[Str::before($key, '.')] ?? null)
+        $text = collect(Forms::fields($this))->map(fn (string $key): mixed => $submission->data[$key] ?? null)
             ->first(fn (mixed $value): bool => is_string($value) && trim($value) !== '');
 
         return Str::limit(Str::squish(is_string($text) ? $text : ''), 100);

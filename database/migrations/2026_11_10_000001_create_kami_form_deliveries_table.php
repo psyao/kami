@@ -6,7 +6,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-// One row per channel a Submission's notification goes through, so a channel that failed is retried alone (ADR 0015).
+// One row per channel a Submission's notification goes through, so a channel that failed is retried alone.
 return new class extends Migration
 {
     public function up(): void

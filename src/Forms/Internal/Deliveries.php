@@ -14,7 +14,7 @@ use Psyao\Kami\Kami;
 use Throwable;
 
 /**
- * Sends a Submission's notification one channel at a time, recording each attempt on its `Delivery` row (ADR 0015). Synchronous on
+ * Sends a Submission's notification one channel at a time, recording each attempt on its `Delivery` row. Synchronous on
  * purpose: Kami's side effects never wait on a queue worker. After the response through `defer()`, then from `kami:forms:deliver`.
  *
  * @internal
@@ -32,35 +32,34 @@ final class Deliveries
     {
         $channels = self::channels($form, $submission);
 
-        if ($channels['unrouted']) {
+        if (in_array('mail', $channels, true) && $form->recipients() === []) {
             Log::warning("The Form [{$form->handle()}] has no recipient: its Submission [{$submission->id}] is stored but not mailed.");
+            $channels = array_diff($channels, ['mail']);
         }
 
-        foreach ($channels['channels'] as $channel) {
+        foreach ($channels as $channel) {
             Delivery::query()->create(['submission_id' => $submission->id, 'channel' => $channel]);
         }
     }
 
     /**
-     * The channels a Submission is delivered through, and whether `mail` was dropped for want of a recipient.
+     * The channels of the Submission's notification, `mail` included even with no recipient.
      *
-     * @return array{channels: list<string>, unrouted: bool}
+     * @return list<string>
      */
     public static function channels(Form $form, Submission $submission): array
     {
         $notification = $form->notification($submission);
         // As Laravel's sender calls it: `via()` is a convention, not a method of `Notification`.
         $via = method_exists($notification, 'via') ? $notification->via(self::notifiable($form)) : [];
-        $channels = array_values(array_unique(array_filter((array) $via, is_string(...))));
-        $unrouted = in_array('mail', $channels, true) && $form->recipients() === [];
 
-        return ['channels' => $unrouted ? array_values(array_diff($channels, ['mail'])) : $channels, 'unrouted' => $unrouted];
+        return array_values(array_unique(array_filter((array) $via, is_string(...))));
     }
 
     /** Sends every channel of a Submission not delivered yet: what `defer()` runs after the response. */
     public static function sendPending(Submission $submission): void
     {
-        $pending = Delivery::query()->where('submission_id', $submission->id)->whereNull('delivered_at')->where('attempts', '<', Delivery::MAX_ATTEMPTS)->get();
+        $pending = Delivery::query()->pending()->where('submission_id', $submission->id)->get();
 
         // Not `each()`: it stops at the first `false`, a failed channel.
         foreach ($pending as $delivery) {

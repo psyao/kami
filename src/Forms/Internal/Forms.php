@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Forms\Internal;
 
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Forms\Form;
@@ -21,6 +22,16 @@ final class Forms
 
     /** @var array<string, Form> By handle. */
     private array $forms = [];
+
+    /**
+     * The fields of a Form: the top-level keys of its `rules()`, in their order; `topics.*` is `topics`.
+     *
+     * @return list<string>
+     */
+    public static function fields(Form $form): array
+    {
+        return array_values(array_unique(array_map(fn (string $key): string => Str::before($key, '.'), array_keys($form->rules()))));
+    }
 
     public function find(string $handle): ?Form
     {

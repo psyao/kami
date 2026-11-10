@@ -1067,7 +1067,8 @@ final readonly class Doctor
     }
 
     /**
-     * A declared Form's Submissions mailed nowhere, deliveries that failed, and Submissions no declared Form owns any more.
+     * A log or array mailer in production, a Form with no recipient, deliveries that failed or were abandoned, and Submissions no
+     * declared Form owns any more.
      *
      * @return list<Problem>
      */
@@ -1083,7 +1084,7 @@ final readonly class Doctor
             $problems[] = new Problem(Severity::Error, "Submissions are never mailed: the default mailer, {$mailer}, keeps every mail on the server.", 'set MAIL_MAILER=smtp and your host\'s MAIL_* settings in .env.', 'hosting.md#mail');
         }
 
-        $unrouted = array_filter($forms, fn (Form $form): bool => rescue(fn (): bool => Deliveries::channels($form, new Submission(['data' => []]))['unrouted'], false, report: false));
+        $unrouted = array_filter($forms, fn (Form $form): bool => $form->recipients() === [] && rescue(fn (): bool => in_array('mail', Deliveries::channels($form, new Submission(['data' => []])), true), false, report: false));
 
         if ($unrouted !== []) {
             $problems[] = new Problem(Severity::Warning, 'Forms with no recipient: ' . implode(', ', array_map(fn (Form $form): string => $form->handle(), $unrouted)) . '. Their Submissions are stored, not mailed.', 'return the addresses to mail from the recipients() method of each.', 'forms.md#delivery');
@@ -1093,14 +1094,15 @@ final readonly class Doctor
             return $problems;
         }
 
-        $undelivered = DB::table('kami_form_deliveries')->whereNull('delivered_at')->whereNotNull('last_error');
+        // An attempt counts before it sends: one stopped mid-send, as by max_execution_time, leaves no error.
+        $undelivered = DB::table('kami_form_deliveries')->whereNull('delivered_at')->where('attempts', '>', 0)->where('updated_at', '<=', Date::now()->subMinute());
 
         foreach (['that failed and wait for a retry' => '<', 'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => '>='] as $state => $operator) {
             $deliveries = $undelivered->clone()->where('attempts', $operator, Delivery::MAX_ATTEMPTS);
 
             if (($count = $deliveries->count()) > 0) {
                 $error = $deliveries->latest('updated_at')->value('last_error');
-                $problems[] = new Problem(Severity::Warning, "Submission deliveries {$state}: {$count}. Last error: " . (is_string($error) ? $error : ''), 'check the mail settings in .env, and each channel of a notification of your own; kami:forms:deliver retries every 15 minutes, up to 5 attempts.', 'forms.md#delivery');
+                $problems[] = new Problem(Severity::Warning, "Submission deliveries {$state}: {$count}. Last error: " . (is_string($error) ? $error : 'none recorded, as when PHP stops an attempt mid-send.'), 'check the mail settings in .env, and each channel of a notification of your own; kami:forms:deliver retries every 15 minutes, up to ' . Delivery::MAX_ATTEMPTS . ' attempts.', 'forms.md#delivery');
             }
         }
 

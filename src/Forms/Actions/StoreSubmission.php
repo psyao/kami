@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Psyao\Kami\Forms\Actions;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Events\SubmissionStored;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Internal\Deliveries;
+use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Kami;
 use Psyao\Kami\Sites\Internal\Site;
@@ -43,7 +43,7 @@ final class StoreSubmission
                 'locale' => $locale,
                 'form' => $form->handle(),
                 'entry_id' => $entry?->id,
-                'data' => array_intersect_key($data, array_flip(array_map(fn (string $key): string => Str::before($key, '.'), array_keys($form->rules())))),
+                'data' => array_intersect_key($data, array_flip(Forms::fields($form))),
             ]);
             Deliveries::prepare($form, $submission);
 

@@ -16,7 +16,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 - **No queue worker.** Kami dispatches no job, and sends the password reset email itself rather than queue it ([Security](security.md#password-reset)). Your application's jobs on the `database` queue run from each Tick ([Scheduler](scheduler.md#the-queue)).
 - **No Redis, Memcached or other daemon.** The starter kit uses the `file` cache store and the `database` session driver.
 - **No Node on the server.** Kami's admin assets ship precompiled and `kami:install` copies them to `public/`. The site's own front assets are built before the deploy: see [Deployment](deployment.md#front-assets).
-- **No `mail()` or `sendmail`.** Kami sends mail through Laravel's mailer, over SMTP ([below](#mail)).
+- **No `mail()`.** Kami sends mail through Laravel's mailer, over authenticated SMTP ([below](#mail)).
 - **No `exec` or `proc_open` on the web.** Shared hosts often disable them; Kami never calls them.
 
 ## Shared hosting and a server
@@ -110,7 +110,7 @@ The URL works inside the request, within the web's 60 s, and answers `500 FAILED
 
 ### Mail
 
-Infomaniak's web hosting has no `mail()` or `sendmail`: send through the SMTP server of a mail address of your Infomaniak mail service.
+Send through the SMTP server of a mail address of your Infomaniak mail service. PHP's `mail()` exists on the web hosting, unauthenticated and capped at 50 mails a day: Kami never uses it.
 
 ```dotenv
 MAIL_MAILER=smtp
@@ -125,5 +125,7 @@ MAIL_FROM_NAME="${APP_NAME}"
 
 - **The sender is the account.** Infomaniak refuses a `From` other than the address that signs in: keep `MAIL_FROM_ADDRESS` equal to `MAIL_USERNAME`. A Form puts the visitor's address on `Reply-To`, never on `From`.
 - **Port 587** with `MAIL_SCHEME=smtp` (STARTTLS) also works, where 465 is blocked.
-- **A daily quota per address.** Infomaniak limits how many mails an address sends a day; check the limit of your offer in the Manager. A wave of Submissions past the honeypot and the throttle can reach it: the deliveries over it fail, are retried by `kami:forms:deliver` up to five times, and `kami:doctor` reports those that failed.
+- **`MAIL_TIMEOUT=10`** keeps an attempt short when the mail server hangs: without it, PHP waits for its `default_socket_timeout`, 60 s, inside a visitor's request or a Tick.
+- **A quota per address over 24 hours**, rolling: each mail counts for 24 hours after it is sent ([Infomaniak's limits](https://www.infomaniak.com/en/support/faq/2065/understanding-the-limits-on-outgoing-emails-per-24-hours)). It is 200 on Mail Service Starter and my kSuite, 500 on Mail Service Premium and the paid kSuite offers. Each recipient counts, so a Submission mailed to two addresses uses two.
+- **Over the quota**, deliveries fail. `kami:forms:deliver` retries each up to five times, 15 minutes apart, about an hour, while the quota frees itself over 24 hours: a wave of Submissions past the honeypot and the throttle can leave legitimate ones abandoned. `kami:doctor` reports them; the Submissions stay stored.
 - Run `php artisan optimize` after changing `.env`, then send a test Submission: `kami:doctor` reports a failed delivery with the mail server's answer.

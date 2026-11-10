@@ -1211,14 +1211,19 @@ describe('Forms', function () {
         $submission = resolve(StoreSubmission::class)->handle('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Hello there'], 'fr');
         $delivery = DB::table('kami_form_deliveries')->where('submission_id', $submission->id);
 
-        $delivery->update(['attempts' => 0]);
+        $delivery->update(['attempts' => 0, 'updated_at' => now()->subMinutes(2)]);
         expect(problem('Submission deliveries'))->toBeNull();
 
-        $delivery->update(['attempts' => 2, 'last_error' => 'Connection refused']);
+        // Being sent by `defer()` right now.
+        $delivery->update(['attempts' => 1, 'updated_at' => now()]);
+        expect(problem('Submission deliveries'))->toBeNull();
+
+        $delivery->update(['attempts' => 2, 'last_error' => 'Connection refused', 'updated_at' => now()->subMinutes(2)]);
         expect(problem('Submission deliveries')?->message)->toBe('Submission deliveries that failed and wait for a retry: 1. Last error: Connection refused');
 
-        $delivery->update(['attempts' => 5]);
-        expect(problem('Submission deliveries')?->message)->toBe('Submission deliveries abandoned after 5 attempts: 1. Last error: Connection refused');
+        // Stopped mid-send five times, by max_execution_time for instance: no error was ever recorded.
+        $delivery->update(['attempts' => 5, 'last_error' => null]);
+        expect(problem('Submission deliveries')?->message)->toBe('Submission deliveries abandoned after 5 attempts: 1. Last error: none recorded, as when PHP stops an attempt mid-send.');
         $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain('docs/guide/forms.md#delivery')->assertFailed();
     });
 

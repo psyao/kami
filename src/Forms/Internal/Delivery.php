@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Psyao\Kami\Forms\Internal;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,6 +36,17 @@ final class Delivery extends Model
     use HasUlids;
 
     public const int MAX_ATTEMPTS = 5;
+
+    /**
+     * Not delivered yet, nor abandoned.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function pending(Builder $query): void
+    {
+        $query->whereNull('delivered_at')->where('attempts', '<', self::MAX_ATTEMPTS);
+    }
 
     /** @return BelongsTo<Submission, $this> */
     public function submission(): BelongsTo

@@ -150,12 +150,12 @@ final class ContactForm extends Form
 
 - **The mail.** `Psyao\Kami\Forms\SubmissionReceived`, in plain text: its subject is `[{Form label}] {summary}`, its body each field with its `validation.attributes` label, in the order of `rules()`. It is written in the Admin language, `app.locale`, whatever the page's Locale. `replyTo()` names the field holding the visitor's address, which goes on `Reply-To` so that answering writes back to them.
 - **Through Laravel's mailer.** Kami adds no mail setting: configure `MAIL_*` in `.env` for SMTP ([Hosting](hosting.md#mail)). The `log` and `array` mailers keep mail on the server, so `kami:doctor` fails in production while a Form is declared and one of them is the default.
-- **No recipient.** `recipients()` returns none by default: the Submission is stored, nothing is mailed, a warning is logged and `kami:doctor` lists the Form.
+- **No recipient.** `recipients()` returns none by default: the Submission is stored, nothing is mailed, a warning is logged and `kami:doctor` lists the Form. Adding a recipient later mails the Submissions that follow, never those stored before.
 - **Never queued.** Kami sends with `Notification::sendNow()`, after the response through `defer()`, so no queue worker is needed.
 
 ### Retries
 
-Kami writes one delivery per channel, in the Submission's transaction, then tries each once the response is sent. A channel that fails is recorded with its error and never stops the others. `kami:forms:deliver`, which `Kami::schedule()` runs every 15 minutes, tries again up to 50 deliveries per run, leaving a delivery once it has failed 5 times. A delivery is at least once: a mail server that accepted a mail but answered too late gets it again.
+Kami writes one delivery per channel, in the Submission's transaction, then tries each once the response is sent. A channel that fails is recorded with its error and never stops the others. `kami:forms:deliver`, which `Kami::schedule()` runs every 15 minutes, tries again up to 50 deliveries per run, starting none after 20 seconds so that a mail server that hangs never holds a Tick past its budget, and leaves a delivery once it has failed 5 times. A delivery is at least once: a mail server that accepted a mail but answered too late gets it again.
 
 `kami:doctor` warns about deliveries that failed and wait for a retry, those abandoned, with the last error, and the Submissions of a Form no longer declared under `kami.forms`.
 

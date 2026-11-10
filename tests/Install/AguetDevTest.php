@@ -301,7 +301,7 @@ it('lists both homes in the sitemap, with their alternates, and nothing else', f
 });
 
 // M8's acceptance: aguet.dev's contact message, posted while its mail server is unreachable, stored, then delivered through SMTP by a Tick alone.
-it('stores aguet.dev\'s contact message and delivers it through SMTP from a Tick only', function (): void {
+it('stores aguet.dev\'s contact message while its SMTP server is down, then delivers it from a Tick only', function (): void {
     installAguetDev();
     // Nothing listens on port 1: the delivery after the response fails, as with a mail server down.
     config(['kami.forms' => [ContactForm::class], 'mail.default' => 'smtp', 'mail.mailers.smtp.host' => '127.0.0.1', 'mail.mailers.smtp.port' => 1]);
