@@ -439,7 +439,7 @@ Kami's entry point for sites.
 
 `final class`
 
-Stores a Submission of the current Site, then dispatches `SubmissionStored` after commit (ADR 0011, ADR 0029). It neither validates nor checks
+Stores a Submission of the current Site with a pending delivery per channel of its Form's notification, dispatches `SubmissionStored`
 
 - `public function handle(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission`
 
@@ -451,6 +451,7 @@ A front form a site declares under `kami.forms`: its handle, Laravel rules whose
 
 - `public function handle(): string`: `ContactForm` → `contact`: the class name in snake_case, without a trailing `Form`. Used in the route, `form="…"` and `?sent=`.
 - `final public function label(): string`: `kami-forms.{handle}.label`, or the humanised handle.
+- `public function notification(Psyao\Kami\Forms\Submission $submission): Illuminate\Notifications\Notification`: What tells the site owner about a Submission: by default `SubmissionReceived`, a mail to `recipients()`. Each channel of its `via()`
 - `public function recipients(): array`: The mail addresses a Submission is sent to.
 - `public function replyTo(): ?string`: The field holding the visitor's mail address, put on `Reply-To`; `null` for none.
 - `public function retention(): ?Carbon\CarbonInterval`: How long a Submission is kept: twelve months by default, `null` forever.
@@ -463,6 +464,16 @@ A front form a site declares under `kami.forms`: its handle, Laravel rules whose
 `final class extends Illuminate\Database\Eloquent\Model`
 
 What a visitor sent through a Form: its validated values only, with no IP, user agent or cookie (ADR 0015). Written by `StoreSubmission`.
+
+## `Psyao\Kami\Forms\SubmissionReceived`
+
+`final class extends Illuminate\Notifications\Notification`
+
+The default notification of a Submission: a plain-text mail to the Form's `recipients()`, in the Admin language, with the visitor's
+
+- `public function __construct(Psyao\Kami\Forms\Form $form, Psyao\Kami\Forms\Submission $submission)`
+- `public function toMail(object $notifiable): Illuminate\Notifications\Messages\MailMessage`
+- `public function via(object $notifiable): array`
 
 ## `Psyao\Kami\Kami`
 

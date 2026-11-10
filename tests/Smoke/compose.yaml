@@ -1,5 +1,5 @@
 # A simulated Infomaniak shared host (docs/velox-retrospective.md § 5.1): Apache 2.4 in front of PHP-FPM 8.5
-# under the host's web ini, MariaDB 10.11. No cron and no queue worker: nothing runs unless a request arrives.
+# under the host's web ini, MariaDB 10.11, and Mailpit as the SMTP server. No cron and no queue worker: nothing runs unless a request arrives.
 # run.sh drives it; docs/development.md says how.
 name: kami-smoke
 
@@ -61,6 +61,11 @@ services:
       test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
       interval: 2s
       retries: 30
+
+  # The SMTP server the site mails through, never shipped (CI only): run.sh starts it once a Submission's delivery has failed.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    profiles: [mail] # left out of `up`, started by run.sh
 
 volumes:
   site:

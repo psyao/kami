@@ -35,6 +35,8 @@ use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Forms\Actions\StoreSubmission;
+use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
@@ -47,6 +49,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Testimonial;
+use Workbench\App\Forms\ContactForm;
 use Workbench\App\Models\User;
 
 /** A type with no view and no label. */
@@ -78,6 +81,15 @@ final class UserWithoutMfa extends PlainUser implements KamiUser
     protected $table = 'users';
 }
 
+/** A Form that names no one to mail. */
+final class NoRecipientForm extends Form
+{
+    public function rules(): array
+    {
+        return [];
+    }
+}
+
 /** A User model a host panel may sign in with through a provider of its own. */
 final class Editor extends User
 {
@@ -86,7 +98,8 @@ final class Editor extends User
 
 // An empty database, whatever the engine: tables another test left on MySQL or MariaDB, which do not roll back, would read as drift. `ContentModelDriftTest` covers the engines.
 beforeEach(function () {
-    config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty']);
+    // A mailer that leaves the server, or every production test would see a declared Form's error.
+    config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty', 'mail.default' => 'smtp']);
     withConversionsServed();
     withRunningSite();
 });
@@ -1158,5 +1171,64 @@ describe('the web and the scheduler', function () {
         expect(problem('The oldest queued job')?->message)->toBe('The oldest queued job has waited since 2026-11-09 10:00 UTC.');
         Artisan::call('kami:doctor');
         expect(Artisan::output())->toMatch('/Queue\W+2 jobs/');
+    });
+});
+
+describe('Forms', function () {
+    beforeEach(function () {
+        $this->app->useStoragePath($this->storage = temporaryPath());
+        withRunningSite();
+    });
+
+    afterEach(function () {
+        File::deleteDirectory($this->storage);
+    });
+
+    it('fails in production, not elsewhere, while a declared Form would be mailed through the log or array mailer', function (string $environment, string $mailer, array $forms, bool $fails) {
+        config(['app.env' => $environment, 'mail.default' => $mailer, 'kami.forms' => $forms]);
+
+        $problem = problem('Submissions are never mailed');
+
+        expect($problem === null)->toBe(! $fails);
+        $fails && expect([$problem->severity, $problem->message, $problem->guide])->toBe([Severity::Error, "Submissions are never mailed: the default mailer, {$mailer}, keeps every mail on the server.", 'hosting.md#mail']);
+    })->with([
+        'log in production' => ['production', 'log', [ContactForm::class], true],
+        'array in production' => ['production', 'array', [ContactForm::class], true],
+        'smtp in production' => ['production', 'smtp', [ContactForm::class], false],
+        'log in local' => ['local', 'log', [ContactForm::class], false],
+        'log in production with no Form' => ['production', 'log', [], false],
+    ]);
+
+    it('warns about a Form whose mail has no recipient', function () {
+        config(['kami.forms' => [ContactForm::class, NoRecipientForm::class]]);
+
+        expect(problem('Forms with no recipient')?->message)->toBe('Forms with no recipient: no_recipient. Their Submissions are stored, not mailed.');
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain('Fix: return the addresses to mail from the recipients() method of each.')->assertFailed();
+    });
+
+    it('warns about deliveries that failed and those abandoned after five attempts', function () {
+        $this->artisan('migrate')->assertSuccessful();
+        $submission = resolve(StoreSubmission::class)->handle('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Hello there'], 'fr');
+        $delivery = DB::table('kami_form_deliveries')->where('submission_id', $submission->id);
+
+        $delivery->update(['attempts' => 0]);
+        expect(problem('Submission deliveries'))->toBeNull();
+
+        $delivery->update(['attempts' => 2, 'last_error' => 'Connection refused']);
+        expect(problem('Submission deliveries')?->message)->toBe('Submission deliveries that failed and wait for a retry: 1. Last error: Connection refused');
+
+        $delivery->update(['attempts' => 5]);
+        expect(problem('Submission deliveries')?->message)->toBe('Submission deliveries abandoned after 5 attempts: 1. Last error: Connection refused');
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain('docs/guide/forms.md#delivery')->assertFailed();
+    });
+
+    it('warns about the Submissions of a Form no longer declared', function () {
+        $this->artisan('migrate')->assertSuccessful();
+        resolve(StoreSubmission::class)->handle('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Hello there'], 'fr');
+        expect(problem('Submissions of Forms no longer declared'))->toBeNull();
+
+        config(['kami.forms' => []]);
+
+        expect(problem('Submissions of Forms no longer declared')?->message)->toBe('Submissions of Forms no longer declared: contact (1). Kept, never pruned.');
     });
 });

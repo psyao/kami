@@ -7,4 +7,7 @@ return [
     'errors' => [
         'heading' => 'Il y a un problème',
     ],
+    'mail' => [
+        'intro' => 'Un visiteur a envoyé le formulaire :form.',
+    ],
 ];

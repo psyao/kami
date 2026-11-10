@@ -28,6 +28,8 @@ use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
+use Psyao\Kami\Forms\Internal\DeliverCommand;
+use Psyao\Kami\Forms\Internal\Deliveries;
 use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Media\Events\MediaDeleted;
 use Psyao\Kami\Media\Events\MediaSaved;
@@ -67,7 +69,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DeliverCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void
@@ -77,6 +79,8 @@ final class KamiServiceProvider extends PackageServiceProvider
         $this->app->singleton(ContentTypes::class);
         $this->app->singleton(Forms::class);
         $this->app->singleton(ImagePresets::class);
+        // The Admin language, as configured: a visitor's request switches `app.locale` to its page's Locale.
+        $this->app->instance(Deliveries::ADMIN_LANGUAGE, config('app.locale'));
 
         // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).
         config(['app.timezone' => 'UTC']);

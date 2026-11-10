@@ -10,13 +10,15 @@ use InvalidArgumentException;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Events\SubmissionStored;
 use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Internal\Deliveries;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Kami;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
- * Stores a Submission of the current Site, then dispatches `SubmissionStored` after commit (ADR 0011, ADR 0029). It neither validates nor checks
- * the visitor: the form route does, before it. No Content version bump and no Audit event: a Submission is not Content.
+ * Stores a Submission of the current Site with a pending delivery per channel of its Form's notification, dispatches `SubmissionStored`
+ * after commit (ADR 0011, ADR 0029), and sends the notification after the response. It neither validates nor checks the visitor: the form
+ * route does, before it. No Content version bump and no Audit event: a Submission is not Content.
  */
 final class StoreSubmission
 {
@@ -35,15 +37,22 @@ final class StoreSubmission
             throw new InvalidArgumentException("The Locale [{$locale}] is not one of the Site's.");
         }
 
-        $submission = DB::transaction(fn (): Submission => Submission::query()->create([
-            'site' => $site->handle,
-            'locale' => $locale,
-            'form' => $form->handle(),
-            'entry_id' => $entry?->id,
-            'data' => array_intersect_key($data, array_flip(array_map(fn (string $key): string => Str::before($key, '.'), array_keys($form->rules())))),
-        ]));
+        $submission = DB::transaction(function () use ($form, $site, $locale, $entry, $data): Submission {
+            $submission = Submission::query()->create([
+                'site' => $site->handle,
+                'locale' => $locale,
+                'form' => $form->handle(),
+                'entry_id' => $entry?->id,
+                'data' => array_intersect_key($data, array_flip(array_map(fn (string $key): string => Str::before($key, '.'), array_keys($form->rules())))),
+            ]);
+            Deliveries::prepare($form, $submission);
+
+            return $submission;
+        });
 
         event(new SubmissionStored($submission));
+        // After the response, as the visitor waits for nothing; `kami:forms:deliver` retries what fails or never runs.
+        defer(fn () => Deliveries::sendPending($submission));
 
         return $submission;
     }

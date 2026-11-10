@@ -1,6 +1,6 @@
 # Scheduler
 
-Some of Kami's work runs on a schedule: rebuilding the sitemap, pruning expired Preview links, old page cache files, stale Conversions and old Audit log events. Kami declares these tasks on Laravel's own scheduler, and runs them, with your application's own tasks, from a **Tick**: one call that runs every task whose time has passed, in the same PHP process, with no child process (ADR 0020).
+Some of Kami's work runs on a schedule: retrying Submissions' mail, rebuilding the sitemap, pruning expired Preview links, old page cache files, stale Conversions and old Audit log events. Kami declares these tasks on Laravel's own scheduler, and runs them, with your application's own tasks, from a **Tick**: one call that runs every task whose time has passed, in the same PHP process, with no child process (ADR 0020).
 
 ## Declaring Kami's tasks
 
@@ -16,6 +16,7 @@ It declares, each with `withoutOverlapping(10)`:
 
 | Task | When |
 | --- | --- |
+| `kami:forms:deliver`, which retries the [delivery](forms.md#retries) of Submissions | every 15 minutes |
 | `kami:sitemap`, which rebuilds the [sitemap](seo.md#sitemap) when stale | hourly |
 | `kami:audit:prune`, the [Audit log retention](audit-log.md#retention) | daily |
 | `model:prune` for [Preview links](publishing.md#preview-links) | daily |

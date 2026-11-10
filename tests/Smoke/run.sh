@@ -283,6 +283,42 @@ else
     failed=1
 fi
 
+# A Submission (psyao/kami#483) through the starter kit's contact form, with its SMTP server down: stored, its mail failed after the
+# response, then delivered to Mailpit by the planner's URL alone. The failure's report is cut from the log before the empty-log check.
+docker compose run -T --rm cli sed -i \
+    -e 's|^MAIL_MAILER=.*|MAIL_MAILER=smtp|' -e 's|^MAIL_HOST=.*|MAIL_HOST=mailpit|' -e 's|^MAIL_PORT=.*|MAIL_PORT=1025|' .env
+docker compose run -T --rm cli php artisan optimize >/dev/null
+site_log=/var/www/site/storage/logs/laravel.log
+log_size=$(docker compose exec -T php sh -c "if [ -f $site_log ]; then wc -c < $site_log; else echo 0; fi" | tr -d ' \r')
+home=$(site_php 'echo Psyao\Kami\Content\Entry::query()->ofType(App\Content\Home::class)->value("id");' 2>&1 || true)
+posted=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --header 'X-Forwarded-Proto: https' --header 'Sec-Fetch-Site: same-origin' \
+    --data-urlencode "_kami_origin=$home:fr" --data-urlencode 'name=Ada Lovelace' --data-urlencode 'email=ada@example.com' \
+    --data-urlencode 'message=Hello from the smoke' "$base_url/kami/forms/contact" || true)
+delivery() {
+    site_php 'echo Illuminate\Support\Facades\DB::table("kami_form_deliveries")->get(["channel", "attempts", "delivered_at"])->map(fn ($row) => "$row->channel $row->attempts " . ($row->delivered_at === null ? "pending" : "delivered"))->implode(", ");' 2>&1 || true
+}
+failed_delivery=
+for _ in $(seq 1 20); do
+    failed_delivery=$(delivery)
+    [ "$failed_delivery" = 'mail 1 pending' ] && break
+    sleep 0.5
+done
+docker compose exec -T php truncate --no-create --size="$log_size" "$site_log" || true
+docker compose --profile mail up --detach --wait mailpit >/dev/null 2>&1
+# Due as if the last run were 20 minutes ago, past the minute the sweep leaves to a delivery `defer()` may still be sending.
+site_php '
+    Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:forms:deliver")->update(["last_run_at" => now()->subMinutes(20), "last_status" => null]);
+    Illuminate\Support\Facades\DB::table("kami_form_deliveries")->update(["updated_at" => now()->subMinutes(2)]);
+' >/dev/null 2>&1 || true
+tick=$(tick_body "$token")
+mailed=$(docker compose run -T --rm cli php -r 'echo json_decode(file_get_contents("http://mailpit:8025/api/v1/messages"))->messages[0]->Subject ?? "none";' 2>&1 || true)
+if [ "$posted" = 303 ] && [ "$failed_delivery" = 'mail 1 pending' ] && [ "$tick" = OK ] && [ "$(delivery)" = 'mail 2 delivered' ] && [ "$mailed" = '[Contact] Ada Lovelace' ]; then
+    echo "Submission: stored with SMTP down, delivered to Mailpit by the tick URL"
+else
+    echo "Submission: POST $posted, after the response \"$failed_delivery\", tick \"$tick\", then \"$(delivery)\", Mailpit's last subject \"$mailed\""
+    failed=1
+fi
+
 # The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped, after a recent Tick:
 # with none for five minutes, the pre-boot reader lets Laravel answer, to start one.
 docker compose run -T --rm cli php artisan kami:tick >/dev/null

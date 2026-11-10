@@ -127,6 +127,83 @@ Two methods of a Form describe its Submissions:
 - `summary(Submission)`: one line naming it. By default, its first text value, truncated to 100 characters.
 - `retention()`: how long it is kept, twelve months by default, `null` to keep it forever.
 
+## Delivery
+
+Each Submission reaches the site owner as a mail, sent after the visitor's response: the visitor waits for no mail server.
+
+```php
+final class ContactForm extends Form
+{
+    public function recipients(): array
+    {
+        return ['hello@example.com'];
+    }
+
+    public function replyTo(): ?string
+    {
+        return 'email';
+    }
+
+    // rules()…
+}
+```
+
+- **The mail.** `Psyao\Kami\Forms\SubmissionReceived`, in plain text: its subject is `[{Form label}] {summary}`, its body each field with its `validation.attributes` label, in the order of `rules()`. It is written in the Admin language, `app.locale`, whatever the page's Locale. `replyTo()` names the field holding the visitor's address, which goes on `Reply-To` so that answering writes back to them.
+- **Through Laravel's mailer.** Kami adds no mail setting: configure `MAIL_*` in `.env` for SMTP ([Hosting](hosting.md#mail)). The `log` and `array` mailers keep mail on the server, so `kami:doctor` fails in production while a Form is declared and one of them is the default.
+- **No recipient.** `recipients()` returns none by default: the Submission is stored, nothing is mailed, a warning is logged and `kami:doctor` lists the Form.
+- **Never queued.** Kami sends with `Notification::sendNow()`, after the response through `defer()`, so no queue worker is needed.
+
+### Retries
+
+Kami writes one delivery per channel, in the Submission's transaction, then tries each once the response is sent. A channel that fails is recorded with its error and never stops the others. `kami:forms:deliver`, which `Kami::schedule()` runs every 15 minutes, tries again up to 50 deliveries per run, leaving a delivery once it has failed 5 times. A delivery is at least once: a mail server that accepted a mail but answered too late gets it again.
+
+`kami:doctor` warns about deliveries that failed and wait for a retry, those abandoned, with the last error, and the Submissions of a Form no longer declared under `kami.forms`.
+
+### A notification of your own
+
+Override `notification()` to send another Laravel notification, through any channel, such as a chat webhook:
+
+```php
+use Illuminate\Notifications\Notification;
+use Psyao\Kami\Forms\Submission;
+
+public function notification(Submission $submission): Notification
+{
+    return new ContactReceived($this, $submission);
+}
+```
+
+```php
+final class ContactReceived extends Notification
+{
+    public function __construct(private ContactForm $form, private Submission $submission) {}
+
+    public function via(object $notifiable): array
+    {
+        return ['mail', ChatChannel::class];
+    }
+
+    public function toMail(object $notifiable): MailMessage { /* … */ }
+
+    public function toChat(object $notifiable): array { /* … */ }
+}
+```
+
+```php
+final class ChatChannel
+{
+    public function send(object $notifiable, Notification $notification): void
+    {
+        Http::timeout(5)->throw()->post(config('services.chat.webhook'), $notification->toChat($notifiable));
+    }
+}
+```
+
+- Each channel of `via()` is delivered and retried on its own; a channel signals a failure by throwing, as `->throw()` does above. Keep each short, with a timeout: it runs after a visitor's response, or inside a Tick.
+- The notifiable is an on-demand one, routed to `recipients()` for `mail`: a channel of your own reads its target from your configuration.
+- Do not implement `ShouldQueue`: a queued notification waits for a Tick to work through the queue, and Kami's retry no longer sees it fail.
+- It is sent in the Admin language unless it sets its own `locale()`.
+
 ## A form with a session
 
 A Form posts without a session, so the page stays cached. A form that needs one, such as a form only signed-in members see, stays your own code: your own route in the `web` group, a controller of your own, and `Kami::withoutPageCache()` on the page that holds it, with Laravel's `@csrf` and redirect back with errors. It can still store its Submissions with `StoreSubmission`.
@@ -135,4 +212,6 @@ When you mount Kami's pages with `Kami::routes(session: true)` ([Existing applic
 
 ## Shared hosting and server
 
-Both behave the same. The page holding a Form is page-cached like any other. A Submission boots Laravel, validates and writes one row. The throttle uses your default cache store: the `file` store on shared hosting, any store on a server.
+Both behave the same. The page holding a Form is page-cached like any other. A Submission boots Laravel, validates and writes one row per Submission and per channel. The throttle uses your default cache store: the `file` store on shared hosting, any store on a server.
+
+Delivery runs after the response through `defer()`, over SMTP: shared hosting often has no `mail()` or `sendmail`. Under PHP-FPM the visitor has their answer first; under `mod_php` the response waits for the mail server. Retries run from any Tick: the planner's URL or visits on shared hosting, cron's `kami:tick` on a server ([Scheduler](scheduler.md)).

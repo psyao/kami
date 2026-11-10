@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Forms;
 
 use Carbon\CarbonInterval;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 
@@ -41,6 +42,15 @@ abstract class Form
     public function replyTo(): ?string
     {
         return null;
+    }
+
+    /**
+     * What tells the site owner about a Submission: by default `SubmissionReceived`, a mail to `recipients()`. Each channel of its `via()`
+     * is delivered and retried on its own; it is sent in the Admin language unless it sets its own `locale()`.
+     */
+    public function notification(Submission $submission): Notification
+    {
+        return new SubmissionReceived($this, $submission);
     }
 
     /** One line naming a Submission: by default its first text value in the order of `rules()`, truncated. */

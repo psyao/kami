@@ -218,6 +218,7 @@ class Psyao\Kami\Forms\Events\SubmissionStored::__construct() public function __
 class Psyao\Kami\Forms\Form abstract class
 class Psyao\Kami\Forms\Form::handle() public function handle(): string
 class Psyao\Kami\Forms\Form::label() final public function label(): string
+class Psyao\Kami\Forms\Form::notification() public function notification(Psyao\Kami\Forms\Submission $submission): Illuminate\Notifications\Notification
 class Psyao\Kami\Forms\Form::recipients() public function recipients(): array
 class Psyao\Kami\Forms\Form::replyTo() public function replyTo(): ?string
 class Psyao\Kami\Forms\Form::retention() public function retention(): ?Carbon\CarbonInterval
@@ -225,6 +226,10 @@ class Psyao\Kami\Forms\Form::rules() abstract public function rules(): array
 class Psyao\Kami\Forms\Form::sent() final public function sent(): bool
 class Psyao\Kami\Forms\Form::summary() public function summary(Psyao\Kami\Forms\Submission $submission): string
 class Psyao\Kami\Forms\Submission final class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Forms\SubmissionReceived final class extends Illuminate\Notifications\Notification
+class Psyao\Kami\Forms\SubmissionReceived::__construct() public function __construct(Psyao\Kami\Forms\Form $form, Psyao\Kami\Forms\Submission $submission)
+class Psyao\Kami\Forms\SubmissionReceived::toMail() public function toMail(object $notifiable): Illuminate\Notifications\Messages\MailMessage
+class Psyao\Kami\Forms\SubmissionReceived::via() public function via(object $notifiable): array
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::form() public function form(string $handle): Psyao\Kami\Forms\Form
@@ -315,6 +320,7 @@ command kami:bench path [<path>] = '/'
 command kami:cache:clear
 command kami:doctor
 command kami:doctor --strict [--strict]
+command kami:forms:deliver
 command kami:install
 command kami:install --email [--email [EMAIL]]
 command kami:install --name [--name [NAME]]
@@ -389,6 +395,7 @@ route kami.form POST kami/forms/{handle}
 route kami.tick GET|POST|HEAD kami/tick/{token}
 table kami_audit_events
 table kami_entries
+table kami_form_deliveries
 table kami_form_submissions
 table kami_media
 table kami_media_translations
