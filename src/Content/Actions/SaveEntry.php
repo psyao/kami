@@ -30,6 +30,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\GlobalSet;
 use Psyao\Kami\Content\Internal\Ancestors;
+use Psyao\Kami\Content\Internal\AnnouncePublicationsCommand;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\ReorderEntries;
@@ -67,6 +68,9 @@ final class SaveEntry
 
         $wasPublished = $translation->status === Translation::PUBLISHED;
         $wasVisible = Visibility::isVisible($translation);
+        // Its moment came since `kami:announce-publications` last ran, which skips it once this save moves `updated_at` past `published_at`.
+        $awaitsAnnouncement = $wasVisible && $translation->updated_at < $translation->published_at
+            && $translation->published_at->getTimestamp() > (AnnouncePublicationsCommand::announcedUntil() ?? PHP_INT_MAX);
         $wasPublic = $translation->wasPublic();
         $publishedAt = $translation->published_at;
 
@@ -142,6 +146,8 @@ final class SaveEntry
 
         if (! $wasVisible && Visibility::isVisible($translation)) {
             event(new EntryPublished($saved, $locale, false, $actor));
+        } elseif ($awaitsAnnouncement && Visibility::isVisible($translation)) {
+            event(new EntryPublished($saved, $locale, true, $actor));
         } elseif ($wasPublished && ($data['status'] ?? null) === Translation::DRAFT) {
             event(new EntryUnpublished($saved, $locale, $actor));
         }

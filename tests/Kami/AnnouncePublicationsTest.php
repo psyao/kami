@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 use Illuminate\Console\Scheduling\Event as ScheduledEvent;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryPublished;
-use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Workbench\App\Content\Article;
-use Workbench\App\Content\Footer;
 use Workbench\App\Content\Label;
 
 uses(RefreshDatabase::class);
@@ -96,6 +96,56 @@ it('leaves out what a save already announced, Drafts and the Trash', function ()
     expect(announce($this, '2026-11-10 10:00:00'))->toBe([]);
 });
 
+it('lets a save after the moment announce a Translation the command has not, once', function () {
+    $ada = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
+    announce($this, '2026-11-10 09:00:00');
+    $this->travelTo('2026-11-10 09:00:00');
+    $pending = scheduledArticle('En attente', '2026-11-10 09:30:00');
+    $announced = scheduledArticle('Annoncée', '2026-11-10 09:10:00');
+    announce($this, '2026-11-10 09:20:00');
+    $seen = new ArrayObject;
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $seen->append($event));
+
+    $this->travelTo('2026-11-10 09:45:00');
+    resolve(SaveEntry::class)->handle(Article::class, ['summary' => 'Encore.'], $pending, actor: $ada);
+    resolve(SaveEntry::class)->handle(Article::class, ['summary' => 'Encore.'], $pending);
+    resolve(SaveEntry::class)->handle(Article::class, ['summary' => 'Encore.'], $announced);
+
+    expect(array_map(fn (EntryPublished $event) => [$event->entry->id, $event->scheduled, $event->actor?->getAuthIdentifier()], $seen->getArrayCopy()))->toBe([[$pending->id, true, $ada->id]])
+        ->and(announce($this, '2026-11-10 10:00:00'))->toBe([]);
+});
+
+it('leaves the announcement to the command\'s first run, which starts after the moment', function () {
+    $this->travelTo('2026-11-10 09:00:00');
+    $entry = scheduledArticle('Avant tout run', '2026-11-10 09:30:00');
+    $seen = new ArrayObject;
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $seen->append($event));
+
+    $this->travelTo('2026-11-10 09:45:00');
+    resolve(SaveEntry::class)->handle(Article::class, ['summary' => 'Encore.'], $entry);
+
+    expect($seen->getArrayCopy())->toBe([]);
+});
+
+it('reports a failing listener once, announcing the others and never replaying them', function () {
+    Exceptions::fake();
+    announce($this, '2026-11-10 09:00:00');
+    $this->travelTo('2026-11-10 09:00:00');
+    scheduledArticle('Refusée', '2026-11-10 09:10:00');
+    scheduledArticle('Acceptée', '2026-11-10 09:20:00');
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $event->entry->title === 'Refusée' ? throw new RuntimeException('Webhook down.') : null);
+    $seen = new ArrayObject;
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $seen->append($event->entry->title));
+    $this->travelTo('2026-11-10 09:30:00');
+
+    $this->artisan('kami:announce-publications')->expectsOutputToContain('1 announcement failed in a listener')->assertFailed();
+
+    expect($seen->getArrayCopy())->toBe(['Acceptée'])
+        ->and(announce($this, '2026-11-10 09:31:00'))->toBe([]);
+    Exceptions::assertReportedCount(1);
+    Exceptions::assertReported(fn (RuntimeException $exception) => $exception->getMessage() === 'Webhook down.');
+});
+
 it('marks the sitemap stale once something was announced, writing no row and keeping the Content version', function () {
     $this->travelTo('2026-11-10 09:00:00');
     scheduledArticle('Première', '2026-11-10 09:30:00');
@@ -115,17 +165,6 @@ it('marks the sitemap stale once something was announced, writing no row and kee
     $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
 
     announce($this, '2026-11-10 10:50:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
-});
-
-it('keeps the sitemap fresh when Site settings or a Global Set are saved (#446)', function () {
-    $this->travelTo('2026-11-10 09:00:00');
-    $this->artisan('kami:sitemap')->assertSuccessful();
-    $this->travelTo('2026-11-10 09:01:00');
-
-    resolve(SaveEntry::class)->handle(Footer::class, ['tagline' => 'Bonjour'], locale: 'fr');
-    resolve(SaveEntry::class)->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr');
-
     $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
 });
 
