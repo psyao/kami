@@ -108,6 +108,15 @@ A never-published Translation was deleted through `DeleteTranslation`, once the 
 - `public protected(set) readonly string $type`
 - `public function __construct(string $entryId, string $type, string $site, string $locale, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
+## `Psyao\Kami\Forms\Events\SubmissionStored`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A visitor's Submission was stored through `StoreSubmission`, once the write committed (ADR 0029): the hook for a host's own side effects.
+
+- `public protected(set) readonly Psyao\Kami\Forms\Submission $submission`
+- `public function __construct(Psyao\Kami\Forms\Submission $submission)`
+
 ## `Psyao\Kami\Media\Events\MediaDeleted`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`

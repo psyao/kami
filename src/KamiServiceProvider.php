@@ -28,6 +28,7 @@ use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
+use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Media\Events\MediaDeleted;
 use Psyao\Kami\Media\Events\MediaSaved;
 use Psyao\Kami\Media\Internal\ImagePresets;
@@ -74,6 +75,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         $this->optimizes(clear: 'kami:cache:clear');
         $this->app->singleton(PluginRegistration::class);
         $this->app->singleton(ContentTypes::class);
+        $this->app->singleton(Forms::class);
         $this->app->singleton(ImagePresets::class);
 
         // Dates are stored and computed in UTC whatever the host's time zone; each Site displays its own (ADR 0004).

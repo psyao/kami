@@ -10,6 +10,7 @@ use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
 use Workbench\App\Content\Tag;
 use Workbench\App\Content\Testimonial;
+use Workbench\App\Forms\ContactForm;
 
 // The Workbench Site's declarations: two Sites sharing two Locales, so tests never assume a single one.
 return [
@@ -23,6 +24,10 @@ return [
         Home::class,
         Testimonial::class,
         Footer::class,
+    ],
+
+    'forms' => [
+        ContactForm::class,
     ],
 
     'roles' => [

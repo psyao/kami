@@ -210,8 +210,24 @@ class Psyao\Kami\Content\Term::ancestors() public function ancestors(): Illumina
 class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Facades\Kami::exceptions() public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void
+class Psyao\Kami\Forms\Actions\StoreSubmission final class
+class Psyao\Kami\Forms\Actions\StoreSubmission::handle() public function handle(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission
+class Psyao\Kami\Forms\Events\SubmissionStored final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Forms\Events\SubmissionStored::$submission public protected(set) readonly Psyao\Kami\Forms\Submission $submission
+class Psyao\Kami\Forms\Events\SubmissionStored::__construct() public function __construct(Psyao\Kami\Forms\Submission $submission)
+class Psyao\Kami\Forms\Form abstract class
+class Psyao\Kami\Forms\Form::handle() public function handle(): string
+class Psyao\Kami\Forms\Form::label() final public function label(): string
+class Psyao\Kami\Forms\Form::recipients() public function recipients(): array
+class Psyao\Kami\Forms\Form::replyTo() public function replyTo(): ?string
+class Psyao\Kami\Forms\Form::retention() public function retention(): ?Carbon\CarbonInterval
+class Psyao\Kami\Forms\Form::rules() abstract public function rules(): array
+class Psyao\Kami\Forms\Form::sent() final public function sent(): bool
+class Psyao\Kami\Forms\Form::summary() public function summary(Psyao\Kami\Forms\Submission $submission): string
+class Psyao\Kami\Forms\Submission final class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
+class Psyao\Kami\Kami::form() public function form(string $handle): Psyao\Kami\Forms\Form
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed
 class Psyao\Kami\Kami::routes() public function routes(bool $session = false): void
 class Psyao\Kami\Kami::schedule() public function schedule(): void
@@ -322,11 +338,14 @@ command kami:user:grant role <role>
 command kami:user:reset-mfa
 command kami:user:reset-mfa email <email>
 component x-kami::date ['value', 'format' => 'LL', 'day' => false]
+component x-kami::form ['form']
+component x-kami::form.errors ['level' => 2]
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::locales
 component x-kami::preview-banner
 component x-kami::seo ['title' => null, 'description' => null]
 config kami.audit.retention
+config kami.forms
 config kami.indexable
 config kami.media.avif
 config kami.media.max_pixels
@@ -366,9 +385,11 @@ permission kami.media.delete
 permission kami.media.update
 permission kami.media.view
 permission kami.users.manage
+route kami.form POST kami/forms/{handle}
 route kami.tick GET|POST|HEAD kami/tick/{token}
 table kami_audit_events
 table kami_entries
+table kami_form_submissions
 table kami_media
 table kami_media_translations
 table kami_paths

@@ -20,6 +20,8 @@ Kami's route runs in its own `kami` middleware group, without the `web` group's 
 
 Beside Entries, `Kami::routes()` answers `/kami/tick/{token}`, named `kami.tick`, for a host's planner, with no session either. It answers 404 until `KAMI_TICK_TOKEN` is set ([Scheduler](scheduler.md#on-shared-hosting)).
 
+It also answers `POST /kami/forms/{handle}`, named `kami.form`, where each [Form](forms.md#after-a-submission) posts, in the `kami` group.
+
 ## Paths
 
 Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read, byte for byte on every engine: `/café` and `/cafe` are two addresses.
