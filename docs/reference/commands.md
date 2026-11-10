@@ -42,6 +42,12 @@ Install Kami, or bring it up to date after a deploy
 - `[--email [EMAIL]]`: The first administrator's email, used while no User may manage Users
 - `[--name [NAME]]`: The first administrator's name
 
+## `kami:make:form`
+
+Start a Form: write its class into app/Forms, its view into resources/views/forms, and print the lines to add elsewhere
+
+- `<name>`: The Form's name, such as Contact; a trailing Form is dropped
+
 ## `kami:make:migration`
 
 Write a migration bringing the kami_type_* tables in line with the declared Content Types
