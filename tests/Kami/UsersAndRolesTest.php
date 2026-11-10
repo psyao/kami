@@ -151,6 +151,7 @@ it('takes publish to update a Published or Scheduled Translation, and update alo
 
 it('warns on Role assignments naming an undeclared Role', function () {
     withConversionsServed();
+    withRunningSite();
     userWithRoles('administrator', 'ghost');
 
     $this->artisan('kami:doctor')
@@ -161,6 +162,7 @@ it('warns on Role assignments naming an undeclared Role', function () {
 
 it('informs, without failing even with --strict, of Users with no Role who can sign in to a Kami panel', function () {
     withConversionsServed();
+    withRunningSite();
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
     // With MFA: a manager without it is a warning, which --strict fails on.
@@ -175,6 +177,7 @@ it('informs, without failing even with --strict, of Users with no Role who can s
 
 it('says nothing of Users the panel turns away', function () {
     withConversionsServed();
+    withRunningSite();
     userWithRoles();
 
     expect((new Doctor)->problems())->toBeEmpty();

@@ -161,6 +161,7 @@ it('falls back without a query of its own', function () {
 
 it('warns that Paths lag behind the declarations until the next kami:install', function () {
     withConversionsServed();
+    withRunningSite();
     translate('*', ['title' => 'Urgent'], type: Label::class);
     config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
 
@@ -175,6 +176,7 @@ it('warns that Paths lag behind the declarations until the next kami:install', f
 
 it('warns about stored Paths of the default Locale that a Locale or a segment Kami answers declared later hides', function () {
     withConversionsServed();
+    withRunningSite();
     translate('fr', ['title' => 'About', 'slug' => 'de/about'], type: Page::class);
     $media = translate('fr', ['title' => 'Media', 'slug' => 'press'], type: Page::class);
     translate('en', ['title' => 'Media', 'slug' => 'press'], $media, Page::class);
@@ -197,6 +199,7 @@ it('warns about stored Paths of the default Locale that a Locale or a segment Ka
 
 it('warns about content in an undeclared Locale or of an undeclared type, and keeps it', function () {
     withConversionsServed();
+    withRunningSite();
     $entry = translate('fr', ['title' => 'Bonjour', 'summary' => 'Un article.']);
     translate('en', ['title' => 'Hello', 'summary' => 'An article.'], $entry);
     $gone = translate('*', ['title' => 'Urgent'], type: Label::class);

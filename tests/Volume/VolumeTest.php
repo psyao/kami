@@ -113,6 +113,7 @@ it('checks drift and reports stranded values', function () {
 
     // The doctor expects the shared cache store and the `public/media` link `kami:install` leaves.
     withConversionsServed();
+    withRunningSite();
     expect(measure('kami:doctor', fn () => Artisan::call('kami:doctor')))->toBe(0);
 });
 

@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Support\Internal\Doctor;
 
+use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\SQLiteDatabaseDoesNotExistException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -38,11 +44,13 @@ use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Scheduling\Internal\Tick;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Psyao\Kami\Support\Internal\Install\RobotsTxt;
 use Psyao\Kami\Support\Internal\SecurityPolicy;
+use Psyao\Kami\Support\Internal\WebEnvironment;
 use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\Internal\Permissions;
 use Psyao\Kami\Users\KamiUser;
@@ -60,6 +68,8 @@ final readonly class Doctor
 {
     /** The lowest PHP version Kami runs on, as `composer.json` requires it. */
     public const string PHP_FLOOR = '8.5.0';
+
+    private const string SCHEDULER_GUIDE = 'scheduler.md#checking-the-scheduler';
 
     /** What Kami and its dependencies require at run time, as `composer check-platform-reqs --no-dev` lists it. */
     public const array EXTENSIONS = [
@@ -93,10 +103,9 @@ final readonly class Doctor
         $mfaTable = rescue(fn (): bool => Schema::hasTable('kami_user_mfa'), false, report: false);
 
         return [
-            ...$this->environment(),
+            ...$this->installBlocking($panels),
+            ...$this->webPhp(),
             ...array_filter([$this->hotFile()]),
-            ...$this->userModels($panels),
-            ...$this->guardModels($panels),
             ...$this->remoteAvatars($panels),
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
@@ -104,17 +113,18 @@ final readonly class Doctor
             ...$this->replacedPages($panels, 'replacedLoginPage', 'sign-in', 'login', 'throttling sign-in per email', 'limit attempts per email as well as per IP address', 'sign-in'),
             ...$this->replacedPages($panels, 'replacedResetPage', 'password reset', 'passwordReset', 'keeping it from revealing who has an account', 'answer every address the same way, after the response', 'password-reset'),
             ...$this->replacedMfa($panels),
-            ...$this->mfaModels($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->undescribedTypes(),
             ...$this->missingLabels(),
-            ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia(), $this->pageCacheStorage()]),
+            ...array_filter([$this->lockStore(), $this->publicMedia(), $this->pageCacheStorage()]),
             ...$this->searchEngines(),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
+            ...$this->scheduler(),
+            ...$this->queue(),
         ];
     }
 
@@ -125,9 +135,24 @@ final readonly class Doctor
      */
     public function blocking(): array
     {
-        $panels = $this->panels();
+        return array_values(array_filter($this->installBlocking($this->panels()), fn (Problem $problem): bool => $problem->severity === Severity::Error));
+    }
 
-        return array_values(array_filter([...$this->environment(), ...$this->userModels($panels), ...$this->guardModels($panels), ...$this->mfaModels($panels), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
+    /**
+     * The checks whose errors stop `kami:install`: none may need a migrated table, as they run before it migrates.
+     *
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function installBlocking(array $panels): array
+    {
+        return [
+            ...$this->environment(),
+            ...$this->userModels($panels),
+            ...$this->guardModels($panels),
+            ...$this->mfaModels($panels),
+            ...array_filter([$this->exposedOriginals()]),
+        ];
     }
 
     /** @return list<Problem> */
@@ -882,7 +907,9 @@ final readonly class Doctor
             $problems[] = new Problem(Severity::Warning, "public/robots.txt, the site's own, names no sitemap.", 'add a line Sitemap: ' . RobotsTxt::sitemapUrl() . ' to it.', 'seo.md#robotstxt');
         }
 
-        if ($indexable && ($since = Sitemap::staleSince()) !== null && $since < now()->getTimestamp() - 7200) {
+        if ($indexable && Sitemap::isStale() && Sitemap::staleSince() === null) {
+            $problems[] = new Problem(Severity::Warning, 'No sitemap has been built for ' . Site::current()->url . ' yet.', 'run php artisan kami:sitemap; Kami::schedule() in routes/console.php has every Tick run it hourly.', 'seo.md#sitemap');
+        } elseif ($indexable && ($since = Sitemap::staleSince()) !== null && $since < now()->getTimestamp() - 7200) {
             $problems[] = new Problem(Severity::Warning, 'The sitemap has been stale for more than two hours, since ' . date('Y-m-d H:i', $since) . ' UTC.', 'run php artisan kami:sitemap; Kami::schedule() in routes/console.php has every Tick run it hourly.', 'seo.md#sitemap');
         }
 
@@ -893,6 +920,154 @@ final readonly class Doctor
         }
 
         return $problems;
+    }
+
+    /** What only a running site shows, a web request or a Tick, is information on a developer's machine and in CI, which have neither. */
+    private function runningSiteSeverity(): Severity
+    {
+        return in_array(Config::string('app.env'), ['local', 'testing'], true) ? Severity::Info : Severity::Warning;
+    }
+
+    /**
+     * The web's PHP, from the snapshot the last web or visit Tick wrote, against the same requirements as the command line's.
+     *
+     * @return list<Problem>
+     */
+    private function webPhp(): array
+    {
+        if (($last = WebEnvironment::last()) === null) {
+            return [new Problem(
+                $this->runningSiteSeverity(),
+                "No web request has written the web PHP's snapshot yet: kami:doctor sees only the command line's PHP, which may differ.",
+                'visit the site, or call its tick URL, then run kami:doctor again.',
+                'deployment.md#the-web-php',
+            )];
+        }
+
+        $web = $last['snapshot'];
+        $extensions = $web['extensions'];
+        $doctor = new self($web['php'], fn (string $extension): bool => in_array(strtolower($extension), $extensions, true));
+
+        return array_map(
+            fn (Problem $problem): Problem => new Problem($problem->severity, "On the web ({$web['sapi']}): {$problem->message}", $problem->fix, $problem->guide),
+            array_values(array_filter([$doctor->phpVersion(), ...$doctor->extensions(), $doctor->imageExtension()])),
+        );
+    }
+
+    /**
+     * Ticks that stopped, ran over their budget or cannot run every task, and tasks late or failing (ADR 0020).
+     *
+     * @return list<Problem>
+     */
+    private function scheduler(): array
+    {
+        $ticks = array_filter(array_combine(Tick::TRIGGERS, array_map(Tick::last(...), Tick::TRIGGERS)));
+        $dayAgo = Date::now()->subDay()->getTimestamp();
+        $recent = fn (string $trigger): bool => ($ticks[$trigger]['at'] ?? 0) > $dayAgo;
+        $events = resolve(Schedule::class)->events();
+        $guide = self::SCHEDULER_GUIDE;
+        $problems = [];
+        $byAge = $ticks;
+        uasort($byAge, fn (array $a, array $b): int => $a['at'] <=> $b['at']);
+        $latest = array_key_last($byAge);
+        $last = end($byAge);
+
+        if (! $recent('cli') && ! $recent('web') && ! $recent('visit')) {
+            $problems[] = new Problem($this->runningSiteSeverity(), ($ticks === [] ? 'No Tick has run yet' : 'No Tick has run for 24 hours') . ': Scheduled tasks and queued jobs wait.', "have the host's planner call the tick URL (php artisan kami:tick:url), or cron run php artisan kami:tick every minute.", $guide);
+        }
+
+        if (blank(config('kami.tick.token')) && ! $recent('cli')) {
+            $problems[] = new Problem($this->runningSiteSeverity(), 'KAMI_TICK_TOKEN is empty and kami:tick has not run for 24 hours: only visits start a Tick.', "run php artisan kami:tick:url and have the host's planner call the URL it prints, or cron run php artisan kami:tick.", 'scheduler.md#on-shared-hosting');
+        }
+
+        if ($last !== false && $last['result'] === 'FAILED') {
+            $problems[] = new Problem(Severity::Warning, "The last Tick, from the {$latest} trigger at " . date('Y-m-d H:i', $last['at']) . ' UTC, failed.', 'read the error in the log: a Tick fails when a task fails, and when it cannot start, before kami:install or with the database down.', $guide);
+        }
+
+        foreach ($ticks as $trigger => $tick) {
+            // A trigger that stopped, such as visits once cron runs, leaves its last file behind.
+            if ($tick['at'] > $dayAgo && $tick['budget'] !== null && $tick['duration_ms'] > $tick['budget'] * 1000) {
+                $problems[] = new Problem(Severity::Warning, sprintf('The last %s Tick took %.1f s, over its budget of %d s: a task or a job ran on past it.', $trigger, $tick['duration_ms'] / 1000, $tick['budget']), 'keep each task and job short: long work dispatches one job per chunk.', $guide);
+            }
+        }
+
+        if (! array_any($events, fn (Event $event): bool => $event->description === 'kami:page-cache:prune')) {
+            $problems[] = new Problem(Severity::Warning, "Kami::schedule() is not called: Kami's tasks, the sitemap's rebuild among them, never run.", 'add Kami::schedule(); to routes/console.php.', 'scheduler.md#declaring-kamis-tasks');
+        }
+
+        if (($exec = array_filter($events, Tick::isExec(...))) !== [] && ! $recent('cli')) {
+            $problems[] = new Problem(Severity::Warning, 'kami:tick has not run for 24 hours, and only it runs exec() tasks: ' . implode(', ', array_map(Tick::describe(...), $exec)) . '.', 'run php artisan kami:tick from cron, or schedule an Artisan command or a closure in its place.', $guide);
+        }
+
+        return [...$problems, ...$this->tasks($events)];
+    }
+
+    /**
+     * @param  array<Event>  $events
+     * @return list<Problem>
+     */
+    private function tasks(array $events): array
+    {
+        $runs = rescue(fn () => DB::table('kami_task_runs')->get()->keyBy('task'), null, report: false);
+
+        if ($runs === null) {
+            return [];
+        }
+
+        $hourAgo = Date::now()->subHour();
+        $paused = Tick::paused();
+        $late = $failed = [];
+
+        foreach ($events as $event) {
+            $run = $runs->get($event->mutexName());
+
+            if (! is_string($lastRun = $run?->last_run_at)) {
+                continue;
+            }
+
+            // A `runInBackground()` task is `succeeded` as it starts: Laravel tells nothing of its end.
+            if ($run->last_status === 'failed' || ($run->last_status === 'running' && CarbonImmutable::parse($lastRun, 'UTC') < $hourAgo)) {
+                $failed[] = Tick::describe($event) . ($run->last_status === 'running' ? ' (did not finish)' : '');
+            } elseif (($missed = Tick::missedSince($event, $lastRun)) instanceof CarbonImmutable && $missed < $hourAgo && rescue(fn (): bool => Tick::wouldRun($event, $paused), false, report: false)) {
+                $late[] = Tick::describe($event) . ', due ' . $missed->utc()->format('Y-m-d H:i') . ' UTC';
+            }
+        }
+
+        return array_values(array_filter([
+            $late === [] ? null : new Problem(Severity::Warning, 'Scheduled tasks over an hour late: ' . implode('; ', array_unique($late)) . '.', 'check that Ticks run: a Tick starts no task once its budget is spent, so a long task delays the next.', self::SCHEDULER_GUIDE),
+            $failed === [] ? null : new Problem(Severity::Warning, 'Scheduled tasks that failed on their last run: ' . implode(', ', array_unique($failed)) . '.', 'read the error in the log: each runs again at its next due time.', self::SCHEDULER_GUIDE),
+        ]));
+    }
+
+    /**
+     * Failed jobs, and jobs left waiting on a `database` default connection, which only Ticks work through on shared hosting.
+     *
+     * @return list<Problem>
+     */
+    private function queue(): array
+    {
+        $failer = resolve(FailedJobProviderInterface::class);
+        // Every failer but DynamoDB's counts: that one throws, read as none, as does a missing `failed_jobs`.
+        $failed = rescue(fn (): int => $failer->count(), 0, report: false);
+        // A reserved job is being worked on, or comes back after `retry_after`.
+        $oldest = rescue(fn (): mixed => self::queuedJobs()?->whereNull('reserved_at')->min('available_at'), null, report: false);
+
+        return array_values(array_filter([
+            $failed === 0 ? null : new Problem(Severity::Warning, $failed === 1 ? 'A queued job failed.' : "{$failed} queued jobs failed.", 'list them with php artisan queue:failed, then retry them with queue:retry all or delete them with queue:flush.', 'scheduler.md#the-queue'),
+            is_numeric($oldest) && (int) $oldest < Date::now()->subHour()->getTimestamp()
+                ? new Problem(Severity::Warning, 'The oldest queued job has waited since ' . date('Y-m-d H:i', (int) $oldest) . ' UTC.', 'check that Ticks run: each works through the default queue with the time its tasks leave. A job on another queue waits for a worker of your own.', 'scheduler.md#the-queue')
+                : null,
+        ]));
+    }
+
+    /** The default queue connection's jobs, when it uses the `database` driver, which every Tick works through; null for another driver. */
+    public static function queuedJobs(): ?QueryBuilder
+    {
+        $connection = 'queue.connections.' . Config::string('queue.default');
+
+        return config("{$connection}.driver") === 'database'
+            ? DB::connection(is_string($database = config("{$connection}.connection")) ? $database : null)->table(Config::string("{$connection}.table", 'jobs'))
+            : null;
     }
 
     /** Originals keep their metadata: a disk the web server serves bypasses the stripping every Conversion goes through. */

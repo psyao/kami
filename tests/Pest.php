@@ -25,6 +25,7 @@ use Livewire\Livewire;
 use PragmaRX\Google2FA\Google2FA;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\PublicMedia;
+use Psyao\Kami\Support\Internal\WebEnvironment;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -157,6 +158,15 @@ function shownNotifications(string $title): int
     $mailbox->flush();
 
     return collect($mailbox->pull())->where('title', $title)->keyBy('id')->count();
+}
+
+/** What `kami:doctor` expects of a site that runs: Kami's tasks declared, a recent Tick and a web request's snapshot of its PHP, in the current `storage/`. */
+function withRunningSite(): void
+{
+    Kami::schedule();
+    File::ensureDirectoryExists(storage_path('framework/kami'));
+    touch(storage_path('framework/kami/tick-cli'));
+    WebEnvironment::capture();
 }
 
 /**

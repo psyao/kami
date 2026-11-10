@@ -18,7 +18,7 @@ use Psyao\Kami\Support\Internal\Doctor\Severity;
 
 /**
  * The problems of the last `kami:doctor` run, read from the file it writes: no check runs on a web request.
- * Messages stay in English, as the command prints them, images without alt text included; M8 adds the Tick, tasks and queue.
+ * Messages stay in English, as the command prints them, those about images without alt text, the Tick, its tasks and the queue included.
  *
  * @internal
  */

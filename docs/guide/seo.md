@@ -257,7 +257,7 @@ Every save, publication, Trash, restore or deletion marks the sitemap stale, and
 
 `Kami::schedule()` in `routes/console.php` runs it hourly from every Tick ([Scheduler](scheduler.md)).
 
-When the files are missing, on a fresh install for instance, the first request for `/sitemap.xml` or for a Locale's file reaches Laravel through the usual "file not found" rewrite. Kami builds the files in that request, then serves them; later requests get the static files. One build runs at a time: a request arriving during one waits for it, then serves the files it wrote. The page cache never stores them. `kami:doctor` warns about a sitemap stale for more than two hours, while the Site is indexable.
+When the files are missing, on a fresh install for instance, the first request for `/sitemap.xml` or for a Locale's file reaches Laravel through the usual "file not found" rewrite. Kami builds the files in that request, then serves them; later requests get the static files. One build runs at a time: a request arriving during one waits for it, then serves the files it wrote. The page cache never stores them. `kami:doctor` warns, while the Site is indexable, about a sitemap never built for the Site URL, whose files are then missing until the first request for them, and about one stale for more than two hours.
 
 ## Host routes
 

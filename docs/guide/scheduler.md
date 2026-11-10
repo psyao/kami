@@ -38,7 +38,7 @@ It runs every **overdue** task, one after the other, and prints `OK`, or `FAILED
 - **Failures.** A task that throws or exits with a non-zero code is reported to your exception handler like any error, and runs again at its next due time, not at the next Tick.
 - **One at a time.** A Tick takes a lock on the cache store; a second Tick while it runs prints `BUSY` and does nothing. A Tick starts no task after 50 seconds: the rest wait for the next one.
 
-Each run is recorded in `kami_task_runs`, by the Tick or by Laravel's own `schedule:run`, so both count. Each Tick writes its time, duration and result to `storage/framework/kami/tick-cli`, `tick-web` or `tick-visit`, after what started it.
+Each run is recorded in `kami_task_runs`, by the Tick or by Laravel's own `schedule:run`, so both count. Each Tick writes its time, duration, result and budget to `storage/framework/kami/tick-cli`, `tick-web` or `tick-visit`, after what started it. A Tick started by the URL or a visit also writes what the web's PHP looks like, for `kami:doctor` ([Deployment](deployment.md#the-web-php)).
 
 Three things start a Tick, all always on: there is nothing to choose.
 
@@ -65,6 +65,23 @@ QUEUE_CONNECTION=database
 Keep tasks and jobs short. Work that takes minutes, such as importing thousands of rows, dispatches one job per chunk, each resuming where the last stopped, so that every Tick moves it forward and a Tick that stops mid-way loses nothing.
 
 A server can run Laravel's own worker beside the Tick, under systemd or Supervisor, as Laravel's [queue documentation](https://laravel.com/docs/13.x/queues#supervisor-configuration) shows: jobs then run as soon as they are dispatched, and the Tick finds the queue empty.
+
+## Checking the scheduler
+
+`kami:doctor` reads the `tick-*` files, `kami_task_runs` and the queue's tables, and warns about:
+
+- **no Tick** from any trigger for 24 hours, or none yet, and a **most recent Tick that failed**;
+- an **empty `KAMI_TICK_TOKEN`** while `kami:tick` has not run for 24 hours: only visits start a Tick then;
+- a **Tick over its budget**, the last one of each trigger in the past 24 hours: a task or a job ran on past the time it had;
+- **`Kami::schedule()` not called** in `routes/console.php`;
+- **`exec()` tasks** while `kami:tick`, which alone runs them, has not run for 24 hours;
+- **late tasks**, whose first missed due time is over an hour old, leaving out those their own filters skip, so a task due every minute under a planner calling every 15 stays quiet;
+- **failed tasks**, whose last run failed or started over an hour ago and never finished, as when PHP's `max_execution_time` stops it. A `runInBackground()` task counts as finished once it starts: Laravel tells nothing of its end;
+- **failed jobs**, and a job waiting on the default `database` connection for over an hour, leaving out one being worked on.
+
+It also prints each trigger's last Tick, with its age, result and duration, and the number of jobs on the default `database` queue.
+
+On a developer's machine and in CI (`APP_ENV` `local` or `testing`), neither a web request nor a Tick runs: the first two lines, and the web's missing snapshot, are informations there, so `kami:doctor --strict` still passes. The admin dashboard's **Needs attention** widget shows them after the next `kami:doctor` run ([Installation](installation.md#checking-the-environment)).
 
 ## On a server
 

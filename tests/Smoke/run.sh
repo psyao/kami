@@ -285,8 +285,8 @@ fi
 
 # The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped, after a recent Tick:
 # with none for five minutes, the pre-boot reader lets Laravel answer, to start one.
-docker compose run -T --rm cli php artisan kami:tick >/dev/null `php artisan down`
-# answers 503 before any cached page, as public/index.php checks maintenance before it requires Kami's reader.
+docker compose run -T --rm cli php artisan kami:tick >/dev/null
+# `php artisan down` answers 503 before any cached page, as public/index.php checks maintenance before it requires Kami's reader.
 expect_page /smoke Bonjour
 docker compose stop mariadb >/dev/null 2>&1
 expect_page /smoke Bonjour
