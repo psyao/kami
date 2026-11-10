@@ -983,6 +983,38 @@ final class EntryResource extends FilamentResource
     }
 
     /**
+     * The names of the panel Users whose name holds the search, 50 at most, by key; a typed key no User holds is kept, unnamed, as a deleted User's.
+     *
+     * ponytail: searches the `name` column Filament names a User by without `HasName`, as the Workbench's and the starter kit's Users have; V1 takes the
+     * column from the host if a friction shows one without it.
+     *
+     * @return array<array-key, string|null>
+     */
+    public static function usersMatching(string $search): array
+    {
+        $user = self::newUser();
+        $search = trim($search);
+
+        if ($user === null || $search === '') {
+            return [];
+        }
+
+        // An integer key column refuses a string on PostgreSQL.
+        $isKey = $user->getKeyType() !== 'int' || ctype_digit($search);
+        $names = [];
+
+        foreach ($user->newQuery()->whereLike('name', "%{$search}%")->when($isKey, fn (Builder $query) => $query->orWhere($user->getAuthIdentifierName(), $search))->orderBy('name')->limit(50)->get() as $found) {
+            $key = $found->getAuthIdentifier();
+
+            if (is_int($key) || is_string($key)) {
+                $names[$key] = Filament::getUserName($found);
+            }
+        }
+
+        return $names === [] && $isKey ? [$search => null] : $names;
+    }
+
+    /**
      * `creator` and `lastModifier` on `Entry`, the panel's Users the table loads for its visible columns only, in one query each.
      *
      * The admin's own: not public surface, absent without a panel, a `LogicException` on a panel whose Users are not Eloquent models.

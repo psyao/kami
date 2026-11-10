@@ -284,9 +284,9 @@ function uploadedFixture(string $fixture, ?string $name = null): UploadedFile
 }
 
 /** A User for an audit test, without the `kami.users.created` row of their own creation, which no such test reads. */
-function auditUser(): User
+function auditUser(string $name = 'Ada Lovelace'): User
 {
-    return User::withoutEvents(fn () => User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']));
+    return User::withoutEvents(fn () => User::forceCreate(['name' => $name, 'email' => uniqid() . '@example.test', 'password' => 'secret']));
 }
 
 /**

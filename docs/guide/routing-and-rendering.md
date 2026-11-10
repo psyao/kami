@@ -40,7 +40,7 @@ A Redirect lasts until another Entry takes its address, which replaces it. A Dra
 
 ### Reserved paths
 
-Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, and `sitemap.xml` and `robots.txt` whole. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, and a type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
+Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, and `sitemap.xml` and `robots.txt` whole. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, saying why: "This address is used by the site itself.", or "This address belongs to the EN version." for another Locale's code. A type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
 
 Adding a Locale later can hide a Path saved before: a page at `/de/about` stops answering once `de` is a Locale. `kami:doctor` lists those Paths; change their slug.
 

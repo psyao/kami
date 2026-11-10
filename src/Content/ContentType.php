@@ -172,7 +172,9 @@ abstract class ContentType
     }
 
     /**
-     * The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field, in its own Locale only.
+     * The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field's paragraphs, in its own Locale only.
+     *
+     * Headings, code blocks, lists, quotes and Blocks are left out (#467).
      *
      * Override it to read another Field, as `return $entry->summary;` for a Field of that name.
      */
@@ -181,7 +183,9 @@ abstract class ContentType
         $field = collect($this->flatFields())->first(fn (Field $field): bool => $field instanceof RichText);
         // A value fallen back from the default Locale would describe this page in another language.
         $document = $field === null || $entry->fallbackLocale($field->handle) !== null ? null : $entry->getAttribute($field->handle);
-        $excerpt = $document instanceof Document ? $document->excerpt(160) : '';
+        $nodes = $document instanceof Document ? $document->content()['content'] ?? [] : [];
+        $paragraphs = array_filter(is_array($nodes) ? $nodes : [], fn (mixed $node): bool => data_get($node, 'type') === 'paragraph');
+        $excerpt = new Document(['type' => 'doc', 'content' => array_values($paragraphs)])->excerpt(160);
 
         return $excerpt === '' ? null : $excerpt;
     }

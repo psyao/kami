@@ -114,6 +114,16 @@ it('never stores what is not a 200 of an Entry, without query string or credenti
     'a 404' => [fn ($test) => $test->get('/articles/old')],
 ]);
 
+it('serves a cached page on a Site URL whose host has capitals', function () {
+    config(['kami.sites.default.url' => 'http://Kami.Test']);
+    cachedArticle();
+    $this->get('http://kami.test/articles/hello-world')->assertOk();
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('http://kami.test/articles/hello-world')->assertOk()->assertSee('Hello world')->assertDontSee('Unseen');
+});
+
 it('never stores a response that sets a cookie or calls withoutPageCache()', function (Closure $render) {
     config(['kami.types' => [Article::class, Notice::class]]);
     Notice::$render = $render;

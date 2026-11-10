@@ -69,10 +69,15 @@ final class AuditEventResource extends FilamentResource
                     ->state(fn (AuditEvent $record): string => self::context($record)),
             ])
             ->filters([
-                // A User acting or acted upon: a failed sign-in or a Role granted by someone else has the User as its subject only.
+                // A User acting or acted upon: a failed sign-in or a Role granted by someone else has the User as its subject only. Searched among
+                // Users as the editor types, so rendering the list reads no option from the log (#378).
                 SelectFilter::make('user')->label(__('kami::admin.audit.filters.user'))
-                    ->options(fn (): array => self::userOptions())
                     ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array => collect(EntryResource::usersMatching($search))
+                        ->map(fn (?string $name, int | string $key): string => $name ?? self::userName([], $key))
+                        ->all())
+                    ->getOptionLabelUsing(fn (mixed $value): ?string => self::userLabel($value))
+                    ->indicateUsing(fn (array $state): array => ($label = self::userLabel($state['value'] ?? null)) === null ? [] : [__('kami::admin.audit.filters.user') . ": {$label}"])
                     ->query(self::whereUser(...)),
                 SelectFilter::make('event')->label(__('kami::admin.audit.filters.event'))
                     ->options(fn (): array => self::eventOptions())
@@ -229,25 +234,10 @@ final class AuditEventResource extends FilamentResource
         return array_combine($events, array_map(self::eventLabel(...), $events));
     }
 
-    /**
-     * Every User the log names, as actor or subject, deleted ones included: an incident may be about a User gone since.
-     *
-     * @return array<string, string>
-     */
-    private static function userOptions(): array
+    /** A filtered User's name, a deleted one's by its id. */
+    private static function userLabel(mixed $key): ?string
     {
-        /** @var list<int|string> $found */
-        $found = [
-            ...AuditEvent::query()->whereNotNull('user_id')->distinct()->pluck('user_id')->all(),
-            ...AuditEvent::query()->where('subject_type', 'user')->distinct()->pluck('subject_id')->all(),
-        ];
-        $keys = array_values(array_unique(array_map(strval(...), $found)));
-        $names = EntryResource::userNames($keys);
-
-        return collect($keys)
-            ->mapWithKeys(fn (string $key): array => [$key => self::userName($names, $key)])
-            ->sort()
-            ->all();
+        return (is_int($key) || is_string($key)) && $key !== '' ? self::userName(EntryResource::userNames([$key]), $key) : null;
     }
 
     public static function getPages(): array

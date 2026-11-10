@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Filament\Facades\Filament;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\AuditEventResource;
@@ -110,7 +111,6 @@ it('filters by a User acting or acted upon, deleted ones included, by event and 
     User::withoutEvents(fn () => $grace->delete());
 
     auditLog(['kami.audit.view'])
-        ->assertTableFilterExists('user', fn (SelectFilter $filter): bool => ($filter->getOptions()[$graceId] ?? null) === "Deleted User ({$graceId})")
         ->filterTable('user', (string) $ada->getKey())
         ->assertCanSeeTableRecords([$byAda, $onAda])
         ->assertCanNotSeeTableRecords([$byGrace])
@@ -122,6 +122,31 @@ it('filters by a User acting or acted upon, deleted ones included, by event and 
         ->filterTable('occurred_at', ['from' => '2026-07-02', 'until' => '2026-07-02'])
         ->assertCanSeeTableRecords([$byAda])
         ->assertCanNotSeeTableRecords([$onAda, $byGrace]);
+});
+
+it('searches Users by name as the editor types, a typed key of a deleted User included, reading no option from the log', function () {
+    $katherine = auditUser('Katherine Johnson');
+    auditUser('Grace Hopper');
+    $gone = auditUser('Gone');
+    $goneId = (string) $gone->getKey();
+    User::withoutEvents(fn () => $gone->delete());
+    auditRecord('kami.auth.sign-in-failed', $katherine);
+    DB::enableQueryLog();
+    $list = auditLog()->assertSuccessful();
+
+    expect(collect(DB::getQueryLog())->pluck('query')->filter(fn (string $sql): bool => str_contains($sql, 'distinct') && preg_match('/user_id|subject_id/', $sql) === 1))->toBeEmpty();
+
+    $results = [];
+    $list->assertTableFilterExists('user', function (SelectFilter $filter) use (&$results, $goneId): bool {
+        $results = array_map(fn (string $search): array => $filter->getFormField()->getSearchResults($search), ['kath', $goneId, 'nobody']);
+
+        return true;
+    });
+
+    expect($results)->toBe([[$katherine->getKey() => 'Katherine Johnson'], [$goneId => "Deleted User ({$goneId})"], []]);
+
+    $list->filterTable('user', (string) $katherine->getKey())
+        ->assertTableFilterExists('user', fn (SelectFilter $filter): bool => $filter->getIndicators()[0]->getLabel() === 'User: Katherine Johnson');
 });
 
 it('offers no way to create, edit or delete an event', function () {

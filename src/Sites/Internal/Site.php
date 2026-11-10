@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Sites\Internal;
 
+use Illuminate\Support\Str;
+
 /**
  * A Site declared in `config/kami.php`, and the one place the current Site and Locale are resolved (ADR 0004).
  *
@@ -40,7 +42,10 @@ final readonly class Site
             }
         }
 
-        return new self('default', $site['url'], $locales, $site['timezone'], $ogLocales);
+        // A host is case-insensitive and the request's comes lower-cased: the configured one is too, so comparisons and printed URLs agree (#445).
+        $host = (string) parse_url($site['url'], PHP_URL_HOST);
+
+        return new self('default', Str::replaceFirst($host, strtolower($host), $site['url']), $locales, $site['timezone'], $ogLocales);
     }
 
     /** `og:locale` for a Locale with a region (`fr_CH`), `null` without one. */
