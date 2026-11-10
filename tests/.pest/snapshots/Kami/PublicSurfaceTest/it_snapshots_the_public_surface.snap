@@ -330,6 +330,7 @@ command kami:cache:clear
 command kami:doctor
 command kami:doctor --strict [--strict]
 command kami:forms:deliver
+command kami:forms:prune
 command kami:install
 command kami:install --email [--email [EMAIL]]
 command kami:install --name [--name [NAME]]

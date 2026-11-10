@@ -18,6 +18,7 @@ It declares, each with `withoutOverlapping(10)`:
 | --- | --- |
 | `kami:forms:deliver`, which retries the [delivery](forms.md#retries) of Submissions | every 15 minutes |
 | `kami:sitemap`, which rebuilds the [sitemap](seo.md#sitemap) when stale | hourly |
+| `kami:forms:prune`, the [retention of Submissions](forms.md#retention) | daily |
 | `kami:audit:prune`, the [Audit log retention](audit-log.md#retention) | daily |
 | `model:prune` for [Preview links](publishing.md#preview-links) | daily |
 | `kami:page-cache:prune`, the [page cache](page-cache.md)'s files of former versions | daily |
