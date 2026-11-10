@@ -60,7 +60,7 @@ it('runs the overdue tasks inside the request and answers OK in plain text, from
 
     $response->assertOk()->assertContent('OK')->assertHeader('Content-Type', 'text/plain; charset=utf-8')->assertHeader('Cache-Control', 'no-store, private');
     expect($this->runs)->toBe(['probe'])
-        ->and(json_decode(File::get("{$this->storage}/framework/kami/tick-web"), true))->toMatchArray(['at' => '2026-11-09T11:10:00+00:00', 'result' => 'OK']);
+        ->and(json_decode(File::get("{$this->storage}/framework/kami/tick-web"), true))->toMatchArray(['at' => '2026-11-09T11:10:00+00:00', 'result' => 'OK', 'budget' => 40]);
 })->with(['get', 'post']);
 
 it('answers BUSY while another Tick holds the lock', function (): void {
@@ -104,6 +104,45 @@ it('skips an exec() task on the web', function (): void {
 
     expect($file)->not->toBeFile();
     $this->assertDatabaseEmpty('kami_task_runs');
+});
+
+function webEnvironment(object $test): string
+{
+    return "{$test->storage}/framework/kami/web-environment.json";
+}
+
+it('writes the web PHP that served the tick URL for kami:doctor', function (): void {
+    plannerCall($this, '2026-11-09 10:30:00')->assertOk();
+
+    expect(File::json(webEnvironment($this)))->toMatchArray([
+        'sapi' => PHP_SAPI,
+        'php' => PHP_VERSION,
+        'memory_limit' => ini_get('memory_limit'),
+        'max_execution_time' => (int) ini_get('max_execution_time'),
+    ])->and(File::json(webEnvironment($this))['extensions'])->toContain('mbstring', 'pdo');
+});
+
+it('rewrites the web PHP once it changed, and only touches it otherwise', function (): void {
+    plannerCall($this, '2026-11-09 10:30:00');
+    $written = File::get(webEnvironment($this));
+    touch(webEnvironment($this), time() - 3600);
+
+    plannerCall($this, '2026-11-09 10:40:00');
+
+    expect(File::get(webEnvironment($this)))->toBe($written)
+        ->and(File::lastModified(webEnvironment($this)))->toBeGreaterThan(time() - 60);
+    File::put(webEnvironment($this), '{"php": "8.4.0"}');
+
+    plannerCall($this, '2026-11-09 10:50:00');
+
+    expect(File::get(webEnvironment($this)))->toBe($written);
+});
+
+it('leaves the web PHP alone from the command line', function (): void {
+    $this->artisan('kami:tick')->assertSuccessful();
+
+    expect(webEnvironment($this))->not->toBeFile()
+        ->and(File::json("{$this->storage}/framework/kami/tick-cli"))->toMatchArray(['budget' => 50]);
 });
 
 /** `kami:tick:url`'s output, and the token on its `.env` line. */

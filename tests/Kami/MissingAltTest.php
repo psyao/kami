@@ -27,6 +27,7 @@ beforeEach(function () {
 
 it('warns in kami:doctor with the count of images missing their alt text, which the dashboard then lists', function () {
     withConversionsServed();
+    withRunningSite();
     app()->useStoragePath($storage = temporaryPath());
     File::ensureDirectoryExists("{$storage}/framework/kami");
     $save = resolve(SaveMedia::class);
@@ -46,6 +47,7 @@ it('warns in kami:doctor with the count of images missing their alt text, which 
 // Before the Media table exists: `DoctorTest` runs on an empty database.
 it('says nothing of alt text once every image has one', function () {
     withConversionsServed();
+    withRunningSite();
     resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), ['decorative' => true]);
 
     expect((new Doctor)->problems())->toBeEmpty();

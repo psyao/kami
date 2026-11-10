@@ -212,6 +212,7 @@ describe('kami:user:reset-mfa', function (): void {
 
 it('counts the Users who may manage Users and have no MFA yet, failing kami:doctor with --strict only', function () {
     withConversionsServed();
+    withRunningSite();
     mfaUser('administrator');
     mfaUser('administrator');
     mfaUser('administrator', ['a-code']);
@@ -227,6 +228,7 @@ it('counts the Users who may manage Users and have no MFA yet, failing kami:doct
 
 it('counts a manager whose authenticator the app key no longer reads, as one without MFA, instead of failing', function () {
     withConversionsServed();
+    withRunningSite();
     mfaUser('administrator', ['a-code']);
     // APP_KEY rotated without APP_PREVIOUS_KEYS: kami:user:reset-mfa is the rescue, so the doctor must still run.
     config(['app.key' => 'base64:' . base64_encode(random_bytes(32))]);
@@ -240,6 +242,7 @@ it('counts a manager whose authenticator the app key no longer reads, as one wit
 
 it('says nothing once every User who may manage Users has MFA set up', function () {
     withConversionsServed();
+    withRunningSite();
     mfaUser('administrator', ['a-code']);
     mfaUser('editor');
 

@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Psyao\Kami\Support\Internal\Doctor\WebEnvironment;
 use RuntimeException;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\StreamOutput;
@@ -38,7 +39,7 @@ final class Tick
     private const int MARGIN = 10;
 
     /** Each writes its `tick-*` file: `kami:tick`, the planner's URL and visits. */
-    private const array TRIGGERS = ['cli', 'web', 'visit'];
+    public const array TRIGGERS = ['cli', 'web', 'visit'];
 
     /** Seconds after any Tick during which visits start none, and the page cache reader serves pages. */
     private const int QUIET = 300;
@@ -63,12 +64,17 @@ final class Tick
         $start = microtime(true);
         $failed = false;
 
+        if ($trigger !== 'cli') {
+            // Where `kami:doctor` learns what the web's PHP is; a visit reports a failed write no more than its `tick-visit`.
+            rescue(WebEnvironment::capture(...), report: $trigger !== 'visit');
+        }
+
         try {
             // A web request declares no task: `routes/console.php` loads with the console kernel's commands, and `withSchedule()` once Artisan starts.
             // `output()` does both, as `schedule:run` has them, without building every command as `all()` would; on the command line it changes nothing.
             resolve(ConsoleKernel::class)->output();
             $lastRuns = DB::table('kami_task_runs')->pluck('last_run_at', 'task');
-            $paused = Schedule::$pausable && Cache::get('illuminate:schedule:paused', false);
+            $paused = self::paused();
 
             foreach (resolve(Schedule::class)->events() as $event) {
                 if (microtime(true) - $start >= $budget) {
@@ -78,7 +84,7 @@ final class Tick
                 // A task whose filter throws is reported and skipped; the others still run.
                 try {
                     // An `exec()` task starts a child process, which shared hosting refuses on the web: it stays overdue for a CLI Tick, and `kami:doctor` names it.
-                    if ($trigger !== 'cli' && ! $event instanceof CallbackEvent && self::artisanCommand($event) === null) {
+                    if ($trigger !== 'cli' && self::isExec($event)) {
                         continue;
                     }
 
@@ -104,12 +110,13 @@ final class Tick
         $result = $failed ? 'FAILED' : 'OK';
         // The tasks ran: an unwritable `storage/` is never thrown, and `kami:doctor` sees no Tick. A visit reports nothing, as the page cache
         // in that `storage/` does not: it would report at every visit, each then starting a Tick, a bound broken only while the page cache is down too.
-        rescue(function () use ($trigger, $start, $result): void {
+        rescue(function () use ($trigger, $start, $result, $budget): void {
             File::ensureDirectoryExists(storage_path('framework/kami'));
             File::put(storage_path("framework/kami/tick-{$trigger}"), (string) json_encode([
                 'at' => Date::now()->toIso8601String(),
                 'duration_ms' => (int) round((microtime(true) - $start) * 1000),
                 'result' => $result,
+                'budget' => $budget,
             ]));
         }, report: $trigger !== 'visit');
 
@@ -120,6 +127,37 @@ final class Tick
     public static function stale(): bool
     {
         return max(array_map(fn (string $trigger): int => (int) @filemtime(storage_path("framework/kami/tick-{$trigger}")), self::TRIGGERS)) <= time() - self::QUIET;
+    }
+
+    /**
+     * A trigger's last Tick: when its file was written, as `stale()` reads it, then its duration, result and budget, each null when the file lacks it.
+     *
+     * @return array{at: int, duration_ms: ?int, result: ?string, budget: ?int}|null
+     */
+    public static function last(string $trigger): ?array
+    {
+        $path = storage_path("framework/kami/tick-{$trigger}");
+        clearstatcache(true, $path);
+
+        if (($at = @filemtime($path)) === false) {
+            return null;
+        }
+
+        $tick = json_decode((string) @file_get_contents($path), true);
+        $tick = is_array($tick) ? $tick : [];
+
+        return [
+            'at' => $at,
+            'duration_ms' => is_int($tick['duration_ms'] ?? null) ? $tick['duration_ms'] : null,
+            'result' => is_string($tick['result'] ?? null) ? $tick['result'] : null,
+            'budget' => is_int($tick['budget'] ?? null) ? $tick['budget'] : null,
+        ];
+    }
+
+    /** What `kami_task_runs` and `kami:doctor` call a task: its name, its Artisan command, its shell command, or `Callback`. */
+    public static function describe(Event $event): string
+    {
+        return $event->description ?? self::artisanCommand($event) ?? $event->command ?? 'Callback';
     }
 
     /** Listens to Laravel's events, so a native `schedule:run` counts too. A failed write is reported, never thrown: it would stop the host's own scheduler, as before `kami:install` migrates. */
@@ -171,14 +209,32 @@ final class Tick
             return false;
         }
 
-        $timezone = $event->timezone instanceof DateTimeZone ? $event->timezone->getName() : ($event->timezone ?? Config::string('app.timezone'));
-        $due = new CronExpression($event->expression)->getPreviousRunDate(Date::now(), allowCurrentDate: true, timeZone: $timezone);
+        return self::missedSince($event, $lastRun) instanceof CarbonImmutable;
+    }
 
-        return $due > CarbonImmutable::parse($lastRun, 'UTC');
+    /** The first due time after its last run, in its time zone, once it has passed; null while the task is not overdue. */
+    public static function missedSince(Event $event, string $lastRun): ?CarbonImmutable
+    {
+        $timezone = $event->timezone instanceof DateTimeZone ? $event->timezone->getName() : ($event->timezone ?? Config::string('app.timezone'));
+        $due = CarbonImmutable::instance(new CronExpression($event->expression)->getNextRunDate(CarbonImmutable::parse($lastRun, 'UTC'), timeZone: $timezone));
+
+        return $due <= Date::now() ? $due : null;
+    }
+
+    /** Whether `schedule:pause` holds every task that does not run when paused. */
+    public static function paused(): bool
+    {
+        return Schedule::$pausable && Cache::get('illuminate:schedule:paused', false);
+    }
+
+    /** An `exec()` task starts a child process: neither a callback nor an Artisan command. */
+    public static function isExec(Event $event): bool
+    {
+        return ! $event instanceof CallbackEvent && self::artisanCommand($event) === null;
     }
 
     /** Laravel's own filters, as `schedule:run` applies them: environments, maintenance mode, a paused schedule, `when()` and `skip()`, `withoutOverlapping()`'s among them. */
-    private static function wouldRun(Event $event, bool $paused): bool
+    public static function wouldRun(Event $event, bool $paused): bool
     {
         return $event->runsInEnvironment(app()->environment())
             && ($event->runsInMaintenanceMode() || ! app()->isDownForMaintenance())
@@ -251,7 +307,7 @@ final class Tick
     private static function record(Event $event, array $values): void
     {
         rescue(fn () => DB::table('kami_task_runs')->upsert(
-            [['id' => (string) Str::ulid(), 'task' => $event->mutexName(), 'description' => $event->description ?? self::artisanCommand($event) ?? $event->command ?? 'Callback', 'created_at' => Date::now(), 'updated_at' => Date::now(), ...$values]],
+            [['id' => (string) Str::ulid(), 'task' => $event->mutexName(), 'description' => self::describe($event), 'created_at' => Date::now(), 'updated_at' => Date::now(), ...$values]],
             ['task'],
             ['description', 'updated_at', ...array_keys($values)],
         ));

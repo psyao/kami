@@ -8,6 +8,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Routing\Internal\BenchCommand;
@@ -23,6 +24,7 @@ final class DoctorCommand extends Command
     public function handle(Doctor $doctor, ImageFormats $formats): int
     {
         $this->printFormats($formats);
+        $this->printWeb();
         $this->printBench();
         $problems = $doctor->problems();
 
@@ -60,6 +62,14 @@ final class DoctorCommand extends Command
         $tested = $formats->probe();
         $this->components->twoColumnDetail('<options=bold>Image formats</>', 'on the command line');
 
+        $this->printFormatDrivers($tested);
+        $this->components->twoColumnDetail('JPEG, PNG', Config::string('images.default', 'gd') . ', the fallback');
+        $this->newLine();
+    }
+
+    /** @param array<string> $tested The driver per format. */
+    private function printFormatDrivers(array $tested): void
+    {
         foreach (ImageFormats::FORMATS as $format => $name) {
             $this->components->twoColumnDetail($name, match (true) {
                 $format === 'avif' && ! Config::boolean('kami.media.avif') => 'off (kami.media.avif)',
@@ -67,8 +77,32 @@ final class DoctorCommand extends Command
                 default => 'not available',
             });
         }
+    }
 
-        $this->components->twoColumnDetail('JPEG, PNG', Config::string('images.default', 'gd') . ', the fallback');
+    /** The web's PHP as the last web or visit Tick saw it, not a Problem: the command line may read other settings and load other extensions. */
+    private function printWeb(): void
+    {
+        if (($last = WebEnvironment::last()) === null) {
+            $this->components->twoColumnDetail('<options=bold>Web PHP</>', 'no web request seen yet');
+            $this->newLine();
+
+            return;
+        }
+
+        $web = $last['snapshot'];
+        $cli = array_map(strtolower(...), get_loaded_extensions());
+        $differences = array_filter([
+            ($without = array_diff($cli, $web['extensions'])) === [] ? null : 'without ' . implode(', ', $without),
+            ($with = array_diff($web['extensions'], $cli)) === [] ? null : 'with ' . implode(', ', $with),
+        ]);
+
+        $this->components->twoColumnDetail('<options=bold>Web PHP</>', sprintf('%s, seen %s', $web['sapi'], Date::createFromTimestamp($last['seen_at'])->diffForHumans()));
+        $this->components->twoColumnDetail('PHP', $web['php']);
+        $this->components->twoColumnDetail('memory_limit', $web['memory_limit']);
+        $this->components->twoColumnDetail('max_execution_time', $web['max_execution_time'] === 0 ? 'none' : "{$web['max_execution_time']} s");
+        $this->components->twoColumnDetail('disable_functions', $web['disable_functions'] === [] ? 'none' : implode(', ', $web['disable_functions']));
+        $this->components->twoColumnDetail('Extensions', $differences === [] ? 'as on the command line' : 'as on the command line, ' . implode('; ', $differences));
+        $this->printFormatDrivers($web['image_formats']);
         $this->newLine();
     }
 

@@ -111,7 +111,11 @@ php artisan optimize
 
 `kami:install` stops on any environment error, with its fix ([Installation](installation.md#checking-the-environment)). `optimize` caches the configuration, routes, events and views. A first install from a deploy script, with no terminal, takes `--no-interaction --email=... --name=...` and prints a one-time link to set the password, or reads it from the `KAMI_ADMIN_PASSWORD` environment variable, never from an argument ([Installation](installation.md#the-first-user)). Sign in at `https://example.com/admin`.
 
-Run `php artisan kami:doctor` once the site answers. It sees the command line's PHP, not the web's ([Hosting](hosting.md#infomaniak-shared-hosting)).
+Run `php artisan kami:doctor` once the site answers, and once more after the first visit, so that it sees the web's PHP too.
+
+### The web PHP
+
+Over SSH, `kami:doctor` runs under the command line's PHP, whose settings and extensions may differ from the web's ([Hosting](hosting.md#infomaniak-shared-hosting)). So each Tick started by a visit or the tick URL writes what the web's PHP looks like to `storage/framework/kami/web-environment.json`, rewritten when it changes. `kami:doctor` prints it under **Web PHP**, with the time it was last seen: the SAPI, the PHP version, `memory_limit`, `max_execution_time`, `disable_functions`, how the extensions differ from the command line's, and the image formats the web encodes. It fails on a web PHP below the floor or lacking a required extension, as it does for the command line's, and warns while no web request has run a Tick yet: visit the site, then run it again.
 
 ### Scheduled tasks
 

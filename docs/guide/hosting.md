@@ -89,7 +89,7 @@ On a copy that is not indexable, such as staging, add `add_header X-Robots-Tag "
 
 Facts measured on Infomaniak Web Hosting, on PHP 8.5, that change what a site sees:
 
-- **The command line is not the web.** Over SSH, PHP reads its own settings: `exec` and `proc_open` are allowed there and disabled on the web. `kami:doctor` checks the PHP it runs under, which is the command line's.
+- **The command line is not the web.** Over SSH, PHP reads its own settings: `exec` and `proc_open` are allowed there and disabled on the web. `kami:doctor` checks the PHP it runs under, which is the command line's, and prints the web's as the last visit or tick URL saw it ([Deployment](deployment.md#the-web-php)).
 - **OPcache is off on the web** and cannot be turned on. Every request compiles Laravel and Filament again, so the admin is slower than on a server. Nothing in Kami depends on it.
 - **`display_errors` is on on the web.** A fatal error before Laravel boots shows its message, paths included, to visitors. The starter kit turns it off: see [Deployment](deployment.md#point-the-site-at-public).
 - **The database is remote.** Every query pays network latency.

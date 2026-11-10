@@ -89,7 +89,7 @@ php artisan kami:doctor
 - a **warning** means a doubtful setting: the command exits with 0, unless you pass `--strict`, which fails on warnings too;
 - an **information** is worth knowing and never fails the command.
 
-It checks the PHP it runs under: on shared hosting, that is the command line's, which may differ from the web's.
+It checks the PHP it runs under: on shared hosting, that is the command line's, which may differ from the web's. It also reads the web's PHP as the last visit or tick URL saw it ([Deployment](deployment.md#the-web-php)), and the scheduler's state ([Scheduler](scheduler.md#checking-the-scheduler)).
 
 Run it after any change to the environment, and with `--strict` in your CI if warnings should fail it. Each run writes its result to `storage/framework/kami/doctor.json`, which the admin dashboard's **Needs attention** widget shows to Users holding `kami.health.view`. The widget runs no check itself: run the command again after a fix, or after a deploy, to update it.
 

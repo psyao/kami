@@ -9,16 +9,20 @@ use Filament\AvatarProviders\Contracts\AvatarProvider;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Facades\Filament;
 use Filament\Panel;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as PlainUser;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
@@ -34,6 +38,7 @@ use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Support\Internal\Doctor\Doctor;
+use Psyao\Kami\Support\Internal\Doctor\Problem;
 use Psyao\Kami\Support\Internal\Doctor\Severity;
 use Psyao\Kami\Support\SecurityHeaders;
 use Psyao\Kami\Users\HasKamiRoles;
@@ -83,7 +88,15 @@ final class Editor extends User
 beforeEach(function () {
     config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty']);
     withConversionsServed();
+    withRunningSite();
 });
+
+/** The sitemap built for the Site URL, as the hourly task leaves it, in the current `public/` and `storage/`. */
+function withBuiltSitemap(object $test): void
+{
+    $test->artisan('migrate')->assertSuccessful();
+    Sitemap::build();
+}
 
 function withoutExtensions(string ...$missing): Doctor
 {
@@ -293,7 +306,7 @@ it('writes its last result under Kami\'s storage directory', function () {
     $this->app->instance(Doctor::class, withoutExtensions('gd', 'imagick'));
     // A storage of its own: parallel processes share the skeleton's.
     $this->app->useStoragePath($storage = temporaryPath());
-    File::ensureDirectoryExists($storage);
+    withRunningSite();
 
     $this->artisan('kami:doctor')->assertSuccessful();
 
@@ -581,7 +594,11 @@ it('warns once, upper case included, for a Site URL that is APP_URL, as config/k
 });
 
 it('fails with --strict on each production transport warning, and only then', function (array $config, bool $fails) {
+    // The sitemap's state.
+    $this->app->useStoragePath(temporaryPath());
+    withRunningSite();
     config(['app.env' => 'production', 'kami.indexable' => true, 'session.secure' => true, 'app.url' => 'https://example.com', 'kami.sites.default.url' => 'https://example.com', 'kami.sites.blog.url' => 'https://blog.example.com', ...$config]);
+    withBuiltSitemap($this);
 
     $doctor = $this->artisan('kami:doctor', ['--strict' => true]);
     $fails ? $doctor->assertFailed() : $doctor->assertSuccessful();
@@ -851,6 +868,7 @@ describe('search engines', function () {
     }
 
     it('warns when the indexable switch contradicts the environment', function (string $env, bool $indexable, array $expected) {
+        withBuiltSitemap($this);
         config(['app.env' => $env, 'kami.indexable' => $indexable]);
 
         expect(seoProblems())->toBe($expected);
@@ -873,6 +891,7 @@ describe('search engines', function () {
     });
 
     it('warns when the site\'s own robots.txt names no sitemap, only while the Site is indexable', function () {
+        withBuiltSitemap($this);
         config(['kami.indexable' => true, 'app.env' => 'production']);
         File::put("{$this->public}/robots.txt", "User-agent: *\nDisallow: /admin\n");
         expect(seoProblems())->toBe([[Severity::Warning, 'public/robots.txt, the site\'s own, names no sitemap.']]);
@@ -891,6 +910,20 @@ describe('search engines', function () {
 
         expect(seoProblems())->toBe([[Severity::Warning, "A route of the application answers /{$path}: Kami writes no public/{$path}, as the file would shadow the route."]]);
     })->with(['robots.txt', 'sitemap.xml']);
+
+    it('warns about a sitemap never built for the Site URL, only while the Site is indexable', function () {
+        config(['kami.indexable' => true, 'app.env' => 'production']);
+        expect(seoProblems())->toBe([[Severity::Warning, 'No sitemap has been built for http://localhost: robots.txt names one that does not exist yet.']]);
+
+        withBuiltSitemap($this);
+        expect(seoProblems())->toBe([]);
+
+        config(['kami.sites.default.url' => 'https://example.com']);
+        expect(seoProblems())->toBe([[Severity::Warning, 'No sitemap has been built for https://example.com: robots.txt names one that does not exist yet.']]);
+
+        config(['kami.indexable' => false, 'app.env' => 'local']);
+        expect(seoProblems())->toBe([]);
+    });
 
     it('warns about a sitemap stale for more than two hours, only while the Site is indexable', function () {
         config(['kami.indexable' => true, 'app.env' => 'production']);
@@ -915,5 +948,175 @@ describe('search engines', function () {
         Kami::routes();
 
         expect(seoProblems())->toBe([]);
+    });
+});
+
+describe('the web and the scheduler', function () {
+    beforeEach(function () {
+        // Not the skeleton's storage/: tests running in parallel would see each other's Ticks.
+        $this->app->useStoragePath($this->storage = temporaryPath());
+        withRunningSite();
+        $this->schedule = resolve(Schedule::class);
+        $this->runs = [];
+    });
+
+    afterEach(function () {
+        File::deleteDirectory($this->storage);
+    });
+
+    /** The snapshot the last web Tick wrote, changed by `$changes`. */
+    function webSnapshot(array $changes): void
+    {
+        $path = storage_path('framework/kami/web-environment.json');
+        File::put($path, json_encode([...File::json($path), ...$changes]));
+    }
+
+    function problem(string $start): ?Problem
+    {
+        return collect(resolve(Doctor::class)->problems())->first(fn (Problem $problem) => str_starts_with($problem->message, $start));
+    }
+
+    function tick(string $trigger, int $age, array $content = []): void
+    {
+        File::put($path = storage_path("framework/kami/tick-{$trigger}"), json_encode($content));
+        touch($path, time() - $age);
+    }
+
+    it('shows the web PHP the last web Tick saw, with its age', function () {
+        $cli = array_map(strtolower(...), get_loaded_extensions());
+        webSnapshot([
+            'sapi' => 'fpm-fcgi', 'memory_limit' => '128M', 'max_execution_time' => 30, 'disable_functions' => ['exec', 'proc_open'],
+            'extensions' => [...array_diff($cli, ['xmlwriter']), 'sodium-web'], 'image_formats' => ['webp' => 'gd'],
+        ]);
+        touch(storage_path('framework/kami/web-environment.json'), time() - 180);
+        config(['kami.media.avif' => true]);
+
+        Artisan::call('kami:doctor');
+
+        expect(Artisan::output())->toMatch('/Web PHP\W+fpm-fcgi, seen 3 minutes ago/')
+            ->toMatch('/PHP\W+' . preg_quote(PHP_VERSION) . '/')
+            ->toMatch('/memory_limit\W+128M/')
+            ->toMatch('/max_execution_time\W+30 s/')
+            ->toMatch('/disable_functions\W+exec, proc_open/')
+            ->toMatch('/Extensions\W+as on the command line, without xmlwriter; with sodium-web/')
+            ->toMatch('/AVIF\W+not available\s+WebP\W+gd/');
+    });
+
+    it('fails on a web PHP below the floor or lacking a required extension, as on the command line', function () {
+        webSnapshot(['sapi' => 'fpm-fcgi', 'php' => '8.4.13', 'extensions' => array_diff(array_map(strtolower(...), get_loaded_extensions()), ['intl'])]);
+
+        $this->artisan('kami:doctor')
+            ->expectsOutputToContain('On the web (fpm-fcgi): PHP 8.4.13 is below Kami\'s floor, 8.5.0.')
+            ->expectsOutputToContain('On the web (fpm-fcgi): The PHP extension intl is not loaded.')
+            ->assertFailed();
+    });
+
+    it('informs on a developer\'s machine and in CI, and warns elsewhere, of what only a running site shows', function (Closure $arrange, string $message) {
+        $arrange();
+
+        expect(problem($message)?->severity)->toBe(Severity::Info);
+
+        config(['app.env' => 'staging']);
+        expect(problem($message)?->severity)->toBe(Severity::Warning);
+    })->with([
+        'no web snapshot' => [fn () => File::delete(storage_path('framework/kami/web-environment.json')), "No web request has run a Tick yet: kami:doctor cannot see the web's PHP"],
+        'no Tick yet' => [fn () => File::delete(storage_path('framework/kami/tick-cli')), 'No Tick has run yet: Scheduled tasks and queued jobs wait.'],
+        'no Tick for 24 hours' => [fn () => tick('cli', 86_401), 'No Tick has run for 24 hours: Scheduled tasks and queued jobs wait.'],
+        'an empty token with no CLI Tick' => [function () {
+            tick('cli', 86_401);
+            tick('web', 60);
+        }, 'KAMI_TICK_TOKEN is empty and kami:tick has not run for 24 hours'],
+    ]);
+
+    it('warns about an empty token once kami:tick stops, never about a set one', function (string $token) {
+        config(['kami.tick.token' => $token, 'app.env' => 'staging']);
+        tick('web', 60);
+
+        expect(problem('KAMI_TICK_TOKEN'))->toBeNull();
+
+        tick('cli', 86_401);
+        expect(problem('KAMI_TICK_TOKEN') instanceof Problem)->toBe($token === '')
+            ->and(problem('No Tick'))->toBeNull();
+    })->with(['empty' => '', 'set' => 'planner-token']);
+
+    it('warns about a Tick that ran past its budget', function () {
+        tick('visit', 60, ['duration_ms' => 12_500, 'result' => 'OK', 'budget' => 10]);
+        tick('web', 60, ['duration_ms' => 10_000, 'result' => 'OK', 'budget' => 10]);
+
+        $this->artisan('kami:doctor', ['--strict' => true])
+            ->expectsOutputToContain('The last visit Tick took 12.5 s, over its budget of 10 s: a task or a job ran on past it.')
+            ->doesntExpectOutputToContain('The last web Tick')
+            ->expectsOutputToContain('docs/guide/scheduler.md#checking-the-scheduler')
+            ->assertFailed();
+    });
+
+    it('warns when routes/console.php does not call Kami::schedule()', function () {
+        $this->app->instance(Schedule::class, new Schedule);
+
+        $this->artisan('kami:doctor', ['--strict' => true])
+            ->expectsOutputToContain("Kami::schedule() is not called: Kami's tasks, the sitemap's rebuild among them, never run.")
+            ->assertFailed();
+    });
+
+    it('warns about exec() tasks while kami:tick, which alone runs them, has not run for 24 hours', function () {
+        $this->schedule->exec('touch', ['/tmp/kami-exec'])->hourly();
+        tick('web', 60);
+
+        expect(problem('kami:tick has not run for 24 hours, and only it runs exec() tasks'))->toBeNull();
+
+        tick('cli', 86_401);
+        expect(problem('kami:tick has not run for 24 hours, and only it runs exec() tasks')?->message)
+            ->toBe("kami:tick has not run for 24 hours, and only it runs exec() tasks: touch '/tmp/kami-exec'.");
+    });
+
+    it('warns about a task over an hour late, unless its own filters skip it', function (bool $skipped) {
+        $this->artisan('migrate')->assertSuccessful();
+        // Without Kami's own tasks, late here too.
+        $this->app->instance(Schedule::class, $this->schedule = new Schedule);
+        hourlyProbe($this)->skip(fn () => $skipped);
+        $this->travelTo('2026-11-09 10:30:00');
+        $this->artisan('kami:tick')->assertSuccessful();
+
+        $this->travelTo('2026-11-09 11:59:00');
+        expect(problem('Scheduled tasks over an hour late'))->toBeNull();
+
+        $this->travelTo('2026-11-09 12:01:00');
+        expect(problem('Scheduled tasks over an hour late')?->message)
+            ->toBe($skipped ? null : 'Scheduled tasks over an hour late: probe, due 2026-11-09 11:00 UTC.');
+    })->with(['run' => false, 'skipped by its filter' => true]);
+
+    it('warns about a task that failed or never finished its last run', function () {
+        Exceptions::fake();
+        $this->artisan('migrate')->assertSuccessful();
+        $this->app->instance(Schedule::class, $this->schedule = new Schedule);
+        $this->schedule->call(fn () => throw new RuntimeException('Broken task.'))->name('broken')->hourly();
+        hourlyProbe($this, 'killed');
+        $this->travelTo('2026-11-09 10:30:00');
+        $this->artisan('kami:tick');
+        $this->travelTo('2026-11-09 11:10:00');
+        $this->artisan('kami:tick');
+        DB::table('kami_task_runs')->where('description', 'killed')->update(['last_status' => 'running']);
+
+        $this->travelTo('2026-11-09 12:09:00');
+        expect(problem('Scheduled tasks that failed')?->message)->toBe('Scheduled tasks that failed on their last run: broken.');
+
+        $this->travelTo('2026-11-09 12:11:00');
+        expect(problem('Scheduled tasks that failed')?->message)->toBe('Scheduled tasks that failed on their last run: broken, killed (did not finish).');
+    });
+
+    it('warns about failed jobs and a job waiting for over an hour', function () {
+        $this->artisan('migrate')->assertSuccessful();
+        // This file's database, where migrate ran.
+        config(['queue.default' => 'database', 'queue.connections.database.connection' => null, 'queue.failed.database' => 'empty']);
+        $this->travelTo('2026-11-09 10:00:00');
+        Queue::connection('database')->pushRaw('{}');
+        resolve(FailedJobProviderInterface::class)->log('database', 'default', '{"uuid": "a-job"}', new RuntimeException('Broken job.'));
+
+        $this->travelTo('2026-11-09 11:00:00');
+        expect(problem('A queued job failed.'))->not->toBeNull()
+            ->and(problem('The oldest queued job'))->toBeNull();
+
+        $this->travelTo('2026-11-09 11:01:00');
+        expect(problem('The oldest queued job')?->message)->toBe('The oldest queued job has waited since 2026-11-09 10:00 UTC.');
     });
 });
