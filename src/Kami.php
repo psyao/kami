@@ -131,6 +131,7 @@ final class Kami
         // The backstop for a Submission's delivery that failed, or whose `defer()` never ran.
         $schedule->command('kami:forms:deliver')->everyFifteenMinutes()->withoutOverlapping(10);
         $schedule->command('kami:sitemap')->hourly()->withoutOverlapping(10);
+        $schedule->command('kami:forms:prune')->daily()->withoutOverlapping(10);
         $schedule->command('kami:audit:prune')->daily()->withoutOverlapping(10);
         $schedule->command('model:prune', ['--model' => PreviewLink::class])->daily()->withoutOverlapping(10);
         // The backstop for a `defer()` that never ran after a new version (ADR 0021).

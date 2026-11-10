@@ -31,6 +31,7 @@ use Psyao\Kami\Content\Internal\MakeTypeCommand;
 use Psyao\Kami\Forms\Internal\Deliveries;
 use Psyao\Kami\Forms\Internal\DeliverSubmissionsCommand;
 use Psyao\Kami\Forms\Internal\Forms;
+use Psyao\Kami\Forms\Internal\PruneSubmissionsCommand;
 use Psyao\Kami\Media\Events\MediaDeleted;
 use Psyao\Kami\Media\Events\MediaSaved;
 use Psyao\Kami\Media\Internal\ImagePresets;
@@ -69,7 +70,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DeliverSubmissionsCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DeliverSubmissionsCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, PruneSubmissionsCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void

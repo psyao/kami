@@ -127,6 +127,23 @@ Two methods of a Form describe its Submissions:
 - `summary(Submission)`: one line naming it. By default, its first text value, truncated to 100 characters.
 - `retention()`: how long it is kept, twelve months by default, `null` to keep it forever.
 
+### Retention
+
+`kami:forms:prune`, which `Kami::schedule()` runs daily, deletes for good each Submission older than its Form's `retention()`, its deliveries with it, so nobody has to remember to:
+
+```php
+use Carbon\CarbonInterval;
+
+public function retention(): ?CarbonInterval
+{
+    return CarbonInterval::months(6);
+}
+```
+
+- **`null`** keeps a Form's Submissions forever. A retention of zero or less is a typo: the command deletes none of that Form's Submissions, names the Form and fails, after pruning the others.
+- **A Form no longer declared** under `kami.forms` has no retention to read: its Submissions are kept, never pruned blindly, and `kami:doctor` lists them. Declare it again, or delete them in the admin.
+- **Not an editor's deletion.** Expiry records no Audit log event and dispatches no `SubmissionsDeleted`, which only follows a deletion through `DeleteSubmissions`: a copy your code keeps elsewhere is not told, so give it a retention of its own.
+
 ## Delivery
 
 Each Submission reaches the site owner as a mail, sent after the visitor's response: the visitor waits for no mail server.
@@ -234,4 +251,4 @@ When you mount Kami's pages with `Kami::routes(session: true)` ([Existing applic
 
 Both behave the same. The page holding a Form is page-cached like any other. A Submission boots Laravel, validates and writes one row per Submission and per channel. The throttle uses your default cache store: the `file` store on shared hosting, any store on a server.
 
-Delivery runs after the response through `defer()`, over SMTP: shared hosting often has no `mail()` or `sendmail`. Under PHP-FPM the visitor has their answer first; under `mod_php` the response waits for the mail server. Retries run from any Tick: the planner's URL or visits on shared hosting, cron's `kami:tick` on a server ([Scheduler](scheduler.md)).
+Delivery runs after the response through `defer()`, over SMTP: shared hosting often has no `mail()` or `sendmail`. Under PHP-FPM the visitor has their answer first; under `mod_php` the response waits for the mail server. Retries and the retention run from any Tick: the planner's URL or visits on shared hosting, cron's `kami:tick` on a server ([Scheduler](scheduler.md)).

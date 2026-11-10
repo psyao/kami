@@ -27,6 +27,10 @@ Check that this environment can run Kami
 
 Deliver the Form Submissions whose notification failed or was never sent
 
+## `kami:forms:prune`
+
+Delete the Form Submissions older than their Form's retention
+
 ## `kami:install`
 
 Install Kami, or bring it up to date after a deploy
