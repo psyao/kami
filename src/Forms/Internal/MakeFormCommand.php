@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Content\Internal\ContentTypes;
-use Psyao\Kami\Content\Internal\MakeTypeCommand;
-use Psyao\Kami\Forms\Form;
 
 /**
  * Writes a Form's class into `app/Forms` and its accessible view into `resources/views/forms`, and prints what a site adds elsewhere:
@@ -24,21 +22,30 @@ use Psyao\Kami\Forms\Form;
 #[Signature('kami:make:form {name : The Form\'s name, such as Contact; a trailing Form is dropped}')]
 final class MakeFormCommand extends Command
 {
+    /** The generated inputs: their ids are their names, so the Form's own id, its handle, must be none of them. */
+    private const array FIELDS = ['name', 'email', 'message'];
+
     public function handle(ContentTypes $types): int
     {
         $argument = $this->input->getArgument('name');
         $given = is_string($argument) ? $argument : '';
-        // `Form` alone leaves the class `Form`, which the check refuses as the base.
         $name = Str::replaceEnd('Form', '', $given);
         $class = "{$name}Form";
 
-        if (! MakeTypeCommand::isClassName($class, Form::class)) {
-            $this->components->error("{$given} is not a class name a Form can take: one StudlyCase word, no path, no PHP keyword.");
+        // `{$name}Form` is never a PHP keyword, so StudlyCase is the whole check; `Form` alone leaves no name.
+        if (preg_match('/^[A-Z][A-Za-z0-9]*$/', $name) !== 1) {
+            $this->components->error("{$given} is not a name a Form can take: one StudlyCase word, no path, not Form alone.");
 
             return self::FAILURE;
         }
 
         $handle = Str::snake($name);
+
+        if (in_array($handle, self::FIELDS, true)) {
+            $this->components->error("The handle \"{$handle}\" is also the id of one of its fields: choose another name.");
+
+            return self::FAILURE;
+        }
 
         try {
             $types->validateHandle($class, 'the handle', $handle);
@@ -51,7 +58,8 @@ final class MakeFormCommand extends Command
         // As Laravel's make:view: the first view path.
         $first = config()->array('view.paths', [])[0] ?? null;
         $views = Str::finish(is_string($first) ? $first : resource_path('views'), '/');
-        $files = [app_path("Forms/{$class}.php") => $this->declaration($class), "{$views}forms/{$handle}.blade.php" => $this->view($handle)];
+        $namespace = $this->laravel->getNamespace() . 'Forms';
+        $files = [app_path("Forms/{$class}.php") => $this->declaration($namespace, $class), "{$views}forms/{$handle}.blade.php" => $this->view($handle)];
 
         foreach (array_keys($files) as $path) {
             if (File::exists($path)) {
@@ -67,15 +75,13 @@ final class MakeFormCommand extends Command
             $this->components->info("[{$path}] created.");
         }
 
-        $this->printNextSteps($this->laravel->getNamespace() . "Forms\\{$class}", $handle);
+        $this->printNextSteps("{$namespace}\\{$class}", $handle);
 
         return self::SUCCESS;
     }
 
-    private function declaration(string $class): string
+    private function declaration(string $namespace, string $class): string
     {
-        $namespace = $this->laravel->getNamespace() . 'Forms';
-
         return <<<PHP
             <?php
 
@@ -96,7 +102,6 @@ final class MakeFormCommand extends Command
                     ];
                 }
 
-                /** The mail addresses each Submission is sent to. */
                 public function recipients(): array
                 {
                     return [];
@@ -116,33 +121,36 @@ final class MakeFormCommand extends Command
         return strtr(<<<'BLADE'
             {{-- The {handle} Form. Its markup is yours: keep each input's id equal to its name, which the error summary links to. --}}
             @use(Psyao\Kami\Facades\Kami)
-            @if (Kami::form('{handle}')->sent())
-                <p id="{handle}" role="status">{{ __('kami-forms.{handle}.sent') }}</p>
-            @else
-                <x-kami::form form="{handle}">
-                    <x-kami::form.errors />
+            <section aria-labelledby="{handle}-heading">
+                <h2 id="{handle}-heading">{{ __('kami-forms.{handle}.label') }}</h2>
+                @if (Kami::form('{handle}')->sent())
+                    <p id="{handle}" role="status">{{ __('kami-forms.{handle}.sent') }}</p>
+                @else
+                    <x-kami::form form="{handle}">
+                        <x-kami::form.errors level="3" />
 
-                    <p>
-                        <label for="name">{{ ucfirst(__('validation.attributes.name')) }}</label>
-                        <input type="text" id="name" name="name" value="{{ old('name') }}" required maxlength="100" autocomplete="name"
-                            @error('name') aria-invalid="true" aria-describedby="name-error" @enderror>
-                        @error('name')<span id="name-error">{{ $message }}</span>@enderror
-                    </p>
-                    <p>
-                        <label for="email">{{ ucfirst(__('validation.attributes.email')) }}</label>
-                        <input type="email" id="email" name="email" value="{{ old('email') }}" required maxlength="255" autocomplete="email"
-                            @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
-                        @error('email')<span id="email-error">{{ $message }}</span>@enderror
-                    </p>
-                    <p>
-                        <label for="message">{{ ucfirst(__('validation.attributes.message')) }}</label>
-                        <textarea id="message" name="message" required maxlength="5000"
-                            @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
-                        @error('message')<span id="message-error">{{ $message }}</span>@enderror
-                    </p>
-                    <p><button type="submit">{{ __('kami-forms.{handle}.send') }}</button></p>
-                </x-kami::form>
-            @endif
+                        <p>
+                            <label for="name">{{ ucfirst(__('validation.attributes.name')) }}</label>
+                            <input type="text" id="name" name="name" value="{{ old('name') }}" required maxlength="100" autocomplete="name"
+                                @error('name') aria-invalid="true" aria-describedby="name-error" @enderror>
+                            @error('name')<span id="name-error">{{ $message }}</span>@enderror
+                        </p>
+                        <p>
+                            <label for="email">{{ ucfirst(__('validation.attributes.email')) }}</label>
+                            <input type="email" id="email" name="email" value="{{ old('email') }}" required maxlength="255" autocomplete="email"
+                                @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
+                            @error('email')<span id="email-error">{{ $message }}</span>@enderror
+                        </p>
+                        <p>
+                            <label for="message">{{ ucfirst(__('validation.attributes.message')) }}</label>
+                            <textarea id="message" name="message" required maxlength="5000"
+                                @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
+                            @error('message')<span id="message-error">{{ $message }}</span>@enderror
+                        </p>
+                        <p><button type="submit">{{ __('kami-forms.{handle}.send') }}</button></p>
+                    </x-kami::form>
+                @endif
+            </section>
 
             BLADE, ['{handle}' => $handle]);
     }

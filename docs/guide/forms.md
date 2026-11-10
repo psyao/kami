@@ -48,13 +48,13 @@ return [
 
 Kami checks `kami.forms` when a Form is first read: every entry must extend `Form`, with a snake_case handle of 40 characters at most, unique among the Forms.
 
-`kami:make:form` starts one. It writes the class into `app/Forms` and an accessible view of its inputs into `resources/views/forms`, refuses to overwrite either file, and prints what to add elsewhere: the `config/kami.php` line, its strings in `kami-forms.php` and `validation.attributes`, and the `@include` for the page's view. A trailing `Form` in the name is dropped:
+`kami:make:form` starts one. It writes the class into `app/Forms` and an accessible view of its inputs into `resources/views/forms`, refuses to overwrite either file, and prints what to add elsewhere: the `config/kami.php` line, its strings in `kami-forms.php` and `validation.attributes`, and the `@include` for the page's view. A trailing `Form` in the name is dropped, and `Name`, `Email` and `Message` are refused: the Form's id, its handle, would be that of one of its fields.
 
 ```bash
 php artisan kami:make:form Contact
 ```
 
-It writes a class like the one above, with `replyTo()` naming `email` and `recipients()` left for you to fill ([Delivery](#delivery)), and markup like the one below for its three fields.
+It writes a class like the one above, with `replyTo()` naming `email` and `recipients()` left for you to fill ([Delivery](#delivery)), and markup like the one below for its three fields, in a section titled with the Form's label.
 
 ## Writing its markup
 

@@ -49,9 +49,10 @@ it('writes a final Form class and its view, a trailing Form in the name or not',
         ->and($form->handle())->toBe('made_contact')
         ->and(array_keys($form->rules()))->toBe(['name', 'email', 'message'])
         ->and($form->replyTo())->toBe('email')
+        ->and(File::get(app_path('Forms/MadeContactForm.php')))->toContain('final class MadeContactForm extends Form')
         ->and(File::get("{$this->site}/views/forms/made_contact.blade.php"))
         ->toContain('<x-kami::form form="made_contact">')
-        ->toContain('<x-kami::form.errors />');
+        ->toContain('<x-kami::form.errors level="3" />');
 })->with(['MadeContact', 'MadeContactForm']);
 
 it('prints the lines a site adds elsewhere', function (): void {
@@ -86,9 +87,10 @@ it('refuses a name that cannot be a Form', function (string $name, string $messa
 
     expect(File::exists(app_path('Forms')))->toBeFalse();
 })->with([
-    'a path' => ['Forms/Contact', 'not a class name'],
-    'lowercase' => ['contact', 'not a class name'],
-    'the base it would extend' => ['Form', 'not a class name'],
+    'a path' => ['Forms/Contact', 'not a name a Form can take'],
+    'lowercase' => ['contact', 'not a name a Form can take'],
+    'Form alone' => ['Form', 'not a name a Form can take'],
+    'the id of one of its fields' => ['MessageForm', 'also the id of one of its fields'],
     'too long a handle' => [str_repeat('A', 21), 'longer than 40'],
 ]);
 
@@ -103,6 +105,7 @@ it('generates a Form that renders on a page, shows its errors, posts and stores'
     $page = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], locale: 'fr');
 
     $this->get('/')->assertOk()
+        ->assertSee('<section aria-labelledby="made_contact-heading">', escape: false)
         ->assertSee('<form method="post" action="/kami/forms/made_contact" id="made_contact" class="kami-form">', escape: false)
         ->assertSee('<input type="email" id="email" name="email"', escape: false);
     $send = fn (array $values) => $this->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/made_contact', [
