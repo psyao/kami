@@ -306,8 +306,9 @@ it('stores aguet.dev\'s contact message while its SMTP server is down, then deli
     // Nothing listens on port 1: the delivery after the response fails, as with a mail server down.
     config(['kami.forms' => [ContactForm::class], 'mail.default' => 'smtp', 'mail.mailers.smtp.host' => '127.0.0.1', 'mail.mailers.smtp.port' => 1]);
     Kami::schedule();
-    $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], Entry::query()->withUnpublished()->ofType(Home::class)->sole(), 'fr');
+    // Before the Home is published: travelling back past its publication would hide it.
     $this->travelTo('2026-11-10 10:01:00');
+    $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], Entry::query()->withUnpublished()->ofType(Home::class)->sole(), 'fr');
     $this->artisan('kami:tick')->assertSuccessful();
 
     $this->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/contact', [
