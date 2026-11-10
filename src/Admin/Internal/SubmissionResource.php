@@ -180,7 +180,7 @@ final class SubmissionResource extends FilamentResource
     {
         return match (true) {
             $deliveries->isEmpty() => 'none',
-            $deliveries->contains(fn (Delivery $delivery): bool => $delivery->delivered_at === null && $delivery->attempts >= Delivery::MAX_ATTEMPTS) => 'failed',
+            $deliveries->contains(fn (Delivery $delivery): bool => $delivery->isAbandoned()) => 'failed',
             $deliveries->every(fn (Delivery $delivery): bool => $delivery->delivered_at !== null) => 'delivered',
             $deliveries->contains(fn (Delivery $delivery): bool => $delivery->delivered_at === null && $delivery->last_error !== null) => 'retrying',
             default => 'pending',
