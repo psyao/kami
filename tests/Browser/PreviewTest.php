@@ -25,8 +25,7 @@ it('opens the unsaved form in a tab on the click, and refreshes the same tab on 
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
     $page = signIn();
 
-    $page->navigate("/admin/articles/{$entry->id}/edit")
-        ->assertNoAccessibilityIssues()
+    assertAxeClean($page->navigate("/admin/articles/{$entry->id}/edit"), admin: true)
         ->fill('[id="form.title"]', 'Pas encore enregistré')
         ->press('internal:role=button[name="Preview"s]');
 

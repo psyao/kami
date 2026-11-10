@@ -12,10 +12,9 @@ it('names every part of the dashboard\'s widgets, each loaded after the page', f
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Brouillon', 'author' => 'Ada'], locale: 'fr');
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'À paraître', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()], locale: 'fr');
 
-    signIn()
+    assertAxeClean(signIn()
         ->assertSee('Brouillon')
         ->assertSee('À paraître')
-        ->assertSee('Needs attention')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Needs attention'), admin: true)
         ->assertNoJavaScriptErrors();
 });

@@ -61,22 +61,20 @@ it('passes axe on the set-up and challenge pages, light, dark and mobile', funct
 
     // The challenge, before anyone signs in: the browser keeps one session for the whole test.
     foreach ($modes as $mode) {
-        signInPassword($mode('/admin/login'), 'ada@example.test')
-            ->assertSee('Enter the 6-digit code from the authenticator app')
-            ->assertNoAccessibilityIssues()
+        assertAxeClean(signInPassword($mode('/admin/login'), 'ada@example.test')
+            ->assertSee('Enter the 6-digit code from the authenticator app'), admin: true)
             ->assertNoJavaScriptErrors();
     }
 
     signInPassword($modes['light']('/admin/login'), 'grace@example.test')->assertPathIs('/admin/multi-factor-authentication/set-up');
 
     foreach ($modes as $mode) {
-        $page = $mode('/admin/multi-factor-authentication/set-up')
-            ->assertNoAccessibilityIssues()
+        $page = assertAxeClean($mode('/admin/multi-factor-authentication/set-up'), admin: true)
             ->press('internal:role=button[name="Set up"s]')
             ->assertSee('Or enter this code manually');
         // The modal shows before Livewire's request ends, which dims "Set up" (`fi-disabled`) until then: axe measures it as the User sees it after (#369).
         $page->script("() => new Promise((resolve, reject) => { const until = Date.now() + 5000; const settled = () => ! [...document.querySelectorAll('.fi-link[aria-disabled=\"true\"]')].some((link) => link.textContent.trim() === 'Set up') ? resolve() : Date.now() > until ? reject(new Error('Set up is still disabled after 5 seconds.')) : requestAnimationFrame(settled); settled(); })");
-        $page->assertNoAccessibilityIssues()
+        assertAxeClean($page, admin: true)
             ->assertNoJavaScriptErrors();
     }
 });

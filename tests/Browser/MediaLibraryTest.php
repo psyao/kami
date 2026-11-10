@@ -67,34 +67,31 @@ function dropFiles(array $files): string
 }
 
 it('takes several files dragged onto the library at once', function () {
-    $page = signIn()
+    $page = assertAxeClean(signIn()
         ->navigate('/admin/media')
         ->click('internal:role=button[name="Upload"s]')
         ->assertSee('Up to 20 files')
         // FilePond loads after the modal (`x-load`): its drop area replaces the plain input.
-        ->assertPresent('.filepond--drop-label')
-        ->assertNoAccessibilityIssues();
+        ->assertPresent('.filepond--drop-label'), admin: true);
 
     $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>';
     $page->script(dropFiles(['Logo.svg' => $svg, 'Icon.svg' => $svg]));
 
-    $page->assertSee('Icon.svg')
+    assertAxeClean($page->assertSee('Icon.svg')
         ->press('internal:role=dialog >> internal:role=button[name="Upload"s]')
         ->assertSee('2 files uploaded.')
         ->assertSee('logo')
-        ->assertSee('Missing')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Missing'), admin: true)
         ->assertNoJavaScriptErrors();
 
     expect(Media::query()->count())->toBe(2);
 
     // Under reduced motion, as `signIn()`: axe never measures the modal mid-fade.
     foreach ([visit('/admin/media', ['reducedMotion' => 'reduce'])->inDarkMode(), visit('/admin/media', ['reducedMotion' => 'reduce'])->on()->mobile()] as $page) {
-        $page->assertSee('logo')
-            ->assertNoAccessibilityIssues()
+        assertAxeClean($page->assertSee('logo'), admin: true);
+        assertAxeClean($page
             ->click('internal:role=button[name="Upload"s]')
-            ->assertPresent('.filepond--drop-label')
-            ->assertNoAccessibilityIssues()
+            ->assertPresent('.filepond--drop-label'), admin: true)
             ->assertNoJavaScriptErrors();
     }
 });
@@ -104,29 +101,28 @@ it('edits a Media item\'s alt text in each Locale, asking for it in the default 
     resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $media->id]);
     resolve(TrashEntry::class)->handle(resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Velox', 'gallery' => [$media->id]]));
 
-    $page = signIn()
+    $page = assertAxeClean(signIn()
         ->navigate('/admin/media')
         ->click('pixel')
         ->assertSee('Replace file')
         ->assertSee('Velox (in the Trash)')
-        ->assertPresent('internal:role=link[name="Kami"s]')
-        ->assertNoAccessibilityIssues()
+        ->assertPresent('internal:role=link[name="Kami"s]'), admin: true);
+    assertAxeClean($page
         ->assertAttribute('[id="form.alt"]', 'required', 'required')
         ->fill('[id="form.alt"]', 'Un pixel')
         ->press('internal:role=button[name="Save changes"s]')
         ->assertSee('Saved')
         ->press('internal:role=button[name="FR"s]')
         ->click('internal:role=menuitem[name="EN"s]')
-        ->assertSee('Translation: EN')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Translation: EN'), admin: true);
+    assertAxeClean($page
         ->click('internal:role=button[name="Replace file"s]')
-        ->assertPresent('.filepond--drop-label')
-        ->assertNoAccessibilityIssues()
+        ->assertPresent('.filepond--drop-label'), admin: true)
         ->assertNoJavaScriptErrors();
 
     expect(Media::query()->sole()->alt())->toBe('Un pixel');
 
     foreach ([visit("/admin/media/{$media->id}/edit", ['reducedMotion' => 'reduce'])->inDarkMode(), visit("/admin/media/{$media->id}/edit/en", ['reducedMotion' => 'reduce'])->on()->mobile()] as $page) {
-        $page->assertSee('Alt text')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        assertAxeClean($page->assertSee('Alt text'), admin: true)->assertNoJavaScriptErrors();
     }
 });
