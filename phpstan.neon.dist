@@ -27,6 +27,12 @@ parameters:
             path: src/Admin/Internal/EntryResource/EditEntry.php
             message: '#expects view-string\|null, string given#'
             reportUnmatched: false
+        # The same for the Submission mail's `kami::` text view.
+        -
+            identifier: argument.type
+            path: src/Forms/SubmissionReceived.php
+            message: '#expects view-string, string given#'
+            reportUnmatched: false
     # The package's own config, not Testbench's skeleton: `env()` belongs there.
     configDirectories:
         - %currentWorkingDirectory%/config
