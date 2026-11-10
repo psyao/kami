@@ -21,6 +21,9 @@ class WorkbenchServiceProvider extends ServiceProvider
         // The site's lang/<locale>/kami-types.php: Testbench's skeleton keeps its own lang directory.
         $this->loadTranslationsFrom(dirname(__DIR__, 2) . '/lang');
 
+        // A site's resources/views first: Testbench appends the Workbench's after its skeleton's, whose errors/503 would hide the Workbench's (#508).
+        $this->app->booted(fn () => config(['view.paths' => collect(config()->array('view.paths'))->prepend(dirname(__DIR__, 2) . '/resources/views')->unique()->values()->all()]));
+
         // A site's `media.presets` in config/kami.php: Testbench's workbench/config would replace the whole `media` key.
         config(['kami.media.presets' => [ImagePreset::make('card')->ratio(4, 3)->widths([320, 640, 960, 1280])->sizes('(min-width: 60rem) 50vw, 100vw')]]);
 
