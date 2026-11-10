@@ -51,7 +51,7 @@ final class MakeTypeCommand extends Command
         $argument = $this->input->getArgument('name');
         $name = is_string($argument) ? $argument : '';
 
-        if (! $this->isClassName($name, $base)) {
+        if (! self::isClassName($name, $base)) {
             $this->components->error("{$name} is not a class name a type can take: one StudlyCase word, no path, no PHP keyword, not the name of the class it extends.");
 
             return self::FAILURE;
@@ -85,7 +85,8 @@ final class MakeTypeCommand extends Command
         return self::SUCCESS;
     }
 
-    private function isClassName(string $name, string $base): bool
+    /** One StudlyCase word PHP accepts as a class name, other than the class it extends; `kami:make:form` checks its names here too. */
+    public static function isClassName(string $name, string $base): bool
     {
         return preg_match('/^[A-Z][A-Za-z0-9]*$/', $name) === 1
             && PhpToken::tokenize("<?php {$name}")[1]->is(T_STRING)
