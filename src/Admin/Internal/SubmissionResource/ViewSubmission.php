@@ -10,6 +10,7 @@ use Filament\Facades\Filament;
 use Filament\Resources\Pages\ViewRecord;
 use Psyao\Kami\Admin\Internal\SubmissionResource;
 use Psyao\Kami\Forms\Actions\DeleteSubmissions;
+use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Forms\Submission;
 
 /** @internal */
@@ -40,7 +41,7 @@ final class ViewSubmission extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        $replyTo = $this->replyTo();
+        $replyTo = Forms::replyTo($this->getRecord(), SubmissionResource::declaredForm($this->getRecord()->form));
 
         return [
             Action::make('reply')->label(__('kami::admin.submissions.reply'))
@@ -54,14 +55,5 @@ final class ViewSubmission extends ViewRecord
                     return true;
                 }),
         ];
-    }
-
-    /** The visitor's address from the Form's `replyTo()` field, when it holds a valid one, as the mail's `Reply-To` takes it. */
-    private function replyTo(): ?string
-    {
-        $field = SubmissionResource::declaredForm($this->getRecord()->form)?->replyTo();
-        $address = $field === null ? null : ($this->getRecord()->data[$field] ?? null);
-
-        return is_string($address) && filter_var($address, FILTER_VALIDATE_EMAIL) !== false ? $address : null;
     }
 }

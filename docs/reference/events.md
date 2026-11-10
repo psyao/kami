@@ -125,8 +125,9 @@ Submissions of one Form were deleted for good through `DeleteSubmissions`, once 
 
 - `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
 - `public protected(set) readonly string $form`
+- `public protected(set) readonly string $site`
 - `public protected(set) readonly array $submissionIds`
-- `public function __construct(string $form, array $submissionIds, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+- `public function __construct(string $form, string $site, array $submissionIds, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
 ## `Psyao\Kami\Media\Events\MediaDeleted`
 

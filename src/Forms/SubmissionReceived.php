@@ -27,17 +27,18 @@ final class SubmissionReceived extends Notification
     {
         // The admin's page of the Submission, when a panel carries `KamiPlugin` (ADR 0011).
         $url = resolve(PluginRegistration::class)->submissionUrl;
+        // A broken admin URL never costs the mail its delivery.
+        $link = $url === null ? null : rescue(fn (): string => __('kami::forms.mail.link', ['url' => $url($this->submission)]), report: true);
         $message = (new MailMessage)
             ->subject(trim("[{$this->form->label()}] {$this->form->summary($this->submission)}"))
             ->text('kami::mail.submission', [
                 'intro' => __('kami::forms.mail.intro', ['form' => $this->form->label()]),
                 'fields' => Forms::values($this->submission, $this->form),
-                'link' => $url === null ? null : __('kami::forms.mail.link', ['url' => $url($this->submission)]),
+                'link' => $link,
             ]);
 
-        $replyTo = $this->form->replyTo() === null ? null : ($this->submission->data[$this->form->replyTo()] ?? null);
+        $replyTo = Forms::replyTo($this->submission, $this->form);
 
-        // The route validated it; a Submission stored by a site's own code may not have been.
-        return is_string($replyTo) && filter_var($replyTo, FILTER_VALIDATE_EMAIL) !== false ? $message->replyTo($replyTo) : $message;
+        return $replyTo === null ? $message : $message->replyTo($replyTo);
     }
 }

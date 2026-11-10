@@ -210,7 +210,7 @@ Once a Form is declared, the admin's **Submissions** screen lists the current Si
 
 Opening a Submission marks it read. It shows each field with its `validation.attributes` label, in the order of `rules()`, the visitor's text always escaped, then each channel's delivery with its attempts and last error. When `replyTo()` names a field holding a valid address, a **Reply** button opens your mail client to it.
 
-A Form you remove from `kami.forms` keeps its Submissions: they show under a tab named by its handle, their fields sorted by key, so that you can still read and delete them.
+A Form you remove from `kami.forms` keeps its Submissions: they show under a tab named by its handle, their fields sorted by key, so that you can still read and delete them. The screen needs at least one declared Form: with none left, it is gone, and the Submissions wait in the table, where `kami:doctor` reports them.
 
 Reading takes `kami.form-submissions.view`; deleting, one Submission or several at once, takes `kami.form-submissions.delete` ([Users and Roles](users-and-roles.md#permissions)). Deletion is for good, with the deliveries, and the [Audit log](audit-log.md) records it per Form with the count, never the content. Your own code deletes Submissions through the same action, for instance to honour a visitor's deletion request:
 
@@ -222,7 +222,7 @@ $theirs = Submission::query()->where('form', 'contact')->where('data->email', $e
 resolve(DeleteSubmissions::class)->handle($theirs);
 ```
 
-It does not check Permissions: check them before calling it from a route of your own. Once the deletion is committed, it dispatches `Psyao\Kami\Forms\Events\SubmissionsDeleted` per Form, with `form`, `submissionIds` and `actor`: the rows are gone, so it carries values only. `$submission->markRead()` marks one read, as opening it does.
+It does not check Permissions: check them before calling it from a route of your own. Once the deletion is committed, it dispatches `Psyao\Kami\Forms\Events\SubmissionsDeleted` per Form and Site, with `form`, `site`, the `submissionIds` actually deleted, and `actor`: the rows are gone, so it carries values only. `$submission->markRead()` marks one read, as opening it does.
 
 ## A form with a session
 

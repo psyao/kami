@@ -310,6 +310,7 @@ return [
             'channel' => 'Channel',
             'state' => 'State',
             'attempts' => 'Attempts',
+            'delivered_at' => 'Delivered at',
             'last_error' => 'Last error',
         ],
     ],
@@ -355,6 +356,9 @@ return [
             'preview-links' => [
                 'created' => 'Preview link created',
                 'revoked' => 'Preview link revoked',
+            ],
+            'form-submissions' => [
+                'deleted' => 'Messages deleted',
             ],
             'media' => [
                 'deleted' => 'Media deleted',

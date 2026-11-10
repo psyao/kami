@@ -72,6 +72,7 @@ it('takes kami.form-submissions.view, which the Workbench editor holds, and kami
     signInWith('editor');
     $this->get('/admin/submissions')->assertOk();
     $this->get("/admin/submissions/{$submission->id}")->assertOk();
+    $this->get('/admin/submissions/' . received(site: 'blog')->id)->assertNotFound();
 
     submissionsPage(role: 'editor')->assertTableBulkActionHidden(DeleteBulkAction::class);
     submissionsPage(ViewSubmission::class, 'editor', ['record' => $submission->id])->assertActionHidden(DeleteAction::class);
@@ -83,7 +84,8 @@ it('lists a tab per Form, the date in the Site’s time zone, the Locale, the su
     $delivered = received(at: '2026-07-01 08:00:00');
     $failed = received(['name' => 'Grace Hopper', 'email' => 'grace@example.com', 'message' => 'Hi'], deliveries: ['mail' => [5, false, 'Connection refused']], at: '2026-07-01 09:00:00');
     $retrying = received(['name' => 'Alan', 'message' => 'Hi'], deliveries: ['mail' => [2, false, 'Timeout']], at: '2026-07-02 08:00:00');
-    $pending = received(['name' => 'Edsger', 'message' => 'Hi'], deliveries: ['mail' => [0, false, null], 'chat' => [1, true, null]], at: '2026-07-03 08:00:00');
+    // Its first attempt under way: no failure yet.
+    $pending = received(['name' => 'Edsger', 'message' => 'Hi'], deliveries: ['mail' => [1, false, null], 'chat' => [1, true, null]], at: '2026-07-03 08:00:00');
     $none = received(['name' => 'Barbara', 'message' => 'Hi'], deliveries: [], at: '2026-07-04 08:00:00');
     $quote = received(['company' => 'Acme', 'budget' => 1000], 'quote');
     $elsewhere = received(['name' => 'Blog visitor', 'message' => 'Hi'], site: 'blog');
@@ -129,7 +131,7 @@ it('shows each field with its label in the order of rules(), the visitor’s tex
         ->assertSeeTextInOrder(['Name', 'Ada', 'Email address', 'ada@example.com', 'Message'])
         ->assertDontSeeHtml('<script>alert(1)</script>')
         ->assertSeeHtml('&lt;script&gt;alert(1)&lt;/script&gt;')
-        ->assertSeeTextInOrder(['chat', 'Delivered', 'mail', 'Retrying', '3', 'Connection refused'])
+        ->assertSeeTextInOrder(['chat', 'Delivered', '1', 'mail', 'Retrying', '3', '—', 'Connection refused'])
         ->assertActionHasUrl('reply', 'mailto:ada@example.com');
 });
 
@@ -173,7 +175,8 @@ it('deletes Submissions for good, in bulk or one by one, recording each Form and
             ['user_id' => $deleter->getKey(), 'subject_type' => null, 'context' => ['form' => 'quote', 'count' => 1]],
         ])
         ->and(AuditEvent::query()->pluck('context')->toJson())->not->toContain('Ada')->not->toContain('Acme');
-    Event::assertDispatched(SubmissionsDeleted::class, fn (SubmissionsDeleted $event): bool => $event->form === 'contact' && collect($event->submissionIds)->sort()->values()->all() === collect([$first->id, $second->id])->sort()->values()->all() && $event->actor?->is($deleter));
+    Event::assertDispatchedTimes(SubmissionsDeleted::class, 2);
+    Event::assertDispatched(SubmissionsDeleted::class, fn (SubmissionsDeleted $event): bool => $event->form === 'contact' && $event->site === 'default' && collect($event->submissionIds)->sort()->values()->all() === collect([$first->id, $second->id])->sort()->values()->all() && $event->actor?->is($deleter));
     Event::assertDispatched(SubmissionsDeleted::class, fn (SubmissionsDeleted $event): bool => $event->form === 'quote' && $event->submissionIds === [$quote->id]);
 });
 

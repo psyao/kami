@@ -39,8 +39,9 @@ final class Submission extends Model
         }
 
         // A conditional update, not a save: two editors opening it at once keep the first `read_at`.
-        self::query()->whereKey($this->id)->whereNull('read_at')->update(['read_at' => now()]);
-        $this->read_at = now()->toImmutable();
+        $now = now()->toImmutable();
+        self::query()->whereKey($this->id)->whereNull('read_at')->update(['read_at' => $now]);
+        $this->read_at = $now;
         $this->syncOriginalAttribute('read_at');
     }
 

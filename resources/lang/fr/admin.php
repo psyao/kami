@@ -310,6 +310,7 @@ return [
             'channel' => 'Canal',
             'state' => 'État',
             'attempts' => 'Tentatives',
+            'delivered_at' => 'Envoyé le',
             'last_error' => 'Dernière erreur',
         ],
     ],
@@ -355,6 +356,9 @@ return [
             'preview-links' => [
                 'created' => 'Lien de prévisualisation créé',
                 'revoked' => 'Lien de prévisualisation révoqué',
+            ],
+            'form-submissions' => [
+                'deleted' => 'Messages supprimés',
             ],
             'media' => [
                 'deleted' => 'Média supprimé',

@@ -61,6 +61,15 @@ final class Forms
         return $values;
     }
 
+    /** The visitor's address from the Form's `replyTo()` field, when it holds a valid one: the route validated it, a site's own code may not have. */
+    public static function replyTo(Submission $submission, ?Form $form): ?string
+    {
+        $field = $form?->replyTo();
+        $address = $field === null ? null : ($submission->data[$field] ?? null);
+
+        return is_string($address) && filter_var($address, FILTER_VALIDATE_EMAIL) !== false ? $address : null;
+    }
+
     private static function text(mixed $value): string
     {
         return match (true) {

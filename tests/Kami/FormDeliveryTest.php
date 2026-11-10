@@ -17,6 +17,7 @@ use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Submission;
+use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use Workbench\App\Content\Home;
@@ -193,7 +194,8 @@ it('retries what failed or never ran from kami:forms:deliver, a minute later, ab
 
     $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 1 of 1 pending delivery.')->assertSuccessful();
 
-    expect(sentMails())->toHaveCount(1);
+    // From the console too, the mail links to the admin.
+    expect(sentMails())->toHaveCount(1)->and(sentMails()->sole()->getTextBody())->toContain("/admin/submissions/{$failed->id}");
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $failed->id, 'attempts' => 5, 'last_error' => null]);
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $fresh->id, 'attempts' => 0, 'delivered_at' => null]);
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $abandoned->id, 'attempts' => 5, 'delivered_at' => null]);
@@ -210,6 +212,17 @@ it('starts no delivery once kami:forms:deliver has spent 20 seconds, leaving the
     $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 2 of 2 pending deliveries. Out of time: the rest waits for the next run.')->assertSuccessful();
 
     expect(DB::table('kami_form_deliveries')->whereNotNull('delivered_at')->count())->toBe(2);
+});
+
+it('still mails a Submission when the admin link cannot be built', function () {
+    Exceptions::fake();
+    resolve(PluginRegistration::class)->submissionUrl = fn (): string => throw new RuntimeException('No panel');
+
+    storedSubmission();
+    deferred();
+
+    expect(sentMails()->sole()->getTextBody())->not->toContain('Open it in the admin');
+    Exceptions::assertReported(fn (RuntimeException $exception): bool => $exception->getMessage() === 'No panel');
 });
 
 it('lists two fields sharing a label each on its own line', function () {

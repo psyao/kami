@@ -26,7 +26,7 @@ use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
- * The Submissions of the current Site, read only: a tab per Form, a page per Submission that marks it read, and deletion for good under
+ * The Submissions of the current Site, never edited: a tab per Form, a page per Submission that marks it read, and deletion for good under
  * its own Permission (ADR 0014). Registered by `KamiPlugin` only when a Form is declared.
  *
  * @internal
@@ -134,10 +134,12 @@ final class SubmissionResource extends FilamentResource
                                 ->badge()
                                 ->color(self::stateColor(...)),
                             TextEntry::make('attempts')->label(__('kami::admin.submissions.deliveries.attempts')),
+                            TextEntry::make('delivered_at')->label(__('kami::admin.submissions.deliveries.delivered_at'))
+                                ->dateTime()->timezone(Site::current()->timezone)->placeholder('—'),
                             TextEntry::make('last_error')->label(__('kami::admin.submissions.deliveries.last_error'))
                                 ->placeholder('—'),
                         ])
-                        ->columns(4),
+                        ->columns(5),
                 ])
                 ->visible(fn (Submission $record): bool => $record->deliveries->isNotEmpty()),
         ])->columns(1);
@@ -170,7 +172,7 @@ final class SubmissionResource extends FilamentResource
     }
 
     /**
-     * Across its channels: `failed` once one is abandoned, `delivered` once all are, `retrying` while one has failed, otherwise `pending`; `none` without a channel.
+     * Across its channels: `failed` once one is abandoned, `delivered` once all are, `retrying` once one has failed, otherwise `pending`; `none` without a channel.
      *
      * @param  Collection<int, Delivery>  $deliveries
      */
@@ -180,7 +182,7 @@ final class SubmissionResource extends FilamentResource
             $deliveries->isEmpty() => 'none',
             $deliveries->contains(fn (Delivery $delivery): bool => $delivery->delivered_at === null && $delivery->attempts >= Delivery::MAX_ATTEMPTS) => 'failed',
             $deliveries->every(fn (Delivery $delivery): bool => $delivery->delivered_at !== null) => 'delivered',
-            $deliveries->contains(fn (Delivery $delivery): bool => $delivery->delivered_at === null && $delivery->attempts > 0) => 'retrying',
+            $deliveries->contains(fn (Delivery $delivery): bool => $delivery->delivered_at === null && $delivery->last_error !== null) => 'retrying',
             default => 'pending',
         };
     }

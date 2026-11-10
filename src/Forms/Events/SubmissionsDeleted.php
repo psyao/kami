@@ -13,11 +13,12 @@ use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 final readonly class SubmissionsDeleted implements ShouldDispatchAfterCommit
 {
     /**
-     * @param  list<string>  $submissionIds  Those the call was given, of this Form.
+     * @param  list<string>  $submissionIds  Those of this Form and Site that were deleted.
      * @param  Authenticatable|null  $actor  Null for the CLI.
      */
     public function __construct(
         public string $form,
+        public string $site,
         public array $submissionIds,
         public ?Authenticatable $actor,
     ) {}

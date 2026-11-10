@@ -21,20 +21,22 @@ final class DeleteSubmissions
      */
     public function handle(iterable $submissions, ?Authenticatable $actor = null): void
     {
-        $byForm = [];
+        $groups = [];
 
         foreach ($submissions as $submission) {
-            $byForm[$submission->form][] = $submission->id;
+            $groups["{$submission->site}:{$submission->form}"][] = $submission->id;
         }
 
-        DB::transaction(function () use ($byForm, $actor): void {
-            foreach ($byForm as $form => $ids) {
-                // Counted as deleted, so one removed meanwhile is not counted twice.
-                $count = Submission::query()->toBase()->whereIn('id', $ids)->delete();
+        DB::transaction(function () use ($groups, $actor): void {
+            foreach ($groups as $group => $ids) {
+                [$site, $form] = explode(':', $group, 2);
+                // Those still there, locked: one removed meanwhile is neither counted nor announced twice.
+                $ids = array_values(Submission::query()->whereIn('id', $ids)->lockForUpdate()->get(['id'])->map(fn (Submission $submission): string => $submission->id)->all());
 
-                if ($count > 0) {
-                    resolve(RecordAuditEvent::class)->handle('kami.form-submissions.deleted', null, ['form' => (string) $form, 'count' => $count], $actor);
-                    event(new SubmissionsDeleted((string) $form, $ids, $actor));
+                if ($ids !== []) {
+                    Submission::query()->toBase()->whereIn('id', $ids)->delete();
+                    resolve(RecordAuditEvent::class)->handle('kami.form-submissions.deleted', null, ['form' => $form, 'count' => count($ids)], $actor);
+                    event(new SubmissionsDeleted($form, $site, $ids, $actor));
                 }
             }
         });

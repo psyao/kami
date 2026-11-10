@@ -23,7 +23,7 @@ The comparatif lists "hooks / events / filters" (8/10). Velox only offered Eloqu
   - Media: `MediaSaved`, `MediaDeleted`, from the public actions `SaveMedia` and `DeleteMedia`.
   - Routing: `RedirectSaved`, `RedirectDeleted`. A public `DeleteRedirect` action joins `SaveRedirect`.
   - Menus: `MenuItemSaved`, `MenuItemMoved`, `MenuItemDeleted`.
-  - Forms: `SubmissionStored`.
+  - Forms: `SubmissionStored`, and `SubmissionsDeleted(form, site, submissionIds, actor)` from `DeleteSubmissions` (amended in #484). The one action that deletes several rows at once dispatches one event per Form and Site it touched, as its Audit log records one row per Form: a listener reacting to one Form never filters a mixed batch.
   - Users and Roles get no Kami event: the host owns `users`, and Laravel's auth events already exist. Conversions, Ticks and Scheduled tasks emit nothing, since they are not content writes.
   - A new public action brings its event in the same minor version.
 - **Deletion events carry values, not models** (ULID, type handle, `site`, Locale where relevant), so a queued listener never tries to reload a row that is gone.
