@@ -13,6 +13,12 @@ return [
     'types' => [],
 
     /*
+    | The site's Forms: classes extending `Psyao\Kami\Forms\Form`, whose inputs the site writes inside `<x-kami::form>` (ADR 0015).
+    | Labels come from the `kami-forms` translation file, field labels from `validation.attributes` (docs/guide/forms.md).
+    */
+    'forms' => [],
+
+    /*
     | The Roles a User may hold, by handle, each with its Permissions; `*` matches any part (`kami.*`, `kami.entries.*.view`).
     | Checks always target a Permission, never a Role (ADR 0014). Labels come from the `kami-roles` translation file.
     */

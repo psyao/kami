@@ -435,6 +435,35 @@ Kami's entry point for sites.
 
 - `public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void`: Renders every error view in the Locale the URL's first segment names, on Kami's routes and the application's own, for `withExceptions()` in `bootstrap/app.php`.
 
+## `Psyao\Kami\Forms\Actions\StoreSubmission`
+
+`final class`
+
+Stores a Submission of the current Site, then dispatches `SubmissionStored` after commit (ADR 0011, ADR 0029). It neither validates nor checks
+
+- `public function handle(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission`
+
+## `Psyao\Kami\Forms\Form`
+
+`abstract class`
+
+A front form a site declares under `kami.forms`: its handle, Laravel rules whose keys are its fields, and what becomes of a Submission (ADR 0015).
+
+- `public function handle(): string`: `ContactForm` → `contact`: the class name in snake_case, without a trailing `Form`. Used in the route, `form="…"` and `?sent=`.
+- `final public function label(): string`: `kami-forms.{handle}.label`, or the humanised handle.
+- `public function recipients(): array`: The mail addresses a Submission is sent to.
+- `public function replyTo(): ?string`: The field holding the visitor's mail address, put on `Reply-To`; `null` for none.
+- `public function retention(): ?Carbon\CarbonInterval`: How long a Submission is kept: twelve months by default, `null` forever.
+- `abstract public function rules(): array`: Laravel validation rules; their keys are the fields, and only their validated values are stored. Field labels come from `validation.attributes`.
+- `final public function sent(): bool`: Whether the current request is the confirmation after this Form's Submission: `?sent={handle}`.
+- `public function summary(Psyao\Kami\Forms\Submission $submission): string`: One line naming a Submission: by default its first text value in the order of `rules()`, truncated.
+
+## `Psyao\Kami\Forms\Submission`
+
+`final class extends Illuminate\Database\Eloquent\Model`
+
+What a visitor sent through a Form: its validated values only, with no IP, user agent or cookie (ADR 0015). Written by `StoreSubmission`.
+
 ## `Psyao\Kami\Kami`
 
 `final class`
@@ -442,8 +471,9 @@ Kami's entry point for sites.
 What a site calls on Kami through the `Kami` facade.
 
 - `public function flushCache(): void`: Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data.
+- `public function form(string $handle): Psyao\Kami\Forms\Form`: A Form listed under `kami.forms`, by handle, for its view: `Kami::form('contact')->sent()`.
 - `public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed`: Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
-- `public function routes(bool $session = false): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, and `/kami/tick/{token}` for a host's planner.
+- `public function routes(bool $session = false): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms.
 - `public function schedule(): void`: Declares Kami's Scheduled tasks on Laravel's `Schedule`, for `routes/console.php`. A Tick runs them in-process, or `schedule:run` from a server's cron (ADR 0020).
 - `public function seo(): Psyao\Kami\Seo\PageMeta`: The current page's head values: a Kami page's own, or the Site's on a site route or an error page.
 - `public function sitemapUrls(): array`: The absolute URLs of Kami's per-Locale sitemap files, built first when missing, for an application that answers `/sitemap.xml` itself to list in its own index.

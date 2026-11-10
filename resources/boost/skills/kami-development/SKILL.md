@@ -42,6 +42,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Deploy again, update Kami, or ship a changed Prefix or Locale | `vendor/psyao/kami/docs/guide/deployment.md#later-deploys` |
 | Measure a page's cached and uncached server time against the budgets (`kami:bench`) | `vendor/psyao/kami/docs/guide/deployment.md#measuring-page-speed` |
 | Run Kami's Scheduled tasks and the site's own (`Kami::schedule()`, `kami:tick`, a server's crontab, the planner URL `kami:tick:url`, visits) | `vendor/psyao/kami/docs/guide/scheduler.md` |
+| Let visitors write to the site (`kami.forms`, a `Form`'s `rules()`, `<x-kami::form>`, `<x-kami::form.errors>`, `Kami::form()->sent()`, `StoreSubmission`, `SubmissionStored`) | `vendor/psyao/kami/docs/guide/forms.md` |
 | Decide whether something can run on the host (cron, queue, Node, PHP limits) | `vendor/psyao/kami/docs/guide/hosting.md` |
 | Understand why Kami works the way it does | `vendor/psyao/kami/docs/adr/` |
 

@@ -10,7 +10,11 @@ use DateTimeInterface;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use InvalidArgumentException;
 use Psyao\Kami\Content\Internal\PreviewLink;
+use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Internal\Forms;
+use Psyao\Kami\Forms\Internal\SubmitForm;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Internal\RenderConversion;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -27,10 +31,10 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 final class Kami
 {
     /**
-     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, and `/kami/tick/{token}` for a host's planner.
+     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms.
      *
      * The fallback lets the site's own routes always win, in the `kami` middleware group. All run without the `web` group's session, cookies and CSRF, even when called inside it,
-     * but the fallback under `$session`: it then joins the `web` group, so the application's signed-in members stay signed in on Kami's pages, which the page cache never stores (ADR 0038).
+     * but the fallback and the form route under `$session`: they then join the `web` group, its CSRF check included, so the application's signed-in members stay signed in on Kami's pages, which the page cache never stores (ADR 0038).
      */
     public function routes(bool $session = false): void
     {
@@ -52,11 +56,15 @@ final class Kami
         // The host's planner calls it with no session or cookie (ADR 0020).
         Route::match(['GET', 'POST'], 'kami/tick/{token}', RunTick::class)->name('kami.tick')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::get('sitemaps/{file}', ServeSitemap::class)->where('file', '[A-Za-z0-9_-]+-[1-9][0-9]*\.xml')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
+        $form = Route::post('kami/forms/{handle}', SubmitForm::class)->name('kami.form');
         $fallback = Route::fallback(RenderEntry::class);
-        if ($session) {
-            $fallback->middleware(['web', 'kami']);
-        } else {
-            $fallback->middleware('kami')->withoutMiddleware('web');
+
+        foreach ([$form, $fallback] as $route) {
+            if ($session) {
+                $route->middleware(['web', 'kami']);
+            } else {
+                $route->middleware('kami')->withoutMiddleware('web');
+            }
         }
     }
 
@@ -82,6 +90,12 @@ final class Kami
         $version = PageCache::version();
 
         return $version === null ? $callback() : Cache::remember("kami:{$version}:{$key}", $ttl, $callback);
+    }
+
+    /** A Form listed under `kami.forms`, by handle, for its view: `Kami::form('contact')->sent()`. */
+    public function form(string $handle): Form
+    {
+        return resolve(Forms::class)->find($handle) ?? throw new InvalidArgumentException("No Form [{$handle}] is listed under kami.forms.");
     }
 
     /** Keeps the current response out of the page cache, as for a page showing the time of day. */
