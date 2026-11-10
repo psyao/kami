@@ -52,7 +52,8 @@ final class Submission extends Model
      */
     public function deliveries(): HasMany
     {
-        return $this->hasMany(Delivery::class);
+        // By channel: the admin lists them in a stable order on every engine.
+        return $this->hasMany(Delivery::class)->orderBy('channel');
     }
 
     protected function casts(): array
