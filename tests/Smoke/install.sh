@@ -21,7 +21,8 @@ sed -i \
     -e 's|^# DB_PASSWORD=.*|DB_PASSWORD=kami|' \
     .env
 
-composer install --no-dev --no-interaction --no-progress
+# Dev requirements are resolved but never installed: the starter kit's Browser suite needs ext-sockets, which the host need not load.
+composer install --no-dev --no-interaction --no-progress --ignore-platform-req=ext-sockets
 
 # A composer.lock shipped by the starter kit wins over the path repository and installs a released Kami instead.
 if [ "$(readlink -f vendor/psyao/kami)" != /kami ]; then
