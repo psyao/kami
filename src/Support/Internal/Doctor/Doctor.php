@@ -1107,7 +1107,8 @@ final readonly class Doctor
         }
 
         $undeclared = DB::table('kami_form_submissions')->whereNotIn('form', array_map(fn (Form $form): string => $form->handle(), $forms))
-            ->groupBy('form')->orderBy('form')->pluck(DB::raw('count(*)'), 'form');
+            // Aliased: PostgreSQL names an unaliased `count(*)` column `count`.
+            ->groupBy('form')->orderBy('form')->selectRaw('form, count(*) as total')->pluck('total', 'form');
 
         if ($undeclared->isNotEmpty()) {
             $problems[] = new Problem(Severity::Warning, 'Submissions of Forms no longer declared: ' . $undeclared->map(fn (mixed $count, string $form): string => $form . ' (' . (is_numeric($count) ? $count : 0) . ')')->implode(', ') . '. Kept, never pruned.', 'declare the Form again under kami.forms, or delete its Submissions in the admin.', 'forms.md#submissions');

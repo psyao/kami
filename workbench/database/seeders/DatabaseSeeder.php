@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Workbench\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Defer\DeferredCallbackCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
@@ -124,6 +125,8 @@ class DatabaseSeeder extends Seeder
         $failed = $store->handle('contact', ['name' => 'Alan Turing', 'email' => 'alan@example.test', 'message' => 'Hello, is the site in English too?'], 'en');
         DB::table('kami_form_deliveries')->where('submission_id', $failed->id)->update(['attempts' => Delivery::MAX_ATTEMPTS, 'last_error' => 'Symfony\\Component\\Mailer\\Exception\\TransportException: Connection could not be established with host "mail.example.test:587"']);
         Submission::query()->create(['site' => 'default', 'locale' => 'fr', 'form' => 'newsletter', 'data' => ['email' => 'old@example.test']]);
+        // Sent now, as `db:seed` would on exit: seeded in a test's process, they would otherwise go during its first request.
+        resolve(DeferredCallbackCollection::class)->invoke();
     }
 
     private function user(string $name, string $email, string $role): User

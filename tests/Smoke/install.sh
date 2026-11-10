@@ -19,7 +19,10 @@ sed -i \
     -e 's|^# DB_DATABASE=.*|DB_DATABASE=kami|' \
     -e 's|^# DB_USERNAME=.*|DB_USERNAME=kami|' \
     -e 's|^# DB_PASSWORD=.*|DB_PASSWORD=kami|' \
+    -e 's|^MAIL_MAILER=.*|MAIL_MAILER=log|' \
     .env
+# The mail log, where the reset link is read: the starter kit's `next` defaults to SMTP, which the Submission step below sets up.
+grep -q '^MAIL_MAILER=' .env || echo 'MAIL_MAILER=log' >> .env
 
 # Dev requirements are resolved but never installed: the starter kit's Browser suite needs ext-sockets, which the host need not load.
 composer install --no-dev --no-interaction --no-progress --ignore-platform-req=ext-sockets
