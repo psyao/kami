@@ -43,6 +43,8 @@ final class ForeverForm extends Form
 /** A Form whose retention is a typo. */
 final class ZeroForm extends Form
 {
+    public static ?CarbonInterval $retention = null;
+
     public function rules(): array
     {
         return ['message' => ['required', 'string']];
@@ -50,7 +52,7 @@ final class ZeroForm extends Form
 
     public function retention(): ?CarbonInterval
     {
-        return CarbonInterval::days(0);
+        return self::$retention;
     }
 }
 
@@ -80,6 +82,8 @@ it('deletes the Submissions older than twelve months by default, with their deli
 
 it("keeps each Form's Submissions for its own retention", function (): void {
     $now = $this->freezeSecond()->toImmutable();
+    // Artisan output stays in English, whatever the Admin language Carbon follows.
+    app()->setLocale('fr');
     config(['kami.forms' => [ContactForm::class, WeekForm::class]]);
     $contact = storedAt('contact', $now->subMonth());
     storedAt('week', $now->subWeek()->subSecond());
@@ -121,7 +125,8 @@ it('keeps the Submissions of a Form no longer declared', function (): void {
     expect(keptSubmissions())->toBe([$orphan->id]);
 });
 
-it('refuses a retention of zero, deleting none of its Submissions, and still prunes the other Forms', function (): void {
+it('refuses a retention of zero or less, deleting none of its Submissions, and still prunes the other Forms', function (CarbonInterval $retention): void {
+    ZeroForm::$retention = $retention;
     $now = $this->freezeSecond()->toImmutable();
     config(['kami.forms' => [ZeroForm::class, WeekForm::class]]);
     $zero = storedAt('zero', $now->subYear());
@@ -133,4 +138,7 @@ it('refuses a retention of zero, deleting none of its Submissions, and still pru
         ->assertFailed();
 
     expect(keptSubmissions())->toBe([$zero->id]);
-});
+})->with([
+    'zero' => [CarbonInterval::days(0)],
+    'negative' => [CarbonInterval::days(-1)],
+]);

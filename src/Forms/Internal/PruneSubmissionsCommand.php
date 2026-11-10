@@ -12,7 +12,7 @@ use Psyao\Kami\Forms\Submission;
 
 /**
  * Deletes for good, daily in `Kami::schedule()`, the Submissions older than their Form's `retention()`, their deliveries through the
- * foreign key's cascade, so a site keeps no visitor's message longer than it says (ADR 0015). A Form no longer declared has no retention
+ * foreign key's cascade, so a site keeps no visitor's message longer than it says (Simple forms, #24). A Form no longer declared has no retention
  * to read: its Submissions are kept, and `kami:doctor` reports them. Retention is a policy, not an actor's deletion: no Audit event and
  * no `SubmissionsDeleted`, unlike `DeleteSubmissions`. In chunks, each its own statement: a run cut short is simply started again.
  *
@@ -51,7 +51,7 @@ final class PruneSubmissionsCommand extends Command
                 $deleted += $chunk;
             } while ($chunk === self::CHUNK);
 
-            $this->components->info("{$handle}: deleted {$deleted} " . Str::plural('submission', $deleted) . " older than {$retention->forHumans()}.");
+            $this->components->info("{$handle}: deleted {$deleted} " . Str::plural('submission', $deleted) . " older than {$retention->copy()->locale('en')->forHumans()}.");
         }
 
         return $status;
