@@ -969,17 +969,7 @@ final class EntryResource extends FilamentResource
             return [];
         }
 
-        $names = [];
-
-        foreach ($user->newQuery()->whereIn($user->getAuthIdentifierName(), $keys)->get() as $found) {
-            $key = $found->getAuthIdentifier();
-
-            if (is_int($key) || is_string($key)) {
-                $names[$key] = Filament::getUserName($found);
-            }
-        }
-
-        return $names;
+        return self::namesOf($user->newQuery()->whereIn($user->getAuthIdentifierName(), $keys)->get());
     }
 
     /**
@@ -999,19 +989,30 @@ final class EntryResource extends FilamentResource
             return [];
         }
 
-        // An integer key column refuses a string on PostgreSQL.
-        $isKey = $user->getKeyType() !== 'int' || ctype_digit($search);
+        // Only what can be a key is compared with one: an integer key column refuses a string, or a number past its range, on PostgreSQL.
+        $isKey = $user->getKeyType() === 'int' ? filter_var($search, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false : Str::isUlid($search) || Str::isUuid($search);
+        $names = self::namesOf($user->newQuery()->whereLike('name', "%{$search}%")->when($isKey, fn (Builder $query) => $query->orWhere($user->getAuthIdentifierName(), $search))->orderBy('name')->limit(50)->get());
+
+        return $names === [] && $isKey ? [$search => null] : $names;
+    }
+
+    /**
+     * @param  iterable<Model>  $users
+     * @return array<array-key, string>
+     */
+    private static function namesOf(iterable $users): array
+    {
         $names = [];
 
-        foreach ($user->newQuery()->whereLike('name', "%{$search}%")->when($isKey, fn (Builder $query) => $query->orWhere($user->getAuthIdentifierName(), $search))->orderBy('name')->limit(50)->get() as $found) {
-            $key = $found->getAuthIdentifier();
+        foreach ($users as $found) {
+            $key = $found instanceof Authenticatable ? $found->getAuthIdentifier() : null;
 
             if (is_int($key) || is_string($key)) {
                 $names[$key] = Filament::getUserName($found);
             }
         }
 
-        return $names === [] && $isKey ? [$search => null] : $names;
+        return $names;
     }
 
     /**

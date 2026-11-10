@@ -136,14 +136,11 @@ it('searches Users by name as the editor types, a typed key of a deleted User in
 
     expect(collect(DB::getQueryLog())->pluck('query')->filter(fn (string $sql): bool => str_contains($sql, 'distinct') && preg_match('/user_id|subject_id/', $sql) === 1))->toBeEmpty();
 
-    $results = [];
-    $list->assertTableFilterExists('user', function (SelectFilter $filter) use (&$results, $goneId): bool {
-        $results = array_map(fn (string $search): array => $filter->getFormField()->getSearchResults($search), ['kath', $goneId, 'nobody']);
+    $field = $list->instance()->getTable()->getFilter('user')?->getFormField();
 
-        return true;
-    });
-
-    expect($results)->toBe([[$katherine->getKey() => 'Katherine Johnson'], [$goneId => "Deleted User ({$goneId})"], []]);
+    // A number past an integer key's range is no key: PostgreSQL would refuse it.
+    expect(array_map(fn (string $search): array => $field?->getSearchResults($search) ?? [], ['kath', $goneId, 'nobody', '99999999999999999999']))
+        ->toBe([[$katherine->getKey() => 'Katherine Johnson'], [$goneId => "Deleted User ({$goneId})"], [], []]);
 
     $list->filterTable('user', (string) $katherine->getKey())
         ->assertTableFilterExists('user', fn (SelectFilter $filter): bool => $filter->getIndicators()[0]->getLabel() === 'User: Katherine Johnson');
