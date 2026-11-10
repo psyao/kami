@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Media;
 use Workbench\App\Models\User;
 use Workbench\Database\Seeders\DatabaseSeeder;
@@ -66,4 +68,12 @@ it('seeds a Meta title and description, and a Translation Hidden from search eng
     $this->get('/articles/bonjour')->assertSee('<title>Bonjour, en deux langues</title>', escape: false);
 
     expect(Entry::query()->inLocale('en')->withUnpublished()->get()->firstWhere('title', 'French only so far')?->noindex)->toBeTrue();
+});
+
+it('seeds Submissions: one read, one unread whose mail was abandoned, and one of a Form no longer declared', function () {
+    expect(Submission::query()->get()->map(fn (Submission $submission): array => [$submission->form, $submission->read_at !== null])->sort()->values()->all())->toBe([
+        ['contact', false],
+        ['contact', true],
+        ['newsletter', false],
+    ])->and(DB::table('kami_form_deliveries')->where('attempts', 5)->whereNull('delivered_at')->count())->toBe(1);
 });

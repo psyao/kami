@@ -435,6 +435,14 @@ Kami's entry point for sites.
 
 - `public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void`: Renders every error view in the Locale the URL's first segment names, on Kami's routes and the application's own, for `withExceptions()` in `bootstrap/app.php`.
 
+## `Psyao\Kami\Forms\Actions\DeleteSubmissions`
+
+`final class`
+
+Deletes Submissions for good, their deliveries with them, as a visitor's deletion request asks, and records one `kami.form-submissions.deleted` per Form in the Audit log with the count deleted, never the content (ADR 0022); `SubmissionsDeleted` follows per Form once committed. It does not authorise: the caller checks the actor's `kami.form-submissions.delete` Permission first (ADR 0011).
+
+- `public function handle(Traversable|array $submissions, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
 ## `Psyao\Kami\Forms\Actions\StoreSubmission`
 
 `final class`
@@ -464,6 +472,8 @@ A front form a site declares under `kami.forms`: its handle, Laravel rules whose
 `final class extends Illuminate\Database\Eloquent\Model`
 
 What a visitor sent through a Form: its validated values only, with no IP, user agent or cookie (ADR 0015). Written by `StoreSubmission`.
+
+- `public function markRead(): void`: Marks it read, once: a later call keeps the first `read_at`. Reading is not an Audit event (ADR 0022).
 
 ## `Psyao\Kami\Forms\SubmissionReceived`
 

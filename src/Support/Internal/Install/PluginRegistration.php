@@ -7,6 +7,7 @@ namespace Psyao\Kami\Support\Internal\Install;
 use Closure;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\CanResetPassword;
+use Psyao\Kami\Forms\Submission;
 
 /**
  * What `KamiPlugin` reports about the host panels it sits on: the core never imports Filament, the plugin hands it booleans and callbacks (ADR 0011).
@@ -39,4 +40,11 @@ final class PluginRegistration
      * @var (Closure(int|string): ?string)|null
      */
     public ?Closure $userName = null;
+
+    /**
+     * The absolute URL of a Submission's page in the admin, for the mail that announces it: the first panel carrying the plugin's. Unset with no panel, or no Form declared.
+     *
+     * @var (Closure(Submission): string)|null
+     */
+    public ?Closure $submissionUrl = null;
 }

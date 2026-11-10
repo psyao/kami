@@ -48,6 +48,7 @@ use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RequireMfa;
 use Psyao\Kami\Admin\Internal\RichTextInput;
+use Psyao\Kami\Admin\Internal\SubmissionResource;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
 use Psyao\Kami\Admin\Internal\Widgets\RecentlyEdited;
 use Psyao\Kami\Admin\Internal\Widgets\Scheduled;
@@ -68,6 +69,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Scheduling\Internal\TickOnVisit;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
@@ -216,6 +218,13 @@ final class KamiPlugin implements Plugin
         }
 
         $panel->resources([$media, AuditEventResource::class]);
+
+        // Read from config, not the registry: `register()` runs for Artisan too, which must keep working to fix a declaration.
+        if (Config::array('kami.forms', []) !== []) {
+            $panel->resources([SubmissionResource::class]);
+            // The first panel's, for the mail announcing a Submission; in the console, its URL comes from `app.url`.
+            $registration->submissionUrl ??= fn (Submission $submission): string => SubmissionResource::getUrl('view', ['record' => $submission], panel: $panel->getId());
+        }
 
         // The sign-in page included, whatever the host's own middleware (ADR 0027); an editor's visit starts a Tick too (ADR 0020).
         $panel->middleware([NoIndex::class, TickOnVisit::class]);

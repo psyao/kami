@@ -38,6 +38,7 @@ The truncated IP trades part of security's forensic value (principle 1) for priv
   - `kami.entries.trashed`, `kami.entries.restored`, `kami.entries.force-deleted`;
   - `kami.preview-links.created`, `kami.preview-links.revoked` (context: `entry`, `locale`, `expires_at`); a link deleted with its Translation or Entry records nothing of its own;
   - `kami.media.deleted` (context: `name`);
+  - `kami.form-submissions.deleted`, one per Form from `DeleteSubmissions`, single or bulk, with no subject (context: `form` and `count`), never the content (amended in #484);
   - `kami.content.migrated`, one per `ContentMigrator` operation (context: `operation` and its arguments).
   - `kami.roles.granted` and `kami.roles.revoked`, one per Role, from `AssignRoles` (context: `role`); `kami.users.lockout-refused` when the lockout guard refuses (context: `operation`, `revoke` or `delete`), written after the action's transaction and again if a caller's transaction rolls it back, since the refusal is the event (amended in #348);
   - `kami.users.created` and `kami.users.deleted`, from model hooks `HasKamiRoles` boots on the host's User, the signed-in User as actor. Users are the host's, so no core action creates or deletes them, and a hook is Kami's only door to them: Security (principle 1) wins over the rule against Eloquent events, which still holds for Kami's own models. A query-builder delete skips the hooks, which the guide says (amended in #348);

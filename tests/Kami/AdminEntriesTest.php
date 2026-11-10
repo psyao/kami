@@ -40,6 +40,7 @@ use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Content\Term;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\ArticleWithDefaults;
@@ -584,8 +585,8 @@ it('lists Entries in a fixed number of queries, whatever their number', function
     DB::enableQueryLog();
     $this->get('/admin/articles')->assertOk()->assertSee('Article 1');
 
-    // The manager's authenticator, read once by the MFA requirement, is one of them.
-    expect(DB::getQueryLog())->toHaveCount(6);
+    // The manager's authenticator, read once by the MFA requirement, is one of them, as is the navigation's count of unread Submissions.
+    expect(DB::getQueryLog())->toHaveCount(7);
 })->with([1, 10]);
 
 it('loads the Creators and Last modifiers in one query each, whatever the number of Entries', function (int $entries) {
@@ -910,7 +911,14 @@ it('renders every Kami admin page in English and French with no raw translation 
     // A row naming a subject and a User gone since, each label of its own.
     resolve(RecordAuditEvent::class)->handle('kami.roles.granted', ['user', '999999'], ['role' => 'editor']);
     resolve(RecordAuditEvent::class)->handle('kami.entries.trashed', $entries['article']);
+    resolve(RecordAuditEvent::class)->handle('kami.form-submissions.deleted', null, ['form' => 'contact', 'count' => 1]);
     expect((string) $this->get('/admin/audit-events')->assertOk()->getContent())->not->toContain('kami::');
+
+    // A Submission with a delivery, unread so the navigation counts it.
+    $submission = resolve(StoreSubmission::class)->handle('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Hi'], 'fr');
+    foreach (['/admin/submissions', "/admin/submissions/{$submission->id}"] as $url) {
+        expect((string) $this->get($url)->assertOk()->getContent())->not->toContain('kami::', $url);
+    }
 })->with(['en', 'fr']);
 
 it('throttles repeated failed sign-ins, as Filament does, refusing even the right password', function () {
@@ -1462,8 +1470,8 @@ it('opens an Entry page in an exact number of queries, with relations', function
     $this->get("/admin/projects/{$project->id}/edit")->assertOk();
 
     // The manager's authenticator, read once by the MFA requirement, is one of them, as are the targets' types, which decide who sees their titles,
-    // and the Site settings, read once for the SEO section's placeholders.
-    expect(DB::getQueryLog())->toHaveCount(12);
+    // the Site settings, read once for the SEO section's placeholders, and the navigation's count of unread Submissions.
+    expect(DB::getQueryLog())->toHaveCount(13);
 })->with([1, 5]);
 
 function quickCreate(string $field): TestAction

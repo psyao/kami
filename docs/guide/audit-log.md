@@ -17,6 +17,7 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.preview-links.created` | A Preview link is created | `entry`, `locale`, `expires_at` |
 | `kami.preview-links.revoked` | A Preview link is revoked | `entry`, `locale`, `expires_at` |
 | `kami.media.deleted` | `DeleteMedia` | `name` |
+| `kami.form-submissions.deleted` | `DeleteSubmissions`, once per Form, with no subject; never the Submission's content | `form`, `count` |
 | `kami.content.migrated` | Each `ContentMigrator` operation | `operation` and its arguments |
 | `kami.roles.granted` | `AssignRoles` gives a User a Role; the User is subject | `role` |
 | `kami.roles.revoked` | `AssignRoles` takes a Role from a User; the User is subject | `role` |
@@ -33,7 +34,7 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.mfa.challenge-failed` | A wrong or blank MFA code, or a wrong recovery code, after the right password on Kami's [sign-in page](security.md#sign-in); the User is subject, with no actor. A right password whose second factor fails is the strongest sign someone else knows it | |
 | `kami.mfa.reset` | `kami:user:reset-mfa` clears a User's authenticator; the User is subject, the actor `cli` | |
 
-A bulk action in the admin records one event per row, as each row's own action does.
+A bulk action in the admin records one event per row, as each row's own action does. Deleting Submissions records one event per Form instead, with the count deleted: what matters is that personal data left, not which message.
 
 Each row holds:
 
@@ -51,6 +52,7 @@ Each row holds:
 - Saving a Draft, or saving a published Translation without moving its date: the log is about what visitors see, not every keystroke.
 - A Preview link deleted with its Translation (`DeleteTranslation`) or its Entry (`DeleteEntry`): the deletion itself is the event.
 - Content: no title, no body, no diff. Revisions are a V1 feature.
+- Reading a Submission, or storing one: only its deletion is recorded.
 - A `ContentMigrator` operation in a site migration older than Kami's `kami_audit_events` table: on a fresh `migrate` it runs before the table exists.
 - Writes that bypass the core actions, with the query builder or Eloquent directly. Every write goes through a core action (ADR 0011). Users are the host's: their creation and deletion are recorded by `HasKamiRoles`' model hooks, which a query-builder write skips.
 

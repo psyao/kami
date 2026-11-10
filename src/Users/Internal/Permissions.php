@@ -12,6 +12,7 @@ use Psyao\Kami\Audit\Internal\AuditEvent;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Users\KamiUser;
 
@@ -40,6 +41,7 @@ final class Permissions
         $gate->policy(Entry::class, EntryPolicy::class);
         $gate->policy(Media::class, MediaPolicy::class);
         $gate->policy(AuditEvent::class, AuditEventPolicy::class);
+        $gate->policy(Submission::class, SubmissionPolicy::class);
     }
 
     /** @return list<string> */
@@ -48,7 +50,7 @@ final class Permissions
         $entries = collect(resolve(ContentTypes::class)->all())
             ->flatMap(fn (ContentType $type): array => array_map(fn (string $action): string => "kami.entries.{$type->handle()}.{$action}", self::ENTRY_ACTIONS));
 
-        return [...$entries, ...array_map(fn (string $action): string => "kami.media.{$action}", self::MEDIA_ACTIONS), 'kami.audit.view', 'kami.health.view', 'kami.users.manage'];
+        return [...$entries, ...array_map(fn (string $action): string => "kami.media.{$action}", self::MEDIA_ACTIONS), 'kami.form-submissions.view', 'kami.form-submissions.delete', 'kami.audit.view', 'kami.health.view', 'kami.users.manage'];
     }
 
     /**

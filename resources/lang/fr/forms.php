@@ -9,5 +9,6 @@ return [
     ],
     'mail' => [
         'intro' => 'Un visiteur a envoyé le formulaire :form.',
+        'link' => 'Le lire dans l’admin : :url',
     ],
 ];

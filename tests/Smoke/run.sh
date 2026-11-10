@@ -286,8 +286,8 @@ fi
 
 # A Submission (psyao/kami#483) through the starter kit's contact form, with its SMTP server down: stored, its mail failed after the
 # response, then delivered to Mailpit by the planner's URL alone. The failure's report is cut from the log before the empty-log check.
-docker compose run -T --rm cli sed -i \
-    -e 's|^MAIL_MAILER=.*|MAIL_MAILER=smtp|' -e 's|^MAIL_HOST=.*|MAIL_HOST=mailpit|' -e 's|^MAIL_PORT=.*|MAIL_PORT=1025|' .env
+# The starter kit's `next` ships MAIL_HOST and MAIL_PORT commented out: dropped, set or not, then written.
+docker compose run -T --rm cli sh -c "sed -i -E '/^(# )?MAIL_(MAILER|HOST|PORT)=/d' .env && printf 'MAIL_MAILER=smtp\nMAIL_HOST=mailpit\nMAIL_PORT=1025\n' >> .env"
 docker compose run -T --rm cli php artisan optimize >/dev/null
 site_log=/var/www/site/storage/logs/laravel.log
 log_size=$(docker compose exec -T php sh -c "if [ -f $site_log ]; then wc -c < $site_log; else echo 0; fi" | tr -d ' \r')
