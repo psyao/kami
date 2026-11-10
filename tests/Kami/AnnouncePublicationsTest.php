@@ -139,7 +139,8 @@ it('lets a restore announce a Translation whose moment the command passed while 
     $draft = scheduledArticle('Brouillon', '2026-11-10 09:30:00');
     resolve(SaveEntry::class)->handle(Article::class, ['status' => 'draft'], $draft);
     $this->travelTo('2026-11-10 09:10:00');
-    foreach ($entries = [$passed, $uncovered, $upcoming, $visible, $draft] as $entry) {
+    $entries = [$passed, $uncovered, $upcoming, $visible, $draft];
+    foreach ($entries as $entry) {
         resolve(TrashEntry::class)->handle($entry);
     }
     announce($this, '2026-11-10 09:40:00');
@@ -153,6 +154,26 @@ it('lets a restore announce a Translation whose moment the command passed while 
 
     expect(array_map(fn (EntryPublished $event) => [$event->entry->id, $event->locale, $event->scheduled, $event->actor?->getAuthIdentifier()], $seen->getArrayCopy()))->toBe([[$passed->id, 'fr', true, $ada->id]])
         ->and(announce($this, '2026-11-10 10:00:00'))->toBe(['fr:Après le dernier run', 'fr:À venir']);
+});
+
+it('announces a Translation trashed, restored and trashed again around its moment once', function () {
+    announce($this, '2026-11-10 09:00:00');
+    $this->travelTo('2026-11-10 09:00:00');
+    $entry = scheduledArticle('Deux fois', '2026-11-10 09:30:00');
+    resolve(TrashEntry::class)->handle($entry);
+    $this->travelTo('2026-11-10 09:10:00');
+    resolve(RestoreEntry::class)->handle($entry);
+
+    expect(announce($this, '2026-11-10 09:40:00'))->toBe(['fr:Deux fois']);
+
+    $seen = new ArrayObject;
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $seen->append($event));
+    $this->travelTo('2026-11-10 09:42:00');
+    resolve(TrashEntry::class)->handle($entry);
+    $this->travelTo('2026-11-10 09:45:00');
+    resolve(RestoreEntry::class)->handle($entry);
+
+    expect($seen->getArrayCopy())->toBe([]);
 });
 
 it('leaves a restore before the command\'s first run unannounced, as a save', function () {
