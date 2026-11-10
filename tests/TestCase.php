@@ -30,6 +30,10 @@ abstract class TestCase extends Orchestra
         $app->make('config')->set(['kami.page_cache.enabled' => false, ...$this->bootConfig]);
 
         $this->useOwnDatabaseInParallel($app);
+        // A fresh Tick keeps visits from starting one over the shared `storage/`, so no test depends on another's: a test of the visit Tick
+        // or of the page cache reader runs over a `storage/` of its own.
+        @mkdir($app->storagePath('framework/kami'), 0755, true);
+        touch($app->storagePath('framework/kami/tick-cli'));
     }
 
     /**

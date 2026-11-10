@@ -48,6 +48,17 @@ docker compose up --detach --wait apache
 
 failed=0
 
+# Runs PHP code in the booted site from the CLI container; the arguments after the code reach it as `$argv`.
+site_php() {
+    local code=$1
+    shift
+    docker compose run -T --rm cli php -r '
+        require "vendor/autoload.php";
+        $app = require "bootstrap/app.php";
+        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+        '"$code" -- "$@"
+}
+
 # The starter kit's .htaccess redirects HTTP to HTTPS unless the request says it reached the host over HTTPS.
 expect() {
     local status
@@ -86,10 +97,7 @@ expect_page /en Welcome
 expect_page /about '<li>Kami</li>'
 
 # A Preview link to a Draft, created as the admin does: sessionless, read through the cached route table.
-share_path=$(docker compose run -T --rm cli php -r '
-    require "vendor/autoload.php";
-    $app = require "bootstrap/app.php";
-    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+share_path=$(site_php '
     $draft = $app->make(Psyao\Kami\Content\Actions\SaveEntry::class)->handle(App\Content\Page::class, ["title" => "Brouillon partagé", "slug" => "shared-draft", "body" => "Pas encore public"]);
     echo parse_url(Psyao\Kami\Content\Internal\PreviewLink::issue($draft, "fr", 7, null), PHP_URL_PATH);
 ' 2>&1 || true)
@@ -103,10 +111,7 @@ fi
 
 # The Audit log (psyao/kami#342): the editor's Page published above from the command line wrote one row per Locale,
 # inside the save's transaction on the host's MariaDB, from the CLI and so with no IP.
-audit=$(docker compose run -T --rm cli php -r '
-    require "vendor/autoload.php";
-    $app = require "bootstrap/app.php";
-    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+audit=$(site_php '
     $page = Illuminate\Support\Facades\DB::table("kami_translations")->where("slug", "smoke")->value("entry_id");
     echo Illuminate\Support\Facades\DB::table("kami_audit_events")
         ->where(["event" => "kami.entries.published", "subject_type" => "entry", "subject_id" => $page, "actor" => "cli"])->whereNull("ip")
@@ -138,10 +143,7 @@ docker compose exec -T php truncate --no-create --size="$log_size" "$mail_log" |
 # from the PHP container, another address, refused by the email's limit alone. Each failure and the one lockout land in the Audit log, never the address.
 failures=$(for attempt in 1 2 3 4 5; do docker compose run -T --rm cli php /kami/tests/Smoke/sign-in.php http://apache admin@example.test wrong-password || true; done | sort -u)
 refused=$(docker compose exec -T --workdir /var/www/site php php /kami/tests/Smoke/sign-in.php http://apache admin@example.test smoke-password || true)
-sign_ins=$(docker compose run -T --rm cli php -r '
-    require "vendor/autoload.php";
-    $app = require "bootstrap/app.php";
-    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+sign_ins=$(site_php '
     echo Illuminate\Support\Facades\DB::table("kami_audit_events")->where("event", "like", "kami.auth.%")->orderBy("id")->get()
         ->map(fn ($row) => $row->event . ($row->subject_type ? " " . $row->subject_type : "") . " " . json_encode(json_decode($row->context, true)))->implode(", ");
 ' 2>&1 || true)
@@ -154,10 +156,7 @@ else
 fi
 
 # Rich text renders in pure PHP, on the host's PHP and its extensions: the starter kit declares no RichText yet.
-rich_text=$(docker compose run -T --rm cli php -r '
-    require "vendor/autoload.php";
-    $app = require "bootstrap/app.php";
-    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+rich_text=$(site_php '
     $field = Psyao\Kami\Content\Fields\RichText::make("body");
     $document = $field->normalise(["type" => "doc", "content" => [["type" => "paragraph", "content" => [["type" => "text", "text" => "Bonjour", "marks" => [["type" => "bold"], ["type" => "underline"]]]]]]]);
     echo $field->read($document)->toHtml();
@@ -172,15 +171,12 @@ fi
 # Drift fails the deploy with a non-zero exit code and takes no Path away, on the host's PHP and MariaDB.
 # Creates or drops the table with no declared type, and prints the 200 rows' count.
 drifted_table() {
-    docker compose run -T --rm cli php -r '
-        require "vendor/autoload.php";
-        $app = require "bootstrap/app.php";
-        $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    site_php '
         $schema = Illuminate\Support\Facades\Schema::class;
         if (($argv[1] ?? null) === "create") { $schema::create("kami_type_drifted", fn ($table) => $table->string("locale")); }
         if (($argv[1] ?? null) === "drop") { $schema::drop("kami_type_drifted"); }
         echo Illuminate\Support\Facades\DB::table("kami_paths")->where("status", 200)->count();
-    ' -- "$@"
+    ' "$@"
 }
 before=$(drifted_table create)
 if output=$(docker compose run -T --rm cli php artisan kami:install --no-interaction 2>&1); then
@@ -202,10 +198,7 @@ expect_page /smoke Bonjour
 
 # Conversions (psyao/kami#297): kami:install linked public/media. A photo's `original` Conversion, and an SVG where the
 # file route of psyao/kami#300 will write one. Prints the Conversion's path, then the original's path on its disk.
-read -r conversion original < <(docker compose run -T --rm cli php -r '
-    require "vendor/autoload.php";
-    $app = require "bootstrap/app.php";
-    $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+read -r conversion original < <(site_php '
     $media = $app->make(Psyao\Kami\Media\Actions\SaveMedia::class)->handle("/kami/tests/Fixtures/media/rotated-gps.jpg", ["alt" => "Smoke"]);
     Illuminate\Support\Facades\Storage::disk("public")->put("media/smoke.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>");
     echo parse_url($media->url(), PHP_URL_PATH), " ", $media->file, "\n";
@@ -253,7 +246,43 @@ else
     failed=1
 fi
 
-# The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped. `php artisan down`
+# The Tick (psyao/kami#476), in-process under FPM with `proc_open` off. The planner's URL: a wrong token is a 404; the first visits above
+# recorded each task's baseline, so `kami:sitemap`, a `command()` task made overdue, runs inside the call.
+tick_body() {
+    curl --silent --show-error --header 'X-Forwarded-Proto: https' "$base_url/kami/tick/$1" || true
+}
+token=$(docker compose run -T --rm cli sed -n 's/^KAMI_TICK_TOKEN=//p' .env | tr -d '\r')
+expect 404 /kami/tick/not-the-token
+site_php 'Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:sitemap")->update(["last_run_at" => now()->subHours(2), "last_status" => null]);' >/dev/null 2>&1 || true
+tick=$(tick_body "$token")
+sitemap_run=$(site_php 'echo Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:sitemap")->where("last_run_at", ">", now()->subMinute())->value("last_status");' 2>&1 || true)
+if [ "$tick" = OK ] && [ "$sitemap_run" = succeeded ]; then
+    echo "GET /kami/tick/{token}: OK, kami:sitemap ran in-process"
+else
+    echo "GET /kami/tick/{token}: \"$tick\", kami:sitemap: \"$sitemap_run\""
+    failed=1
+fi
+
+# A visit after five minutes without a Tick passes the pre-boot reader and starts one once FPM has sent the page.
+ticks=/var/www/site/storage/framework/kami
+docker compose exec -T php sh -c "rm -f $ticks/tick-visit; touch -d '10 minutes ago' $ticks/tick-*"
+expect_page /smoke Bonjour
+visit=
+for _ in $(seq 1 20); do
+    visit=$(docker compose exec -T php sh -c "cat $ticks/tick-visit 2>/dev/null" || true)
+    [ -n "$visit" ] && break
+    sleep 0.5
+done
+if grep -q '"result":"OK"' <<<"$visit"; then
+    echo "Visit after a stale Tick: started one"
+else
+    echo "Visit after a stale Tick: tick-visit holds \"$visit\""
+    failed=1
+fi
+
+# The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped, after a recent Tick:
+# with none for five minutes, the pre-boot reader lets Laravel answer, to start one.
+docker compose run -T --rm cli php artisan kami:tick >/dev/null `php artisan down`
 # answers 503 before any cached page, as public/index.php checks maintenance before it requires Kami's reader.
 expect_page /smoke Bonjour
 docker compose stop mariadb >/dev/null 2>&1

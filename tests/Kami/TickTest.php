@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Console\Scheduling\CallbackEvent;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,14 +26,6 @@ beforeEach(function (): void {
 afterEach(function (): void {
     File::deleteDirectory($this->storage);
 });
-
-/** An hourly callback task that notes each run in `$this->runs`. */
-function hourlyProbe(object $test, string $name = 'probe'): CallbackEvent
-{
-    return $test->schedule->call(function () use ($test, $name): void {
-        $test->runs[] = $name;
-    })->name($name)->hourly();
-}
 
 /** `kami:tick` at a given time, asserting its result. */
 function tickAt(object $test, string $time, string $result = 'OK'): void

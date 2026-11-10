@@ -40,6 +40,8 @@ use Psyao\Kami\Routing\Internal\ClearCacheCommand;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Scheduling\Internal\Tick;
 use Psyao\Kami\Scheduling\Internal\TickCommand;
+use Psyao\Kami\Scheduling\Internal\TickOnVisit;
+use Psyao\Kami\Scheduling\Internal\TickUrlCommand;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Seo\Internal\SitemapCommand;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
@@ -64,7 +66,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void
@@ -93,7 +95,7 @@ final class KamiServiceProvider extends PackageServiceProvider
 
         // Names only, inert until the host calls `Kami::routes()` or adds the alias to its panel; declared here, not with the route, because `route:cache` stores neither.
         $router = $this->app->make(Router::class);
-        $router->middlewareGroup('kami', [CachePages::class, FrontSecurityHeaders::class, ResolveLocale::class]);
+        $router->middlewareGroup('kami', [TickOnVisit::class, CachePages::class, FrontSecurityHeaders::class, ResolveLocale::class]);
         $router->aliasMiddleware('kami.security-headers', SecurityHeaders::class);
 
         // Every public write action dispatches one of these after commit (ADR 0029); `EntrySaved` comes with each `EntryPublished` and `EntryUnpublished`.

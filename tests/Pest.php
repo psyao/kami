@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Filament\Facades\Filament;
 use Filament\Notifications\NotificationMailbox;
+use Illuminate\Console\Scheduling\CallbackEvent;
 use Illuminate\Contracts\Image\Driver;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Image\Drivers\GdDriver;
@@ -47,6 +48,14 @@ pest()->extend(InstallTestCase::class)->in('Install');
 function temporaryPath(): string
 {
     return sys_get_temp_dir() . '/kami-' . bin2hex(random_bytes(8));
+}
+
+/** An hourly callback task on `$test->schedule` that notes each run in `$test->runs`. */
+function hourlyProbe(object $test, string $name = 'probe'): CallbackEvent
+{
+    return $test->schedule->call(function () use ($test, $name): void {
+        $test->runs[] = $name;
+    })->name($name)->hourly();
 }
 
 /** The authenticator secret of the Users `withMfa()` sets up. */

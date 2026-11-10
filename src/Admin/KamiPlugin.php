@@ -68,6 +68,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Scheduling\Internal\TickOnVisit;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
@@ -216,8 +217,8 @@ final class KamiPlugin implements Plugin
 
         $panel->resources([$media, AuditEventResource::class]);
 
-        // The sign-in page included, whatever the host's own middleware (ADR 0027).
-        $panel->middleware([NoIndex::class]);
+        // The sign-in page included, whatever the host's own middleware (ADR 0027); an editor's visit starts a Tick too (ADR 0020).
+        $panel->middleware([NoIndex::class, TickOnVisit::class]);
 
         // A front page, so the front's headers in place of the panel's (ADR 0018); but for the admin's opener policy,
         // as the front's `same-origin` would move the tab out of the admin's reach and the next Preview would open another.

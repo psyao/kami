@@ -315,6 +315,7 @@ command kami:media:warm --entry [--entry [ENTRY]]
 command kami:media:warm --preset [--preset [PRESET]]
 command kami:sitemap
 command kami:tick
+command kami:tick:url
 command kami:user:grant
 command kami:user:grant email <email>
 command kami:user:grant role <role>
@@ -345,6 +346,7 @@ config kami.security.headers
 config kami.sites.default.locales
 config kami.sites.default.timezone
 config kami.sites.default.url
+config kami.tick.token
 config kami.types
 middleware kami group
 middleware kami.security-headers Psyao\Kami\Support\SecurityHeaders
@@ -364,6 +366,7 @@ permission kami.media.delete
 permission kami.media.update
 permission kami.media.view
 permission kami.users.manage
+route kami.tick GET|POST|HEAD kami/tick/{token}
 table kami_audit_events
 table kami_entries
 table kami_media
