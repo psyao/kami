@@ -20,7 +20,7 @@ it('trashes an Entry from its row, finds it through the Trash filter, and restor
         ->assertSee('Moved to the Trash')
         ->assertSee('No Articles');
 
-    visit('/articles/bonjour')->assertSee('404');
+    assertAxeClean(visit('/articles/bonjour')->assertSee('404'));
 
     $page->click('internal:role=button[name="Filter"s]')
         ->select('Trash', 'In the Trash')

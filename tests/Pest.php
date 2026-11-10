@@ -98,8 +98,8 @@ function assertAxeClean(mixed $page): mixed
         async () => {
             const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
             const { violations, incomplete } = await axe.run(document, { runOnly: { type: 'tag', values: tags }, elementRef: true });
-            const resolvable = incomplete.map(r => r.id === 'color-contrast' ? { ...r, nodes: r.nodes.filter(n => n.element.tagName !== 'TEXTAREA') } : r);
-            return [...violations, ...resolvable].flatMap(r => r.nodes.map(n => `${r.id}: ${n.target.join(' ')}: ${[...n.any, ...n.all, ...n.none].map(c => c.message).join(' ')}`));
+            const kept = incomplete.map(r => r.id === 'color-contrast' ? { ...r, nodes: r.nodes.filter(n => n.element.tagName !== 'TEXTAREA') } : r);
+            return [...violations, ...kept].flatMap(r => r.nodes.map(n => `${r.id}: ${n.target.join(' ')}: ${[...n.any, ...n.all, ...n.none].map(c => c.message).join(' ')}`));
         }
         JS);
 
