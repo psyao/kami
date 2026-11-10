@@ -70,14 +70,16 @@ A server can run Laravel's own worker beside the Tick, under systemd or Supervis
 
 `kami:doctor` reads the `tick-*` files, `kami_task_runs` and the queue's tables, and warns about:
 
-- **no Tick** from any trigger for 24 hours, or none yet;
+- **no Tick** from any trigger for 24 hours, or none yet, and a **most recent Tick that failed**;
 - an **empty `KAMI_TICK_TOKEN`** while `kami:tick` has not run for 24 hours: only visits start a Tick then;
-- a **Tick over its budget**, the last one of each trigger: a task or a job ran on past the time it had;
+- a **Tick over its budget**, the last one of each trigger in the past 24 hours: a task or a job ran on past the time it had;
 - **`Kami::schedule()` not called** in `routes/console.php`;
 - **`exec()` tasks** while `kami:tick`, which alone runs them, has not run for 24 hours;
 - **late tasks**, whose first missed due time is over an hour old, leaving out those their own filters skip, so a task due every minute under a planner calling every 15 stays quiet;
 - **failed tasks**, whose last run failed or started over an hour ago and never finished, as when PHP's `max_execution_time` stops it. A `runInBackground()` task counts as finished once it starts: Laravel tells nothing of its end;
-- **failed jobs**, and a job waiting on the default `database` connection for over an hour.
+- **failed jobs**, and a job waiting on the default `database` connection for over an hour, leaving out one being worked on.
+
+It also prints each trigger's last Tick, with its age, result and duration, and the number of jobs on the default `database` queue.
 
 On a developer's machine and in CI (`APP_ENV` `local` or `testing`), neither a web request nor a Tick runs: the first two lines, and the web's missing snapshot, are informations there, so `kami:doctor --strict` still passes. The admin dashboard's **Needs attention** widget shows them after the next `kami:doctor` run ([Installation](installation.md#checking-the-environment)).
 

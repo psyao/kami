@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Psyao\Kami\Support\Internal\Doctor\WebEnvironment;
+use Psyao\Kami\Support\Internal\WebEnvironment;
 use RuntimeException;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\StreamOutput;
@@ -61,13 +61,14 @@ final class Tick
             return 'BUSY';
         }
 
-        $start = microtime(true);
-        $failed = false;
-
         if ($trigger !== 'cli') {
             // Where `kami:doctor` learns what the web's PHP is; a visit reports a failed write no more than its `tick-visit`.
+            // Before the clock starts: a day's first encode test, AVIF's above all, is no task's time.
             rescue(WebEnvironment::capture(...), report: $trigger !== 'visit');
         }
+
+        $start = microtime(true);
+        $failed = false;
 
         try {
             // A web request declares no task: `routes/console.php` loads with the console kernel's commands, and `withSchedule()` once Artisan starts.

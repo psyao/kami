@@ -228,6 +228,18 @@ describe('a visit', function (): void {
         Exceptions::assertReportedCount(1);
     });
 
+    it('refreshes the web PHP once an hour while a Tick is recent, as cron keeps it on a server', function (int $age, bool $refreshed) {
+        lastTick($this, 'cli', 60);
+        $snapshot = "{$this->storage}/framework/kami/web-environment.json";
+        File::put($snapshot, '{"php": "8.4.0"}');
+        touch($snapshot, time() - $age);
+
+        $this->get('/articles/hello-world')->assertOk();
+
+        expect(File::json($snapshot)['php'])->toBe($refreshed ? PHP_VERSION : '8.4.0')
+            ->and(visitTicked($this))->toBeFalse();
+    })->with(['an hour old' => [3600, true], 'recent' => [3500, false]]);
+
     it('starts no Tick on HEAD, an error status or the tick route', function (string $method, string $url, int $status): void {
         $this->call($method, $url)->assertStatus($status);
 

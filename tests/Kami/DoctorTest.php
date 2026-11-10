@@ -913,13 +913,14 @@ describe('search engines', function () {
 
     it('warns about a sitemap never built for the Site URL, only while the Site is indexable', function () {
         config(['kami.indexable' => true, 'app.env' => 'production']);
-        expect(seoProblems())->toBe([[Severity::Warning, 'No sitemap has been built for http://localhost: robots.txt names one that does not exist yet.']]);
+        expect(seoProblems())->toBe([[Severity::Warning, 'No sitemap has been built for http://localhost yet.']]);
 
         withBuiltSitemap($this);
         expect(seoProblems())->toBe([]);
 
         config(['kami.sites.default.url' => 'https://example.com']);
-        expect(seoProblems())->toBe([[Severity::Warning, 'No sitemap has been built for https://example.com: robots.txt names one that does not exist yet.']]);
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain('No sitemap has been built for https://example.com yet.')->assertFailed();
+        expect(seoProblems())->toBe([[Severity::Warning, 'No sitemap has been built for https://example.com yet.']]);
 
         config(['kami.indexable' => false, 'app.env' => 'local']);
         expect(seoProblems())->toBe([]);
@@ -1014,12 +1015,13 @@ describe('the web and the scheduler', function () {
     it('informs on a developer\'s machine and in CI, and warns elsewhere, of what only a running site shows', function (Closure $arrange, string $message) {
         $arrange();
 
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain($message)->assertSuccessful();
         expect(problem($message)?->severity)->toBe(Severity::Info);
 
         config(['app.env' => 'staging']);
-        expect(problem($message)?->severity)->toBe(Severity::Warning);
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain($message)->assertFailed();
     })->with([
-        'no web snapshot' => [fn () => File::delete(storage_path('framework/kami/web-environment.json')), "No web request has run a Tick yet: kami:doctor cannot see the web's PHP"],
+        'no web snapshot' => [fn () => File::delete(storage_path('framework/kami/web-environment.json')), "No web request has written the web PHP's snapshot yet: kami:doctor sees only the command line's PHP"],
         'no Tick yet' => [fn () => File::delete(storage_path('framework/kami/tick-cli')), 'No Tick has run yet: Scheduled tasks and queued jobs wait.'],
         'no Tick for 24 hours' => [fn () => tick('cli', 86_401), 'No Tick has run for 24 hours: Scheduled tasks and queued jobs wait.'],
         'an empty token with no CLI Tick' => [function () {
@@ -1039,15 +1041,43 @@ describe('the web and the scheduler', function () {
             ->and(problem('No Tick'))->toBeNull();
     })->with(['empty' => '', 'set' => 'planner-token']);
 
-    it('warns about a Tick that ran past its budget', function () {
+    it('warns about a Tick that ran past its budget in the last 24 hours', function () {
         tick('visit', 60, ['duration_ms' => 12_500, 'result' => 'OK', 'budget' => 10]);
         tick('web', 60, ['duration_ms' => 10_000, 'result' => 'OK', 'budget' => 10]);
+        // Visits stopped once cron ran: their last file stays behind.
+        tick('cli', 86_401, ['duration_ms' => 60_000, 'result' => 'OK', 'budget' => 50]);
 
         $this->artisan('kami:doctor', ['--strict' => true])
             ->expectsOutputToContain('The last visit Tick took 12.5 s, over its budget of 10 s: a task or a job ran on past it.')
             ->doesntExpectOutputToContain('The last web Tick')
+            ->doesntExpectOutputToContain('The last cli Tick')
             ->expectsOutputToContain('docs/guide/scheduler.md#checking-the-scheduler')
             ->assertFailed();
+    });
+
+    it('warns when the most recent Tick failed', function () {
+        tick('web', 600, ['duration_ms' => 100, 'result' => 'FAILED', 'budget' => 40]);
+        tick('cli', 60, ['duration_ms' => 100, 'result' => 'OK', 'budget' => 50]);
+
+        expect(problem('The last Tick'))->toBeNull();
+
+        tick('visit', 30, ['duration_ms' => 100, 'result' => 'FAILED', 'budget' => 10]);
+        $this->artisan('kami:doctor', ['--strict' => true])
+            ->expectsOutputToContain('The last Tick, from the visit trigger at ' . date('Y-m-d H:i', time() - 30) . ' UTC, failed.')
+            ->assertFailed();
+    });
+
+    it('lists the last Tick of each trigger and the queue\'s size', function () {
+        tick('web', 180, ['duration_ms' => 1_250, 'result' => 'OK', 'budget' => 40]);
+        File::delete(storage_path('framework/kami/tick-cli'));
+        config(['queue.default' => 'sync']);
+
+        Artisan::call('kami:doctor');
+
+        expect(Artisan::output())->toMatch('/cli\W+never/')
+            ->toMatch('/web\W+3 minutes ago, OK in 1\.2 s/')
+            ->toMatch('/visit\W+never/')
+            ->toMatch('/Queue\W+sync, not a database queue: its own worker runs it/');
     });
 
     it('warns when routes/console.php does not call Kami::schedule()', function () {
@@ -1067,6 +1097,7 @@ describe('the web and the scheduler', function () {
         tick('cli', 86_401);
         expect(problem('kami:tick has not run for 24 hours, and only it runs exec() tasks')?->message)
             ->toBe("kami:tick has not run for 24 hours, and only it runs exec() tasks: touch '/tmp/kami-exec'.");
+        $this->artisan('kami:doctor', ['--strict' => true])->assertFailed();
     });
 
     it('warns about a task over an hour late, unless its own filters skip it', function (bool $skipped) {
@@ -1083,6 +1114,8 @@ describe('the web and the scheduler', function () {
         $this->travelTo('2026-11-09 12:01:00');
         expect(problem('Scheduled tasks over an hour late')?->message)
             ->toBe($skipped ? null : 'Scheduled tasks over an hour late: probe, due 2026-11-09 11:00 UTC.');
+        $doctor = $this->artisan('kami:doctor', ['--strict' => true]);
+        $skipped ? $doctor->doesntExpectOutputToContain('over an hour late') : $doctor->expectsOutputToContain('over an hour late')->assertFailed();
     })->with(['run' => false, 'skipped by its filter' => true]);
 
     it('warns about a task that failed or never finished its last run', function () {
@@ -1102,12 +1135,16 @@ describe('the web and the scheduler', function () {
 
         $this->travelTo('2026-11-09 12:11:00');
         expect(problem('Scheduled tasks that failed')?->message)->toBe('Scheduled tasks that failed on their last run: broken, killed (did not finish).');
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain('Scheduled tasks that failed on their last run')->assertFailed();
     });
 
-    it('warns about failed jobs and a job waiting for over an hour', function () {
+    it('warns about failed jobs and a job waiting for over an hour, leaving out one being worked on', function () {
         $this->artisan('migrate')->assertSuccessful();
         // This file's database, where migrate ran.
         config(['queue.default' => 'database', 'queue.connections.database.connection' => null, 'queue.failed.database' => 'empty']);
+        $this->travelTo('2026-11-09 09:00:00');
+        Queue::connection('database')->pushRaw('{}');
+        DB::table('jobs')->update(['reserved_at' => now()->getTimestamp()]);
         $this->travelTo('2026-11-09 10:00:00');
         Queue::connection('database')->pushRaw('{}');
         resolve(FailedJobProviderInterface::class)->log('database', 'default', '{"uuid": "a-job"}', new RuntimeException('Broken job.'));
@@ -1115,8 +1152,11 @@ describe('the web and the scheduler', function () {
         $this->travelTo('2026-11-09 11:00:00');
         expect(problem('A queued job failed.'))->not->toBeNull()
             ->and(problem('The oldest queued job'))->toBeNull();
+        $this->artisan('kami:doctor', ['--strict' => true])->expectsOutputToContain('Fix: list them with php artisan queue:failed')->assertFailed();
 
         $this->travelTo('2026-11-09 11:01:00');
         expect(problem('The oldest queued job')?->message)->toBe('The oldest queued job has waited since 2026-11-09 10:00 UTC.');
+        Artisan::call('kami:doctor');
+        expect(Artisan::output())->toMatch('/Queue\W+2 jobs/');
     });
 });

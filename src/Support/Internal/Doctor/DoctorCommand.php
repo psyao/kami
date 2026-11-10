@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Media\Internal\ImageFormats;
 use Psyao\Kami\Routing\Internal\BenchCommand;
+use Psyao\Kami\Scheduling\Internal\Tick;
+use Psyao\Kami\Support\Internal\WebEnvironment;
 use Throwable;
 
 /** @internal */
@@ -25,6 +27,7 @@ final class DoctorCommand extends Command
     {
         $this->printFormats($formats);
         $this->printWeb();
+        $this->printScheduler();
         $this->printBench();
         $problems = $doctor->problems();
 
@@ -103,6 +106,31 @@ final class DoctorCommand extends Command
         $this->components->twoColumnDetail('disable_functions', $web['disable_functions'] === [] ? 'none' : implode(', ', $web['disable_functions']));
         $this->components->twoColumnDetail('Extensions', $differences === [] ? 'as on the command line' : 'as on the command line, ' . implode('; ', $differences));
         $this->printFormatDrivers($web['image_formats']);
+        $this->newLine();
+    }
+
+    /** Each trigger's last Tick and the queue's size, not Problems: what a stalled scheduler looks like from SSH. */
+    private function printScheduler(): void
+    {
+        $this->components->twoColumnDetail('<options=bold>Ticks</>', 'the last of each trigger');
+
+        foreach (Tick::TRIGGERS as $trigger) {
+            $tick = Tick::last($trigger);
+            $this->components->twoColumnDetail($trigger, $tick === null ? 'never' : sprintf(
+                '%s%s%s',
+                Date::createFromTimestamp($tick['at'])->diffForHumans(),
+                $tick['result'] === null ? '' : ", {$tick['result']}",
+                $tick['duration_ms'] === null ? '' : sprintf(' in %.1f s', $tick['duration_ms'] / 1000),
+            ));
+        }
+
+        $jobs = rescue(fn (): int | false => Doctor::queuedJobs()?->count() ?? false, null, report: false);
+        $this->components->twoColumnDetail('Queue', match ($jobs) {
+            null => 'not readable',
+            false => Config::string('queue.default') . ', not a database queue: its own worker runs it',
+            1 => '1 job',
+            default => "{$jobs} jobs",
+        });
         $this->newLine();
     }
 

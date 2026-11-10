@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Psyao\Kami\Support\Internal\Doctor;
+namespace Psyao\Kami\Support\Internal;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Media\Internal\ImageFormats;
 
 /**
- * What the web's PHP looks like, written by each web or visit Tick for `kami:doctor`, which runs on the command line and sees another PHP.
+ * What the web's PHP looks like, written by each web or visit Tick, and by a visit once an hour, for `kami:doctor`, which runs on the command line and sees another PHP.
  *
  * @internal
  *
@@ -41,6 +41,12 @@ final class WebEnvironment
 
         File::ensureDirectoryExists(dirname($path));
         File::replace($path, $snapshot);
+    }
+
+    /** Whether no web request confirmed the snapshot in the last hour: one `filemtime()`, no SQL. */
+    public static function stale(): bool
+    {
+        return (int) @filemtime(self::path()) <= time() - 3600;
     }
 
     /**

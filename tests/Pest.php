@@ -25,7 +25,7 @@ use Livewire\Livewire;
 use PragmaRX\Google2FA\Google2FA;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\PublicMedia;
-use Psyao\Kami\Support\Internal\Doctor\WebEnvironment;
+use Psyao\Kami\Support\Internal\WebEnvironment;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -160,10 +160,6 @@ function shownNotifications(string $title): int
     return collect($mailbox->pull())->where('title', $title)->keyBy('id')->count();
 }
 
-/**
- * Conversions as `kami:install` leaves a site, for a test that expects `kami:doctor` clean: a shared lock store, `public/`
- * and the public disk the test's own, linked, and served with Kami's headers. A test changes the answer through `$this->served`.
- */
 /** What `kami:doctor` expects of a site that runs: Kami's tasks declared, a recent Tick and a web request's snapshot of its PHP, in the current `storage/`. */
 function withRunningSite(): void
 {
@@ -173,6 +169,10 @@ function withRunningSite(): void
     WebEnvironment::capture();
 }
 
+/**
+ * Conversions as `kami:install` leaves a site, for a test that expects `kami:doctor` clean: a shared lock store, `public/`
+ * and the public disk the test's own, linked, and served with Kami's headers. A test changes the answer through `$this->served`.
+ */
 function withConversionsServed(): void
 {
     config(['cache.default' => 'file', 'filesystems.disks.public.root' => temporaryPath()]);

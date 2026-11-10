@@ -390,7 +390,7 @@ Each paragraph summarises; the ADR or resolution has the full decision.
 
 **Kami inside an application.** Content is Kami's when editors write it and it only publishes, translates and links. Anything with business rules stays host code. `Kami::routes(session: true)` puts pages in the host's `web` group, at the cost of the page cache ([ADR 0038](adr/0038-host-applications-may-mount-kami-pages-in-their-session.md), [Kami inside a custom application](https://github.com/psyao/kami/issues/33#issuecomment-6426002472)).
 
-**Diagnostics.** `kami:doctor` reads a snapshot of the web environment that the Tick writes. It reports `error`s and `warning`s (`--strict`), and a blocking subset runs inside `kami:install`. The last result feeds the "Needs attention" widget ([Developer tooling](https://github.com/psyao/kami/issues/31#issuecomment-6426552165)).
+**Diagnostics.** `kami:doctor` reads a snapshot of the web environment that web and visit Ticks write, and a visit refreshes hourly on a server (ADR 0020). It reports `error`s and `warning`s (`--strict`), and a blocking subset runs inside `kami:install`. The last result feeds the "Needs attention" widget ([Developer tooling](https://github.com/psyao/kami/issues/31#issuecomment-6426552165)).
 
 ## Execution modes
 
