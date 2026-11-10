@@ -144,17 +144,19 @@ final class Tick
      * shared hosting runs no worker (ADR 0020). The worker stops once the budget is spent, after the job it is running, and reports its own errors.
      * Its default queue only: a queue of another name, or another driver, needs a worker of its own.
      */
-    private static function drainQueue(float $rest): void
+    private static function drainQueue(float $secondsLeft): void
     {
         $connection = Config::string('queue.default');
 
-        if ($rest < 1 || Config::get("queue.connections.{$connection}.driver") !== 'database') {
+        if ($secondsLeft < 1 || Config::get("queue.connections.{$connection}.driver") !== 'database') {
             return;
         }
 
         // `--sleep=0`: on an empty queue, the worker would otherwise wait three seconds before stopping. `--memory=0`: its 128 MB, meant for a daemon
         // that leaks, would stop it after one job in a process that already holds more; the budget ends it, and `memory_limit` bounds it.
-        Artisan::call('queue:work', ['connection' => $connection, '--stop-when-empty' => true, '--max-time' => (int) $rest, '--sleep' => 0, '--memory' => 0]);
+        // `--json`: otherwise the command asks `stty` for the terminal's width through `shell_exec()`, a child process on the web.
+        // ponytail: with `pcntl` loaded, the worker leaves its SIGINT and SIGTERM handlers installed; the Tick ends right after, so they are not restored; V1 if a CLI Tick must stop on a signal after its drain.
+        Artisan::call('queue:work', ['connection' => $connection, '--stop-when-empty' => true, '--max-time' => (int) $secondsLeft, '--sleep' => 0, '--memory' => 0, '--json' => true]);
     }
 
     /**

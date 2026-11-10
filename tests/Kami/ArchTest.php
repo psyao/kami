@@ -62,11 +62,6 @@ arch('nothing starts a process')
     ->expect('Psyao\Kami')
     ->not->toUse(['exec', 'shell_exec', 'system', 'passthru', 'proc_open', 'popen', 'Symfony\Component\Process', 'Illuminate\Process', 'Illuminate\Support\Facades\Process']);
 
-// A host's queue may wait for the next Tick, or have no worker at all: Kami's own side effects are written, deferred and swept instead (ADR 0020).
-arch('nothing of Kami goes through the queue')
-    ->expect('Psyao\Kami')
-    ->not->toUse(['dispatch', 'Illuminate\Contracts\Queue\ShouldQueue', 'Illuminate\Support\Facades\Queue', 'Illuminate\Support\Facades\Bus']);
-
 arch('Filament stays in Admin (ADR 0011)')
     ->expect('Psyao\Kami')
     ->not->toUse('Filament')

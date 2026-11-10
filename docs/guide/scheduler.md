@@ -59,8 +59,8 @@ QUEUE_CONNECTION=database
 ```
 
 - **What it takes.** Jobs on the default connection's own queue (`default` unless `DB_QUEUE` names another), and only when that connection uses the `database` driver. Jobs on another queue, or on Redis or SQS, wait for a worker of your own.
-- **Time.** The Tick starts no job once its time is spent, as for tasks: up to 10 seconds after a visit. A job already running finishes, so keep each one short.
-- **Failures** go where a worker sends them: a job that throws is retried as its `$tries` allows, then lands in `failed_jobs`, and `php artisan queue:retry` puts it back.
+- **Time.** The Tick starts no job once its time is spent, as for tasks: up to 10 seconds after a visit. A job already running finishes, so keep each one short: on the web, PHP's `max_execution_time` stops a job mid-way, and Laravel takes it up again after the connection's `retry_after` (90 seconds) as a new attempt, which fails it once its `$tries` are used.
+- **Failures** go where a worker sends them, as Laravel's [queue documentation](https://laravel.com/docs/13.x/queues#dealing-with-failed-jobs) describes.
 
 Keep tasks and jobs short. Work that takes minutes, such as importing thousands of rows, dispatches one job per chunk, each resuming where the last stopped, so that every Tick moves it forward and a Tick that stops mid-way loses nothing.
 
