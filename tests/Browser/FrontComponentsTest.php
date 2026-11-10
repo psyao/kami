@@ -14,10 +14,9 @@ it('shows the language switcher and a date at axe\'s strictest level, light and 
     $save->handle(Article::class, ['title' => 'Hello', 'status' => 'published'], $entry, 'en');
 
     foreach ([visit('/articles/bonjour'), visit('/articles/bonjour')->inDarkMode()] as $page) {
-        $page->assertPresent('nav[aria-label="Langues"] a[hreflang="en"][lang="en"]')
+        assertAxeClean($page->assertPresent('nav[aria-label="Langues"] a[hreflang="en"][lang="en"]')
             ->assertPresent('a[aria-current="page"][lang="fr"]')
-            ->assertPresent('time[datetime]')
-            ->assertNoAccessibilityIssues(3)
+            ->assertPresent('time[datetime]'))
             ->assertNoJavaScriptErrors();
     }
 });

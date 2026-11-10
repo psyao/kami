@@ -100,7 +100,7 @@ On `/en/articles/hello` with a blank English summary, this prints `<p lang="fr">
 </header>
 ```
 
-It renders a `<nav class="kami-locales">` labelled "Languages" in the page's Locale, around a list of links. Each link names its language in that language ("Français", "English"), with `hreflang` and `lang`; the current page's carries `aria-current="page"`. It renders nothing outside an Entry page (a 404, a route of your own), nor when the Entry is visible in a single Locale. It carries no CSS: style `.kami-locales` and `[aria-current]` as you wish.
+It renders a `<nav class="kami-locales">` labelled "Languages" in the page's Locale, around a list of links. Each link names its language in that language ("Français", "English"), with `hreflang` and `lang`; the current page's carries `aria-current="page"`. It renders nothing outside an Entry page (a 404, a route of your own), nor when the Entry is visible in a single Locale. It carries no CSS: style `.kami-locales` and `[aria-current]` as you wish, giving each link a target of at least 24 by 24 px (WCAG 2.2 SC 2.5.8). Unstyled, the links are about 18 px tall and stacked: `.kami-locales a { display: inline-block; padding-block: 0.25rem }` is enough.
 
 Search engines get the same links in the head from `<x-kami::seo />`, without the Translations Hidden from search engines ([SEO](seo.md#languages)).
 

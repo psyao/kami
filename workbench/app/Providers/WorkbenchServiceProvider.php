@@ -24,6 +24,9 @@ class WorkbenchServiceProvider extends ServiceProvider
         // A site's `media.presets` in config/kami.php: Testbench's workbench/config would replace the whole `media` key.
         config(['kami.media.presets' => [ImagePreset::make('card')->ratio(4, 3)->widths([320, 640, 960, 1280])->sizes('(min-width: 60rem) 50vw, 100vw')]]);
 
+        // A site's stylesheet, served from 'self' as the front policy requires; declared before Kami's routes, which would take its path.
+        $router->get('workbench.css', fn () => response()->file(dirname(__DIR__, 2) . '/resources/css/front.css', ['Content-Type' => 'text/css']));
+
         // `composer serve` shows the front, its links at `app.url`, the address it serves. Tests call Kami::routes() themselves and keep the declared URL.
         if (! $this->app->runningUnitTests()) {
             Kami::routes();

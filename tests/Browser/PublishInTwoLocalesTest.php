@@ -38,6 +38,6 @@ it('signs in, creates and publishes an Entry in two Locales, and reads both on t
         visit($url)->on()->mobile()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
     }
 
-    visit('/articles/bonjour')->assertSee('Bonjour')->assertNoAccessibilityIssues(3)->assertNoJavaScriptErrors();
-    visit('/en/articles/hello')->assertSee('Hello')->assertNoAccessibilityIssues(3)->assertNoJavaScriptErrors();
+    assertAxeClean(visit('/articles/bonjour')->assertSee('Bonjour'))->assertNoJavaScriptErrors();
+    assertAxeClean(visit('/en/articles/hello')->assertSee('Hello'))->assertNoJavaScriptErrors();
 });

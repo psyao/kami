@@ -1,0 +1,5 @@
+/* The site's own styles, which Kami's components leave to it (ADR 0009): each language link a 24 px target (WCAG 2.5.8). */
+.kami-locales a {
+    display: inline-block;
+    padding-block: 0.25rem;
+}

@@ -85,6 +85,29 @@ function signIn(): mixed
     return passSignIn(visit('/admin/login', ['reducedMotion' => 'reduce']), 'ada@example.test')->assertSee('Dashboard');
 }
 
+/**
+ * axe at its strictest on a front page: every impact, plus the WCAG 2.2 AA rules `assertNoAccessibilityIssues()` leaves out (`target-size`).
+ * Incomplete results fail too: a target covered by another one is only "incomplete" to axe (#494), except a textarea's
+ * contrast, which axe never resolves past the textarea's own scroll box: a textarea covered by another element goes unseen.
+ */
+function assertAxeClean(mixed $page): mixed
+{
+    $page->assertNoAccessibilityIssues(3); // also injects axe
+
+    $results = $page->script(<<<'JS'
+        async () => {
+            const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
+            const { violations, incomplete } = await axe.run(document, { runOnly: { type: 'tag', values: tags }, elementRef: true });
+            const resolvable = incomplete.map(r => r.id === 'color-contrast' ? { ...r, nodes: r.nodes.filter(n => n.element.tagName !== 'TEXTAREA') } : r);
+            return [...violations, ...resolvable].flatMap(r => r.nodes.map(n => `${r.id}: ${n.target.join(' ')}: ${[...n.any, ...n.all, ...n.none].map(c => c.message).join(' ')}`));
+        }
+        JS);
+
+    expect($results)->toBe([]);
+
+    return $page;
+}
+
 /** The sign-in page's first step, the email and password; a User with MFA is then asked a code, a manager without it sent to set it up. */
 function signInPassword(mixed $page, string $email): mixed
 {
