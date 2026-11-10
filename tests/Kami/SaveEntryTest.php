@@ -484,7 +484,8 @@ it('refuses a slug that cannot answer at its URL', function (string $slug) {
 })->with(['a?b#c d', 'a b', 'a?b', 'a#b', '100%25', 'a\\b', 'a//b', '../a', 'a/..', '.', "a\u{7f}b", "\xff"]);
 
 it('refuses a root type\'s slug where Kami answers itself, in every Locale', function (string $slug, string $locale) {
-    expect(failures(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug], locale: $locale)))->toBe(['slug']);
+    expect(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug], locale: $locale))
+        ->toThrow(fn (ValidationException $exception) => expect($exception->errors())->toBe(['slug' => ['This address is used by the site itself.']]));
 })->with(['media', 'Media/photos', 'sitemaps', 'sitemaps/fr-1.xml', 'kami', 'kami/share', 'sitemap.xml', 'robots.txt'])->with(['fr', 'en']);
 
 it('accepts a slug that only starts like a reserved one', function (string $slug) {
@@ -498,12 +499,23 @@ it('accepts accents, dots and nested segments in a slug', function (string $slug
 it('refuses a root type\'s slug starting with another Locale\'s code, in the default Locale only', function () {
     $page = fn (string $slug, ?string $locale = null) => failures(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug], locale: $locale));
 
-    expect($page('en'))->toBe(['slug'])
+    expect(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => 'en/about']))
+        ->toThrow(fn (ValidationException $exception) => expect($exception->errors())->toBe(['slug' => ['This address belongs to the EN version.']]))
+        ->and($page('en'))->toBe(['slug'])
         ->and($page('en/about'))->toBe(['slug'])
         ->and($page('fr'))->toBe([])
         ->and($page('english'))->toBe([])
         ->and($page('en', 'en'))->toBe([])
         ->and(save(['title' => 'Hello', 'slug' => 'en'])->slug)->toBe('en');
+});
+
+it('words a reserved slug in the editor\'s language', function () {
+    app()->setLocale('fr');
+
+    $page = fn (string $slug) => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug]);
+
+    expect(fn () => $page('media'))->toThrow(ValidationException::class, 'Cette adresse est utilisée par le site lui-même.')
+        ->and(fn () => $page('en'))->toThrow(ValidationException::class, 'Cette adresse appartient à la version EN.');
 });
 
 it('refuses another Locale\'s code for an untranslatable root type, which answers in every Locale', function () {

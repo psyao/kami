@@ -364,6 +364,15 @@ describe('public/robots.txt', function () {
         'own domain' => ['admin', ['admin.example.test']],
     ]);
 
+    it('names a Site URL with capitals in lower case, the panel on its domain still disallowed', function () {
+        config(['kami.sites.default.url' => 'https://Example.Test']);
+        Filament::getPanel('admin')->domains(['example.test']);
+
+        install()->assertSuccessful();
+
+        expect(File::get(public_path('robots.txt')))->toContain("Disallow: /admin\n\nSitemap: https://example.test/sitemap.xml\n");
+    });
+
     it('rewrites a file starting with the marker, and never touches one without it', function () {
         File::put(public_path('robots.txt'), "# Managed by Kami (kami:install). Delete this line to own this file.\nUser-agent: *\nDisallow: /\n");
         install()->assertSuccessful();

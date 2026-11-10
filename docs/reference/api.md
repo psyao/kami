@@ -162,7 +162,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
 - `final public function sectionLabel(string $section): string`: `kami-types.{handle}.sections.{section}.label`, or the humanised handle.
 - `public function socialImage(Psyao\Kami\Content\Entry $entry): ?Psyao\Kami\Media\Media`: The page's Social image when its Entry has none of its own, before the Site's default one: `null` by default.
-- `public function summary(Psyao\Kami\Content\Entry $entry): ?string`: The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field, in its own Locale only.
+- `public function summary(Psyao\Kami\Content\Entry $entry): ?string`: The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field's paragraphs, in its own Locale only.
 - `final public function tabLabel(string $tab): string`: `kami-types.{handle}.tabs.{tab}.label`, or the humanised handle.
 
 ## `Psyao\Kami\Content\Entry`

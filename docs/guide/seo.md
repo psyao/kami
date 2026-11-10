@@ -50,7 +50,7 @@ The Site name is `site_name` in the Site settings, in the page's Locale. Left bl
 
 The Translation's Meta description, else the type's `summary()`, else the Site settings' default description on the page at the root Path only. With none of them, no tag.
 
-`summary()` defaults to the first 160 characters of the type's first RichText Field, cut at a word. Override it on the type to read another Field. `$entry->summary()` calls it; `$entry->summary`, with no call, still reads a Field you named `summary`:
+`summary()` defaults to the first 160 characters of the paragraphs of the type's first RichText Field, joined by a space and cut at a word. Only the document's own paragraphs are read: headings, code blocks, lists, quotes and Blocks are left out, so a page opening on a heading is described by the paragraph after it. Override it on the type to read another Field. `$entry->summary()` calls it; `$entry->summary`, with no call, still reads a Field you named `summary`:
 
 ```php
 public function summary(Entry $entry): ?string

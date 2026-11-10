@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Psyao\Kami\Audit\Internal\AuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
@@ -177,12 +178,48 @@ it('builds the sitemap in one run within a shared host\'s memory', function () {
     }
 });
 
-it('opens the admin table', function () {
+function signInAsAdministrator(): void
+{
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
     // A manager without MFA is sent to set it up (#362).
-    $this->actingAs(withMfa(User::forceCreate(['name' => 'Ada', 'email' => uniqid() . '@example.test', 'password' => 'secret'])));
+    test()->actingAs(withMfa(User::forceCreate(['name' => 'Ada', 'email' => uniqid() . '@example.test', 'password' => 'secret'])));
     DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => auth()->id(), 'role' => 'administrator']);
+}
+
+it('opens the admin table', function () {
+    signInAsAdministrator();
 
     measure('Admin table', fn () => $this->get('/admin/projects')->assertOk());
+});
+
+it('opens the Audit log over 12 months of events, its User filter reading nothing from the log', function () {
+    signInAsAdministrator();
+    $events = ['kami.auth.signed-in', 'kami.auth.sign-in-failed', 'kami.entries.saved', 'kami.media.saved', 'acme.invoices.imported'];
+
+    // One event every four minutes for a year, a sign-in site's retention: sign-ins and failures name a User as subject.
+    foreach (array_chunk(range(1, 131_400), 500) as $numbers) {
+        DB::table('kami_audit_events')->insert(array_map(fn (int $number): array => [
+            'id' => (string) Str::ulid(), 'occurred_at' => now('UTC')->subMinutes($number * 4), 'user_id' => $number % 3 === 0 ? null : auth()->id(),
+            'actor' => $number % 3 === 0 ? 'system' : 'user', 'event' => $events[$number % 5], 'subject_type' => 'user', 'subject_id' => (string) ($number % 200),
+            'site' => 'default', 'ip' => '192.0.2.0', 'context' => '{}',
+        ], $numbers));
+    }
+
+    if (DB::getDriverName() !== 'sqlite') {
+        DB::statement(DB::getDriverName() === 'pgsql' ? 'analyze kami_audit_events' : 'analyze table kami_audit_events');
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $start = microtime(true);
+    measure('Audit log, 131,400 events', fn () => $this->get('/admin/audit-events')->assertOk());
+    // 0.2 to 0.4 s on every engine; loose, as a shared runner is slower (#454).
+    expect(microtime(true) - $start)->toBeLessThan(5);
+    $queries = collect(DB::getQueryLog())->pluck('query')->filter(fn (string $sql): bool => str_contains($sql, 'kami_audit_events'));
+    DB::disableQueryLog();
+
+    // #378's two scans for the User filter's options are gone; the Event filter's read its index.
+    expect($queries->filter(fn (string $sql): bool => preg_match('/distinct.*(user_id|subject_id)/', $sql) === 1))->toBeEmpty()
+        ->and(plan(AuditEvent::query()->latest('occurred_at')->orderByDesc('id')->limit(10)))->toContain('kami_audit_events_occurred_at_index');
 });

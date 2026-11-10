@@ -969,10 +969,43 @@ final class EntryResource extends FilamentResource
             return [];
         }
 
+        return self::namesOf($user->newQuery()->whereIn($user->getAuthIdentifierName(), $keys)->get());
+    }
+
+    /**
+     * The names of the panel Users whose name holds the search, 50 at most, by key; a typed key no User holds is kept, unnamed, as a deleted User's.
+     *
+     * ponytail: searches the `name` column Filament names a User by without `HasName`, as the Workbench's and the starter kit's Users have; V1 takes the
+     * column from the host if a friction shows one without it.
+     *
+     * @return array<array-key, string|null>
+     */
+    public static function usersMatching(string $search): array
+    {
+        $user = self::newUser();
+        $search = trim($search);
+
+        if ($user === null || $search === '') {
+            return [];
+        }
+
+        // Only what can be a key is compared with one: an integer key column refuses a string, or a number past its range, on PostgreSQL.
+        $isKey = $user->getKeyType() === 'int' ? filter_var($search, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false : Str::isUlid($search) || Str::isUuid($search);
+        $names = self::namesOf($user->newQuery()->whereLike('name', "%{$search}%")->when($isKey, fn (Builder $query) => $query->orWhere($user->getAuthIdentifierName(), $search))->orderBy('name')->limit(50)->get());
+
+        return $names === [] && $isKey ? [$search => null] : $names;
+    }
+
+    /**
+     * @param  iterable<Model>  $users
+     * @return array<array-key, string>
+     */
+    private static function namesOf(iterable $users): array
+    {
         $names = [];
 
-        foreach ($user->newQuery()->whereIn($user->getAuthIdentifierName(), $keys)->get() as $found) {
-            $key = $found->getAuthIdentifier();
+        foreach ($users as $found) {
+            $key = $found instanceof Authenticatable ? $found->getAuthIdentifier() : null;
 
             if (is_int($key) || is_string($key)) {
                 $names[$key] = Filament::getUserName($found);

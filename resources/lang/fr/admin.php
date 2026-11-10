@@ -15,6 +15,8 @@ return [
         'encoding' => 'Le champ :attribute doit être un texte UTF-8 valide.',
         'path_taken' => 'Une autre Entry répond déjà au Prefix de ce type : changez le Prefix.',
         'slug_moves' => 'Le modifier déplace l’adresse : une fois la page publiée, l’ancienne redirige vers la nouvelle.',
+        'slug_reserved' => 'Cette adresse est utilisée par le site lui-même.',
+        'slug_locale' => 'Cette adresse appartient à la version :LOCALE.',
         'published_at' => 'Date de publication',
         'published_at_help' => 'Dans le fuseau horaire :timezone. Laissée vide, la publication la fixe à maintenant ; une date à venir programme la publication.',
         'shared' => 'Commun à toutes les langues : le modifier ici le modifie partout.',

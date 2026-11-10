@@ -98,6 +98,24 @@ it('reads a Field named summary as an attribute and the type\'s summary as a cal
         ->and(seoArticle(['title' => 'Vide'])->summary())->toBeNull();
 });
 
+it('summarises a page with its paragraphs only, skipping headings, code, lists, quotes and Blocks', function () {
+    $text = fn (string $text): array => ['type' => 'text', 'text' => $text];
+    $paragraph = fn (array ...$content): array => ['type' => 'paragraph', 'content' => $content];
+    $body = new Document(['type' => 'doc', 'content' => [
+        ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [$text('Titre')]],
+        $paragraph($text('Un'), ['type' => 'hardBreak'], $text('début.')),
+        ['type' => 'codeBlock', 'content' => [$text('echo 1;')]],
+        ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => []]],
+        ['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [$paragraph($text('Puce'))]]]],
+        ['type' => 'blockquote', 'content' => [$paragraph($text('Citation'))]],
+        $paragraph($text('Un '), ['type' => 'text', 'text' => 'lien', 'marks' => [['type' => 'link', 'attrs' => ['href' => 'https://example.com']]]], $text('.')),
+        $paragraph($text(str_repeat('long ', 40))),
+    ]]);
+
+    expect(seoArticle(['title' => 'Bonjour', 'body' => $body])->summary())
+        ->toBe('Un début. Un lien. ' . trim(str_repeat('long ', 28)) . '…');
+});
+
 it('reads summary on a type with no Field of that name as any missing attribute', function () {
     $page = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'À propos'], locale: 'fr');
 
