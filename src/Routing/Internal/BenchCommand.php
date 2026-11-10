@@ -48,7 +48,7 @@ final class BenchCommand extends Command
         try {
             // A query string bypasses the page cache, in the reader and in the middleware alike.
             $medians = [
-                'cached' => $this->median($client, array_fill(0, self::RUNS, $url)),
+                'cached' => $this->median($client, array_fill(0, self::RUNS, $url), fromPageCache: true),
                 'uncached' => $this->median($client, array_map(fn (int $run): string => "{$url}?kami-bench={$run}", range(1, self::RUNS))),
             ];
         } catch (Throwable $exception) {
@@ -58,11 +58,20 @@ final class BenchCommand extends Command
         }
 
         foreach ($medians as $kind => $median) {
-            $this->components->twoColumnDetail(ucfirst($kind), sprintf('%.1f ms', $median));
+            $this->components->twoColumnDetail(ucfirst($kind), $median === null ? 'not served from the page cache' : sprintf('%.1f ms', $median));
 
             if ($median > self::BUDGETS[$kind]) {
                 $this->components->warn(sprintf('%s pages take %.1f ms, above the %d ms budget.', ucfirst($kind), $median, self::BUDGETS[$kind]));
             }
+        }
+
+        if ($medians['cached'] === null) {
+            $this->components->warn('No cached time is measured. Check that the page:');
+            $this->components->bulletList([
+                'is a Kami page, not a route of the site',
+                'does not call Kami::withoutPageCache()',
+                'receives no Authorization header, as a staging password sends',
+            ]);
         }
 
         $this->store($url, $medians);
@@ -78,27 +87,32 @@ final class BenchCommand extends Command
 
     /**
      * The last result, or null when none was kept or the file was edited out of shape: `kami:doctor` never throws on it.
+     * `cached_ms` is null when the page cache did not serve the page.
      *
-     * @return array{measured_at: CarbonImmutable, url: string, cached_ms: float, uncached_ms: float}|null
+     * @return array{measured_at: CarbonImmutable, url: string, cached_ms: ?float, uncached_ms: float}|null
      */
     public static function lastResult(): ?array
     {
         $result = json_decode((string) @file_get_contents(self::resultPath()), true);
 
-        if (! is_array($result) || ! is_int($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ! is_numeric($result['cached_ms'] ?? null) || ! is_numeric($result['uncached_ms'] ?? null)) {
+        if (! is_array($result) || ! is_int($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ! array_key_exists('cached_ms', $result)
+            || $result['cached_ms'] !== null && ! is_numeric($result['cached_ms']) || ! is_numeric($result['uncached_ms'] ?? null)) {
             return null;
         }
 
-        return ['measured_at' => CarbonImmutable::createFromTimestamp($result['measured_at']), 'url' => $result['url'], 'cached_ms' => (float) $result['cached_ms'], 'uncached_ms' => (float) $result['uncached_ms']];
+        return ['measured_at' => CarbonImmutable::createFromTimestamp($result['measured_at']), 'url' => $result['url'], 'cached_ms' => $result['cached_ms'] === null ? null : (float) $result['cached_ms'], 'uncached_ms' => (float) $result['uncached_ms']];
     }
 
     /**
-     * Server time as the client's transfer statistics give it: from the TLS handshake's end to the response's first byte.
+     * Server time as the client's transfer statistics give it: from the request ready to send, past DNS, connect and TLS alike, to the response's first byte.
+     * With `$fromPageCache`, null when any response does not carry the page cache's ETag: its time is a render, not a hit.
      *
      * @param  list<string>  $urls
+     * @return ($fromPageCache is true ? float|null : float)
      */
-    private function median(PendingRequest $client, array $urls): float
+    private function median(PendingRequest $client, array $urls, bool $fromPageCache = false): ?float
     {
+        $hits = true;
         $times = [];
 
         foreach ($urls as $url) {
@@ -111,17 +125,18 @@ final class BenchCommand extends Command
             // cURL's, in seconds. PHP's stream wrapper, Guzzle's fallback without ext-curl, gives none.
             $stats = $response->handlerStats();
 
-            if (! isset($stats['starttransfer_time'], $stats['appconnect_time'])) {
+            if (! isset($stats['starttransfer_time'], $stats['pretransfer_time'])) {
                 throw new RuntimeException('the HTTP client gives no transfer statistics: load the PHP extension curl.');
             }
 
-            $times[] = (Arr::float($stats, 'starttransfer_time') - Arr::float($stats, 'appconnect_time')) * 1000;
+            $hits = $hits && preg_match(PageCache::ETAG, $response->header('ETag')) === 1;
+            $times[] = (Arr::float($stats, 'starttransfer_time') - Arr::float($stats, 'pretransfer_time')) * 1000;
         }
 
-        return round((float) collect($times)->median(), 1);
+        return $fromPageCache && ! $hits ? null : round((float) collect($times)->median(), 1);
     }
 
-    /** @param array{cached: float, uncached: float} $medians */
+    /** @param array{cached: ?float, uncached: float} $medians */
     private function store(string $url, array $medians): void
     {
         try {

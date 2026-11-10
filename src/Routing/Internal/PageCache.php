@@ -30,6 +30,9 @@ final class PageCache
     /** Repeated by `resources/page-cache.php`. */
     private const int MAX_AGE = 3600;
 
+    /** The `ETag` of a page the page cache stored or served, as `store()` writes it: the version, then the body's xxh128. */
+    public const string ETAG = '/^"[0-9a-f]{16}-[0-9a-f]{32}"$/';
+
     public static function enabled(): bool
     {
         return config()->boolean('kami.page_cache.enabled');
