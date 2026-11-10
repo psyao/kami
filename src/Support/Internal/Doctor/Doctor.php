@@ -1084,9 +1084,9 @@ final readonly class Doctor
             $problems[] = new Problem(Severity::Error, "Submissions are never mailed: the default mailer, {$mailer}, keeps every mail on the server.", 'set MAIL_MAILER=smtp and your host\'s MAIL_* settings in .env.', 'hosting.md#mail');
         }
 
-        // ponytail: no upper bound on a set timeout, add one when a site meets a long one (#513).
-        if ($forms !== [] && $transport === 'smtp' && config("mail.mailers.{$mailer}.timeout") === null) {
-            $problems[] = new Problem($this->runningSiteSeverity(), "The smtp mailer, {$mailer}, has no timeout: a Submission mailed while the mail server hangs waits PHP's default_socket_timeout, 60 s, inside a visitor's request or a Tick.", "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.", 'hosting.md#mail');
+        // Blank, as a bare env('MAIL_TIMEOUT') reads an empty MAIL_TIMEOUT=: Laravel's mailer then throws at send time.
+        if ($forms !== [] && $transport === 'smtp' && blank(config("mail.mailers.{$mailer}.timeout"))) {
+            $problems[] = new Problem($this->runningSiteSeverity(), "The default mailer, {$mailer}, sends over SMTP with no timeout: a Submission mailed while the mail server hangs waits PHP's default_socket_timeout, 60 s, inside a visitor's request or a Tick.", "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.", 'hosting.md#mail');
         }
 
         $unrouted = array_filter($forms, fn (Form $form): bool => $form->recipients() === [] && rescue(fn (): bool => in_array('mail', Deliveries::channels($form, new Submission(['data' => []])), true), false, report: false));
