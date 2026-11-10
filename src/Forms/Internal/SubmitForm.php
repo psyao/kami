@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Forms\Internal;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
@@ -22,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * `POST /kami/forms/{handle}`: no session, cookie or CSRF token, so the page holding the Form stays cached (ADR 0015).
- * Checks the origin, then `_kami_origin`, the honeypot and the throttle, then validates: errors re-render the page as a 422, success answers 303.
+ * Checks the origin, the honeypot, `_kami_origin` and the throttle, then validates: errors re-render the page as a 422, success answers 303.
  *
  * @internal
  */
@@ -46,27 +48,32 @@ final class SubmitForm
 
         abort_unless($this->sameOrigin($request), 403);
 
-        [$entry, $locale] = $this->origin($request) ?? abort(422);
-        $sent = redirect()->away("{$entry->url($locale)}?sent={$form->handle()}#{$form->handle()}", 303);
+        $origin = $this->origin($request);
+        $sent = fn (?string $url): RedirectResponse => redirect()->away("{$url}?sent={$form->handle()}#{$form->handle()}", 303);
 
-        // The normal success, nothing stored and nothing counted: a bot learns nothing, and a person behind its IP keeps their quota.
+        // The normal success before the page and the throttle are checked, nothing stored and nothing counted: a bot learns nothing, and a person behind its IP keeps their quota.
         if ($request->filled(self::HONEYPOT)) {
-            return $sent;
+            return $sent($origin === null ? Site::current()->url : $origin[0]->url($origin[1]));
         }
 
+        [$entry, $locale] = $origin ?? abort(422);
         $key = $this->throttleKey($request, $form);
-        abort_if(RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS), 429, headers: ['Retry-After' => RateLimiter::availableIn($key)]);
-        RateLimiter::hit($key, self::DECAY_SECONDS);
 
-        $validator = Validator::make($request->except([self::HONEYPOT, self::ORIGIN]), $form->rules());
+        // Counted first, so parallel requests cannot all pass a check made before any of them counts.
+        if (RateLimiter::hit($key, self::DECAY_SECONDS) > self::MAX_ATTEMPTS) {
+            abort(429, headers: ['Retry-After' => RateLimiter::availableIn($key)]);
+        }
+
+        $input = $request->except([self::HONEYPOT, self::ORIGIN]);
+        $validator = Validator::make($input, $form->rules());
 
         if ($validator->fails()) {
-            return $this->invalid($request, $entry, $validator->errors());
+            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD));
         }
 
         resolve(StoreSubmission::class)->handle($form, $validator->validated(), $locale, $entry);
 
-        return $sent;
+        return $sent($entry->url($locale));
     }
 
     /** `Sec-Fetch-Site` from a browser that sends it; otherwise an `Origin` that is absent or the Site's (ADR 0015). Scripts can set neither. */
@@ -78,8 +85,10 @@ final class SubmitForm
 
         $origin = $request->headers->get('Origin');
         $site = Uri::of(Site::current()->url);
+        // As a browser serialises it: a lowercase host, and no port when it is the scheme's default.
+        $port = in_array([$site->scheme(), $site->port()], [['http', 80], ['https', 443]], true) ? null : $site->port();
 
-        return $origin === null || $origin === "{$site->scheme()}://{$site->host()}" . ($site->port() === null ? '' : ":{$site->port()}");
+        return $origin === null || $origin === strtolower("{$site->scheme()}://{$site->host()}") . ($port === null ? '' : ":{$port}");
     }
 
     /**
@@ -107,22 +116,32 @@ final class SubmitForm
     {
         $ip = (string) $request->ip();
         $packed = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false ? false : inet_pton($ip);
+        // An IPv4 address a dual-stack listener reports as `::ffff:a.b.c.d` counts as itself, not with every IPv4 visitor in `::/64`.
+        $group = match (true) {
+            $packed === false => $ip,
+            str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff") => (string) inet_ntop(substr($packed, 12)),
+            default => bin2hex(substr($packed, 0, 8)),
+        };
 
-        return 'kami:form:' . hash('sha256', $form->handle() . '|' . ($packed === false ? $ip : bin2hex(substr($packed, 0, 8))));
+        return 'kami:form:' . hash('sha256', "{$form->handle()}|{$group}");
     }
 
     /** The page again with the errors and the visitor's input, for this response only: a store held in memory, so no cookie, under the `web` group the real session. */
-    private function invalid(Request $request, Entry $entry, MessageBag $errors): Response
+    /** @param  array<mixed>  $old */
+    private function invalid(Request $request, Entry $entry, MessageBag $errors, array $old): Response
     {
         if (! $request->hasSession()) {
             $request->setLaravelSession(new Store('kami', new ArraySessionHandler(0)));
         }
 
-        $request->session()->now('_old_input', $request->except([self::HONEYPOT, self::ORIGIN, ...self::NEVER_OLD]));
+        $request->session()->now('_old_input', $old);
         $bag = new ViewErrorBag()->put('default', $errors);
 
         $response = Router::toResponse($request, RenderEntry::render($request, $entry, $bag));
-        $response->setStatusCode(422);
+        // A page answered 200; a type whose `render()` chose another status, a redirect for one, keeps it.
+        if ($response->getStatusCode() === 200) {
+            $response->setStatusCode(422);
+        }
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;

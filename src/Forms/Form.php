@@ -17,7 +17,7 @@ abstract class Form
     /** `ContactForm` → `contact`: the class name in snake_case, without a trailing `Form`. Used in the route, `form="…"` and `?sent=`. */
     public function handle(): string
     {
-        return Str::snake(Str::beforeLast(class_basename(static::class), 'Form') ?: class_basename(static::class));
+        return Str::snake(Str::replaceEnd('Form', '', class_basename(static::class)) ?: class_basename(static::class));
     }
 
     /**

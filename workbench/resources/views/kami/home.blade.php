@@ -13,7 +13,7 @@
         <section aria-labelledby="contact-heading">
             <h2 id="contact-heading">{{ __('kami-forms.contact.label') }}</h2>
             @if (\Psyao\Kami\Facades\Kami::form('contact')->sent())
-                <p id="contact" role="status">{{ app()->getLocale() === 'fr' ? 'Merci, votre message est envoyé.' : 'Thank you, your message is sent.' }}</p>
+                <p id="contact" role="status">{{ __('kami-forms.contact.sent') }}</p>
             @else
                 <x-kami::form form="contact">
                     <x-kami::form.errors />
@@ -29,7 +29,7 @@
                         <textarea id="message" name="message" required @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
                         @error('message')<span id="message-error">{{ $message }}</span>@enderror
                     </p>
-                    <p><button type="submit">{{ app()->getLocale() === 'fr' ? 'Envoyer' : 'Send' }}</button></p>
+                    <p><button type="submit">{{ __('kami-forms.contact.send') }}</button></p>
                 </x-kami::form>
             @endif
         </section>

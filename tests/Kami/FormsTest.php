@@ -20,6 +20,15 @@ use Workbench\App\Forms\ContactForm;
 
 uses(RefreshDatabase::class);
 
+/** A Form named with `Form` inside its name, not at its end. */
+final class ContactFormV2 extends Form
+{
+    public function rules(): array
+    {
+        return [];
+    }
+}
+
 /** A Form named without the `Form` suffix. */
 final class QuoteRequest extends Form
 {
@@ -92,6 +101,13 @@ it('checks the origin: Sec-Fetch-Site when sent, else an absent or matching Orig
     'no header' => [[], 303],
 ]);
 
+it('matches Origin as a browser sends it, against a Site URL with capitals or a default port', function (string $url) {
+    config(['kami.sites.default.url' => $url]);
+    $page = contactPage();
+
+    sendContact($page, headers: ['Origin' => 'https://example.com'])->assertStatus(303);
+})->with(['capitals' => 'https://Example.COM', 'default port' => 'https://example.com:443']);
+
 it('answers a filled honeypot with the normal success, storing and counting nothing', function () {
     Event::fake([SubmissionStored::class]);
     $page = contactPage();
@@ -104,6 +120,13 @@ it('answers a filled honeypot with the normal success, storing and counting noth
     Event::assertNotDispatched(SubmissionStored::class);
     sendContact($page)->assertStatus(303);
     expect(Submission::query()->count())->toBe(1);
+});
+
+it('answers a filled honeypot with the normal success even when the page is unknown', function () {
+    $response = test()->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/contact', ['_kami_origin' => 'forged', 'kami_website' => 'https://spam.test']);
+
+    $response->assertStatus(303)->assertRedirect('http://localhost?sent=contact#contact');
+    expect(Submission::query()->count())->toBe(0);
 });
 
 it('refuses a missing or invalid origin page with a 422 error page, storing nothing', function (Closure $origin) {
@@ -147,9 +170,10 @@ it('throttles five Submissions per minute per IP and Form, an IPv6 address by it
     $from('2001:db8:1:1::3')->assertTooManyRequests()->assertHeader('Retry-After');
     $from('2001:db8:1:2::1')->assertStatus(303);
     $from('192.0.2.1')->assertStatus(303);
+    $from('::ffff:198.51.100.7')->assertStatus(303);
     $this->travel(61)->seconds();
     $from('2001:db8:1:1::1')->assertStatus(303);
-    expect(Submission::query()->count())->toBe(7);
+    expect(Submission::query()->count())->toBe(8);
 });
 
 it('re-renders the page as a 422 with the errors, the input and no cookie, never stored or cached', function () {
@@ -195,6 +219,16 @@ it('emits @csrf under Kami::routes(session: true), whose form route joins the we
     expect(Route::getRoutes()->getByName('kami.form')?->gatherMiddleware())->toContain('web');
 });
 
+it('renders the page that holds a Form in an exact number of queries', function () {
+    contactPage();
+
+    DB::enableQueryLog();
+    $this->get('/en')->assertOk()->assertSee('kami-form');
+
+    // The page's own, none of the Form's: the Path, the Entry with its visibility, its Translations, its type row, the Site settings, the Social image Reference.
+    expect(DB::getQueryLog())->toHaveCount(6);
+});
+
 it('adds no query to the page that holds a Form', function () {
     $page = contactPage();
     request()->attributes->set('kami.entry', $page);
@@ -218,6 +252,7 @@ it('re-renders the input and errors from the visitor\'s session under Kami::rout
 it('derives a Form\'s handle from its class name without a trailing Form, and labels it from kami-forms', function () {
     expect(new ContactForm()->handle())->toBe('contact')
         ->and(new QuoteRequest()->handle())->toBe('quote_request')
+        ->and(new ContactFormV2()->handle())->toBe('contact_form_v2')
         ->and(Kami::form('contact')->label())->toBe('Contact');
 });
 

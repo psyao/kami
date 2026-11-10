@@ -10,8 +10,8 @@ use InvalidArgumentException;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Events\SubmissionStored;
 use Psyao\Kami\Forms\Form;
-use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Forms\Submission;
+use Psyao\Kami\Kami;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -28,7 +28,7 @@ final class StoreSubmission
      */
     public function handle(Form | string $form, array $data, string $locale, ?Entry $entry = null): Submission
     {
-        $form = is_string($form) ? resolve(Forms::class)->find($form) ?? throw new InvalidArgumentException("No Form [{$form}] is listed under kami.forms.") : $form;
+        $form = is_string($form) ? resolve(Kami::class)->form($form) : $form;
         $site = Site::current();
 
         if (! in_array($locale, $site->locales, true)) {

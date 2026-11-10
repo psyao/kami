@@ -6,5 +6,8 @@ declare(strict_types=1);
 return [
     'contact' => [
         'label' => 'Contact',
+        // The Workbench view's own strings, beside the Form's label.
+        'sent' => 'Thank you, your message is sent.',
+        'send' => 'Send',
     ],
 ];

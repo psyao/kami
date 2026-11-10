@@ -84,7 +84,7 @@ Kami renders no input: the markup is yours, in the view of the page that holds t
 Each Submission posts to `POST /kami/forms/{handle}`, named `kami.form`, which `Kami::routes()` registers.
 
 - **Accepted.** The Submission is stored and the visitor is sent back to the page with `?sent=contact#contact`. `Kami::form('contact')->sent()` is true there, so the page shows its confirmation. A URL with a query string is never page-cached, so the confirmation is never served to another visitor.
-- **Refused by validation.** The page is rendered again, with a 422 status, `Cache-Control: no-store` and no cookie. `$errors`, `@error` and `old()` work there as in Laravel's `web` group, for this response only. A field named `password`, `password_confirmation` or `current_password` is never filled again.
+- **Refused by validation.** The page is rendered again, with a 422 status (unless your type's `render()` answers another), `Cache-Control: no-store` and no cookie. `$errors`, `@error` and `old()` work there as in Laravel's `web` group, for this response only. A field named `password`, `password_confirmation` or `current_password` is never filled again.
 
 A refused Submission stores nothing. With no session, a reload of that page asks the browser to send the form again.
 
@@ -93,8 +93,8 @@ A refused Submission stores nothing. With no session, a reload of that page asks
 The route checks, in this order:
 
 1. **The origin.** A browser's `Sec-Fetch-Site` must be `same-origin`; a browser that sends no such header passes when its `Origin` is absent or the Site's. Otherwise: 403. No script can set these headers, so another site cannot make its visitors' browsers post to your Form.
-2. **The page.** `_kami_origin` must name an Entry visible on the Site, in one of its Locales. Otherwise: a 422 through your [error pages](routing-and-rendering.md#error-pages).
-3. **The honeypot.** When the hidden field is filled, the answer is the normal success, and nothing is stored or counted.
+2. **The honeypot.** When the hidden field is filled, the answer is the normal success, back to the page or to the Site's home when the page is unknown, and nothing is stored or counted.
+3. **The page.** `_kami_origin` must name an Entry visible on the Site, in one of its Locales. Otherwise: a 422 through your [error pages](routing-and-rendering.md#error-pages).
 4. **The throttle.** Five Submissions per minute per Form and per IP address; an IPv6 address counts with its whole /64. Above it: 429, with `Retry-After`. The key is hashed in your application's cache, so no address is kept. Only a Submission that passed the checks above counts, so a bot caught by the honeypot does not use up the quota of a person behind the same address.
 5. **Validation**, against `rules()`.
 
