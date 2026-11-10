@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Scheduling\Internal\Tick;
 
 uses(RefreshDatabase::class);
 
@@ -226,4 +228,55 @@ it('leaves a native schedule:run running when the runs cannot be recorded', func
 
     expect($this->runs)->toBe(['probe']);
     Exceptions::assertReported(QueryException::class);
+});
+
+/** Queues jobs on the `database` connection that each sleep for `$seconds`, then count themselves in the cache. */
+function queueJobs(int $count, float $seconds = 0): void
+{
+    foreach (range(1, $count) as $ignored) {
+        Queue::connection('database')->push(function () use ($seconds): void {
+            usleep((int) ($seconds * 1_000_000));
+            Cache::increment('jobs-run');
+        });
+    }
+}
+
+it('works through the default database queue after its tasks', function (): void {
+    config(['queue.default' => 'database']);
+    queueJobs(2);
+
+    $this->artisan('kami:tick')->expectsOutput('OK')->assertSuccessful();
+
+    expect(Cache::get('jobs-run'))->toBe(2)
+        ->and(DB::table('jobs')->count())->toBe(0);
+});
+
+it('leaves the database queue alone when the default connection has another driver', function (): void {
+    config(['queue.default' => 'sync']);
+    queueJobs(1);
+
+    $this->artisan('kami:tick')->expectsOutput('OK')->assertSuccessful();
+
+    expect(DB::table('jobs')->count())->toBe(1);
+});
+
+// The worker checks its time after each job: a job running past the budget left stops it, and the next waits for another Tick.
+it('starts no job once the budget is spent', function (): void {
+    config(['queue.default' => 'database']);
+    queueJobs(2, seconds: 1);
+
+    expect(Tick::run('cli', 2))->toBe('OK')
+        ->and(Cache::get('jobs-run'))->toBe(1)
+        ->and(DB::table('jobs')->count())->toBe(1);
+});
+
+it('takes no job when its tasks left less than a second', function (): void {
+    config(['queue.default' => 'database']);
+    $this->schedule->call(fn () => usleep(1_000_000))->name('slow')->hourly();
+    tickAt($this, '2026-11-09 10:30:00');
+    queueJobs(1);
+    $this->travelTo('2026-11-09 11:00:00');
+
+    expect(Tick::run('cli', 2))->toBe('OK')
+        ->and(DB::table('jobs')->count())->toBe(1);
 });

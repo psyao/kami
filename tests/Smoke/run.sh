@@ -247,19 +247,22 @@ else
 fi
 
 # The Tick (psyao/kami#476), in-process under FPM with `proc_open` off. The planner's URL: a wrong token is a 404; the first visits above
-# recorded each task's baseline, so `kami:sitemap`, a `command()` task made overdue, runs inside the call.
+# recorded each task's baseline, so `kami:sitemap`, a `command()` task made overdue, runs inside the call, then a queued job (psyao/kami#477).
 tick_body() {
     curl --silent --show-error --header 'X-Forwarded-Proto: https' "$base_url/kami/tick/$1" || true
 }
 token=$(docker compose run -T --rm cli sed -n 's/^KAMI_TICK_TOKEN=//p' .env | tr -d '\r')
 expect 404 /kami/tick/not-the-token
 site_php 'Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:sitemap")->update(["last_run_at" => now()->subHours(2), "last_status" => null]);' >/dev/null 2>&1 || true
+# A queued closure is serialised from its source file, which `php -r` lacks.
+site_php 'file_put_contents("/tmp/job.php", "<?php return function () { file_put_contents(storage_path(\"app/smoke-job\"), PHP_SAPI); };"); dispatch(require "/tmp/job.php");' >/dev/null 2>&1 || true
 tick=$(tick_body "$token")
 sitemap_run=$(site_php 'echo Illuminate\Support\Facades\DB::table("kami_task_runs")->where("description", "kami:sitemap")->where("last_run_at", ">", now()->subMinute())->value("last_status");' 2>&1 || true)
-if [ "$tick" = OK ] && [ "$sitemap_run" = succeeded ]; then
-    echo "GET /kami/tick/{token}: OK, kami:sitemap ran in-process"
+job_sapi=$(docker compose exec -T php sh -c 'cat /var/www/site/storage/app/smoke-job 2>/dev/null' || true)
+if [ "$tick" = OK ] && [ "$sitemap_run" = succeeded ] && [ "$job_sapi" = fpm-fcgi ]; then
+    echo "GET /kami/tick/{token}: OK, kami:sitemap and a queued job ran in-process"
 else
-    echo "GET /kami/tick/{token}: \"$tick\", kami:sitemap: \"$sitemap_run\""
+    echo "GET /kami/tick/{token}: \"$tick\", kami:sitemap: \"$sitemap_run\", queued job run by: \"$job_sapi\""
     failed=1
 fi
 

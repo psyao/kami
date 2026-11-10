@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Routing\Internal;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Seo\Internal\Sitemap;
@@ -23,7 +24,7 @@ final class PageCache
     /** Set on the request by `Kami::withoutPageCache()`. */
     public const string SKIP = 'kami.without_page_cache';
 
-    /** The version read once per request: an unwritable `storage/` would otherwise recompute it, with a query, on every call. */
+    /** The version read once per HTTP request: an unwritable `storage/` would otherwise recompute it, with a query, on every call. */
     private const string VERSION = 'kami.content_version';
 
     /** Repeated by `resources/page-cache.php`. */
@@ -35,12 +36,14 @@ final class PageCache
     }
 
     /**
-     * The Content version, read once per request; a missing, malformed or passed manifest is recomputed and rewritten first.
+     * The Content version, read once per HTTP request and at each call in the console; a missing, malformed or passed manifest is recomputed and rewritten first.
      * Null when no manifest can be written: nothing is cached then, as a version kept for one request would add files and cache keys on every one (#441).
      */
     public static function version(): ?string
     {
-        $known = request()->attributes->get(self::VERSION);
+        // In the console, a worker's request lives across its jobs: a version kept there would outlive a publish made elsewhere (#442).
+        // A web or visit Tick runs its jobs in the visitor's request, so they keep its version for that Tick's budget at most.
+        $known = App::runningInConsole() ? null : request()->attributes->get(self::VERSION);
 
         if (is_string($known) || $known === false) {
             return $known ?: null;

@@ -324,6 +324,16 @@ it('runs each fragment of Kami::remember() uncached, storing nothing, when stora
     Event::assertNotDispatched(KeyWritten::class);
 });
 
+// A queue worker's request lives across its jobs: each read in the console sees a publish made by another process (#442).
+it('reads the Content version from the manifest at each call in the console', function () {
+    $first = PageCache::version();
+
+    File::put(storage_path('framework/kami/pages/manifest.json'), json_encode(['version' => 'f0f0f0f0f0f0f0f0', 'next_change_at' => null]));
+
+    expect($first)->toBeString()->not->toBe('f0f0f0f0f0f0f0f0')
+        ->and(PageCache::version())->toBe('f0f0f0f0f0f0f0f0');
+});
+
 it('answers a moved address with its 301 at once, never the 200 it stored there', function () {
     $entry = cachedArticle();
     $this->get('/articles/hello-world')->assertOk();
