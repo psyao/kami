@@ -47,7 +47,7 @@ final class Tick
     private static ?string $prefix = null;
 
     /**
-     * Runs the overdue tasks, one after the other, starting none once the budget is spent; the rest wait for the next Tick.
+     * Runs the overdue tasks, one after the other, starting none once the budget is spent; the rest wait for the next Tick. Then works through the queue with the budget left.
      * Touches `storage/framework/kami/tick-{trigger}` with the duration and the result, unless another Tick holds the lock.
      *
      * @return 'OK'|'BUSY'|'FAILED'
@@ -90,6 +90,8 @@ final class Tick
                     $failed = true;
                 }
             }
+
+            self::drainQueue($budget - (microtime(true) - $start));
         } catch (Throwable $exception) {
             // No `kami_task_runs` before `kami:install`, or the database down: a failed Tick still touches its file, so visits wait five minutes
             // before the next, and the page cache reader keeps serving.
@@ -135,6 +137,24 @@ final class Tick
     public static function failed(ScheduledTaskFailed $event): void
     {
         self::update($event->task, 'failed');
+    }
+
+    /**
+     * Works through the host's queue as `queue:work` would, in-process and within the budget left, when its default connection is `database`:
+     * shared hosting runs no worker (ADR 0020). The worker stops once the budget is spent, after the job it is running, and reports its own errors.
+     * Its default queue only: a queue of another name, or another driver, needs a worker of its own.
+     */
+    private static function drainQueue(float $rest): void
+    {
+        $connection = Config::string('queue.default');
+
+        if ($rest < 1 || Config::get("queue.connections.{$connection}.driver") !== 'database') {
+            return;
+        }
+
+        // `--sleep=0`: on an empty queue, the worker would otherwise wait three seconds before stopping. `--memory=0`: its 128 MB, meant for a daemon
+        // that leaks, would stop it after one job in a process that already holds more; the budget ends it, and `memory_limit` bounds it.
+        Artisan::call('queue:work', ['connection' => $connection, '--stop-when-empty' => true, '--max-time' => (int) $rest, '--sleep' => 0, '--memory' => 0]);
     }
 
     /**

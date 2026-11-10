@@ -50,6 +50,22 @@ Three things start a Tick, all always on: there is nothing to choose.
 
 A site with cron or a planner keeps a Tick recent, so visits stop starting any. One with neither still runs its tasks from its visits.
 
+## The queue
+
+Kami itself dispatches no job: what it must do later is written to the database and done after the response or by a task. Your application's own queued jobs need a worker, and shared hosting runs none, so each Tick works through the queue after its tasks, with the time they left, as `queue:work --stop-when-empty` would, in the same process. Set the `database` connection in `.env`, as the starter kit does:
+
+```dotenv
+QUEUE_CONNECTION=database
+```
+
+- **What it takes.** Jobs on the default connection's own queue (`default` unless `DB_QUEUE` names another), and only when that connection uses the `database` driver. Jobs on another queue, or on Redis or SQS, wait for a worker of your own.
+- **Time.** The Tick starts no job once its time is spent, as for tasks: up to 10 seconds after a visit. A job already running finishes, so keep each one short.
+- **Failures** go where a worker sends them: a job that throws is retried as its `$tries` allows, then lands in `failed_jobs`, and `php artisan queue:retry` puts it back.
+
+Keep tasks and jobs short. Work that takes minutes, such as importing thousands of rows, dispatches one job per chunk, each resuming where the last stopped, so that every Tick moves it forward and a Tick that stops mid-way loses nothing.
+
+A server can run Laravel's own worker beside the Tick, under systemd or Supervisor, as Laravel's [queue documentation](https://laravel.com/docs/13.x/queues#supervisor-configuration) shows: jobs then run as soon as they are dispatched, and the Tick finds the queue empty.
+
 ## On a server
 
 Run the Tick every minute from cron, in place of Laravel's `schedule:run`:
@@ -79,4 +95,5 @@ Between the planner's calls, and on a site with no planner, visits start the Tic
 | **Tick** | The planner calls `/kami/tick/{token}` every 15 minutes at best; visits start one after five minutes without | `kami:tick` from cron every minute; the URL and visits stay armed and go quiet |
 | **Command tasks** | In-process through `Artisan::call()`, with no child process | The same |
 | **`exec()` tasks** | Never run from the URL or a visit: only from `kami:tick` over SSH, where the command line allows them | Run from cron's `kami:tick` |
+| **Queue** | `database`, worked through by each Tick with the time its tasks left, no worker | The same, and optionally Laravel's `queue:work` under systemd |
 | **Lock** | `Cache::lock` on the `file` or `database` store | Any store with locks |

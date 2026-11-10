@@ -174,4 +174,4 @@ printf '/.htaccess\n/.htdigest\n' >> .git/info/exclude
 
 ## On a server
 
-The same commands run over SSH. Point the web server's document root at `public/`. On nginx, send every request that matches no file to `index.php`, as Laravel's [deployment guide](https://laravel.com/docs/13.x/deployment#nginx) shows, and give `public/media` the headers [Hosting](hosting.md#nginx) lists. Run `php artisan kami:tick` from cron every minute, in place of Laravel's `schedule:run` ([Scheduler](scheduler.md#on-a-server)); Kami needs no queue worker or daemon.
+The same commands run over SSH. Point the web server's document root at `public/`. On nginx, send every request that matches no file to `index.php`, as Laravel's [deployment guide](https://laravel.com/docs/13.x/deployment#nginx) shows, and give `public/media` the headers [Hosting](hosting.md#nginx) lists. Run `php artisan kami:tick` from cron every minute, in place of Laravel's `schedule:run` ([Scheduler](scheduler.md#on-a-server)); Kami needs no queue worker or daemon: the Tick works through the `database` queue ([Scheduler](scheduler.md#the-queue)).

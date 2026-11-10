@@ -13,7 +13,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 ## What Kami does not need
 
 - **No cron.** Kami's Scheduled tasks run from a Tick: `php artisan kami:tick` from a server's cron, a secret URL the host's planner calls, or visits; nothing visible waits for it ([Scheduler](scheduler.md)).
-- **No queue worker.** Kami dispatches no job, and sends the password reset email itself rather than queue it ([Security](security.md#password-reset)).
+- **No queue worker.** Kami dispatches no job, and sends the password reset email itself rather than queue it ([Security](security.md#password-reset)). Your application's jobs on the `database` queue run from each Tick ([Scheduler](scheduler.md#the-queue)).
 - **No Redis, Memcached or other daemon.** The starter kit uses the `file` cache store and the `database` session driver.
 - **No Node on the server.** Kami's admin assets ship precompiled and `kami:install` copies them to `public/`. The site's own front assets are built before the deploy: see [Deployment](deployment.md#front-assets).
 - **No `exec` or `proc_open` on the web.** Shared hosts often disable them; Kami never calls them.
