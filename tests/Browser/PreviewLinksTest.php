@@ -22,7 +22,7 @@ it('creates a link that shows the Draft, lists it in the dialog, and revokes it'
     // On the Site's URL, which is not the test server's: its path only.
     $path = $page->script("new URL(document.querySelector('.fi-modal-window input[readonly]').value).pathname");
 
-    visit($path)->assertSee('Brouillon')->assertSee('Ce lien expire le')->assertNoJavaScriptErrors();
+    assertAxeClean(visit($path)->assertSee('Brouillon')->assertSee('Ce lien expire le'))->assertNoJavaScriptErrors();
 
     $page->click('.fi-modal-footer-actions >> internal:role=button[name="Close"s]')
         ->click('internal:role=button[name="Preview links"s]')

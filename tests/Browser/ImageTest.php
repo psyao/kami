@@ -16,8 +16,6 @@ it('shows a cover through x-kami::image at axe\'s strictest level', function ():
     resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Refonte', 'status' => 'published', 'cover' => $cover->id], locale: 'fr');
 
     // The image itself is broken here: Conversion URLs use the Site URL, not the test server's host.
-    visit('/project/refonte')
-        ->assertPresent('picture img[alt="Un carré rouge"][width][height]')
-        ->assertNoAccessibilityIssues(3)
+    assertAxeClean(visit('/project/refonte')->assertPresent('picture img[alt="Un carré rouge"][width][height]'))
         ->assertNoJavaScriptErrors();
 });

@@ -27,6 +27,7 @@ Each defect M7's ritual found had passed its ticket's review on one of these (#4
 ## Tests
 
 - **Reach beyond the diff.** Grep the tests that read what the diff changes, outside the diff too: a Workbench view feeds the `Browser` suite, which pre-push does not run (#412).
+- **axe on the front.** A `Browser` test of a front page or component calls `assertAxeClean()` (`tests/Pest.php`): WCAG 2.0 to 2.2 A and AA plus best-practice, failing on incomplete results too, a textarea's contrast excepted. Admin pages keep `assertNoAccessibilityIssues()`, whose stricter run Filament's markup does not pass yet (#507).
 - **Query counts go up for a reason.** A raised `expectsDatabaseQueryCount()` names the query added; the reviewer checks it is needed, not that the number matches (#405).
 - **Debug tests stay out.** A throwaway test lives in the scratchpad and runs by path, never in `tests/Kami`, where a commit can take it along.
 - **A test's default connection stays put.** Under `RefreshDatabase`, switching `database.default` mid-test leaves the transaction open on MySQL, MariaDB and PostgreSQL, and the next test waits on its lock until CI's timeout (#307). SQLite hides it. Test an empty or other database in a test of its own, before anything writes.

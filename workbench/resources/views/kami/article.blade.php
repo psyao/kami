@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <x-kami::seo />
+    <link rel="stylesheet" href="/workbench.css">
 </head>
 <body>
     <x-kami::preview-banner />

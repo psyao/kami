@@ -13,15 +13,13 @@ it('shows the form, then its error summary after a refused Submission, at axe\'s
     resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], locale: 'fr');
     $page = $dark ? visit('/')->inDarkMode() : visit('/');
 
-    $page->assertPresent('form.kami-form')
-        ->assertNoAccessibilityIssues(3)
+    assertAxeClean($page->assertPresent('form.kami-form'))
         ->fill('name', 'Ada Lovelace')
         ->fill('email', 'ada@example.com')
         ->fill('message', 'Bonjour')
         ->press('Envoyer')
         ->assertPresent('.kami-form-errors[role="alert"] a[href="#message"]')
-        ->assertValue('name', 'Ada Lovelace')
-        ->assertNoAccessibilityIssues(3)
-        ->assertNoJavaScriptErrors();
+        ->assertValue('name', 'Ada Lovelace');
+    assertAxeClean($page)->assertNoJavaScriptErrors();
     expect(Submission::query()->count())->toBe(0);
 })->with(['light' => false, 'dark' => true]);

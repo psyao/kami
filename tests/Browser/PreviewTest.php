@@ -41,8 +41,6 @@ it('opens the unsaved form in a tab on the click, and refreshes the same tab on 
     $page->assertNoJavaScriptErrors();
 
     // The banner at axe's strictest level, as the front's own pages.
-    visit($page->script('window.kamiTab.location.href'))
-        ->assertSee('Prévisualisation de modifications non enregistrées')
-        ->assertNoAccessibilityIssues(3)
+    assertAxeClean(visit($page->script('window.kamiTab.location.href'))->assertSee('Prévisualisation de modifications non enregistrées'))
         ->assertNoJavaScriptErrors();
 });

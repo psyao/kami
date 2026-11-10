@@ -3,8 +3,11 @@
 <html lang="{{ app()->getLocale() }}">
 <head>
     <x-kami::seo :title="__('Not Found')" />
+    <link rel="stylesheet" href="/workbench.css">
 </head>
 <body>
-    <h1>404 {{ __('Not Found') }}</h1>
+    <main>
+        <h1>404 {{ __('Not Found') }}</h1>
+    </main>
 </body>
 </html>
