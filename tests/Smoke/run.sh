@@ -20,7 +20,8 @@ if [ "${GITHUB_ACTIONS:-}" != true ]; then
     done
 fi
 
-docker compose down --volumes --remove-orphans
+# Every profile: a Mailpit a previous run left up would take this run's mail before its SMTP server is meant to be up.
+docker compose --profile '*' down --volumes --remove-orphans
 timeout 600 docker compose up --build --detach --wait php mariadb
 # Past the build, Compose's progress is noise: Compose 5 prints a `run`'s container lifecycle on stderr, which the checks
 # below capture with their command's output.
