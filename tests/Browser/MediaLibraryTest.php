@@ -88,7 +88,7 @@ it('takes several files dragged onto the library at once', function () {
 
     // Under reduced motion, as `signIn()`: axe never measures the modal mid-fade.
     foreach ([visit('/admin/media', ['reducedMotion' => 'reduce'])->inDarkMode(), visit('/admin/media', ['reducedMotion' => 'reduce'])->on()->mobile()] as $page) {
-        $page = assertAxeClean($page->assertSee('logo'), admin: true);
+        assertAxeClean($page->assertSee('logo'), admin: true);
         assertAxeClean($page
             ->click('internal:role=button[name="Upload"s]')
             ->assertPresent('.filepond--drop-label'), admin: true)
@@ -107,7 +107,7 @@ it('edits a Media item\'s alt text in each Locale, asking for it in the default 
         ->assertSee('Replace file')
         ->assertSee('Velox (in the Trash)')
         ->assertPresent('internal:role=link[name="Kami"s]'), admin: true);
-    $page = assertAxeClean($page
+    assertAxeClean($page
         ->assertAttribute('[id="form.alt"]', 'required', 'required')
         ->fill('[id="form.alt"]', 'Un pixel')
         ->press('internal:role=button[name="Save changes"s]')
@@ -115,7 +115,7 @@ it('edits a Media item\'s alt text in each Locale, asking for it in the default 
         ->press('internal:role=button[name="FR"s]')
         ->click('internal:role=menuitem[name="EN"s]')
         ->assertSee('Translation: EN'), admin: true);
-    $page = assertAxeClean($page
+    assertAxeClean($page
         ->click('internal:role=button[name="Replace file"s]')
         ->assertPresent('.filepond--drop-label'), admin: true)
         ->assertNoJavaScriptErrors();

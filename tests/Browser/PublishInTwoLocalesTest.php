@@ -10,14 +10,14 @@ uses(RefreshDatabase::class);
 it('signs in, creates and publishes an Entry in two Locales, and reads both on the front', function () {
     $page = signIn();
 
-    $page = assertAxeClean($page->navigate('/admin/articles/create'), admin: true);
-    $page = assertAxeClean($page
+    assertAxeClean($page->navigate('/admin/articles/create'), admin: true);
+    assertAxeClean($page
         ->fill('[id="form.title"]', 'Bonjour')
         ->fill('[id="form.author"]', 'Ada Lovelace')
         ->press('internal:role=button[name="Publish"s]')
         ->assertSee('FR · Published'), admin: true);
-    $page = assertAxeClean($page->press('internal:role=button[name="FR · Published"s]'), admin: true);
-    $page = assertAxeClean($page
+    assertAxeClean($page->press('internal:role=button[name="FR · Published"s]'), admin: true);
+    assertAxeClean($page
         ->click('internal:role=menuitem[name="EN · No translation yet"s]')
         ->assertSee('Translation: EN'), admin: true);
     assertAxeClean($page

@@ -17,7 +17,7 @@ it('lists Users with their Roles and creates one with the Roles field and its on
         ->navigate('/admin/users')
         ->assertSee('Grace Hopper')
         ->assertSee('Editor'), admin: true);
-    $page = assertAxeClean($page
+    assertAxeClean($page
         ->navigate("/admin/users/{$grace->getKey()}/edit")
         ->assertSee('Roles')
         ->assertSee('Administrator'), admin: true);

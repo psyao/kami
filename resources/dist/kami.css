@@ -1,7 +1,7 @@
 /* Kami's admin styles, precompiled. */
 
 /* A badge's remove button, as on a multiple Select's options, takes WCAG 2.2 AA's 24 × 24 px target (SC 2.5.8) within the badge's height.
-   ponytail: patches Filament 5's 20 × 20 px button, with `tests/Browser/ClassifyAProjectTest.php` as its alarm; it goes once Filament's own reaches 24 px (#507). */
+   ponytail: patches Filament 5's 20 × 20 px button, with `tests/Browser/ClassifyAProjectTest.php` as its alarm; it goes once Filament's own reaches 24 px (#510). */
 .fi-badge .fi-badge-delete-btn {
     padding: 0.375rem;
     margin-block: -0.375rem;
