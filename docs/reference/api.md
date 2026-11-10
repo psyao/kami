@@ -119,7 +119,7 @@ Copies an Entry with its Field values and References, last under the same Parent
 
 `final class`
 
-Brings an Entry back from the Trash with its states and Paths as they were: a Published Translation is visible again at once. It does not authorise: the caller checks the actor's `restore` Permission first, and `publish` when a Translation is published (ADR 0011, ADR 0019).
+Brings an Entry back from the Trash with its states and Paths as they were: a Published Translation is visible again at once. A Translation Scheduled when trashed, whose moment `kami:announce-publications` passed meanwhile, gets its `EntryPublished` (`scheduled: true`) here. It does not authorise: the caller checks the actor's `restore` Permission first, and `publish` when a Translation is published (ADR 0011, ADR 0019).
 
 - `public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
 

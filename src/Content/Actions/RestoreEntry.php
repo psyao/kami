@@ -10,11 +10,14 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Events\EntryPublished;
 use Psyao\Kami\Content\Events\EntryRestored;
+use Psyao\Kami\Content\Internal\AnnouncePublicationsCommand;
 use Psyao\Kami\Content\Internal\EntryTitles;
+use Psyao\Kami\Content\Internal\Translation;
 
 /**
- * Brings an Entry back from the Trash with its states and Paths as they were: a Published Translation is visible again at once. It does not authorise: the caller checks the actor's `restore` Permission first, and `publish` when a Translation is published (ADR 0011, ADR 0019).
+ * Brings an Entry back from the Trash with its states and Paths as they were: a Published Translation is visible again at once. A Translation Scheduled when trashed, whose moment `kami:announce-publications` passed meanwhile, gets its `EntryPublished` (`scheduled: true`) here. It does not authorise: the caller checks the actor's `restore` Permission first, and `publish` when a Translation is published (ADR 0011, ADR 0019).
  */
 final class RestoreEntry
 {
@@ -36,6 +39,15 @@ final class RestoreEntry
             throw ValidationException::withMessages(['entry' => __('kami::admin.restore.parent', ['parent' => EntryTitles::of($parent)])]);
         }
 
+        // Scheduled when trashed, its moment passed meanwhile by `kami:announce-publications`, which leaves the Trash out and never looks back.
+        // A moment after its cursor is the command's next run; with no cursor, nothing announces it, as for a save (ADR 0019).
+        $announcedUntil = AnnouncePublicationsCommand::announcedUntil();
+        $missed = $announcedUntil === null ? [] : $entry->translations()
+            ->where('status', Translation::PUBLISHED)
+            ->where('published_at', '>', $entry->deleted_at)
+            ->where('published_at', '<=', now()->setTimestamp($announcedUntil))
+            ->get(['locale']);
+
         DB::transaction(function () use ($entry, $actor): void {
             $entry->forceFill([
                 'updated_by' => $actor?->getAuthIdentifier(),
@@ -46,5 +58,9 @@ final class RestoreEntry
         });
 
         event(new EntryRestored($entry, $actor));
+
+        foreach ($missed as $translation) {
+            event(new EntryPublished($entry, $translation->locale, true, $actor));
+        }
     }
 }

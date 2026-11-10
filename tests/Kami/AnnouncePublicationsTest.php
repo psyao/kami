@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
+use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
@@ -123,6 +124,46 @@ it('leaves the announcement to the command\'s first run, which starts after the 
 
     $this->travelTo('2026-11-10 09:45:00');
     resolve(SaveEntry::class)->handle(Article::class, ['summary' => 'Encore.'], $entry);
+
+    expect($seen->getArrayCopy())->toBe([]);
+});
+
+it('lets a restore announce a Translation whose moment the command passed while it was in the Trash, once', function () {
+    $ada = User::forceCreate(['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'secret']);
+    announce($this, '2026-11-10 09:00:00');
+    $this->travelTo('2026-11-10 09:00:00');
+    $passed = scheduledArticle('Passée dans la Corbeille', '2026-11-10 09:30:00');
+    $uncovered = scheduledArticle('Après le dernier run', '2026-11-10 09:42:00');
+    $upcoming = scheduledArticle('À venir', '2026-11-10 09:50:00');
+    $visible = scheduledArticle('Déjà visible', '2026-11-10 09:05:00');
+    $draft = scheduledArticle('Brouillon', '2026-11-10 09:30:00');
+    resolve(SaveEntry::class)->handle(Article::class, ['status' => 'draft'], $draft);
+    $this->travelTo('2026-11-10 09:10:00');
+    foreach ($entries = [$passed, $uncovered, $upcoming, $visible, $draft] as $entry) {
+        resolve(TrashEntry::class)->handle($entry);
+    }
+    announce($this, '2026-11-10 09:40:00');
+    $seen = new ArrayObject;
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $seen->append($event));
+
+    $this->travelTo('2026-11-10 09:45:00');
+    foreach ($entries as $entry) {
+        resolve(RestoreEntry::class)->handle(Entry::query()->withUnpublished()->withTrashed()->findOrFail($entry->id), $ada);
+    }
+
+    expect(array_map(fn (EntryPublished $event) => [$event->entry->id, $event->locale, $event->scheduled, $event->actor?->getAuthIdentifier()], $seen->getArrayCopy()))->toBe([[$passed->id, 'fr', true, $ada->id]])
+        ->and(announce($this, '2026-11-10 10:00:00'))->toBe(['fr:Après le dernier run', 'fr:À venir']);
+});
+
+it('leaves a restore before the command\'s first run unannounced, as a save', function () {
+    $this->travelTo('2026-11-10 09:00:00');
+    $entry = scheduledArticle('Avant tout run', '2026-11-10 09:30:00');
+    resolve(TrashEntry::class)->handle($entry);
+    $seen = new ArrayObject;
+    Event::listen(EntryPublished::class, fn (EntryPublished $event) => $seen->append($event));
+
+    $this->travelTo('2026-11-10 09:45:00');
+    resolve(RestoreEntry::class)->handle(Entry::query()->withUnpublished()->withTrashed()->findOrFail($entry->id));
 
     expect($seen->getArrayCopy())->toBe([]);
 });
