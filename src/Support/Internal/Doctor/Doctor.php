@@ -93,10 +93,8 @@ final readonly class Doctor
         $mfaTable = rescue(fn (): bool => Schema::hasTable('kami_user_mfa'), false, report: false);
 
         return [
-            ...$this->environment(),
+            ...$this->installBlocking($panels),
             ...array_filter([$this->hotFile()]),
-            ...$this->userModels($panels),
-            ...$this->guardModels($panels),
             ...$this->remoteAvatars($panels),
             ...$this->strictAuthorization($panels),
             ...$this->securityHeaders($panels),
@@ -104,12 +102,11 @@ final readonly class Doctor
             ...$this->replacedPages($panels, 'replacedLoginPage', 'sign-in', 'login', 'throttling sign-in per email', 'limit attempts per email as well as per IP address', 'sign-in'),
             ...$this->replacedPages($panels, 'replacedResetPage', 'password reset', 'passwordReset', 'keeping it from revealing who has an account', 'answer every address the same way, after the response', 'password-reset'),
             ...$this->replacedMfa($panels),
-            ...$this->mfaModels($panels),
             ...$this->weakeningOptions(),
             ...$this->missingViews(),
             ...$this->undescribedTypes(),
             ...$this->missingLabels(),
-            ...array_filter([$this->lockStore(), $this->exposedOriginals(), $this->publicMedia(), $this->pageCacheStorage()]),
+            ...array_filter([$this->lockStore(), $this->publicMedia(), $this->pageCacheStorage()]),
             ...$this->searchEngines(),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
@@ -125,9 +122,24 @@ final readonly class Doctor
      */
     public function blocking(): array
     {
-        $panels = $this->panels();
+        return array_values(array_filter($this->installBlocking($this->panels()), fn (Problem $problem): bool => $problem->severity === Severity::Error));
+    }
 
-        return array_values(array_filter([...$this->environment(), ...$this->userModels($panels), ...$this->guardModels($panels), ...$this->mfaModels($panels), ...array_filter([$this->exposedOriginals()])], fn (Problem $problem): bool => $problem->severity === Severity::Error));
+    /**
+     * The checks whose errors stop `kami:install`: none may need a migrated table, as they run before it migrates.
+     *
+     * @param  list<PanelReport>  $panels
+     * @return list<Problem>
+     */
+    private function installBlocking(array $panels): array
+    {
+        return [
+            ...$this->environment(),
+            ...$this->userModels($panels),
+            ...$this->guardModels($panels),
+            ...$this->mfaModels($panels),
+            ...array_filter([$this->exposedOriginals()]),
+        ];
     }
 
     /** @return list<Problem> */
