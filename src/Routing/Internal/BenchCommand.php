@@ -60,7 +60,7 @@ final class BenchCommand extends Command
         foreach ($medians as $kind => $median) {
             $this->components->twoColumnDetail(ucfirst($kind), $median === null ? 'not served from the page cache' : sprintf('%.1f ms', $median));
 
-            if ($median > self::BUDGETS[$kind]) {
+            if ($median !== null && $median > self::BUDGETS[$kind]) {
                 $this->components->warn(sprintf('%s pages take %.1f ms, above the %d ms budget.', ucfirst($kind), $median, self::BUDGETS[$kind]));
             }
         }
@@ -95,12 +95,18 @@ final class BenchCommand extends Command
     {
         $result = json_decode((string) @file_get_contents(self::resultPath()), true);
 
-        if (! is_array($result) || ! is_int($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ! array_key_exists('cached_ms', $result)
-            || $result['cached_ms'] !== null && ! is_numeric($result['cached_ms']) || ! is_numeric($result['uncached_ms'] ?? null)) {
+        // A missing key is a file out of shape, not a page the page cache did not serve.
+        if (! is_array($result) || ! array_key_exists('cached_ms', $result)) {
             return null;
         }
 
-        return ['measured_at' => CarbonImmutable::createFromTimestamp($result['measured_at']), 'url' => $result['url'], 'cached_ms' => $result['cached_ms'] === null ? null : (float) $result['cached_ms'], 'uncached_ms' => (float) $result['uncached_ms']];
+        $cached = $result['cached_ms'];
+
+        if (! is_int($result['measured_at'] ?? null) || ! is_string($result['url'] ?? null) || ($cached !== null && ! is_numeric($cached)) || ! is_numeric($result['uncached_ms'] ?? null)) {
+            return null;
+        }
+
+        return ['measured_at' => CarbonImmutable::createFromTimestamp($result['measured_at']), 'url' => $result['url'], 'cached_ms' => $cached === null ? null : (float) $cached, 'uncached_ms' => (float) $result['uncached_ms']];
     }
 
     /**

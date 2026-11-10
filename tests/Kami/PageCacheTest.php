@@ -80,7 +80,8 @@ it('replays the stored headers with an ETag, no-cache and a 304 on a match', fun
 
     $hit = $this->get('/articles/hello-world')->assertOk()->assertHeader('ETag', $etag);
 
-    expect($etag)->toMatch('~^"[0-9a-f]{16}-[0-9a-f]+"$~')
+    // `kami:bench` tells a hit by this pattern.
+    expect($etag)->toMatch(PageCache::ETAG)
         ->and($hit->headers->get('Cache-Control'))->toContain('no-cache')->toContain('private')
         ->and($hit->headers->get('Content-Security-Policy'))->toBe($first->headers->get('Content-Security-Policy'))
         ->and($hit->headers->get('Content-Type'))->toBe($first->headers->get('Content-Type'));
@@ -312,6 +313,19 @@ it('serves the page with no visibility query and nothing reported when storage/ 
     'its directory' => 'framework/kami/pages',
     'a parent, the directory missing' => 'framework/kami',
 ]);
+
+it('sends no ETag with a page it could not store', function () {
+    cachedArticle();
+    $this->get('/articles/hello-world')->assertHeader('ETag');
+    $stored = File::allFiles(storage_path('framework/kami/pages/' . PageCache::version()));
+    File::delete($stored[0]->getPathname());
+    chmod($directory = $stored[0]->getPath(), 0555);
+
+    $response = $this->get('/articles/hello-world');
+
+    chmod($directory, 0755);
+    $response->assertOk()->assertSee('Hello world')->assertHeaderMissing('ETag');
+});
 
 it('runs each fragment of Kami::remember() uncached, storing nothing, when storage/ cannot be written', function () {
     $pages = storage_path('framework/kami/pages');

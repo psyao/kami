@@ -30,8 +30,11 @@ final class PageCache
     /** Repeated by `resources/page-cache.php`. */
     private const int MAX_AGE = 3600;
 
-    /** The `ETag` of a page the page cache stored or served, as `store()` writes it: the version, then the body's xxh128. */
-    public const string ETAG = '/^"[0-9a-f]{16}-[0-9a-f]{32}"$/';
+    /**
+     * The `ETag` of a page the page cache stored or served, as `store()` writes it: the version, then the body's xxh128.
+     * A compressing web server may weaken it (nginx's `W/`) or suffix it (Apache's `-gzip`).
+     */
+    public const string ETAG = '~^(W/)?"[0-9a-f]{16}-[0-9a-f]{32}(-[a-z]+)?"$~';
 
     public static function enabled(): bool
     {
@@ -192,13 +195,18 @@ final class PageCache
         // Set per hit, or describing this one only.
         $headers = array_diff_key($response->headers->allPreserveCaseWithoutCookies(), array_flip(['Date', 'Cache-Control', 'ETag']));
 
-        rescue(function () use ($request, $version, $headers, $etag, $body): void {
+        $stored = rescue(function () use ($request, $version, $headers, $etag, $body): bool {
             $path = self::pagePath($request, $version);
             File::ensureDirectoryExists(dirname($path));
             File::replace($path, json_encode(['headers' => $headers, 'etag' => $etag], JSON_THROW_ON_ERROR) . "\n" . $body);
-        });
 
-        self::fresh($response, $etag);
+            return true;
+        }, false);
+
+        // A page not stored is no hit: `kami:bench` reads the ETag as one.
+        if ($stored) {
+            self::fresh($response, $etag);
+        }
     }
 
     private static function fresh(Response $response, string $etag): Response

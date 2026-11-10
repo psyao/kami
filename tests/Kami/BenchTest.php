@@ -97,6 +97,21 @@ it('records no Cached median when one response of the cached run is not the page
         ->assertSuccessful();
 });
 
+it('takes the page cache\'s ETag as a web server compressing the page sends it', function (string $etag) {
+    serving(array_fill(0, 10, 8.0), array_fill(0, 10, 150.0), hits: 0);
+    Http::globalMiddleware(fn (callable $handler) => fn ($request, array $options) => $handler($request, $options)->then(
+        fn ($response) => str_contains((string) $request->getUri(), 'kami-bench=') ? $response : $response->withHeader('ETag', $etag),
+    ));
+
+    $this->artisan('kami:bench')
+        ->expectsOutputToContain('8.0 ms')
+        ->doesntExpectOutputToContain('not served')
+        ->assertSuccessful();
+})->with([
+    'Apache, suffixed' => '"0123456789abcdef-' . str_repeat('a', 32) . '-gzip"',
+    'nginx, weakened' => 'W/"0123456789abcdef-' . str_repeat('a', 32) . '"',
+]);
+
 it('takes a site route\'s own ETag for no page cache hit', function () {
     serving(array_fill(0, 10, 8.0), array_fill(0, 10, 150.0), hits: 0);
     Http::globalMiddleware(fn (callable $handler) => fn ($request, array $options) => $handler($request, $options)->then(
