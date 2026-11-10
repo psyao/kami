@@ -1095,9 +1095,13 @@ final readonly class Doctor
         }
 
         // An attempt counts before it sends: one stopped mid-send, as by max_execution_time, leaves no error.
-        $settled = Delivery::query()->where('attempts', '>', 0)->where('updated_at', '<=', Date::now()->subMinute());
+        $attempted = Delivery::query()->where('attempts', '>', 0)->where('updated_at', '<=', Date::now()->subMinute());
+        $states = [
+            'that failed and wait for a retry' => $attempted->clone()->pending(),
+            'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => $attempted->clone()->abandoned(),
+        ];
 
-        foreach (['that failed and wait for a retry' => $settled->clone()->pending(), 'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => $settled->clone()->abandoned()] as $state => $deliveries) {
+        foreach ($states as $state => $deliveries) {
             if (($count = $deliveries->count()) > 0) {
                 $error = $deliveries->latest('updated_at')->value('last_error');
                 $problems[] = new Problem(Severity::Warning, "Submission deliveries {$state}: {$count}. Last error: " . (is_string($error) ? $error : 'none recorded, as when PHP stops an attempt mid-send.'), 'check the mail settings in .env, and each channel of a notification of your own; kami:forms:deliver retries every 15 minutes, up to ' . Delivery::MAX_ATTEMPTS . ' attempts.', 'forms.md#delivery');
