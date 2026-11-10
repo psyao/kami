@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
@@ -146,6 +147,17 @@ it('still sees a passed visibility change once the page cache manifest has moved
     Kami::flushCache();
 
     $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+});
+
+it('keeps the sitemap fresh when Site settings or a Global Set are saved (#446)', function () {
+    $this->travelTo('2026-11-10 09:00:00');
+    $this->artisan('kami:sitemap')->assertSuccessful();
+    $this->travelTo('2026-11-10 09:01:00');
+
+    resolve(SaveEntry::class)->handle(Footer::class, ['tagline' => 'Bonjour'], locale: 'fr');
+    resolve(SaveEntry::class)->handle(SiteSettings::class, ['site_name' => 'Kami'], locale: 'fr');
+
+    $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
 });
 
 it('swaps the new files in whole, a file no longer written gone', function () {

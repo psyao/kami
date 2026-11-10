@@ -50,10 +50,15 @@ final class Visibility implements Scope
         $next = DB::table('kami_translations')
             ->where('status', Translation::PUBLISHED)
             ->where('published_at', '>', now())
-            // Correlated, so that SQLite walks the few Scheduled rows rather than every Entry (#222).
-            ->whereExists(fn (QueryBuilder $entries) => $entries->select(DB::raw(1))->from('kami_entries')->whereColumn('kami_entries.id', 'kami_translations.entry_id')->whereNull('deleted_at'))
+            ->whereExists(self::outOfTrash(...))
             ->min('published_at');
 
         return is_string($next) ? CarbonImmutable::parse($next, 'UTC') : null;
+    }
+
+    /** A `whereExists()` on `kami_translations` keeping the Translations whose Entry is out of the Trash: correlated, so that SQLite walks the few rows the other conditions keep rather than every Entry (#222). */
+    public static function outOfTrash(QueryBuilder $entries): void
+    {
+        $entries->select(DB::raw(1))->from('kami_entries')->whereColumn('kami_entries.id', 'kami_translations.entry_id')->whereNull('deleted_at');
     }
 }

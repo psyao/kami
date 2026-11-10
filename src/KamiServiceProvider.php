@@ -25,6 +25,7 @@ use Psyao\Kami\Content\Events\EntryRestored;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryTrashed;
 use Psyao\Kami\Content\Events\TranslationDeleted;
+use Psyao\Kami\Content\Internal\AnnouncePublicationsCommand;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
@@ -70,7 +71,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            ->hasCommands([BenchCommand::class, ClearCacheCommand::class, DeliverSubmissionsCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, PruneSubmissionsCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([AnnouncePublicationsCommand::class, BenchCommand::class, ClearCacheCommand::class, DeliverSubmissionsCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, PruneSubmissionsCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void
@@ -107,8 +108,9 @@ final class KamiServiceProvider extends PackageServiceProvider
 
         // Every public write action dispatches one of these after commit (ADR 0029); `EntrySaved` comes with each `EntryPublished` and `EntryUnpublished`.
         Event::listen([EntrySaved::class, EntryDuplicated::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class, MediaSaved::class, MediaDeleted::class], PageCache::invalidate(...));
-        // Any save changes a Translation's `updated_at`, the sitemap's `lastmod`, beside publishing, Paths and `noindex` (#410).
-        Event::listen([EntrySaved::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class], fn () => Sitemap::markStale());
+        // Any save changes a Translation's `updated_at`, the sitemap's `lastmod`, beside publishing, Paths and `noindex` (#410); a type with no URL is in no sitemap (#446).
+        Event::listen(EntrySaved::class, fn (EntrySaved $event) => $event->entry->contentType()?->isRoutable() === true ? Sitemap::markStale() : null);
+        Event::listen([EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class], fn () => Sitemap::markStale());
         // Every run of a Scheduled task, the Tick's and a native `schedule:run`'s, feeds the overdue rule (ADR 0020).
         Event::listen(ScheduledTaskStarting::class, Tick::starting(...));
         Event::listen(ScheduledTaskFinished::class, Tick::finished(...));
