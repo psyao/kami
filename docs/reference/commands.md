@@ -23,6 +23,10 @@ Check that this environment can run Kami
 
 - `[--strict]`: Fail on warnings too
 
+## `kami:forms:deliver`
+
+Deliver the Form Submissions whose notification failed or was never sent
+
 ## `kami:install`
 
 Install Kami, or bring it up to date after a deploy

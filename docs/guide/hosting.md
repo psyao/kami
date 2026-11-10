@@ -16,6 +16,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 - **No queue worker.** Kami dispatches no job, and sends the password reset email itself rather than queue it ([Security](security.md#password-reset)). Your application's jobs on the `database` queue run from each Tick ([Scheduler](scheduler.md#the-queue)).
 - **No Redis, Memcached or other daemon.** The starter kit uses the `file` cache store and the `database` session driver.
 - **No Node on the server.** Kami's admin assets ship precompiled and `kami:install` copies them to `public/`. The site's own front assets are built before the deploy: see [Deployment](deployment.md#front-assets).
+- **No `mail()`.** Kami sends mail through Laravel's mailer, over authenticated SMTP ([below](#mail)).
 - **No `exec` or `proc_open` on the web.** Shared hosts often disable them; Kami never calls them.
 
 ## Shared hosting and a server
@@ -37,6 +38,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | **Audit log** | One insert inside each action's transaction; `kami:audit:prune` daily from a Tick, to apply the [retention](audit-log.md#retention) | The same |
 | **Scheduled tasks** | Run in-process from a Tick, with no child process: the planner calls `/kami/tick/{token}` every 15 minutes at best, and visits start one after five minutes without ([Scheduler](scheduler.md)) | `kami:tick` from cron every minute |
 | **Reset email** | Sent after the response through `defer()`, as PHP-FPM finishes the request first; under `mod_php`, before it | The same under PHP-FPM |
+| **Submission mail** | Over SMTP after the response through `defer()`; retried by `kami:forms:deliver` from any Tick ([Forms](forms.md#retries)) | The same, retried from cron's Tick |
 | **PHP settings** | The web and the command line differ: on Infomaniak, the web has 60 s and 640 MB, the command line no time limit and 1 GB | Your own `php.ini` |
 
 ## Conversions
@@ -105,3 +107,25 @@ Infomaniak has no crontab: its task planner calls a URL, every 15 minutes at bes
 2. In the Manager, under the hosting's **Cron jobs / Task planner**, add a task calling the printed URL, as often as the plan allows, with the email on failure turned on.
 
 The URL works inside the request, within the web's 60 s, and answers `500 FAILED` when a task failed, which the planner reports. Between its calls, visits start a Tick once the last one is five minutes old ([Scheduler](scheduler.md#on-shared-hosting)).
+
+### Mail
+
+Send through the SMTP server of a mail address of your Infomaniak mail service. PHP's `mail()` exists on the web hosting, unauthenticated and capped at 50 mails a day: Kami never uses it.
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_SCHEME=smtps
+MAIL_HOST=mail.infomaniak.com
+MAIL_PORT=465
+MAIL_USERNAME=site@example.com
+MAIL_PASSWORD=
+MAIL_FROM_ADDRESS=site@example.com
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+- **The sender is the account.** Infomaniak refuses a `From` other than the address that signs in: keep `MAIL_FROM_ADDRESS` equal to `MAIL_USERNAME`. A Form puts the visitor's address on `Reply-To`, never on `From`.
+- **Port 587** with `MAIL_SCHEME=smtp` (STARTTLS) also works, where 465 is blocked.
+- **`MAIL_TIMEOUT=10`** keeps an attempt short when the mail server hangs: without it, PHP waits for its `default_socket_timeout`, 60 s, inside a visitor's request or a Tick.
+- **A quota per address over 24 hours**, rolling: each mail counts for 24 hours after it is sent ([Infomaniak's limits](https://www.infomaniak.com/en/support/faq/2065/understanding-the-limits-on-outgoing-emails-per-24-hours)). It is 200 on Mail Service Starter and my kSuite, 500 on Mail Service Premium and the paid kSuite offers. Each recipient counts, so a Submission mailed to two addresses uses two.
+- **Over the quota**, deliveries fail. `kami:forms:deliver` retries each up to five times, 15 minutes apart, about an hour, while the quota frees itself over 24 hours: a wave of Submissions past the honeypot and the throttle can leave legitimate ones abandoned. `kami:doctor` reports them; the Submissions stay stored.
+- Run `php artisan optimize` after changing `.env`, then send a test Submission: `kami:doctor` reports a failed delivery with the mail server's answer.

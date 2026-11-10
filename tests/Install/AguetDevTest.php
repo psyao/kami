@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Tests\Install\AguetDev;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
@@ -19,6 +21,8 @@ use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Submission;
 
 // M3's acceptance: aguet.dev's types as docs/research/site-aguet-dev.md describes them. `about_body` stays a Textarea until M4's rich text; `url` becomes `website`, as `Entry::url()` holds the name.
 
@@ -84,6 +88,29 @@ final class SkillGroup extends ContentType
             Boolean::make('focus')->shared(),
             Terms::make('tags')->of(Tag::class),
         ];
+    }
+}
+
+/** aguet.dev's contact form, its Livewire component's rules as a Form. */
+final class ContactForm extends Form
+{
+    public function rules(): array
+    {
+        return [
+            'subject' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email:rfc', 'max:255'],
+            'message' => ['required', 'string', 'max:5000'],
+        ];
+    }
+
+    public function recipients(): array
+    {
+        return ['contact@aguet.dev'];
+    }
+
+    public function replyTo(): string
+    {
+        return 'email';
     }
 }
 
@@ -271,4 +298,35 @@ it('lists both homes in the sitemap, with their alternates, and nothing else', f
 
     $alternates = ['en' => 'https://aguet.dev/en', 'fr' => 'https://aguet.dev', 'x-default' => 'https://aguet.dev'];
     expect($urls)->toBe(['https://aguet.dev' => $alternates, 'https://aguet.dev/en' => $alternates]);
+});
+
+// M8's acceptance: aguet.dev's contact message, posted while its mail server is unreachable, stored, then delivered through SMTP by a Tick alone.
+it('stores aguet.dev\'s contact message while its SMTP server is down, then delivers it from a Tick only', function (): void {
+    installAguetDev();
+    // Nothing listens on port 1: the delivery after the response fails, as with a mail server down.
+    config(['kami.forms' => [ContactForm::class], 'mail.default' => 'smtp', 'mail.mailers.smtp.host' => '127.0.0.1', 'mail.mailers.smtp.port' => 1]);
+    Kami::schedule();
+    // Before the Home is published: travelling back past its publication would hide it.
+    $this->travelTo('2026-11-10 10:01:00');
+    $home = resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], Entry::query()->withUnpublished()->ofType(Home::class)->sole(), 'fr');
+    $this->artisan('kami:tick')->assertSuccessful();
+
+    $this->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/contact', [
+        '_kami_origin' => "{$home->id}:fr",
+        'subject' => 'Une plateforme sur mesure',
+        'email' => 'visitor@example.com',
+        'message' => 'Bonjour, parlons de mon projet.',
+    ])->assertRedirect('https://aguet.dev?sent=contact#contact');
+
+    expect(Submission::query()->sole()->data)->toBe(['subject' => 'Une plateforme sur mesure', 'email' => 'visitor@example.com', 'message' => 'Bonjour, parlons de mon projet.']);
+    $delivery = DB::table('kami_form_deliveries')->sole();
+    expect([$delivery->channel, $delivery->attempts, $delivery->delivered_at])->toBe(['mail', 1, null])->and($delivery->last_error)->toContain('Connection could not be established');
+
+    config(['mail.default' => 'array']);
+    $this->travelTo('2026-11-10 10:16:00');
+    $this->artisan('kami:tick')->assertSuccessful();
+
+    $mail = collect(Mail::mailer('array')->getSymfonyTransport()->messages())->sole()->getOriginalMessage();
+    expect([$mail->getSubject(), $mail->getTo()[0]->getAddress(), $mail->getReplyTo()[0]->getAddress()])->toBe(['[Contact] Une plateforme sur mesure', 'contact@aguet.dev', 'visitor@example.com'])
+        ->and(DB::table('kami_form_deliveries')->sole()->delivered_at)->toBe('2026-11-10 10:16:00');
 });

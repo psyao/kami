@@ -39,6 +39,11 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
+use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Internal\Deliveries;
+use Psyao\Kami\Forms\Internal\Delivery;
+use Psyao\Kami\Forms\Internal\Forms;
+use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -125,6 +130,7 @@ final readonly class Doctor
             ...($media ? array_filter([$this->missingAlt()]) : []),
             ...$this->scheduler(),
             ...$this->queue(),
+            ...$this->forms(),
         ];
     }
 
@@ -1058,6 +1064,56 @@ final readonly class Doctor
                 ? new Problem(Severity::Warning, 'The oldest queued job has waited since ' . date('Y-m-d H:i', (int) $oldest) . ' UTC.', 'check that Ticks run: each works through the default queue with the time its tasks leave. A job on another queue waits for a worker of your own.', 'scheduler.md#the-queue')
                 : null,
         ]));
+    }
+
+    /**
+     * A log or array mailer in production, a Form with no recipient, deliveries that failed or were abandoned, and Submissions no
+     * declared Form owns any more.
+     *
+     * @return list<Problem>
+     */
+    private function forms(): array
+    {
+        // An invalid `kami.forms` throws on the first page that holds a Form; the doctor reads none then.
+        $forms = rescue(fn (): array => resolve(Forms::class)->all(), [], report: false);
+        $problems = [];
+        $mailer = Config::string('mail.default');
+        $transport = config("mail.mailers.{$mailer}.transport");
+
+        if ($forms !== [] && Config::string('app.env') === 'production' && in_array($transport, ['log', 'array'], true)) {
+            $problems[] = new Problem(Severity::Error, "Submissions are never mailed: the default mailer, {$mailer}, keeps every mail on the server.", 'set MAIL_MAILER=smtp and your host\'s MAIL_* settings in .env.', 'hosting.md#mail');
+        }
+
+        $unrouted = array_filter($forms, fn (Form $form): bool => $form->recipients() === [] && rescue(fn (): bool => in_array('mail', Deliveries::channels($form, new Submission(['data' => []])), true), false, report: false));
+
+        if ($unrouted !== []) {
+            $problems[] = new Problem(Severity::Warning, 'Forms with no recipient: ' . implode(', ', array_map(fn (Form $form): string => $form->handle(), $unrouted)) . '. Their Submissions are stored, not mailed.', 'return the addresses to mail from the recipients() method of each.', 'forms.md#delivery');
+        }
+
+        if (! rescue(fn (): bool => Schema::hasTable('kami_form_deliveries'), false, report: false)) {
+            return $problems;
+        }
+
+        // An attempt counts before it sends: one stopped mid-send, as by max_execution_time, leaves no error.
+        $undelivered = DB::table('kami_form_deliveries')->whereNull('delivered_at')->where('attempts', '>', 0)->where('updated_at', '<=', Date::now()->subMinute());
+
+        foreach (['that failed and wait for a retry' => '<', 'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => '>='] as $state => $operator) {
+            $deliveries = $undelivered->clone()->where('attempts', $operator, Delivery::MAX_ATTEMPTS);
+
+            if (($count = $deliveries->count()) > 0) {
+                $error = $deliveries->latest('updated_at')->value('last_error');
+                $problems[] = new Problem(Severity::Warning, "Submission deliveries {$state}: {$count}. Last error: " . (is_string($error) ? $error : 'none recorded, as when PHP stops an attempt mid-send.'), 'check the mail settings in .env, and each channel of a notification of your own; kami:forms:deliver retries every 15 minutes, up to ' . Delivery::MAX_ATTEMPTS . ' attempts.', 'forms.md#delivery');
+            }
+        }
+
+        $undeclared = DB::table('kami_form_submissions')->whereNotIn('form', array_map(fn (Form $form): string => $form->handle(), $forms))
+            ->groupBy('form')->orderBy('form')->pluck(DB::raw('count(*)'), 'form');
+
+        if ($undeclared->isNotEmpty()) {
+            $problems[] = new Problem(Severity::Warning, 'Submissions of Forms no longer declared: ' . $undeclared->map(fn (mixed $count, string $form): string => $form . ' (' . (is_numeric($count) ? $count : 0) . ')')->implode(', ') . '. Kept, never pruned.', 'declare the Form again under kami.forms, or delete its Submissions in the admin.', 'forms.md#submissions');
+        }
+
+        return $problems;
     }
 
     /** The default queue connection's jobs, when it uses the `database` driver, which every Tick works through; null for another driver. */

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Psyao\Kami\Forms;
 
 use Carbon\CarbonInterval;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
+use Psyao\Kami\Forms\Internal\Forms;
 
 /**
  * A front form a site declares under `kami.forms`: its handle, Laravel rules whose keys are its fields, and what becomes of a Submission (ADR 0015).
@@ -43,11 +45,20 @@ abstract class Form
         return null;
     }
 
+    /**
+     * What tells the site owner about a Submission: by default `SubmissionReceived`, a mail to `recipients()`. Each channel of its `via()`
+     * is delivered and retried on its own; it is sent in the Admin language unless it sets its own `locale()`.
+     */
+    public function notification(Submission $submission): Notification
+    {
+        return new SubmissionReceived($this, $submission);
+    }
+
     /** One line naming a Submission: by default its first text value in the order of `rules()`, truncated. */
     public function summary(Submission $submission): string
     {
         // In the order of `rules()`: MySQL's json column reorders an object's keys.
-        $text = collect(array_keys($this->rules()))->map(fn (string $key): mixed => $submission->data[Str::before($key, '.')] ?? null)
+        $text = collect(Forms::fields($this))->map(fn (string $key): mixed => $submission->data[$key] ?? null)
             ->first(fn (mixed $value): bool => is_string($value) && trim($value) !== '');
 
         return Str::limit(Str::squish(is_string($text) ? $text : ''), 100);

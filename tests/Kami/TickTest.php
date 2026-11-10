@@ -210,6 +210,7 @@ it('runs every task Kami::schedule() declares from a Tick', function (): void {
 
     expect(DB::table('kami_task_runs')->orderBy('description')->pluck('last_status', 'description')->all())->toBe([
         'kami:audit:prune' => 'succeeded',
+        'kami:forms:deliver' => 'succeeded',
         'kami:media:prune' => 'succeeded',
         'kami:page-cache:prune' => 'succeeded',
         'kami:sitemap' => 'succeeded',
