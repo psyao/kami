@@ -37,6 +37,23 @@ final class Delivery extends Model
 
     public const int MAX_ATTEMPTS = 5;
 
+    /** Not delivered after `MAX_ATTEMPTS`: no run retries it. `abandoned()` is the same rule in a query. */
+    public function isAbandoned(): bool
+    {
+        return $this->delivered_at === null && $this->attempts >= self::MAX_ATTEMPTS;
+    }
+
+    /**
+     * Not delivered after `MAX_ATTEMPTS`: `isAbandoned()` in a query.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function abandoned(Builder $query): void
+    {
+        $query->whereNull('delivered_at')->where('attempts', '>=', self::MAX_ATTEMPTS);
+    }
+
     /**
      * Not delivered yet, nor abandoned.
      *
@@ -45,7 +62,7 @@ final class Delivery extends Model
     #[Scope]
     protected function pending(Builder $query): void
     {
-        $query->whereNull('delivered_at')->where('attempts', '<', self::MAX_ATTEMPTS);
+        $query->whereNull('delivered_at')->whereNot(fn (Builder $query): Builder => $query->abandoned());
     }
 
     /** @return BelongsTo<Submission, $this> */

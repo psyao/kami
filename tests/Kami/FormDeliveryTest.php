@@ -16,6 +16,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Internal\Delivery;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Symfony\Component\Mime\Address;
@@ -246,4 +247,18 @@ it('delivers at most 50 Submissions per run of kami:forms:deliver, the oldest fi
 
     expect(sentMails()->map->getSubject()->last())->toBe('[Contact] Visitor 50');
     $this->assertDatabaseHas('kami_form_deliveries', ['attempts' => 0, 'delivered_at' => null]);
+});
+
+it('calls a delivery abandoned, in a query and on a loaded model alike, once undelivered after five attempts, and pending until then', function () {
+    $deliveries = collect([[0, null], [4, null], [5, null], [6, null], [5, now()]])->map(function (array $state): Delivery {
+        [$attempts, $deliveredAt] = $state;
+        $delivery = Delivery::query()->where('submission_id', storedSubmission()->id)->sole();
+        $delivery->update(['attempts' => $attempts, 'delivered_at' => $deliveredAt]);
+
+        return $delivery;
+    });
+
+    expect(Delivery::query()->abandoned()->pluck('attempts')->sort()->values()->all())->toBe([5, 6])
+        ->and(Delivery::query()->pending()->pluck('attempts')->sort()->values()->all())->toBe([0, 4])
+        ->and($deliveries->filter->isAbandoned()->pluck('attempts')->values()->all())->toBe([5, 6]);
 });
