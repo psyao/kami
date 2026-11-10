@@ -6,3 +6,6 @@
 {!! $field['value'] !!}
 
 @endforeach
+@if ($link !== null)
+{!! $link !!}
+@endif

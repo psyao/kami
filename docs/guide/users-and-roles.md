@@ -225,6 +225,13 @@ The [Media library](media.md#the-library-in-the-admin) has four, shared by every
 | `kami.media.update` | edit a Media item's alt text, caption, credit and file |
 | `kami.media.delete` | [delete a Media item](media.md#deleting-a-media-item) no Entry uses |
 
+The [Submissions](forms.md#in-the-admin) of your Forms have two:
+
+| Permission | Lets a User |
+| --- | --- |
+| `kami.form-submissions.view` | list and read the Submissions, which marks them read |
+| `kami.form-submissions.delete` | delete Submissions for good, one or several at once, as a visitor's deletion request asks |
+
 `kami.health.view` shows the dashboard's **Needs attention** widget, the last [`kami:doctor`](installation.md#checking-the-environment) result. `kami.users.manage` lets a User manage the others. `kami.audit.view` lets a User read the [Audit log](audit-log.md#reading-the-log), and nothing more. [Permissions](../reference/permissions.md) lists the whole vocabulary.
 
 Editing a Published or Scheduled Translation changes what visitors see, now or at its date, so it takes `publish` as well as `update` (ADR 0019). A User with `update` alone edits Drafts only.

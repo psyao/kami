@@ -148,7 +148,7 @@ final class ContactForm extends Form
 }
 ```
 
-- **The mail.** `Psyao\Kami\Forms\SubmissionReceived`, in plain text: its subject is `[{Form label}] {summary}`, its body each field with its `validation.attributes` label, in the order of `rules()`. It is written in the Admin language, `app.locale`, whatever the page's Locale. `replyTo()` names the field holding the visitor's address, which goes on `Reply-To` so that answering writes back to them.
+- **The mail.** `Psyao\Kami\Forms\SubmissionReceived`, in plain text: its subject is `[{Form label}] {summary}`, its body each field with its `validation.attributes` label, in the order of `rules()`. It is written in the Admin language, `app.locale`, whatever the page's Locale. `replyTo()` names the field holding the visitor's address, which goes on `Reply-To` so that answering writes back to them. The mail ends with a link to the Submission in the admin, on the first panel carrying `KamiPlugin`; from the console, the link is built from `APP_URL`.
 - **Through Laravel's mailer.** Kami adds no mail setting: configure `MAIL_*` in `.env` for SMTP ([Hosting](hosting.md#mail)). The `log` and `array` mailers keep mail on the server, so `kami:doctor` fails in production while a Form is declared and one of them is the default.
 - **No recipient.** `recipients()` returns none by default: the Submission is stored, nothing is mailed, a warning is logged and `kami:doctor` lists the Form. Adding a recipient later mails the Submissions that follow, never those stored before.
 - **Never queued.** Kami sends with `Notification::sendNow()`, after the response through `defer()`, so no queue worker is needed.
@@ -203,6 +203,26 @@ final class ChatChannel
 - The notifiable is an on-demand one, routed to `recipients()` for `mail`: a channel of your own reads its target from your configuration.
 - Do not implement `ShouldQueue`: a queued notification waits for a Tick to work through the queue, and Kami's retry no longer sees it fail.
 - It is sent in the Admin language unless it sets its own `locale()`.
+
+## In the admin
+
+Once a Form is declared, the admin's **Submissions** screen lists the current Site's Submissions, newest first, a tab per Form. Each row shows the date in the Site's time zone, the Locale, the Form's `summary()` and the delivery state: delivered, pending, retrying after a failure, or failed once a channel was abandoned. The navigation counts the unread ones.
+
+Opening a Submission marks it read. It shows each field with its `validation.attributes` label, in the order of `rules()`, the visitor's text always escaped, then each channel's delivery with its attempts and last error. When `replyTo()` names a field holding a valid address, a **Reply** button opens your mail client to it.
+
+A Form you remove from `kami.forms` keeps its Submissions: they show under a tab named by its handle, their fields sorted by key, so that you can still read and delete them.
+
+Reading takes `kami.form-submissions.view`; deleting, one Submission or several at once, takes `kami.form-submissions.delete` ([Users and Roles](users-and-roles.md#permissions)). Deletion is for good, with the deliveries, and the [Audit log](audit-log.md) records it per Form with the count, never the content. Your own code deletes Submissions through the same action, for instance to honour a visitor's deletion request:
+
+```php
+use Psyao\Kami\Forms\Actions\DeleteSubmissions;
+use Psyao\Kami\Forms\Submission;
+
+$theirs = Submission::query()->where('form', 'contact')->where('data->email', $email)->get();
+resolve(DeleteSubmissions::class)->handle($theirs);
+```
+
+It does not check Permissions: check them before calling it from a route of your own. Once the deletion is committed, it dispatches `Psyao\Kami\Forms\Events\SubmissionsDeleted` per Form, with `form`, `submissionIds` and `actor`: the rows are gone, so it carries values only. `$submission->markRead()` marks one read, as opening it does.
 
 ## A form with a session
 

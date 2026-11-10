@@ -286,6 +286,34 @@ return [
         ],
     ],
 
+    'submissions' => [
+        'label' => 'Submission',
+        'plural_label' => 'Submissions',
+        'unread' => 'Unread',
+        'message' => 'Message',
+        'received' => 'Received :date, in :locale',
+        'reply' => 'Reply',
+        'columns' => [
+            'created_at' => 'Received',
+            'summary' => 'Summary',
+            'locale' => 'Language',
+            'delivery' => 'Delivery',
+        ],
+        'delivery' => [
+            'delivered' => 'Delivered',
+            'failed' => 'Failed',
+            'retrying' => 'Retrying',
+            'pending' => 'Pending',
+            'none' => 'Nothing to send',
+        ],
+        'deliveries' => [
+            'channel' => 'Channel',
+            'state' => 'State',
+            'attempts' => 'Attempts',
+            'last_error' => 'Last error',
+        ],
+    ],
+
     'audit' => [
         'label' => 'Audit event',
         'plural_label' => 'Audit log',

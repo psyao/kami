@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Workbench\Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Actions\DeleteEntry;
@@ -13,6 +14,9 @@ use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\SiteSettings;
+use Psyao\Kami\Forms\Actions\StoreSubmission;
+use Psyao\Kami\Forms\Internal\Delivery;
+use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Users\Actions\AssignRoles;
 use Workbench\App\Content\Article;
@@ -113,6 +117,13 @@ class DatabaseSeeder extends Seeder
         $former = $this->user('Fiona Former', 'former@example.test', 'editor');
         $save->handle(Article::class, [...$published, 'title' => 'Écrit par une ancienne', 'author' => 'Fiona'], locale: 'fr', actor: $former);
         $former->delete();
+
+        // Submissions of the contact form, one read, one whose mail an SMTP outage abandoned, and one of a Form no longer declared.
+        $store = resolve(StoreSubmission::class);
+        $store->handle('contact', ['name' => 'Grace Hopper', 'email' => 'grace@example.test', 'message' => "Bonjour,\nJ'aimerais parler d'un projet."], 'fr')->markRead();
+        $failed = $store->handle('contact', ['name' => 'Alan Turing', 'email' => 'alan@example.test', 'message' => 'Hello, is the site in English too?'], 'en');
+        DB::table('kami_form_deliveries')->where('submission_id', $failed->id)->update(['attempts' => Delivery::MAX_ATTEMPTS, 'last_error' => 'Symfony\\Component\\Mailer\\Exception\\TransportException: Connection could not be established with host "mail.example.test:587"']);
+        Submission::query()->create(['site' => 'default', 'locale' => 'fr', 'form' => 'newsletter', 'data' => ['email' => 'old@example.test']]);
     }
 
     private function user(string $name, string $email, string $role): User

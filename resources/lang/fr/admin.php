@@ -286,6 +286,34 @@ return [
         ],
     ],
 
+    'submissions' => [
+        'label' => 'Message reçu',
+        'plural_label' => 'Messages reçus',
+        'unread' => 'Non lu',
+        'message' => 'Message',
+        'received' => 'Reçu le :date, en :locale',
+        'reply' => 'Répondre',
+        'columns' => [
+            'created_at' => 'Reçu',
+            'summary' => 'Résumé',
+            'locale' => 'Langue',
+            'delivery' => 'Envoi',
+        ],
+        'delivery' => [
+            'delivered' => 'Envoyé',
+            'failed' => 'Échec',
+            'retrying' => 'Nouvel essai',
+            'pending' => 'En attente',
+            'none' => 'Rien à envoyer',
+        ],
+        'deliveries' => [
+            'channel' => 'Canal',
+            'state' => 'État',
+            'attempts' => 'Tentatives',
+            'last_error' => 'Dernière erreur',
+        ],
+    ],
+
     'audit' => [
         'label' => 'Événement d’audit',
         'plural_label' => 'Journal d’audit',

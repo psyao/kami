@@ -210,11 +210,18 @@ class Psyao\Kami\Content\Term::ancestors() public function ancestors(): Illumina
 class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Facades\Kami::exceptions() public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void
+class Psyao\Kami\Forms\Actions\DeleteSubmissions final class
+class Psyao\Kami\Forms\Actions\DeleteSubmissions::handle() public function handle(Traversable|array $submissions, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Forms\Actions\StoreSubmission final class
 class Psyao\Kami\Forms\Actions\StoreSubmission::handle() public function handle(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission
 class Psyao\Kami\Forms\Events\SubmissionStored final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Forms\Events\SubmissionStored::$submission public protected(set) readonly Psyao\Kami\Forms\Submission $submission
 class Psyao\Kami\Forms\Events\SubmissionStored::__construct() public function __construct(Psyao\Kami\Forms\Submission $submission)
+class Psyao\Kami\Forms\Events\SubmissionsDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Forms\Events\SubmissionsDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Forms\Events\SubmissionsDeleted::$form public protected(set) readonly string $form
+class Psyao\Kami\Forms\Events\SubmissionsDeleted::$submissionIds public protected(set) readonly array $submissionIds
+class Psyao\Kami\Forms\Events\SubmissionsDeleted::__construct() public function __construct(string $form, array $submissionIds, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Forms\Form abstract class
 class Psyao\Kami\Forms\Form::handle() public function handle(): string
 class Psyao\Kami\Forms\Form::label() final public function label(): string
@@ -226,6 +233,7 @@ class Psyao\Kami\Forms\Form::rules() abstract public function rules(): array
 class Psyao\Kami\Forms\Form::sent() final public function sent(): bool
 class Psyao\Kami\Forms\Form::summary() public function summary(Psyao\Kami\Forms\Submission $submission): string
 class Psyao\Kami\Forms\Submission final class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Forms\Submission::markRead() public function markRead(): void
 class Psyao\Kami\Forms\SubmissionReceived final class extends Illuminate\Notifications\Notification
 class Psyao\Kami\Forms\SubmissionReceived::__construct() public function __construct(Psyao\Kami\Forms\Form $form, Psyao\Kami\Forms\Submission $submission)
 class Psyao\Kami\Forms\SubmissionReceived::toMail() public function toMail(object $notifiable): Illuminate\Notifications\Messages\MailMessage
@@ -385,6 +393,8 @@ permission kami.entries.{type}.restore
 permission kami.entries.{type}.share-preview
 permission kami.entries.{type}.update
 permission kami.entries.{type}.view
+permission kami.form-submissions.delete
+permission kami.form-submissions.view
 permission kami.health.view
 permission kami.media.create
 permission kami.media.delete

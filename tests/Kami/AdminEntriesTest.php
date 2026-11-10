@@ -584,8 +584,8 @@ it('lists Entries in a fixed number of queries, whatever their number', function
     DB::enableQueryLog();
     $this->get('/admin/articles')->assertOk()->assertSee('Article 1');
 
-    // The manager's authenticator, read once by the MFA requirement, is one of them.
-    expect(DB::getQueryLog())->toHaveCount(6);
+    // The manager's authenticator, read once by the MFA requirement, is one of them, as is the navigation's count of unread Submissions.
+    expect(DB::getQueryLog())->toHaveCount(7);
 })->with([1, 10]);
 
 it('loads the Creators and Last modifiers in one query each, whatever the number of Entries', function (int $entries) {
@@ -1462,8 +1462,8 @@ it('opens an Entry page in an exact number of queries, with relations', function
     $this->get("/admin/projects/{$project->id}/edit")->assertOk();
 
     // The manager's authenticator, read once by the MFA requirement, is one of them, as are the targets' types, which decide who sees their titles,
-    // and the Site settings, read once for the SEO section's placeholders.
-    expect(DB::getQueryLog())->toHaveCount(12);
+    // the Site settings, read once for the SEO section's placeholders, and the navigation's count of unread Submissions.
+    expect(DB::getQueryLog())->toHaveCount(13);
 })->with([1, 5]);
 
 function quickCreate(string $field): TestAction

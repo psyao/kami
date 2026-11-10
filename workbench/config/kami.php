@@ -32,7 +32,7 @@ return [
 
     'roles' => [
         'administrator' => ['kami.*'],
-        'editor' => ['kami.entries.*.view', 'kami.entries.*.create', 'kami.entries.*.update', 'kami.media.view', 'kami.media.create', 'kami.media.update'],
+        'editor' => ['kami.entries.*.view', 'kami.entries.*.create', 'kami.entries.*.update', 'kami.media.view', 'kami.media.create', 'kami.media.update', 'kami.form-submissions.view'],
     ],
 
     'sites' => [

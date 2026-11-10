@@ -117,6 +117,17 @@ A visitor's Submission was stored through `StoreSubmission`, once the write comm
 - `public protected(set) readonly Psyao\Kami\Forms\Submission $submission`
 - `public function __construct(Psyao\Kami\Forms\Submission $submission)`
 
+## `Psyao\Kami\Forms\Events\SubmissionsDeleted`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+Submissions of one Form were deleted for good through `DeleteSubmissions`, once the write committed (ADR 0029). It carries values: the rows are gone, so a queued listener has nothing to reload.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly string $form`
+- `public protected(set) readonly array $submissionIds`
+- `public function __construct(string $form, array $submissionIds, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
 ## `Psyao\Kami\Media\Events\MediaDeleted`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`

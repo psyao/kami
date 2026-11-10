@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Psyao\Kami\Forms\Internal;
 
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Submission;
 
 /**
  * The Forms listed in `config/kami.php`, found by handle and validated when first read, never at boot, as Content Types are (ADR 0007).
@@ -31,6 +33,42 @@ final class Forms
     public static function fields(Form $form): array
     {
         return array_values(array_unique(array_map(fn (string $key): string => Str::before($key, '.'), array_keys($form->rules()))));
+    }
+
+    /**
+     * Each stored value with its `validation.attributes` label, as text: in the order of `rules()`, or sorted by key for a Form no longer
+     * declared. Never in stored order, which MySQL's json column changes. Two fields may share a label.
+     *
+     * @return list<array{label: string, value: string}>
+     */
+    public static function values(Submission $submission, ?Form $form): array
+    {
+        $keys = $form instanceof Form ? self::fields($form) : array_map(strval(...), array_keys($submission->data));
+
+        if (! $form instanceof Form) {
+            sort($keys);
+        }
+
+        $values = [];
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $submission->data)) {
+                $label = Lang::has("validation.attributes.{$key}") ? (string) __("validation.attributes.{$key}") : Str::headline($key);
+                $values[] = ['label' => Str::ucfirst($label), 'value' => self::text($submission->data[$key])];
+            }
+        }
+
+        return $values;
+    }
+
+    private static function text(mixed $value): string
+    {
+        return match (true) {
+            is_array($value) => implode(', ', array_map(self::text(...), $value)),
+            is_bool($value) => $value ? '✓' : '✗',
+            is_scalar($value) => (string) $value,
+            default => '',
+        };
     }
 
     public function find(string $handle): ?Form

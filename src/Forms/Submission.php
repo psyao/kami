@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Psyao\Kami\Forms\Internal\Delivery;
 
 /**
  * What a visitor sent through a Form: its validated values only, with no IP, user agent or cookie (ADR 0015). Written by `StoreSubmission`.
@@ -28,6 +30,29 @@ use Illuminate\Database\Eloquent\Model;
 final class Submission extends Model
 {
     use HasUlids;
+
+    /** Marks it read, once: a later call keeps the first `read_at`. Reading is not an Audit event (ADR 0022). */
+    public function markRead(): void
+    {
+        if ($this->read_at !== null) {
+            return;
+        }
+
+        // A conditional update, not a save: two editors opening it at once keep the first `read_at`.
+        self::query()->whereKey($this->id)->whereNull('read_at')->update(['read_at' => now()]);
+        $this->read_at = now()->toImmutable();
+        $this->syncOriginalAttribute('read_at');
+    }
+
+    /**
+     * @internal
+     *
+     * @return HasMany<Delivery, $this>
+     */
+    public function deliveries(): HasMany
+    {
+        return $this->hasMany(Delivery::class);
+    }
 
     protected function casts(): array
     {

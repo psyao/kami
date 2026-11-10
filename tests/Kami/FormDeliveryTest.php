@@ -150,7 +150,7 @@ it('mails a Submission to its recipients once the response is sent, in the Admin
         ->and(array_map(fn (Address $address): string => $address->getAddress(), $mail->getTo()))->toBe(['hello@example.com'])
         ->and($mail->getReplyTo()[0]->getAddress())->toBe('ada@example.com')
         ->and($mail->getHtmlBody())->toBeNull()
-        ->and($mail->getTextBody())->toBe("A visitor sent the Contact form.\n\nName:\nAda Lovelace\n\nEmail address:\nada@example.com\n\nMessage:\nHello,\nI would like to talk.\n\n");
+        ->and($mail->getTextBody())->toBe("A visitor sent the Contact form.\n\nName:\nAda Lovelace\n\nEmail address:\nada@example.com\n\nMessage:\nHello,\nI would like to talk.\n\nOpen it in the admin: " . config('app.url') . '/admin/submissions/' . Submission::query()->sole()->id . "\n");
     $delivery = DB::table('kami_form_deliveries')->sole();
     expect($delivery->attempts)->toBe(1)->and($delivery->delivered_at)->not->toBeNull()->and($delivery->last_error)->toBeNull();
 });
