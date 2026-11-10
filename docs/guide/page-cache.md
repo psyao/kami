@@ -98,7 +98,7 @@ It works the same on shared hosting and on a server: a hit reads the manifest an
 
 ## Measuring
 
-`php artisan kami:bench` prints the median server time of a page served from the page cache and rendered by Laravel, measured from the host ([Deployment](deployment.md#measuring-page-speed)).
+`php artisan kami:bench` prints the median server time of a page served from the page cache and rendered by Laravel, measured from the host, or says the page cache did not serve it ([Deployment](deployment.md#measuring-page-speed)).
 
 ## Clearing
 

@@ -147,7 +147,7 @@ final class DoctorCommand extends Command
         }
 
         $this->components->twoColumnDetail('<options=bold>Page speed</>', sprintf('%s, %s', $bench['url'], $bench['measured_at']->utc()->format('Y-m-d H:i \U\T\C')));
-        $this->components->twoColumnDetail('Cached', sprintf('%.1f ms', $bench['cached_ms']));
+        $this->components->twoColumnDetail('Cached', $bench['cached_ms'] === null ? 'not served from the page cache' : sprintf('%.1f ms', $bench['cached_ms']));
         $this->components->twoColumnDetail('Uncached', sprintf('%.1f ms', $bench['uncached_ms']));
         $this->newLine();
     }
