@@ -11,11 +11,10 @@ uses(RefreshDatabase::class);
 it('trashes an Entry from its row, finds it through the Trash filter, and restores it', function () {
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published'], locale: 'fr');
 
-    $page = signIn()
+    $page = assertAxeClean(signIn()
         ->navigate('/admin/articles')
         ->click('internal:role=button[name="Move to Trash"s]')
-        ->assertSee('Move Bonjour to the Trash')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Move Bonjour to the Trash'), admin: true)
         ->click('.fi-modal-footer-actions >> internal:role=button[name="Move to Trash"s]')
         ->assertSee('Moved to the Trash')
         ->assertSee('No Articles');
@@ -30,7 +29,7 @@ it('trashes an Entry from its row, finds it through the Trash filter, and restor
         ->keys('[data-table-filter-action="apply"]', 'Escape');
     $page->script("() => new Promise((resolve, reject) => { const until = Date.now() + 5000; const hidden = () => ! document.querySelector('[data-table-filter-action=\"apply\"]').checkVisibility() ? resolve() : Date.now() > until ? reject(new Error('The filter dropdown is still open after 5 seconds.')) : requestAnimationFrame(hidden); hidden(); })");
 
-    $page->assertNoAccessibilityIssues()
+    assertAxeClean($page, admin: true)
         ->click('internal:role=button[name="Restore"s]')
         ->click('.fi-modal-footer-actions >> internal:role=button[name="Restore"s]')
         ->assertSee('Restored')

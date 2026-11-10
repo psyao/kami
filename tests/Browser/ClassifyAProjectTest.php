@@ -11,9 +11,9 @@ use Workbench\App\Content\Tag;
 uses(RefreshDatabase::class);
 
 it('builds a page with a tab, a condition and a Term created from its picker, and reads it on the front', function () {
-    signIn()
-        ->navigate('/admin/projects/create')
-        ->assertNoAccessibilityIssues()
+    $page = assertAxeClean(signIn()
+        ->navigate('/admin/projects/create'), admin: true);
+    assertAxeClean($page
         ->assertValue('[id="form.address.city"]', 'Vevey')
         ->fill('[id="form.title"]', 'Refonte')
         ->assertDontSee('Why it is featured')
@@ -24,8 +24,7 @@ it('builds a page with a tab, a condition and a Term created from its picker, an
         ->fill('[id="form.story"]', 'Une histoire')
         ->click('internal:role=tab[name="Details"s]')
         ->click('[aria-label="Create a Tag"]')
-        ->fill('internal:role=dialog >> internal:role=textbox', 'Laravel')
-        ->assertNoAccessibilityIssues()
+        ->fill('internal:role=dialog >> internal:role=textbox', 'Laravel'), admin: true)
         ->press('internal:role=dialog >> internal:role=button[name="Create"s]')
         ->assertSee('Laravel')
         ->press('internal:role=button[name="Publish"s]')
@@ -37,8 +36,8 @@ it('builds a page with a tab, a condition and a Term created from its picker, an
     expect($project->tags->pluck('title')->all())->toBe(['Laravel']);
 
     foreach (['/admin/projects/create', "/admin/projects/{$project->id}/edit"] as $url) {
-        visit($url)->inDarkMode()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
-        visit($url)->on()->mobile()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        assertAxeClean(visit($url)->inDarkMode()->assertDontSee('Sign in'), admin: true)->assertNoJavaScriptErrors();
+        assertAxeClean(visit($url)->on()->mobile()->assertDontSee('Sign in'), admin: true)->assertNoJavaScriptErrors();
     }
 
     visit('/project/refonte')->assertSee('Laravel')->assertSee('Vevey')->assertNoJavaScriptErrors();
@@ -66,11 +65,10 @@ it('reorders the rows of an orderable type by dragging, and the front order foll
     $save->handle(Project::class, ['title' => 'Premier'], locale: 'fr');
     $save->handle(Project::class, ['title' => 'Second'], locale: 'fr');
 
-    signIn()
+    assertAxeClean(signIn()
         ->navigate('/admin/projects')
         ->press('internal:role=button[name="Reorder records"s]')
-        ->waitForText('Drag and drop')
-        ->assertNoAccessibilityIssues()
+        ->waitForText('Drag and drop'), admin: true)
         ->drag('.fi-ta-row:has-text("Second") .fi-ta-reorder-handle', '.fi-ta-row:has-text("Premier") .fi-ta-reorder-handle')
         ->wait(2)
         ->assertNoJavaScriptErrors();

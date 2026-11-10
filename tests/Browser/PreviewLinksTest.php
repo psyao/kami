@@ -11,11 +11,10 @@ uses(RefreshDatabase::class);
 it('creates a link that shows the Draft, lists it in the dialog, and revokes it', function () {
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Brouillon', 'author' => 'Ada']);
 
-    $page = signIn()
+    $page = assertAxeClean(signIn()
         ->navigate("/admin/articles/{$entry->id}/edit")
         ->click('internal:role=button[name="Preview links"s]')
-        ->assertSee('No active link.')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('No active link.'), admin: true)
         ->click('internal:role=button[name="Create a link"s]')
         ->assertSee('Preview link created');
 

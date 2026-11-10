@@ -89,19 +89,24 @@ function signIn(): mixed
  * axe at its strictest on a front page: every impact, plus the WCAG 2.2 AA rules `assertNoAccessibilityIssues()` leaves out (`target-size`).
  * Incomplete results fail too: a target covered by another one is only "incomplete" to axe (#494), except a textarea's
  * contrast, which axe never resolves past the textarea's own scroll box: a textarea covered by another element goes unseen.
+ *
+ * On an admin page (`admin: true`), Filament's markup sets the bar (#507): the WCAG tags without `best-practice`, after the
+ * default rules at serious and critical impact, and violations only. Filament's best-practice findings and incomplete
+ * results are its own: a target covered by another one goes unseen in the admin.
  */
-function assertAxeClean(mixed $page): mixed
+function assertAxeClean(mixed $page, bool $admin = false): mixed
 {
-    $page->assertNoAccessibilityIssues(3); // also injects axe
+    $page->assertNoAccessibilityIssues($admin ? 1 : 3); // also injects axe
 
-    $results = $page->script(<<<'JS'
+    $results = $page->script(sprintf(<<<'JS'
         async () => {
-            const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
+            const admin = %s;
+            const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', ...(admin ? [] : ['best-practice'])];
             const { violations, incomplete } = await axe.run(document, { runOnly: { type: 'tag', values: tags }, elementRef: true });
-            const kept = incomplete.map(r => r.id === 'color-contrast' ? { ...r, nodes: r.nodes.filter(n => n.element.tagName !== 'TEXTAREA') } : r);
+            const kept = admin ? [] : incomplete.map(r => r.id === 'color-contrast' ? { ...r, nodes: r.nodes.filter(n => n.element.tagName !== 'TEXTAREA') } : r);
             return [...violations, ...kept].flatMap(r => r.nodes.map(n => `${r.id}: ${n.target.join(' ')}: ${[...n.any, ...n.all, ...n.none].map(c => c.message).join(' ')}`));
         }
-        JS);
+        JS, $admin ? 'true' : 'false'));
 
     expect($results)->toBe([]);
 

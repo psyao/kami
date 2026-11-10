@@ -10,32 +10,29 @@ uses(RefreshDatabase::class);
 it('signs in, creates and publishes an Entry in two Locales, and reads both on the front', function () {
     $page = signIn();
 
-    $page
-        ->navigate('/admin/articles/create')
-        ->assertNoAccessibilityIssues()
+    $page = assertAxeClean($page->navigate('/admin/articles/create'), admin: true);
+    $page = assertAxeClean($page
         ->fill('[id="form.title"]', 'Bonjour')
         ->fill('[id="form.author"]', 'Ada Lovelace')
         ->press('internal:role=button[name="Publish"s]')
-        ->assertSee('FR · Published')
-        ->assertNoAccessibilityIssues()
-        ->press('internal:role=button[name="FR · Published"s]')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('FR · Published'), admin: true);
+    $page = assertAxeClean($page->press('internal:role=button[name="FR · Published"s]'), admin: true);
+    $page = assertAxeClean($page
         ->click('internal:role=menuitem[name="EN · No translation yet"s]')
-        ->assertSee('Translation: EN')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Translation: EN'), admin: true);
+    assertAxeClean($page
         ->fill('[id="form.title"]', 'Hello')
         ->press('internal:role=button[name="Publish"s]')
         ->assertSee('View on the site')
         ->navigate('/admin/articles')
-        ->assertSee('Bonjour')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Bonjour'), admin: true)
         ->assertNoJavaScriptErrors();
 
     $entry = Entry::query()->sole();
 
     foreach (['/admin/articles', "/admin/articles/{$entry->id}/edit", "/admin/articles/{$entry->id}/edit/en"] as $url) {
-        visit($url)->inDarkMode()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
-        visit($url)->on()->mobile()->assertDontSee('Sign in')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+        assertAxeClean(visit($url)->inDarkMode()->assertDontSee('Sign in'), admin: true)->assertNoJavaScriptErrors();
+        assertAxeClean(visit($url)->on()->mobile()->assertDontSee('Sign in'), admin: true)->assertNoJavaScriptErrors();
     }
 
     assertAxeClean(visit('/articles/bonjour')->assertSee('Bonjour'))->assertNoJavaScriptErrors();

@@ -15,23 +15,21 @@ it('names every link of a list holding a Draft and a Scheduled date', function (
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Brouillon', 'author' => 'Ada'], locale: 'fr');
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'À paraître', 'author' => 'Ada', 'status' => 'published', 'published_at' => now()->addDay()], locale: 'fr');
 
-    signIn()
+    assertAxeClean(signIn()
         ->navigate('/admin/articles')
-        ->assertSee('Brouillon')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Brouillon'), admin: true)
         ->assertNoJavaScriptErrors();
 });
 
 it('shows a site\'s own form and table', function () {
     resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr');
 
-    signIn()
+    $page = assertAxeClean(signIn()
         ->navigate('/admin/projects')
-        ->assertSee('No client')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('No client'), admin: true);
+    assertAxeClean($page
         ->navigate('/admin/projects/create')
-        ->assertSee('Drafts stay private until published.')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Drafts stay private until published.'), admin: true)
         ->assertNoJavaScriptErrors();
 });
 
@@ -64,19 +62,18 @@ it('writes in the rich text editor, and keeps a document holding a Block whole',
     $body = ['type' => 'doc', 'content' => [
         ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Avant']]],
         ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => ['items' => ['01J']]]],
-        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'target', 'marks' => [['type' => 'link', 'attrs' => ['href' => 'kami://entry/01JABC']]]]]],
+        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Voir la '], ['type' => 'text', 'text' => 'target', 'marks' => [['type' => 'link', 'attrs' => ['href' => 'kami://entry/01JABC']]]]]],
     ]];
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'body' => $body], locale: 'fr');
 
-    $page = signIn()
+    $page = assertAxeClean(signIn()
         ->navigate("/admin/articles/{$entry->id}/edit")
         ->assertSee('Avant')
-        ->assertSee('Block unavailable for now: gallery')
-        ->assertNoAccessibilityIssues()
+        ->assertSee('Block unavailable for now: gallery'), admin: true)
         ->assertNoJavaScriptErrors();
 
-    visit("/admin/articles/{$entry->id}/edit")->inDarkMode()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
-    visit("/admin/articles/{$entry->id}/edit")->on()->mobile()->assertSee('Avant')->assertNoAccessibilityIssues()->assertNoJavaScriptErrors();
+    assertAxeClean(visit("/admin/articles/{$entry->id}/edit")->inDarkMode()->assertSee('Avant'), admin: true)->assertNoJavaScriptErrors();
+    assertAxeClean(visit("/admin/articles/{$entry->id}/edit")->on()->mobile()->assertSee('Avant'), admin: true)->assertNoJavaScriptErrors();
 
     $page->click('internal:role=button[name="Link"s]');
     $page->assertSee('URL')->assertDontSee('Open in new tab');
@@ -94,5 +91,5 @@ it('writes in the rich text editor, and keeps a document holding a Block whole',
 
     expect($saved->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]]])
         ->and($saved->text())->toContain('Encore')->toContain('Avant')->toContain('target')
-        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][2]['content'][0]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC');
+        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][2]['content'][1]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC');
 });
