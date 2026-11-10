@@ -16,7 +16,7 @@ final readonly class EntryPublished implements ShouldDispatchAfterCommit
     /**
      * @param  Entry  $entry  The Entry as saved, its relations loaded.
      * @param  string  $locale  The Locale published, or `'*'` for an untranslatable type.
-     * @param  bool  $scheduled  Whether a Scheduled Translation reached its moment rather than being published by a save; always `false` until scheduled announcements arrive.
+     * @param  bool  $scheduled  Whether a Scheduled Translation reached its moment, announced by `kami:announce-publications`, rather than being published by a save.
      * @param  Authenticatable|null  $actor  Null for imports and the CLI.
      */
     public function __construct(

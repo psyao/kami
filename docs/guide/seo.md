@@ -253,7 +253,7 @@ It lists the visible Translations that have a URL and are not [Hidden from searc
 
 ### When it is rebuilt
 
-Every save, publication, Trash, restore or deletion marks the sitemap stale, and so does a Scheduled Entry once its time has come. `php artisan kami:sitemap` rebuilds it when it is stale and does nothing otherwise. It writes the files into a temporary directory, then swaps it in, so a crawler never reads half a sitemap.
+Every save of a type with URLs, publication, Trash, restore or deletion marks the sitemap stale, and so does a Scheduled Entry once its time has come, through `kami:announce-publications` ([Publishing](publishing.md#reacting-to-content)). Saving Site settings or a Global Set does not. `php artisan kami:sitemap` rebuilds it when it is stale and does nothing otherwise. It writes the files into a temporary directory, then swaps it in, so a crawler never reads half a sitemap.
 
 `Kami::schedule()` in `routes/console.php` runs it hourly from every Tick ([Scheduler](scheduler.md)).
 

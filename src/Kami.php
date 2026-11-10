@@ -128,6 +128,8 @@ final class Kami
     public function schedule(): void
     {
         $schedule = resolve(Schedule::class);
+        // The side effects of a Scheduled publication: visibility never waits for it (ADR 0019).
+        $schedule->command('kami:announce-publications')->everyMinute()->withoutOverlapping(10);
         // The backstop for a Submission's delivery that failed, or whose `defer()` never ran.
         $schedule->command('kami:forms:deliver')->everyFifteenMinutes()->withoutOverlapping(10);
         $schedule->command('kami:sitemap')->hourly()->withoutOverlapping(10);

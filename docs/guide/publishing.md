@@ -130,7 +130,7 @@ The core actions dispatch Content events, in `Psyao\Kami\Content\Events`, so you
 | Event | Dispatched when | Properties |
 | --- | --- | --- |
 | `EntrySaved` | every save | `entry`, `locale`, `created`, `actor` |
-| `EntryPublished` | the save made the Translation visible: published now or backdated | `entry`, `locale`, `scheduled`, `actor` |
+| `EntryPublished` | the save made the Translation visible, published now or backdated; or a Scheduled Translation's moment came | `entry`, `locale`, `scheduled`, `actor` |
 | `EntryUnpublished` | the save returned a published Translation to Draft | `entry`, `locale`, `actor` |
 | `EntryTrashed` | `TrashEntry` moved the Entry to the [Trash](content-types.md#the-trash) | `entry`, `actor` |
 | `EntryRestored` | `RestoreEntry` brought it back | `entry`, `actor` |
@@ -140,7 +140,7 @@ The core actions dispatch Content events, in `Psyao\Kami\Content\Events`, so you
 
 - `entry` is the Entry as saved, with its Translations and Field values loaded; `locale` is the Locale written, or `'*'` for an untranslatable type and a Shared-only call. `created` is `true` when the save created the Entry, not when it added a Locale. `actor` is the User passed to `SaveEntry`, `null` for imports and the CLI.
 - `EntryDeleted` and `TranslationDeleted` carry values rather than models, as the rows are gone: a queued listener has nothing to reload. `replacementId` is `null` when the addresses answer 410.
-- Scheduling a Translation dispatches `EntrySaved` only: no event fires yet when its moment comes, so `scheduled` is always `false` for now.
+- Scheduling a Translation dispatches `EntrySaved` only. Its `EntryPublished` comes with the first Tick after its moment, from `kami:announce-publications`, every minute in `Kami::schedule()` ([Scheduler](scheduler.md)), with `scheduled` `true` and `actor` `null`. The page is visible at its moment whether or not a Tick runs: only the event waits. A Translation saved again after its moment is not announced, as that save dispatched its own `EntryPublished`. The command's first run announces nothing and starts from then; it remembers its last run in `storage/framework/kami/announced-at`.
 - Events are dispatched once the write is committed. When you call a core action inside your own `DB::transaction()`, they wait for that transaction to commit and are dropped if it rolls back, so a listener never sees a write that did not happen.
 - An exception thrown by a listener reaches the caller, after the write is committed: a failed side effect is visible, never silent.
 
