@@ -174,7 +174,7 @@ final class ContactForm extends Form
 ```
 
 - **The mail.** `Psyao\Kami\Forms\SubmissionReceived`, in plain text: its subject is `[{Form label}] {summary}`, its body each field with its `validation.attributes` label, in the order of `rules()`. It is written in the Admin language, `app.locale`, whatever the page's Locale. `replyTo()` names the field holding the visitor's address, which goes on `Reply-To` so that answering writes back to them. The mail ends with a link to the Submission in the admin, on the first panel carrying `KamiPlugin`; from the console, the link is built from `APP_URL`.
-- **Through Laravel's mailer.** Kami adds no mail setting: configure `MAIL_*` in `.env` for SMTP ([Hosting](hosting.md#mail)). The `log` and `array` mailers keep mail on the server, so `kami:doctor` fails in production while a Form is declared and one of them is the default.
+- **Through Laravel's mailer.** Kami adds no mail setting: configure `MAIL_*` in `.env` for SMTP ([Hosting](hosting.md#mail)). The `log` and `array` mailers keep mail on the server, so `kami:doctor` fails in production while a Form is declared and one of them is the default. It warns while a Form is declared and the default mailer is an `smtp` one with no `timeout` ([Hosting](hosting.md#mail)), and only informs under `APP_ENV=local` or `testing`.
 - **No recipient.** `recipients()` returns none by default: the Submission is stored, nothing is mailed, a warning is logged and `kami:doctor` lists the Form. Adding a recipient later mails the Submissions that follow, never those stored before.
 - **Never queued.** Kami sends with `Notification::sendNow()`, after the response through `defer()`, so no queue worker is needed.
 

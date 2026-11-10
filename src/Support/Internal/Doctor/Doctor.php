@@ -1067,7 +1067,7 @@ final readonly class Doctor
     }
 
     /**
-     * A log or array mailer in production, a Form with no recipient, deliveries that failed or were abandoned, and Submissions no
+     * A log or array mailer in production, an smtp mailer with no timeout, a Form with no recipient, deliveries that failed or were abandoned, and Submissions no
      * declared Form owns any more.
      *
      * @return list<Problem>
@@ -1082,6 +1082,11 @@ final readonly class Doctor
 
         if ($forms !== [] && Config::string('app.env') === 'production' && in_array($transport, ['log', 'array'], true)) {
             $problems[] = new Problem(Severity::Error, "Submissions are never mailed: the default mailer, {$mailer}, keeps every mail on the server.", 'set MAIL_MAILER=smtp and your host\'s MAIL_* settings in .env.', 'hosting.md#mail');
+        }
+
+        // ponytail: no upper bound on a set timeout, add one when a site meets a long one (#513).
+        if ($forms !== [] && $transport === 'smtp' && config("mail.mailers.{$mailer}.timeout") === null) {
+            $problems[] = new Problem($this->runningSiteSeverity(), "The smtp mailer, {$mailer}, has no timeout: a Submission mailed while the mail server hangs waits PHP's default_socket_timeout, 60 s, inside a visitor's request or a Tick.", "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.", 'hosting.md#mail');
         }
 
         $unrouted = array_filter($forms, fn (Form $form): bool => $form->recipients() === [] && rescue(fn (): bool => in_array('mail', Deliveries::channels($form, new Submission(['data' => []])), true), false, report: false));

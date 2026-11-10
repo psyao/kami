@@ -98,8 +98,8 @@ final class Editor extends User
 
 // An empty database, whatever the engine: tables another test left on MySQL or MariaDB, which do not roll back, would read as drift. `ContentModelDriftTest` covers the engines.
 beforeEach(function () {
-    // A mailer that leaves the server, or every production test would see a declared Form's error.
-    config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty', 'mail.default' => 'smtp']);
+    // A mailer that leaves the server, with a timeout, or every production test would see a declared Form's error or warning.
+    config(['database.connections.empty' => ['driver' => 'sqlite', 'database' => ':memory:'], 'database.default' => 'empty', 'mail.default' => 'smtp', 'mail.mailers.smtp.timeout' => 10]);
     withConversionsServed();
     withRunningSite();
 });
@@ -1197,6 +1197,25 @@ describe('Forms', function () {
         'smtp in production' => ['production', 'smtp', [ContactForm::class], false],
         'log in local' => ['local', 'log', [ContactForm::class], false],
         'log in production with no Form' => ['production', 'log', [], false],
+    ]);
+
+    it('reports a declared Form mailed through an smtp mailer with no timeout, as an information under local', function (string $environment, string $transport, ?int $timeout, array $forms, ?Severity $severity) {
+        config(['app.env' => $environment, 'mail.default' => 'outgoing', 'mail.mailers.outgoing' => ['transport' => $transport, 'timeout' => $timeout], 'kami.forms' => $forms]);
+
+        $problem = problem('The smtp mailer');
+
+        expect($problem?->severity)->toBe($severity);
+        $severity && expect([$problem->message, $problem->fix, $problem->guide])->toBe([
+            'The smtp mailer, outgoing, has no timeout: a Submission mailed while the mail server hangs waits PHP\'s default_socket_timeout, 60 s, inside a visitor\'s request or a Tick.',
+            "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.",
+            'hosting.md#mail',
+        ]);
+    })->with([
+        'smtp with no timeout in production' => ['production', 'smtp', null, [ContactForm::class], Severity::Warning],
+        'smtp with no timeout in local' => ['local', 'smtp', null, [ContactForm::class], Severity::Info],
+        'smtp with a timeout' => ['production', 'smtp', 10, [ContactForm::class], null],
+        'smtp with no timeout and no Form' => ['production', 'smtp', null, [], null],
+        'sendmail with no timeout' => ['production', 'sendmail', null, [ContactForm::class], null],
     ]);
 
     it('warns about a Form whose mail has no recipient', function () {
