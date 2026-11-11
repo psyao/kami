@@ -22,8 +22,6 @@ pre-commit:
 pre-push:
   piped: true
   jobs:
-    - name: unique test functions # CI's coverage step loads `Kami` and `Install` in one process, so a global helper defined in both fails there only
-      run: "! grep -rhoE '^function [A-Za-z_][A-Za-z0-9_]*' tests | sort | uniq -d | grep ."
     - name: analyse
       run: composer analyse
     - name: test

@@ -28,7 +28,7 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | Suite | Directory | Boots | Runs |
 | --- | --- | --- | --- |
 | `Kami` | `tests/Kami/` | Testbench with the Workbench | `composer test`, pre-push, every CI job but Browser and Smoke |
-| `Install` | `tests/Install/` | Testbench without the Workbench, so no panel carries Kami until a test adds it | `composer test`, pre-push, the coverage step |
+| `Install` | `tests/Install/` | Testbench without the Workbench, so no panel carries Kami until a test adds it | `composer test`, pre-push, the Coverage job (serial, without coverage) |
 | `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says, and before a push that changes a Workbench view or component |
 | `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Every pull request and nightly (`volume.yml`) |
 
@@ -42,14 +42,14 @@ tests/engine.sh mariadb composer test:lowest
 
 `composer test:lowest` mirrors CI's Lowest job on SQLite: `tests/lowest.sh` copies the files git knows, and only them, to `$TMPDIR/kami-lowest`, resolves `--prefer-lowest` there and runs the `Kami` suite serially under `tests/infomaniak.ini`; `tests/engine.sh mariadb composer test:lowest` is the job exactly. `composer test:infomaniak` runs the same suite under the ini on the checkout's own dependencies.
 
-`tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`.
+`tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` runs the `Kami` suite in parallel with coverage; it needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`. The `Install` suite does not count towards it.
 
 ## Git hooks
 
 `composer install` installs lefthook's hooks once the checkout is a Git repository, outside GitHub Actions; gitleaks comes from Homebrew (`brew install gitleaks`).
 
 - **pre-commit**, on staged files, in order: gitleaks, then Rector on `config/`, `src/` and `workbench/app/`, then Pint. Rector and Pint stage what they fix.
-- **pre-push**, on the whole project: a check that no global test function is defined twice under `tests/` (the coverage step loads `Kami` and `Install` in one process), then `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
+- **pre-push**, on the whole project: `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
 
 ## CI
 
@@ -58,13 +58,14 @@ tests/engine.sh mariadb composer test:lowest
 | Job | Database | Checks |
 | --- | --- | --- |
 | Lowest | MariaDB 10.11 | `Kami` suite at the PHP floor with the lowest dependencies, under `tests/infomaniak.ini` (Infomaniak's web `disable_functions` and limits), serial |
-| Static | SQLite | Pint, Larastan, Rector, gitleaks on the whole history, `composer audit`, zizmor on the workflows, the [licences](#licences) of runtime dependencies, the [archive's contents](#distribution-archive), the [reference and breaking-change gate](#public-surface), coverage of the `Kami` and `Install` suites |
+| Static | SQLite | Pint, Larastan, Rector, gitleaks on the whole history, `composer audit`, zizmor on the workflows, the [licences](#licences) of runtime dependencies, the [archive's contents](#distribution-archive), the [reference and breaking-change gate](#public-surface) |
+| Coverage | SQLite | `Kami` suite in parallel with coverage of at least 90 % of the core, then the `Install` suite, serial |
 | PostgreSQL 15 | PostgreSQL | `Kami` suite |
 | MySQL 8.4 | MySQL | `Kami` suite |
 | Browser | SQLite | `Browser` suite in Chromium |
 | Smoke | MariaDB 10.11 | The [shared-hosting smoke](#shared-hosting-smoke) |
 
-Static's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite on MariaDB, MySQL, PostgreSQL and SQLite on every pull request and nightly on `main`, in about a minute per engine, printing each measure's duration and peak memory in its log, and `release.yml` runs [release-please](#releases) on every push to `main`.
+Static's and Coverage's steps all run once the setup succeeded, so one push reports every failure. No step retries a failing test. `volume.yml` runs the `Volume` suite on MariaDB, MySQL, PostgreSQL and SQLite on every pull request and nightly on `main`, in about a minute per engine, printing each measure's duration and peak memory in its log, and `release.yml` runs [release-please](#releases) on every push to `main`.
 
 ### Licences
 
@@ -144,5 +145,5 @@ Known gaps with the real host (`docs/velox-retrospective.md` § 5.1):
 [release-please](https://github.com/googleapis/release-please) keeps a release pull request open on `main`, with the next version and its `CHANGELOG.md` entry, from the Conventional Commit titles of squash-merged pull requests. Merging it is the release: it tags `v*` and publishes the GitHub Release, which Packagist picks up. Its settings sit in `release-please-config.json`; `.release-please-manifest.json` holds the last released version.
 
 - In 0.x, a `!` commit bumps the minor and `feat` or `fix` bump the patch. A breaking change adds its section to `UPGRADING.md` in the pull request that makes it. The number follows this rule, not the milestone: a milestone with no breaking change releases a patch. A `Release-As:` footer overrides it, and a minor still needs its section, which `ReleaseDocumentationTest` checks on the release pull request only.
-- GitHub holds `tests.yml` on the release pull request: its run reads `action_required` until a maintainer clicks **Approve and run** on the pull request. Merge it once the six jobs are green. A `docs:`, `ci:` or `test:` commit leaves the changelog as it was, so release-please does not refresh the pull request for it; the merge still releases what `main` holds.
+- GitHub holds `tests.yml` on the release pull request: its run reads `action_required` until a maintainer clicks **Approve and run** on the pull request. Merge it once the seven jobs are green. A `docs:`, `ci:` or `test:` commit leaves the changelog as it was, so release-please does not refresh the pull request for it; the merge still releases what `main` holds.
 - `v*` tags are immutable: a ruleset blocks their update and deletion. A wrong release is fixed by the next one.
