@@ -83,7 +83,7 @@ Enable reset on your panel with `->passwordReset()`, as the starter kit does. `K
 
 The timing says nothing either. The page answers first; the password broker looks the address up and sends the email after the response, through Laravel's `defer()`. Under PHP-FPM, which Infomaniak runs, PHP finishes the request before the deferred work starts. Under Apache's `mod_php` there is no such finish: the email goes out before the response, and a known address answers more slowly.
 
-The email is sent then and there, not queued as Filament's notification asks, since a shared host runs no queue worker ([Hosting](hosting.md#what-kami-does-not-need)). Filament's limit of two requests per minute from one IP address stays, with its own message: it says nothing about the address typed.
+The email is sent then and there, not queued as Filament's notification asks, since a shared host runs no queue worker ([Hosting](hosting.md#what-kami-does-not-need)). It goes through the default mailer: give its `smtp` mailer a timeout ([Hosting](hosting.md#mail)), or a hung mail server holds the PHP worker for 60 s, and `kami:doctor` warns. Filament's limit of two requests per minute from one IP address stays, with its own message: it says nothing about the address typed.
 
 The link opens Filament's own page to choose the new password. A completed reset lands in the [Audit log](audit-log.md) as `kami.auth.password-reset`.
 
