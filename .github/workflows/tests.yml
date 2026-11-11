@@ -147,7 +147,7 @@ jobs:
             exit 1
           fi
 
-  # Beside Static, so the checks do not delay it. The Kami suite alone covers the core above 90 %.
+  # Beside Static, so the checks do not delay it.
   coverage:
     name: Coverage (SQLite, Kami and Install suites)
     runs-on: ubuntu-latest

@@ -57,7 +57,7 @@ flowchart LR
 
 ## Acceptance criteria for every milestone
 
-- CI green on all six jobs; the shared-hosting smoke covers the subsystem delivered.
+- CI green on all seven jobs; the shared-hosting smoke covers the subsystem delivered.
 - Public surface snapshot reviewed; any removed or changed line comes with a `!` commit.
 - `docs/guide/` updated in the same pull request as the behaviour; `docs/reference/` fresh.
 - New `x-kami::` components pass axe at level 3, new Kami admin pages at level 1.
