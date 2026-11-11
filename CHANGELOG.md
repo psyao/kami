@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.8.0](https://github.com/psyao/kami/compare/v0.7.0...v0.8.0) (2026-11-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* Kami no longer registers `kami:sitemap` on Laravel's scheduler by itself. A site calls `Kami::schedule()` in `routes/console.php`, and a server's crontab runs `php artisan kami:tick` in place of `schedule:run`.
+
+### Features
+
+* announce Scheduled publications with kami:announce-publications ([#501](https://github.com/psyao/kami/issues/501)) ([0b72d0f](https://github.com/psyao/kami/commit/0b72d0fde8cfd4f1b01e13456b901e7e05672ba2))
+* declare Forms and store their Submissions from a session-free route ([#491](https://github.com/psyao/kami/issues/491)) ([f023abe](https://github.com/psyao/kami/commit/f023abe8c5c6ce2daeff5e290e85ddd52e94c23f)), closes [#479](https://github.com/psyao/kami/issues/479)
+* deliver Submissions through SMTP after the response, with kami:forms:deliver as backstop ([#495](https://github.com/psyao/kami/issues/495)) ([cdf7386](https://github.com/psyao/kami/commit/cdf7386b7382e7d93b2772f56368eec1018a3ad6))
+* drain the database queue from each Tick ([#492](https://github.com/psyao/kami/issues/492)) ([bd852c8](https://github.com/psyao/kami/commit/bd852c81e4dc53160f8db7da0baa35d3922f5296))
+* kami:doctor sees the web PHP and warns about a stalled scheduler ([#493](https://github.com/psyao/kami/issues/493)) ([a841d97](https://github.com/psyao/kami/commit/a841d97dff21832c6b74fa23dee600cff123e076))
+* prune Submissions after their Form's retention (kami:forms:prune) ([#499](https://github.com/psyao/kami/issues/499)) ([7208f1a](https://github.com/psyao/kami/commit/7208f1a754d152eb0fcdee2db8db9cff94194482))
+* read and delete form Submissions in the admin (SubmissionResource) ([#498](https://github.com/psyao/kami/issues/498)) ([8bff474](https://github.com/psyao/kami/commit/8bff474e58aeca7b4035feec10c3e057802f4d06))
+* run overdue Scheduled tasks in-process with kami:tick and Kami::schedule() ([#487](https://github.com/psyao/kami/issues/487)) ([03fa0a1](https://github.com/psyao/kami/commit/03fa0a14e68b8e2d355249a6dccf0e92cbd2dd03))
+* start a Form and its accessible view with kami:make:form ([#502](https://github.com/psyao/kami/issues/502)) ([617b523](https://github.com/psyao/kami/commit/617b5237d1ce369e534ea62418627ef25c060426))
+* tick from the planner URL and from visits ([#489](https://github.com/psyao/kami/issues/489)) ([d59f459](https://github.com/psyao/kami/commit/d59f459ba718b0733b3b326cc5577a12e541d969))
+* warn in kami:doctor about an smtp mailer with no timeout whether or not a Form is declared ([#517](https://github.com/psyao/kami/issues/517)) ([ab4d498](https://github.com/psyao/kami/commit/ab4d498b17f2e15298ffb276baa3577f80eab57a))
+* warn in kami:doctor when a declared Form is mailed through an smtp mailer with no timeout ([#516](https://github.com/psyao/kami/issues/516)) ([6ef0b33](https://github.com/psyao/kami/commit/6ef0b334fa4d9a8e071613e4b2f8d50c1d782107))
+
+
+### Bug Fixes
+
+* announce a Scheduled Entry restored from the Trash after its moment ([#505](https://github.com/psyao/kami/issues/505)) ([7374429](https://github.com/psyao/kami/commit/73744290089b8d5f114af982b6baa750ee263cba))
+* drop the Workbench 5xx views' dead stylesheet link, give them a main landmark and render the Workbench's own 503 view ([#512](https://github.com/psyao/kami/issues/512)) ([b67243f](https://github.com/psyao/kami/commit/b67243fa3de6452b52f358fc368931164a24a79e))
+* give a badge's remove button a 24 px target and run axe's WCAG 2.2 AA rules on admin pages ([#511](https://github.com/psyao/kami/issues/511)) ([51bf4f2](https://github.com/psyao/kami/commit/51bf4f2e398bb04dd46b3653a9f2a6c27c1341f1))
+* kami:bench measures server time only and never calls an uncached page cached ([#504](https://github.com/psyao/kami/issues/504)) ([ac9f6e6](https://github.com/psyao/kami/commit/ac9f6e61f01bb505c06d249635f7cdc3fbe8be9d))
+* keep the announcement window when its read fails, refuse a non-string form origin with a 422 ([#531](https://github.com/psyao/kami/issues/531)) ([12845f0](https://github.com/psyao/kami/commit/12845f031b9647a9084a7f4ed1bd1996c2179bd3))
+* lower-case the Site host, word reserved slugs, summarise paragraphs only, search the Audit log's User filter ([#503](https://github.com/psyao/kami/issues/503)) ([75f5ce7](https://github.com/psyao/kami/commit/75f5ce78c703c5e6005f3cf1a946fd13650cd813)), closes [#473](https://github.com/psyao/kami/issues/473)
+
 ## [0.7.0](https://github.com/psyao/kami/compare/v0.6.0...v0.7.0) (2026-11-08)
 
 
