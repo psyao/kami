@@ -152,7 +152,7 @@ function livewireStarted(mixed $page): mixed
     return $page;
 }
 
-/** Through the sign-in page: the password, then the authenticator's current code. A second sign-in within the same 30 seconds is refused: Filament accepts each code once. */
+/** Through the sign-in page: the password, then the authenticator's current code. Filament accepts each code once, and `totp()` freezes time: a second sign-in in the same test travels 30 seconds first. */
 function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mixed
 {
     // The last digit submits the form, so the field is waited for first: Pest retries a `fill` that took over a second, and the retry finds the page signed in (#369).

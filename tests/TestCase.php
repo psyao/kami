@@ -31,7 +31,7 @@ abstract class TestCase extends Orchestra
         $app->make('config')->set(['kami.page_cache.enabled' => false, ...$this->bootConfig]);
 
         // Google2FA reads `time()`, which `freezeTime()` does not reach: on Carbon's clock, a code `totp()` takes and Filament checks belong to
-        // the same 30 seconds (#544).
+        // the same 30 seconds (#544). The QR code variant is the class Filament's `AppAuthentication` injects: binding the base class changes nothing.
         $app->bind(Google2FA::class, fn (): Google2FA => new class extends Google2FA
         {
             public function getTimestamp(): int

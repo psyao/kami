@@ -15,7 +15,7 @@ it('keeps every shipped migration as `database/migrations.sha256` lists it, and 
         $shipped['database/migrations/' . basename($file)] = hash_file('sha256', $file);
     }
 
-    expect($shipped)->toBe($listed, 'A shipped migration never changes: a schema change is a new migration, whose line '
+    expect($shipped)->toEqual($listed, 'A shipped migration never changes: a schema change is a new migration, whose line '
         . '`shasum -a 256 database/migrations/<file>.php >> database/migrations.sha256` appends (ADR 0035).');
 });
 
