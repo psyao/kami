@@ -80,6 +80,10 @@
             "@php vendor/bin/testbench package:discover --ansi",
             "bash tests/infomaniak.sh"
         ],
+        "test:volume": [
+            "Composer\\Config::disableProcessTimeout",
+            "f=$(mktemp) && DB_CONNECTION=sqlite DB_DATABASE=\"$f\" pest --testsuite=Volume; rc=$?; rm -f \"$f\"; exit $rc"
+        ],
         "test:lowest": [
             "Composer\\Config::disableProcessTimeout",
             "bash tests/lowest.sh"
