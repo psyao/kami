@@ -10,7 +10,15 @@ mkdir -p "$copy"
 git ls-files --cached --others --exclude-standard | rsync --archive --files-from=- ./ "$copy/"
 cd "$copy"
 
-composer update --prefer-lowest --prefer-dist --no-interaction --no-progress --no-scripts
+update() { composer update --prefer-lowest --prefer-dist --no-interaction --no-progress --no-scripts; }
+update
+# macOS purges old files under $TMPDIR; with installed.json left, Composer reinstalls nothing and a Pest that fails
+# to include exits 0 without a test (psyao/kami#490).
+if [ ! -f vendor/pestphp/pest/bin/pest ]; then
+    echo "vendor/ was purged: reinstalling" >&2
+    rm -rf vendor
+    update
+fi
 php vendor/bin/testbench package:discover --ansi
 # Loaded after Composer, which needs proc_open.
 exec bash tests/infomaniak.sh "$@"
