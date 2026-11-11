@@ -17,10 +17,12 @@ What a reviewer of a Kami diff weighs beyond `CLAUDE.md`, the ADRs and `docs/age
 
 ## State, failure and concurrency
 
-Each defect M7's ritual found had passed its ticket's review on one of these (#441, #408).
+Each defect M7's and M8's rituals found had passed its ticket's review on one of these (#441, #408, #523).
 
 - **History is stored.** A fact about the past ("was ever public", "once sent") lives in a column or a file, never derived from current state a later write can change. List the writes that change its inputs (reschedule, unpublish, rename) and look for a test of that sequence.
 - **A write can fail.** On shared hosting a storage, cache or file write meets a read-only directory or a full quota. The diff says what the next request sees: no cache, never a new key or a new version per request.
+- **A mark moves last.** A cursor, a "last run" file or a "sent" flag moves only once the work it records has succeeded: a read that throws after it moved loses its window.
+- **Input has any shape.** A route open to visitors gets each field as an array, missing, or oversized. `string()`, casts and `{{ old() }}` on request input are read against `field[]=x`, which answers 4xx, never 500.
 - **Two requests at once.** Costly work or a shared-file write started from a request is serialised (`Cache::lock()` as in `Conversion`, or `flock()` on a file under `storage/` as in `Sitemap`), and the diff says what the waiting request serves.
 - **A path around the kernel.** Code that runs before Laravel boots, or outside a middleware group, lists the middleware it skips (maintenance mode, authentication, security headers) and handles each.
 
@@ -31,4 +33,5 @@ Each defect M7's ritual found had passed its ticket's review on one of these (#4
 - **Query counts go up for a reason.** A raised `expectsDatabaseQueryCount()` names the query added; the reviewer checks it is needed, not that the number matches (#405).
 - **Debug tests stay out.** A throwaway test lives in the scratchpad and runs by path, never in `tests/Kami`, where a commit can take it along.
 - **A test's default connection stays put.** Under `RefreshDatabase`, switching `database.default` mid-test leaves the transaction open on MySQL, MariaDB and PostgreSQL, and the next test waits on its lock until CI's timeout (#307). SQLite hides it. Test an empty or other database in a test of its own, before anything writes.
-- **CI-only engines.** Pre-push runs SQLite; a change to SQL, locking, transactions or schema is reviewed for the three other engines, where CI alone runs it.
+- **CI-only engines.** Pre-push runs SQLite; a change to SQL, locking, transactions or schema is reviewed for the three other engines, where CI alone runs it. On PostgreSQL a failed query aborts the test's transaction, so a test that makes one fail sends one request after it (#476). Rows a test reads in sequence come from an ordered query or relation (#484).
+- **Tests own the clock.** A test that publishes, schedules or checks a time-based code runs at a moment it set with `travelTo()`, never at the wall clock's (#483, `MfaTest`).
