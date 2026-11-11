@@ -51,7 +51,7 @@ tests/engine.sh mariadb composer test:lowest
 - **pre-commit**, on staged files, in order: gitleaks, then Rector on `config/`, `src/` and `workbench/app/`, then Pint. Rector and Pint stage what they fix.
 - **pre-push**, on the whole project: `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
 
-`composer analyse` reruns `testbench package:discover` before Larastan, as `composer test` does before Pest, and CI's Static job calls it too, so both analyse with Kami's provider and its `kami::` views. Testbench writes Kami into the package manifest only under its own CLI: any other boot of the skeleton, `workbench/link-boost-skills.php` at the end of `composer install` among them, rewrites the manifest without it, and Larastan would then report every `kami::` view name as a plain string (#543).
+Larastan registers Kami's provider itself (`tests/larastan-bootstrap.php`, a `bootstrapFiles` entry of `phpstan.neon.dist`), so `composer analyse` and CI's Static job both know its `kami::` views, whatever the package manifest holds. The manifest lists Kami only when Testbench's CLI wrote it with the skeleton's `vendor` symlink already there: the CLI deletes a symlink it created, and Larastan, creating it again, rebuilds the manifest without Kami (#543).
 
 ## CI
 

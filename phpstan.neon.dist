@@ -6,6 +6,8 @@ includes:
 # `routes` joins the paths with its first file: PHPStan fails on a missing path.
 parameters:
     level: max
+    bootstrapFiles:
+        - tests/larastan-bootstrap.php
     paths:
         - config
         - database
