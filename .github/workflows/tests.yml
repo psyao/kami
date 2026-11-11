@@ -67,6 +67,24 @@ jobs:
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: vendor/bin/pint --test --parallel
 
+      - name: Larastan boot diagnostic # temporary, #549
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: |
+          cat > "$RUNNER_TEMP/diag.php" <<'EOF'
+          <?php
+          require getcwd() . '/vendor/autoload.php';
+          try {
+              $app = Larastan\Larastan\ApplicationResolver::resolve();
+              $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          } catch (Throwable $e) {
+              echo 'THROWN: ', get_class($e), ': ', $e->getMessage(), "\n", $e->getTraceAsString(), "\n";
+          }
+          echo 'kami provider: ', var_export(isset($app) && $app->providerIsLoaded(Psyao\Kami\KamiServiceProvider::class), true), "\n";
+          echo 'hint: ', json_encode(view()->getFinder()->getHints()['kami'] ?? null), "\n";
+          echo 'exists: ', var_export(view()->exists('kami::mail.submission'), true), "\n";
+          EOF
+          php "$RUNNER_TEMP/diag.php"
+
       - name: Larastan
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: composer analyse # the table format annotates the pull request on GitHub Actions
