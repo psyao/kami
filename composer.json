@@ -68,7 +68,10 @@
             "@build",
             "@php vendor/bin/testbench serve --host=localhost --ansi"
         ],
-        "analyse": "phpstan analyse",
+        "analyse": [
+            "@php vendor/bin/testbench package:discover --ansi",
+            "phpstan analyse"
+        ],
         "test": [
             "Composer\\Config::disableProcessTimeout",
             "@php vendor/bin/testbench package:discover --ansi",

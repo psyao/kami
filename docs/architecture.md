@@ -36,7 +36,7 @@ Each line can be accepted or contested on its own. The link gives the reasons.
 28. **Sites extend through events after commit**, never filters. ([ADR 0029](adr/0029-sites-extend-through-events-after-commit-never-filters.md))
 29. **Public repositories, full CI matrix on every pull request.** ([ADR 0031](adr/0031-public-repository-full-ci-matrix-on-every-pull-request.md))
 30. **MIT for good**, no CLA. ([ADR 0034](adr/0034-mit-licence-held-for-good.md))
-31. **Package migrations append-only** from the first production install, squashed only in a major under an Upgrade floor. ([ADR 0035](adr/0035-package-migrations-append-only-squashed-only-in-a-major.md))
+31. **Package migrations append-only** from 0.9.0, the first production install, checked against `database/migrations.sha256`; squashed only in a major under an Upgrade floor. ([ADR 0035](adr/0035-package-migrations-append-only-squashed-only-in-a-major.md))
 32. **Host applications may mount Kami pages in their session**, and Kami never shadows a host route. ([ADR 0038](adr/0038-host-applications-may-mount-kami-pages-in-their-session.md))
 33. **Supported platforms.** PHP `^8.5`, Laravel `^13.32`, Filament `^5.10.2` (the lowest versions the test tooling resolves, so the Lowest job tests the declared floor; 5.10 is the first to put the CSP nonce on its inline scripts, ADR 0018, and 5.10.2 the first with the keyboard buttons of a reorderable table, ADR 0023); MariaDB 10.11, MySQL 8.4, PostgreSQL 15, SQLite 3.35. Releases by release-please, one per milestone in 0.x; 1.0 once the three sites run on one 0.x for 30 days without a break. ([Release policy and licence](https://github.com/psyao/kami/issues/30#issuecomment-6426631878))
 
@@ -75,7 +75,7 @@ Anti-goals: WordPress-style plugin hell, a mid-life licence change, endless conf
 | Images as rich-text nodes, unknown Blocks dropped | Images are Blocks, unknown Blocks kept | No JS build for the editor; no silent loss (ADR 0016) |
 | CSP as a documented recipe | Headers owned by Kami | Only the code that renders the HTML can write a strict policy (ADR 0018) |
 | Dynamic `/robots.txt` | Static file managed by `kami:install` | Infomaniak answers a missing file itself (ADR 0027) |
-| Migrations squashed three times in 0.x | Append-only from the first production install | Three production sites on 0.x (ADR 0035) |
+| Migrations squashed three times in 0.x | Append-only from 0.9.0, the first production install | Three production sites on 0.x (ADR 0035) |
 | Tree plugin for hierarchy | Filament's native `reorderable()` | Stability over editing comfort (ADR 0023) |
 
 ## Shape of the system

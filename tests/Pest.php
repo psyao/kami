@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
-use PragmaRX\Google2FA\Google2FA;
+use PragmaRX\Google2FAQRCode\Google2FA;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Support\Internal\WebEnvironment;
@@ -61,6 +61,14 @@ function hourlyProbe(object $test, string $name = 'probe'): CallbackEvent
 
 /** The authenticator secret of the Users `withMfa()` sets up. */
 const MFA_SECRET = 'JBSWY3DPEHPK3PXP';
+
+/** The authenticator's code for the secret, with time frozen from now on: the test sets the moment Filament checks the code at (#544). */
+function totp(string $secret = MFA_SECRET): string
+{
+    test()->freezeTime();
+
+    return app(Google2FA::class)->getCurrentOtp($secret);
+}
 
 /** MFA set up for `$user`, with these recovery codes in clear, or a manager is sent to set it up before any admin page. */
 function withMfa(User $user, ?array $codes = null): User
@@ -148,7 +156,7 @@ function livewireStarted(mixed $page): mixed
 function passSignIn(mixed $page, string $email, string $secret = MFA_SECRET): mixed
 {
     // The last digit submits the form, so the field is waited for first: Pest retries a `fill` that took over a second, and the retry finds the page signed in (#369).
-    return signInPassword($page, $email)->assertSee('Enter the 6-digit code from the authenticator app')->fill('[id="multiFactorChallengeForm.app.code"]', (new Google2FA)->getCurrentOtp($secret));
+    return signInPassword($page, $email)->assertSee('Enter the 6-digit code from the authenticator app')->fill('[id="multiFactorChallengeForm.app.code"]', totp($secret));
 }
 
 /** Signs in a new User holding the Role, or these Permissions under a Role of their own; the panel admits them, as in the local environment. */

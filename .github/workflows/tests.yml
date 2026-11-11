@@ -69,7 +69,7 @@ jobs:
 
       - name: Larastan
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+        run: composer analyse # the table format annotates the pull request on GitHub Actions
 
       - name: Rector
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
