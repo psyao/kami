@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 
 copy=${TMPDIR:-/tmp}/kami-lowest
 mkdir -p "$copy"
-# Emptied but for Composer's own, so a file the branch deleted or renamed does not run again (psyao/kami#518).
-find "$copy" -mindepth 1 -maxdepth 1 ! -name vendor ! -name composer.lock -exec rm -rf {} +
+# Emptied but for vendor/, so a file the branch deleted or renamed does not run again (psyao/kami#518).
+find "$copy" -mindepth 1 -maxdepth 1 ! -name vendor -exec rm -rf {} +
 git ls-files --cached --others --exclude-standard | rsync --archive --files-from=- ./ "$copy/"
 cd "$copy"
 
