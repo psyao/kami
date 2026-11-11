@@ -6,7 +6,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use PragmaRX\Google2FA\Google2FA;
 use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
@@ -27,7 +26,7 @@ it('sets MFA up from the QR code\'s secret, then asks a code at the next sign-in
     // The secret shown as text beside the QR code, as a User types it into an app that cannot scan.
     preg_match('/\b[A-Z2-7]{16}\b/', $page->content(), $secret);
 
-    $page->fill('[id="mountedActionSchema0.code"]', (new Google2FA)->getCurrentOtp($secret[0]))
+    $page->fill('[id="mountedActionSchema0.code"]', totp($secret[0]))
         ->fill('[id="mountedActionSchema0.password"]', 'secret-password')
         ->press('Next')
         ->assertSee('recovery codes')

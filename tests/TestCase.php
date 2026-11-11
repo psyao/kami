@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Application;
 use Orchestra\Testbench\Concerns\WithWorkbench;
 use Orchestra\Testbench\TestCase as Orchestra;
+use PragmaRX\Google2FAQRCode\Google2FA;
 
 abstract class TestCase extends Orchestra
 {
@@ -28,6 +29,16 @@ abstract class TestCase extends Orchestra
         Model::shouldBeStrict();
         // Parallel processes share the skeleton's `storage/`: a test of the page cache turns it on over a `storage/` of its own.
         $app->make('config')->set(['kami.page_cache.enabled' => false, ...$this->bootConfig]);
+
+        // Google2FA reads `time()`, which `freezeTime()` does not reach: on Carbon's clock, a code `totp()` takes and Filament checks belong to
+        // the same 30 seconds (#544). The QR code variant is the class Filament's `AppAuthentication` injects: binding the base class changes nothing.
+        $app->bind(Google2FA::class, fn (): Google2FA => new class extends Google2FA
+        {
+            public function getTimestamp(): int
+            {
+                return intdiv(now()->getTimestamp(), $this->getKeyRegeneration());
+            }
+        });
 
         $this->useOwnDatabaseInParallel($app);
         // A fresh Tick keeps visits from starting one over the shared `storage/`, so no test depends on another's: a test of the visit Tick

@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
-use PragmaRX\Google2FA\Google2FA;
 use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
@@ -82,7 +81,7 @@ it('asks the code at every sign-in, after the password', function () {
     $page->set('data.multiFactor.app.code', '000000')->call('authenticate')->assertHasErrors();
     $this->assertGuest();
 
-    $page->set('data.multiFactor.app.code', (new Google2FA)->getCurrentOtp(MFA_SECRET))->call('authenticate')->assertHasNoErrors();
+    $page->set('data.multiFactor.app.code', totp())->call('authenticate')->assertHasNoErrors();
     $this->assertAuthenticatedAs($user);
 });
 
@@ -152,7 +151,7 @@ it('lets an editor disable MFA, never a manager', function (string $role, bool $
     $disable = TestAction::make('disableAppAuthentication')->schemaComponent(schema: 'content');
 
     $disabling = fn () => Livewire::test(EditProfile::class)
-        ->callAction($disable, ['password' => 'secret-password', 'code' => (new Google2FA)->getCurrentOtp(MFA_SECRET)])
+        ->callAction($disable, ['password' => 'secret-password', 'code' => totp()])
         ->assertHasNoActionErrors();
 
     // Hidden, so Filament refuses even a Livewire call made by hand.

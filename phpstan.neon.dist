@@ -6,6 +6,8 @@ includes:
 # `routes` joins the paths with its first file: PHPStan fails on a missing path.
 parameters:
     level: max
+    bootstrapFiles:
+        - tests/larastan-bootstrap.php
     paths:
         - config
         - database
@@ -20,19 +22,6 @@ parameters:
             identifier: argument.type
             path: src/Content/ContentType.php
             message: '#expects view-string, string given#'
-        # Larastan boots Testbench without discovering this package, so it knows none of the `kami::` views its provider registers;
-        # a local package manifest that lists it hides the error, hence unmatched is not reported.
-        -
-            identifier: argument.type
-            path: src/Admin/Internal/EntryResource/EditEntry.php
-            message: '#expects view-string\|null, string given#'
-            reportUnmatched: false
-        # The same for the Submission mail's `kami::` text view.
-        -
-            identifier: argument.type
-            path: src/Forms/SubmissionReceived.php
-            message: '#expects view-string, string given#'
-            reportUnmatched: false
     # The package's own config, not Testbench's skeleton: `env()` belongs there.
     configDirectories:
         - %currentWorkingDirectory%/config

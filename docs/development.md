@@ -51,6 +51,8 @@ tests/engine.sh mariadb composer test:lowest
 - **pre-commit**, on staged files, in order: gitleaks, then Rector on `config/`, `src/` and `workbench/app/`, then Pint. Rector and Pint stage what they fix.
 - **pre-push**, on the whole project: `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
 
+Larastan registers Kami's provider itself (`tests/larastan-bootstrap.php`, a `bootstrapFiles` entry of `phpstan.neon.dist`), so `composer analyse` and CI's Static job both know its `kami::` views, whatever the package manifest holds. The manifest lists Kami only when Testbench's CLI wrote it with the skeleton's `vendor` symlink already there: the CLI deletes a symlink it created, and Larastan, creating it again, rebuilds the manifest without Kami (#543).
+
 ## CI
 
 `tests.yml` runs on every pull request, each job independent of the others:
@@ -78,6 +80,16 @@ Composer installs Kami from `git archive`, which leaves out what `.gitattributes
 ```bash
 git archive HEAD | tar -t
 ```
+
+## Migrations
+
+From 0.9.0, the first release a site runs in production on, Kami's `database/migrations` are append-only ([ADR 0035](adr/0035-package-migrations-append-only-squashed-only-in-a-major.md)): a schema change is a new migration, never an edit to a shipped one. `database/migrations.sha256` lists each migration with its SHA-256, and `tests/Kami/MigrationsTest.php` fails when a listed file changes or disappears, or when a migration is missing from the list. A new migration appends its line:
+
+```bash
+shasum -a 256 database/migrations/<file>.php >> database/migrations.sha256
+```
+
+The same test fails when a migration mentions `Models\`: a migration uses the query builder only, since it runs against the schema of its day, not today's model (ADR 0026).
 
 ## Public surface
 
