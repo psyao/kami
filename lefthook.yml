@@ -26,3 +26,6 @@ pre-push:
       run: composer analyse
     - name: test
       run: composer test
+    - name: volume # the Workbench seeder feeds the Volume suite, which CI runs on the server engines only (#484)
+      glob: "{workbench/database,tests/Volume}/**"
+      run: composer test:volume
