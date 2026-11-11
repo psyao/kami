@@ -485,6 +485,29 @@ The default notification of a Submission: a plain-text mail to the Form's `recip
 - `public function toMail(object $notifiable): Illuminate\Notifications\Messages\MailMessage`
 - `public function via(object $notifiable): array`
 
+## `Psyao\Kami\Import\Import`
+
+`final class`
+
+Imports a site's content from another system, again and again until switch-over (ADR 0026). Each item gets a Legacy id, unique to its source; a replay skips an item whose payload is unchanged and rewrites one whose payload changed: the source wins. Kami deletes nothing: `finish()` reports the items a run did not see.
+
+- `public function entry(string $source, string $legacyId, string $type, array $values, ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Content\Entry`: Imports one source item as an Entry, through `SaveEntry`, with its original dates: in one transaction, whole or not at all. An item whose payload, the arguments here, did not change since its last import is skipped.
+- `public function find(string $source, string $legacyId): ?Psyao\Kami\Content\Entry`: The Entry imported under this Legacy id, by this run or an earlier one; null when there is none.
+- `public function finish(): Psyao\Kami\Import\ImportReport`: Closes the run: records one `kami.import.completed` Audit event with the label and the counts, and reports them.
+- `public static function start(string $label, ?string $site = NULL): Psyao\Kami\Import\Import`: Opens a run into a Site, the current one when `$site` is null. Until `finish()`, writes record no Audit event of their own: the run records one summary.
+
+## `Psyao\Kami\Import\ImportReport`
+
+`final readonly class`
+
+What one Import run did, as `Import::finish()` returns it.
+
+- `public protected(set) readonly int $created`
+- `public protected(set) readonly int $unchanged`
+- `public protected(set) readonly int $unseen`: How many keys of the run's sources it did not see.
+- `public protected(set) readonly array $unseenKeys`
+- `public protected(set) readonly int $updated`
+
 ## `Psyao\Kami\Kami`
 
 `final class`

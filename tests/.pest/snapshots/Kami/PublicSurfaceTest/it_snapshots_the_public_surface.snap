@@ -239,6 +239,17 @@ class Psyao\Kami\Forms\SubmissionReceived final class extends Illuminate\Notific
 class Psyao\Kami\Forms\SubmissionReceived::__construct() public function __construct(Psyao\Kami\Forms\Form $form, Psyao\Kami\Forms\Submission $submission)
 class Psyao\Kami\Forms\SubmissionReceived::toMail() public function toMail(object $notifiable): Illuminate\Notifications\Messages\MailMessage
 class Psyao\Kami\Forms\SubmissionReceived::via() public function via(object $notifiable): array
+class Psyao\Kami\Import\Import final class
+class Psyao\Kami\Import\Import::entry() public function entry(string $source, string $legacyId, string $type, array $values, ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
+class Psyao\Kami\Import\Import::find() public function find(string $source, string $legacyId): ?Psyao\Kami\Content\Entry
+class Psyao\Kami\Import\Import::finish() public function finish(): Psyao\Kami\Import\ImportReport
+class Psyao\Kami\Import\Import::start() public static function start(string $label, ?string $site = NULL): Psyao\Kami\Import\Import
+class Psyao\Kami\Import\ImportReport final readonly class
+class Psyao\Kami\Import\ImportReport::$created public protected(set) readonly int $created
+class Psyao\Kami\Import\ImportReport::$unchanged public protected(set) readonly int $unchanged
+class Psyao\Kami\Import\ImportReport::$unseen public protected(set) readonly int $unseen
+class Psyao\Kami\Import\ImportReport::$unseenKeys public protected(set) readonly array $unseenKeys
+class Psyao\Kami\Import\ImportReport::$updated public protected(set) readonly int $updated
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::form() public function form(string $handle): Psyao\Kami\Forms\Form
@@ -412,6 +423,7 @@ table kami_audit_events
 table kami_entries
 table kami_form_deliveries
 table kami_form_submissions
+table kami_import_keys
 table kami_media
 table kami_media_translations
 table kami_paths

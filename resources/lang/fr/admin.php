@@ -365,6 +365,9 @@ return [
             'media' => [
                 'deleted' => 'Média supprimé',
             ],
+            'import' => [
+                'completed' => 'Import terminé',
+            ],
             'content' => [
                 'migrated' => 'Contenu migré',
             ],

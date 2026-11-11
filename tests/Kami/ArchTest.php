@@ -73,6 +73,11 @@ arch('only Admin uses Admin (ADR 0011)')
     ->expect('Psyao\Kami\Admin')
     ->toOnlyBeUsedIn(['Psyao\Kami\Admin', 'Workbench\App']);
 
+// Nothing in content, rendering or the admin reads Legacy ids; the Workbench stands for a site's importer.
+arch('only Import uses Import (ADR 0026)')
+    ->expect('Psyao\Kami\Import')
+    ->toOnlyBeUsedIn(['Psyao\Kami\Import', 'Workbench\App']);
+
 it('marks every class under an Internal namespace @internal (ADR 0010)', function () {
     $unmarked = kamiClasses()
         ->filter(isInternal(...))
