@@ -18,7 +18,15 @@ Every breaking release has a section here, 0.x included, newest first: what chan
    Kami::schedule();
    ```
 
-   It declares the hourly sitemap rebuild and the pruning of Preview links, old page cache files, the Audit log and stale Conversions ([Scheduler](docs/guide/scheduler.md)). On a server, replace `schedule:run` in the crontab with `php artisan kami:tick`, which runs every overdue task, Kami's and your own, in-process. A cron entry of yours running `kami:audit:prune`, `kami:media:prune` or `model:prune` for Preview links can go.
+   It declares every Kami task, each listed with its frequency in [Scheduler](docs/guide/scheduler.md): three new ones, `kami:announce-publications` every minute, which dispatches `EntryPublished` for a Scheduled Translation once its moment has come, `kami:forms:deliver` every 15 minutes, which retries the delivery of Submissions, and `kami:forms:prune` daily, their retention; then the hourly sitemap rebuild and the pruning of Preview links, old page cache files, the Audit log and stale Conversions. A site that keeps its own scheduler instead declares these three too, or Scheduled Translations never announce their publication and a failed delivery is never retried. On a server, replace `schedule:run` in the crontab with `php artisan kami:tick`, which runs every overdue task, Kami's and your own, in-process. A cron entry of yours running `kami:audit:prune`, `kami:media:prune` or `model:prune` for Preview links can go.
+2. **The `smtp` mailer needs a timeout.** `kami:doctor` warns, so `--strict` fails, whenever the default mailer is an `smtp` one with no `timeout`, outside `APP_ENV=local` and `testing`: a hung mail server would hold a PHP worker for 60 s on each Submission or password reset email. Laravel's own `config/mail.php` sets `'timeout' => null`, so a site made before 0.8 fails, a deploy script running `--strict` included. Set the line on the `smtp` mailer in `config/mail.php`, as the starter kit now does, and `MAIL_TIMEOUT=10` in `.env` ([Mail](docs/guide/hosting.md#mail)):
+
+   ```php
+   'timeout' => env('MAIL_TIMEOUT') ?: null,
+   ```
+
+   Without `?: null`, a blank `MAIL_TIMEOUT=` throws at send time.
+3. **`kami.forms` is a new config key.** A `config/kami.php` published before 0.8 lacks it: add `'forms' => [],` to list your Forms there ([Forms](docs/guide/forms.md#declaring-a-form)).
 
 ## 0.7.0
 
