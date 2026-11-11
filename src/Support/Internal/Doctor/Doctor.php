@@ -1066,7 +1066,6 @@ final readonly class Doctor
         ]));
     }
 
-    /** Forms and the password reset email both mail through the default mailer, after the response or inside a Tick. */
     private function smtpTimeout(): ?Problem
     {
         $mailer = Config::string('mail.default');
@@ -1076,7 +1075,7 @@ final readonly class Doctor
             return null;
         }
 
-        return new Problem($this->runningSiteSeverity(), "The default mailer, {$mailer}, sends over SMTP with no timeout: a Submission or a password reset email sent while the mail server hangs holds a PHP worker for PHP's default_socket_timeout, 60 s, after the response or inside a Tick.", "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.", 'hosting.md#mail');
+        return new Problem($this->runningSiteSeverity(), "The default mailer, {$mailer}, sends over SMTP with no timeout: a Submission or a password reset email sent while the mail server hangs holds a PHP worker for PHP's default_socket_timeout, 60 s, during or after a visitor's request, or inside a Tick.", "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.", 'hosting.md#mail');
     }
 
     /**

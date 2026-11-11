@@ -1181,7 +1181,7 @@ it('reports an smtp default mailer with no or a blank timeout, with or without a
 
     expect($problem?->severity)->toBe($severity);
     $severity && expect([$problem->message, $problem->fix, $problem->guide])->toBe([
-        'The default mailer, outgoing, sends over SMTP with no timeout: a Submission or a password reset email sent while the mail server hangs holds a PHP worker for PHP\'s default_socket_timeout, 60 s, after the response or inside a Tick.',
+        'The default mailer, outgoing, sends over SMTP with no timeout: a Submission or a password reset email sent while the mail server hangs holds a PHP worker for PHP\'s default_socket_timeout, 60 s, during or after a visitor\'s request, or inside a Tick.',
         "set 'timeout' => env('MAIL_TIMEOUT') ?: null on the mailer in config/mail.php, and MAIL_TIMEOUT=10 in .env.",
         'hosting.md#mail',
     ]);
