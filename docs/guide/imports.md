@@ -59,7 +59,7 @@ A key disappears with its Entry. Nothing in content, rendering or the admin read
 
 Run the importer again and each item finds its key:
 
-- **Unchanged.** Kami hashes what `entry()` received: the type, the values and the dates. When the hash matches the stored one, the item is skipped. Nothing is written, no event fires and `updated_at` stays put.
+- **Unchanged.** Kami hashes what `entry()` received: the type, the values and the dates. When the hash matches the stored one, the item is skipped. Nothing is written, no event fires and `updated_at` stays put. Hand over strings, numbers and booleans, and dates as strings in UTC: an object such as `now()` or a model hashes differently on every run, and its item would be rewritten every time.
 - **Changed.** When the hash differs, the item is rewritten from the source: **the source wins**, over any change made by hand in Kami since. Until switch-over, a fix belongs in the source or the importer, never in the admin. A change to the importer's code changes what it hands over, so the next run rewrites what it affects.
 - **New.** An item with no key is created.
 
@@ -67,7 +67,7 @@ To resume an interrupted run, run it again: what was done is skipped.
 
 ## A second pass for links
 
-An item may link to another one the run has not reached yet. Leave the link as the old URL on the first pass, then run over the items again: `find()` returns the Entry imported under a source and a Legacy id, by this run or an earlier one, or `null`.
+An item may link to another one the run has not reached yet. Leave the link as the old URL on the first pass, then run over the items again: `find()` returns the Entry imported under a source and a Legacy id, by this run or an earlier one, or `null`, also for an Entry in the Trash, which a relation Field refuses as a target.
 
 ```php
 $target = $import->find('velox.post', (string) $link->post_id);
@@ -77,7 +77,7 @@ The items whose links now resolve hand over new values and are rewritten; all th
 
 ## One item at a time
 
-Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key. When an item fails, `entry()` throws a `RuntimeException` naming its source and Legacy id, with the cause as its previous exception. The item leaves nothing behind, the items before it stay imported, and the run stops: fix the cause and run the importer again.
+Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key. When an item fails, `entry()` throws a `RuntimeException` naming its source and Legacy id, with the cause as its previous exception. The item leaves nothing behind, the items before it stay imported, and the run stops: a later `entry()` or `finish()` throws a `LogicException`, and the run records no Audit summary. Fix the cause and run the importer again.
 
 Read the source in chunks, as above, so memory stays bounded however large it is.
 

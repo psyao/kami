@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Import\Import;
+use Psyao\Kami\Import\ImportReport;
 use Workbench\App\Content\Article;
 
 uses(RefreshDatabase::class);
@@ -124,6 +126,15 @@ it('finds an imported Entry by its Legacy id, for a second pass over forward lin
     $import->finish();
 });
 
+it('finds no Entry in the Trash, which a relation Field refuses as a target', function (): void {
+    $import = Import::start('Velox');
+    resolve(TrashEntry::class)->handle($import->entry('velox.post', '2', Article::class, veloxPost('Deux')));
+
+    expect($import->find('velox.post', '2'))->toBeNull();
+
+    $import->finish();
+});
+
 it('reports the keys this run did not see, among the sources it touched, and deletes nothing', function (): void {
     $import = Import::start('Velox');
     $import->entry('velox.post', '1', Article::class, veloxPost('Un'));
@@ -141,15 +152,55 @@ it('reports the keys this run did not see, among the sources it touched, and del
         ->and(Entry::query()->withUnpublished()->count())->toBe(3);
 });
 
-it('names the source and the Legacy id of a failed item, and leaves nothing of it', function (): void {
+it('names the source and the Legacy id of a failed item, and leaves nothing of it', function (array $values): void {
     $import = Import::start('Velox');
 
-    expect(fn (): Entry => $import->entry('velox.post', '7', Article::class, ['fr' => ['title' => 'Sept', 'author' => 'Ada'], 'en' => ['pages' => 'many']]))
+    expect(fn (): Entry => $import->entry('velox.post', '7', Article::class, $values))
         ->toThrow(RuntimeException::class, 'The import of [velox.post] item [7] failed:');
 
     expect(DB::table('kami_entries')->count())->toBe(0)
         ->and(DB::table('kami_translations')->count())->toBe(0)
         ->and(DB::table('kami_import_keys')->count())->toBe(0);
+})->with([
+    'an invalid value' => [['fr' => ['title' => 'Sept', 'author' => 'Ada'], 'en' => ['pages' => 'many']]],
+    'a payload that is not UTF-8' => [['fr' => ['title' => "Sept \xB1"]]],
+]);
+
+it('names the item a database error stops, whose code is no integer', function (): void {
+    Event::listen('eloquent.saving: ' . Entry::class, function (): never {
+        // PDO's code is a SQLSTATE string, which a QueryException keeps.
+        throw new QueryException('sqlite', 'insert into kami_entries', [], new class('Integrity constraint violation') extends PDOException
+        {
+            protected $code = '23000';
+        });
+    });
+    $import = Import::start('Velox');
+
+    expect(fn (): Entry => $import->entry('velox.post', '7', Article::class, veloxPost('Sept')))
+        ->toThrow(RuntimeException::class, 'The import of [velox.post] item [7] failed:');
+});
+
+it('fails a changed item whose Entry is in the Trash, and skips an unchanged one', function (): void {
+    $import = Import::start('Velox');
+    resolve(TrashEntry::class)->handle($import->entry('velox.post', '1', Article::class, veloxPost('Un')));
+    $import->finish();
+
+    $import = Import::start('Velox');
+    $skipped = $import->entry('velox.post', '1', Article::class, veloxPost('Un'));
+
+    expect($skipped->trashed())->toBeTrue()
+        ->and(fn (): Entry => $import->entry('velox.post', '1', Article::class, veloxPost('Un, revu')))->toThrow(RuntimeException::class, 'is in the Trash');
+});
+
+it('keeps the Translation of a Locale the source no longer gives', function (): void {
+    $import = Import::start('Velox');
+    $import->entry('velox.post', '1', Article::class, veloxPost('Un'));
+    $entry = $import->entry('velox.post', '1', Article::class, ['fr' => ['title' => 'Un, revu', 'author' => 'Ada']]);
+    $import->finish();
+
+    $entry->readIn('en');
+
+    expect($entry->title)->toBe('Un (en)');
 });
 
 it('records one Audit summary for the run, and no event per item', function (): void {
@@ -174,7 +225,17 @@ it('records Audit events again once a run has failed', function (): void {
 
     resolve(RecordAuditEvent::class)->handle('acme.after.failure');
 
-    expect(importAudit())->toBe([['acme.after.failure', []]]);
+    expect(importAudit())->toBe([['acme.after.failure', []]])
+        ->and(fn (): Entry => $import->entry('velox.post', '8', Article::class, veloxPost('Huit')))->toThrow(LogicException::class, 'This Import is over')
+        ->and(fn (): ImportReport => $import->finish())->toThrow(LogicException::class, 'This Import is over');
+});
+
+it('finishes a run once', function (): void {
+    $import = Import::start('Velox');
+    $import->finish();
+
+    expect(fn (): ImportReport => $import->finish())->toThrow(LogicException::class, 'This Import is over')
+        ->and(importAudit())->toHaveCount(1);
 });
 
 it('sets exactly one of entry_id and media_id, which engines with a check refuse otherwise', function (): void {
@@ -192,8 +253,8 @@ it('sets exactly one of entry_id and media_id, which engines with a check refuse
         ->toBe([['entry_id' => $entry->id, 'media_id' => null]]);
 
     if (DB::getDriverName() !== 'sqlite') {
-        expect($key(null, null))->toThrow(QueryException::class)
-            ->and($key($entry->id, $media))->toThrow(QueryException::class);
+        expect($key(null, null))->toThrow(QueryException::class, 'kami_import_keys_one_target')
+            ->and($key($entry->id, $media))->toThrow(QueryException::class, 'kami_import_keys_one_target');
     }
 });
 

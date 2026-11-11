@@ -10,6 +10,7 @@ use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use LogicException;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Audit\AuditContext;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -34,6 +35,9 @@ final class Import
 
     /** @var array<string, true> */
     private array $sources = [];
+
+    /** Once an item failed or the run finished: a run is not resumed, it is run again. */
+    private bool $over = false;
 
     private function __construct(
         private readonly string $label,
@@ -74,9 +78,11 @@ final class Import
      * @param  CarbonInterface|null  $updatedAt  Set on the Entry and its Translations; the time of the write when null.
      *
      * @throws RuntimeException When the item fails, naming the source and the Legacy id: the run stops there, and the item leaves nothing behind.
+     * @throws LogicException When the run is over.
      */
     public function entry(string $source, string $legacyId, string $type, array $values, ?CarbonInterface $createdAt = null, ?CarbonInterface $updatedAt = null): Entry
     {
+        $this->refuseOver();
         $dates = array_filter(['created_at' => $createdAt?->toImmutable()->utc()->format('Y-m-d H:i:s'), 'updated_at' => $updatedAt?->toImmutable()->utc()->format('Y-m-d H:i:s')]);
 
         $id = $this->item($source, $legacyId, 'entry_id', [$type, $values, $dates], function (?string $id) use ($type, $values, $dates): string {
@@ -104,20 +110,25 @@ final class Import
     }
 
     /**
-     * The Entry imported under this Legacy id, by this run or an earlier one; null when there is none.
+     * The Entry imported under this Legacy id, by this run or an earlier one; null when there is none or it is in the Trash, which a relation Field refuses as a target.
      */
     public function find(string $source, string $legacyId): ?Entry
     {
         $id = DB::table('kami_import_keys')->where(['site' => $this->site, 'source' => $source, 'legacy_id' => $legacyId])->value('entry_id');
 
-        return is_string($id) ? Entry::query()->withUnpublished()->withTrashed()->find($id) : null;
+        return is_string($id) ? Entry::query()->withUnpublished()->find($id) : null;
     }
 
     /**
      * Closes the run: records one `kami.import.completed` Audit event with the label and the counts, and reports them.
+     *
+     * @throws LogicException When the run is over: an item failed, or it finished already.
      */
     public function finish(): ImportReport
     {
+        $this->refuseOver();
+        $this->over = true;
+
         /** @var list<array{source: string, legacy_id: string, entry_id: string|null, media_id: string|null}> $unseen */
         $unseen = DB::table('kami_import_keys')
             ->where('site', $this->site)
@@ -155,18 +166,19 @@ final class Import
     private function item(string $source, string $legacyId, string $column, array $payload, Closure $write): string
     {
         $this->sources[$source] = true;
-        $checksum = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
-        $key = DB::table('kami_import_keys')->where(['site' => $this->site, 'source' => $source, 'legacy_id' => $legacyId])->first();
-        $id = is_string($key?->{$column}) ? $key->{$column} : null;
-
-        if ($id !== null && $key->checksum === $checksum) {
-            DB::table('kami_import_keys')->where('id', $key->id)->update(['seen_at' => now()]);
-            $this->unchanged++;
-
-            return $id;
-        }
 
         try {
+            $checksum = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
+            $key = DB::table('kami_import_keys')->where(['site' => $this->site, 'source' => $source, 'legacy_id' => $legacyId])->first();
+            $id = is_string($key?->{$column}) ? $key->{$column} : null;
+
+            if ($id !== null && $key->checksum === $checksum) {
+                DB::table('kami_import_keys')->where('id', $key->id)->update(['seen_at' => now()]);
+                $this->unchanged++;
+
+                return $id;
+            }
+
             $id = DB::transaction(function () use ($write, $id, $key, $column, $source, $legacyId, $checksum): string {
                 $id = $write($id);
                 $row = [$column => $id, 'checksum' => $checksum, 'seen_at' => now(), 'updated_at' => now()];
@@ -180,14 +192,24 @@ final class Import
                 return $id;
             });
         } catch (Throwable $exception) {
-            // The run stops here: its writes record their own Audit events again.
+            // The run stops here: later writes record their own Audit events again, and the run records no summary.
+            $this->over = true;
             $this->audit->close();
 
-            throw new RuntimeException("The import of [{$source}] item [{$legacyId}] failed: {$exception->getMessage()}", $exception->getCode(), previous: $exception);
+            // Code 0, not the cause's: a QueryException's is a SQLSTATE string, which Rector would pass on.
+            throw new RuntimeException("The import of [{$source}] item [{$legacyId}] failed: {$exception->getMessage()}", 0, $exception);
         }
 
         $key === null ? $this->created++ : $this->updated++;
 
         return $id;
+    }
+
+    /** @throws LogicException */
+    private function refuseOver(): void
+    {
+        if ($this->over) {
+            throw new LogicException('This Import is over: an item failed, or it finished. Start another run.');
+        }
     }
 }
