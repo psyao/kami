@@ -122,12 +122,15 @@ it('answers a filled honeypot with the normal success, storing and counting noth
     expect(Submission::query()->count())->toBe(1);
 });
 
-it('answers a filled honeypot with the normal success even when the page is unknown', function () {
-    $response = test()->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/contact', ['_kami_origin' => 'forged', 'kami_website' => 'https://spam.test']);
+it('answers a filled honeypot with the normal success even when the page is unknown', function (mixed $origin, mixed $honeypot) {
+    $response = test()->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/contact', ['_kami_origin' => $origin, 'kami_website' => $honeypot]);
 
     $response->assertStatus(303)->assertRedirect('http://localhost?sent=contact#contact');
     expect(Submission::query()->count())->toBe(0);
-});
+})->with([
+    'forged' => ['forged', 'https://spam.test'],
+    'neither a string' => [['forged'], ['https://spam.test']],
+]);
 
 it('refuses a missing or invalid origin page with a 422 error page, storing nothing', function (Closure $origin) {
     $page = contactPage();
@@ -143,6 +146,7 @@ it('refuses a missing or invalid origin page with a 422 error page, storing noth
     expect(Submission::query()->count())->toBe(0);
 })->with([
     'missing' => fn (Entry $page): string => '',
+    'not a string' => fn (Entry $page): array => [$page->id],
     'unknown Entry' => fn (Entry $page): string => '01JAAAAAAAAAAAAAAAAAAAAAAA:fr',
     'no Locale' => fn (Entry $page): string => $page->id,
     'a Locale of no Site here' => fn (Entry $page): string => "{$page->id}:de",

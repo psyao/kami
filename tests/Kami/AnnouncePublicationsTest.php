@@ -208,6 +208,22 @@ it('reports a failing listener once, announcing the others and never replaying t
     Exceptions::assertReported(fn (RuntimeException $exception) => $exception->getMessage() === 'Webhook down.');
 });
 
+it('leaves its window to the next run when a read fails', function (int $failing) {
+    announce($this, '2026-11-10 09:00:00');
+    $this->travelTo('2026-11-10 09:00:00');
+    scheduledArticle('Rattrapée', '2026-11-10 09:03:00');
+    $queries = 0;
+    DB::beforeExecuting(function () use (&$queries, $failing): void {
+        if (++$queries === $failing) {
+            throw new RuntimeException('Database down.');
+        }
+    });
+    $this->travelTo('2026-11-10 09:05:00');
+
+    expect(fn () => $this->artisan('kami:announce-publications')->run())->toThrow(RuntimeException::class, 'Database down.')
+        ->and(announce($this, '2026-11-10 09:06:00'))->toBe(['fr:Rattrapée']);
+})->with(['the Translations' => 1, 'their Entries' => 2]);
+
 it('marks the sitemap stale once something was announced, writing no row and keeping the Content version', function () {
     $this->travelTo('2026-11-10 09:00:00');
     scheduledArticle('Première', '2026-11-10 09:30:00');

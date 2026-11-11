@@ -98,7 +98,9 @@ final class SubmitForm
      */
     private function origin(Request $request): ?array
     {
-        [$id, $locale] = explode(':', $request->string(self::ORIGIN)->toString(), 2) + [1 => ''];
+        // Read raw: `string()` would cast an array a bot posts and throw.
+        $origin = $request->input(self::ORIGIN);
+        [$id, $locale] = explode(':', is_string($origin) ? $origin : '', 2) + [1 => ''];
 
         if (! in_array($locale, Site::current()->locales, true)) {
             return null;
