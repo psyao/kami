@@ -50,7 +50,7 @@ jobs:
         run: bash tests/infomaniak.sh --ci
 
   static:
-    name: Static (SQLite, checks and coverage)
+    name: Static (SQLite, checks)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -61,13 +61,11 @@ jobs:
 
       - uses: ./.github/actions/setup
         id: setup
-        with:
-          coverage: pcov
 
       # Each check runs once the environment is ready, so one push reports every failure.
       - name: Pint
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: vendor/bin/pint --test
+        run: vendor/bin/pint --test --parallel
 
       - name: Larastan
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
@@ -149,10 +147,29 @@ jobs:
             exit 1
           fi
 
-      # The Install suite runs inside it: its tests count towards the core's coverage.
-      - name: Coverage, Kami and Install suites
+  # Beside Static, so the checks do not delay it. The Kami suite alone covers the core above 90 %.
+  coverage:
+    name: Coverage (SQLite, Kami and Install suites)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        id: setup
+        with:
+          coverage: pcov
+
+      - name: Kami suite with coverage
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: composer test:coverage
+
+      # Serial and without coverage: its `view:cache` clears the compiled views other workers render from.
+      - name: Install suite
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: vendor/bin/pest --testsuite=Install --ci
 
   postgresql:
     name: PostgreSQL 15

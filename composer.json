@@ -87,7 +87,7 @@
         "test:coverage": [
             "Composer\\Config::disableProcessTimeout",
             "@php vendor/bin/testbench package:discover --ansi",
-            "pest --testsuite=Kami,Install --coverage --min=90"
+            "pest --testsuite=Kami --parallel --coverage --min=90"
         ],
         "reference": [
             "@php vendor/bin/testbench package:discover --ansi",
