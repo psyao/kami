@@ -22,7 +22,8 @@ use RuntimeException;
  *
  * Its window is `(last run, now]`, the last run being the `mtime` of `storage/framework/kami/announced-at`: `kami_task_runs` already holds this
  * run's start when the command begins, and a run by hand moves the file too. With no file, the first run starts its window at `now()`.
- * The file moves before the events are dispatched, so a failing listener is reported once, never replayed to the others at every run.
+ * The file moves after the reads and before the events are dispatched: a read that throws leaves its window to the next run, and a failing
+ * listener is reported once, never replayed to the others at every run.
  *
  * ponytail: one query for the whole window; a window of days after a stalled scheduler loads its Translations at once, V1 chunks it if that ever weighs.
  *
@@ -44,7 +45,6 @@ final class AnnouncePublicationsCommand extends Command
     {
         $now = Date::now()->startOfSecond();
         $from = Date::createFromTimestamp(self::announcedUntil() ?? $now->getTimestamp(), $now->getTimezone());
-        $this->touchCursor($now->getTimestamp());
 
         // Saved while still Scheduled: a save at or after the moment announced it itself (`SaveEntry`).
         $translations = Translation::query()
@@ -57,6 +57,7 @@ final class AnnouncePublicationsCommand extends Command
             ->get(['entry_id', 'locale']);
 
         $entries = Entry::query()->withUnpublished()->findMany($translations->pluck('entry_id')->unique())->keyBy('id');
+        $this->touchCursor($now->getTimestamp());
         $failed = 0;
 
         foreach ($translations as $translation) {
