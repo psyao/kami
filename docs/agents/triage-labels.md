@@ -19,3 +19,8 @@ Edit the "Label in our tracker" column to match whatever vocabulary you actually
 | Label      | Meaning                                                                                                                                       |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `friction` | A problem met while trying a milestone on the playground Site or while migrating a reference site. Triaged like any issue; the verdict goes in the closing comment. |
+
+## Triage in Kami
+
+- No category label: `bug` and `enhancement` are not used here. Triage gives an issue a **target** instead, a Milestone or `V1`, in a comment (`Target: M9.`); the issue stays `needs-triage` until the target Milestone's `/to-spec` folds it into the spec, moves it into the Milestone and labels it `ready-for-agent`.
+- `/mattpocock-skills:triage` is for issues outside that cycle: one with no target yet, or one from outside the project. It skips the AI disclaimer, never writes `.out-of-scope/` (a rejected request is closed `wontfix` with its reason in the closing comment), and keeps its "verify the claim" step: an issue is reproduced before it is `ready-for-agent`.
