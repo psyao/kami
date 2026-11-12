@@ -61,6 +61,7 @@ it('prints the lines a site adds elsewhere', function (): void {
         ->expectsOutputToContain('recipients()')
         ->expectsOutputToContain("'quote_request' => ['label' => 'Quote Request', 'send' => 'Send', 'sent' => 'Thank you, your message is sent.'],")
         ->expectsOutputToContain("'name' => 'name', 'email' => 'email address', 'message' => 'message',")
+        ->expectsOutputToContain('php artisan lang:add <locale>')
         ->expectsOutputToContain("@include('forms.quote_request')")
         ->assertSuccessful();
 });

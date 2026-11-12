@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Testing\TestResponse;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
@@ -35,6 +36,15 @@ final class QuoteRequest extends Form
     public function rules(): array
     {
         return [];
+    }
+}
+
+/** A Form with array fields: a checkbox group by `array`, one by `tags.*` alone, and a nested field. */
+final class SurveyForm extends Form
+{
+    public function rules(): array
+    {
+        return ['name' => ['required', 'string'], 'topics' => ['array'], 'topics.*' => ['string'], 'tags.*' => ['string'], 'answer.text' => ['required', 'string']];
     }
 }
 
@@ -251,6 +261,38 @@ it('re-renders the input and errors from the visitor\'s session under Kami::rout
 
     $response->assertUnprocessable()->assertSee('<a href="#name">', escape: false)->assertSee('value="ada@example.com"', escape: false);
     $this->get('/')->assertOk()->assertDontSee('value="ada@example.com"', escape: false)->assertDontSee('kami-form-errors');
+});
+
+it('answers each field, the origin and the honeypot posted as an array without a server error', function (string $field, int $status) {
+    $page = contactPage();
+
+    sendContact($page, [$field => ['x']])->assertStatus($status);
+    expect(Submission::query()->count())->toBe(0);
+})->with([
+    'name' => ['name', 422],
+    'email' => ['email', 422],
+    'message' => ['message', 422],
+    'origin' => ['_kami_origin', 422],
+    'honeypot' => ['kami_website', 303],
+]);
+
+it('sends back as old input only the arrays a field\'s rules allow', function () {
+    config(['kami.forms' => [ContactForm::class, SurveyForm::class]]);
+    $page = contactPage();
+    $old = null;
+    View::composer('kami.home', function () use (&$old): void {
+        $old = request()->old();
+    });
+
+    test()->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/survey', [
+        '_kami_origin' => "{$page->id}:fr",
+        'name' => ['x'],
+        'topics' => ['a', ['nested']],
+        'tags' => ['b'],
+        'answer' => ['text' => ['c'], 'note' => 'd'],
+    ])->assertUnprocessable();
+
+    expect($old)->toBe(['topics' => ['a'], 'tags' => ['b'], 'answer' => ['note' => 'd']]);
 });
 
 it('derives a Form\'s handle from its class name without a trailing Form, and labels it from kami-forms', function () {

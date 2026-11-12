@@ -46,9 +46,16 @@ return [
 ];
 ```
 
+A Locale other than English also needs Laravel's own validation messages in `lang/<locale>/validation.php`, or a French page shows `The nom field is required.`. [laravel-lang](https://laravel-lang.com) provides them, merged with the `attributes` already there:
+
+```bash
+composer require laravel-lang/common --dev
+php artisan lang:add fr
+```
+
 Kami checks `kami.forms` when a Form is first read: every entry must extend `Form`, with a snake_case handle of 40 characters at most, unique among the Forms.
 
-`kami:make:form` starts one. It writes the class into `app/Forms` and an accessible view of its inputs into `resources/views/forms`, refuses to overwrite either file, and prints what to add elsewhere: the `config/kami.php` line, its strings in `kami-forms.php` and `validation.attributes`, and the `@include` for the page's view. A trailing `Form` in the name is dropped, and `Name`, `Email` and `Message` are refused: the Form's id, its handle, would be that of one of its fields.
+`kami:make:form` starts one. It writes the class into `app/Forms` and an accessible view of its inputs into `resources/views/forms`, refuses to overwrite either file, and prints what to add elsewhere: the `config/kami.php` line, its strings in `kami-forms.php` and `validation.attributes`, the `lang:add` line for Laravel's validation messages, and the `@include` for the page's view. A trailing `Form` in the name is dropped, and `Name`, `Email` and `Message` are refused: the Form's id, its handle, would be that of one of its fields.
 
 ```bash
 php artisan kami:make:form Contact
@@ -106,6 +113,8 @@ The route checks, in this order:
 4. **The throttle.** Five Submissions per minute per Form and per IP address; an IPv6 address counts with its whole /64. Above it: 429, with `Retry-After`. The key is hashed in your application's cache, so no address is kept. Only a Submission that passed the checks above counts, so a bot caught by the honeypot does not use up the quota of a person behind the same address.
 5. **Validation**, against `rules()`.
 
+Over plain `http`, a browser never reaches the route: the front's `upgrade-insecure-requests` sends the post to `https`, and the visitor's text is lost. Serve a local site over HTTPS ([Local development over HTTP](security.md#local-development-over-http)).
+
 A bot that posts directly forges any header, from its own address: the honeypot and the throttle are aimed at it. Kami ships no captcha, which would be a remote service; a self-hosted proof-of-work check fits in `rules()` as a custom rule.
 
 ## Submissions
@@ -149,7 +158,7 @@ public function retention(): ?CarbonInterval
 ```
 
 - **`null`** keeps a Form's Submissions forever. A retention of zero or less is a typo: the command deletes none of that Form's Submissions, names the Form and fails, after pruning the others.
-- **A Form no longer declared** under `kami.forms` has no retention to read: its Submissions are kept, never pruned blindly, and `kami:doctor` lists them. Declare it again, or delete them in the admin.
+- **A Form no longer declared** under `kami.forms` has no retention to read: its Submissions are kept, never pruned blindly, and `kami:doctor` lists them. Declare it again, or delete them in the admin; with no Form left, the admin has no Submissions screen, and `kami:doctor` prints the `DeleteSubmissions` call to run from `php artisan tinker`.
 - **Not an editor's deletion.** Expiry records no Audit log event and dispatches no `SubmissionsDeleted`, which only follows a deletion through `DeleteSubmissions`: a copy your code keeps elsewhere is not told, so give it a retention of its own.
 
 ## Delivery
@@ -235,7 +244,7 @@ Once a Form is declared, the admin's **Submissions** screen lists the current Si
 
 Opening a Submission marks it read. It shows each field with its `validation.attributes` label, in the order of `rules()`, the visitor's text always escaped, then each channel's delivery with its attempts and last error. When `replyTo()` names a field holding a valid address, a **Reply** button opens your mail client to it.
 
-A Form you remove from `kami.forms` keeps its Submissions: they show under a tab named by its handle, their fields sorted by key, so that you can still read and delete them. The screen needs at least one declared Form: with none left, it is gone, and the Submissions wait in the table, where `kami:doctor` reports them.
+A Form you remove from `kami.forms` keeps its Submissions: they show under a tab named by its handle, their fields sorted by key, so that you can still read and delete them. The screen needs at least one declared Form: with none left, it is gone, and the Submissions wait in the table, where `kami:doctor` reports them with the `DeleteSubmissions` call that deletes them.
 
 Reading takes `kami.form-submissions.view`; deleting, one Submission or several at once, takes `kami.form-submissions.delete` ([Users and Roles](users-and-roles.md#permissions)). Deletion is for good, with the deliveries, and the [Audit log](audit-log.md) records it per Form with the count, never the content. Your own code deletes Submissions through the same action, for instance to honour a visitor's deletion request:
 

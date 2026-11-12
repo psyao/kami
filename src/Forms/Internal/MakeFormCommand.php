@@ -166,6 +166,8 @@ final class MakeFormCommand extends Command
         $this->line("    '{$handle}' => ['label' => '{$label}', 'send' => 'Send', 'sent' => 'Thank you, your message is sent.'],");
         $this->line('Add its field labels to <comment>attributes</comment> in lang/<locale>/validation.php, for each Locale:');
         $this->line("    'name' => 'name', 'email' => 'email address', 'message' => 'message',");
+        $this->line('A Locale other than English also needs Laravel\'s validation messages in that file, from laravel-lang:');
+        $this->line('    composer require laravel-lang/common --dev && php artisan lang:add <locale>');
         $this->line('Include its view in the view of the page that holds it:');
         $this->line("    @include('forms.{$handle}')");
     }

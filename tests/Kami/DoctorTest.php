@@ -1254,6 +1254,11 @@ describe('Forms', function () {
 
         config(['kami.forms' => []]);
 
-        expect(problem('Submissions of Forms no longer declared')?->message)->toBe('Submissions of Forms no longer declared: contact (1). Kept, never pruned.');
+        expect(problem('Submissions of Forms no longer declared')?->message)->toBe('Submissions of Forms no longer declared: contact (1). Kept, never pruned.')
+            ->and(problem('Submissions of Forms no longer declared')?->fix)->toContain('DeleteSubmissions')->not->toContain('admin');
+
+        config(['kami.forms' => [NoRecipientForm::class]]);
+
+        expect(problem('Submissions of Forms no longer declared')?->fix)->toContain('in the admin');
     });
 });

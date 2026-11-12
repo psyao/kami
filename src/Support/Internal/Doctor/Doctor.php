@@ -1125,7 +1125,9 @@ final readonly class Doctor
             ->groupBy('form')->orderBy('form')->selectRaw('form, count(*) as total')->pluck('total', 'form');
 
         if ($undeclared->isNotEmpty()) {
-            $problems[] = new Problem(Severity::Warning, 'Submissions of Forms no longer declared: ' . $undeclared->map(fn (mixed $count, string $form): string => $form . ' (' . (is_numeric($count) ? $count : 0) . ')')->implode(', ') . '. Kept, never pruned.', 'declare the Form again under kami.forms, or delete its Submissions in the admin.', 'forms.md#submissions');
+            // The Submissions screen needs a declared Form: with none, it is gone.
+            $delete = $forms === [] ? 'from php artisan tinker: resolve(\\Psyao\\Kami\\Forms\\Actions\\DeleteSubmissions::class)->handle(\\Psyao\\Kami\\Forms\\Submission::query()->whereIn(\'form\', [\'' . $undeclared->keys()->implode("', '") . '\'])->lazy()).' : 'in the admin.';
+            $problems[] = new Problem(Severity::Warning, 'Submissions of Forms no longer declared: ' . $undeclared->map(fn (mixed $count, string $form): string => $form . ' (' . (is_numeric($count) ? $count : 0) . ')')->implode(', ') . '. Kept, never pruned.', "declare the Form again under kami.forms, or delete its Submissions {$delete}", 'forms.md#submissions');
         }
 
         return $problems;

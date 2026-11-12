@@ -13,6 +13,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
+use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
 use Illuminate\Support\ViewErrorBag;
 use Psyao\Kami\Content\Entry;
@@ -68,7 +69,7 @@ final class SubmitForm
         $validator = Validator::make($input, $form->rules());
 
         if ($validator->fails()) {
-            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD));
+            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), $form->rules());
         }
 
         resolve(StoreSubmission::class)->handle($form, $validator->validated(), $locale, $entry);
@@ -128,15 +129,19 @@ final class SubmitForm
         return 'kami:form:' . hash('sha256', "{$form->handle()}|{$group}");
     }
 
-    /** The page again with the errors and the visitor's input, for this response only: a store held in memory, so no cookie, under the `web` group the real session. */
-    /** @param  array<mixed>  $old */
-    private function invalid(Request $request, Entry $entry, MessageBag $errors, array $old): Response
+    /**
+     * The page again with the errors and the visitor's input, for this response only: a store held in memory, so no cookie, under the `web` group the real session.
+     *
+     * @param  array<mixed>  $old
+     * @param  array<string, mixed>  $rules
+     */
+    private function invalid(Request $request, Entry $entry, MessageBag $errors, array $old, array $rules): Response
     {
         if (! $request->hasSession()) {
             $request->setLaravelSession(new Store('kami', new ArraySessionHandler(0)));
         }
 
-        $request->session()->now('_old_input', $old);
+        $request->session()->now('_old_input', self::shaped($old, $rules));
         $bag = new ViewErrorBag()->put('default', $errors);
 
         $response = Router::toResponse($request, RenderEntry::render($request, $entry, $bag));
@@ -147,5 +152,51 @@ final class SubmitForm
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
+    }
+
+    /**
+     * The old input without the arrays its rules do not allow, so `{{ old('name') }}` never receives one a bot posted as `name[]=x` (#530).
+     * An array is kept where a rule names `array` at its path or a rule reaches below it (`topics.*`, `answer.text`).
+     *
+     * @param  array<mixed>  $values
+     * @param  array<string, mixed>  $rules
+     * @param  list<int|string>  $path
+     * @return array<mixed>
+     */
+    private static function shaped(array $values, array $rules, array $path = []): array
+    {
+        foreach ($values as $key => $value) {
+            if (is_array($value)) {
+                $at = [...$path, $key];
+                if (self::allowsArray($rules, $at)) {
+                    $values[$key] = self::shaped($value, $rules, $at);
+                } else {
+                    unset($values[$key]);
+                }
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rules
+     * @param  list<int|string>  $path
+     */
+    private static function allowsArray(array $rules, array $path): bool
+    {
+        return array_any(array_keys($rules), function (string $key) use ($rules, $path): bool {
+            $segments = explode('.', $key);
+            $head = array_slice($segments, 0, count($path));
+
+            if (count($head) !== count($path) || ! array_all($head, fn (string $segment, int $i): bool => $segment === '*' || $segment === (string) $path[$i])) {
+                return false;
+            }
+
+            $rule = $rules[$key];
+            $names = array_map(fn (mixed $one): string => is_string($one) ? Str::before($one, ':') : '', is_string($rule) ? explode('|', $rule) : (array) $rule);
+
+            return count($segments) > count($path) || in_array('array', $names, true);
+        });
     }
 }
