@@ -162,7 +162,7 @@ final class Import
      *
      * @param  Form|string  $form  The declared Form, or its handle.
      * @param  array<mixed>  $data  Its values, keyed by the Form's `rules()`; any other key is dropped.
-     * @param  string  $locale  One of the Site's Locales.
+     * @param  string  $locale  One of the current site's Locales.
      * @param  CarbonInterface|null  $readAt  When it was read; null when it is unread.
      * @param  Entry|null  $entry  The page it was sent from.
      *
