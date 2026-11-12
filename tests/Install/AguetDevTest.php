@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Tests\Install\AguetDev;
 
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
+use Psyao\Kami\Audit\Events\AuditEventRecorded;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
@@ -23,6 +27,9 @@ use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Submission;
+use Psyao\Kami\Import\Import;
+use Psyao\Kami\Import\ImportReport;
+use Psyao\Kami\Media\Media;
 
 // M3's acceptance: aguet.dev's types as docs/research/site-aguet-dev.md describes them. `about_body` stays a Textarea until M4's rich text; `url` becomes `website`, as `Entry::url()` holds the name.
 
@@ -329,4 +336,71 @@ it('stores aguet.dev\'s contact message while its SMTP server is down, then deli
     $mail = collect(Mail::mailer('array')->getSymfonyTransport()->messages())->sole()->getOriginalMessage();
     expect([$mail->getSubject(), $mail->getTo()[0]->getAddress(), $mail->getReplyTo()[0]->getAddress()])->toBe(['[Contact] Une plateforme sur mesure', 'contact@aguet.dev', 'visitor@example.com'])
         ->and(DB::table('kami_form_deliveries')->sole()->delivered_at)->toBe('2026-11-10 10:16:00');
+});
+
+/**
+ * `app:import:velox` in miniature, over a synthetic Velox-shaped source: Terms, then Media, then Entries in two Locales, whose Tags resolve through `find()` and whose pass runs twice, then the contact messages.
+ */
+function importVelox(): ImportReport
+{
+    $import = Import::start('Velox');
+    $date = fn (string $date): CarbonImmutable => CarbonImmutable::parse($date, 'UTC');
+
+    foreach (['01JTAG0PHP' => 'PHP', '01JTAG0LARAVEL' => 'Laravel', '01JTAG0VUE' => 'Vue'] as $ulid => $title) {
+        $import->entry('velox.term', $ulid, Tag::class, ['fr' => ['title' => $title, 'status' => 'published']], $date('2025-01-10 09:00:00'));
+    }
+
+    $import->media('velox.media', '01JMEDIA0SOCIAL', fixture('media/pixel.png'), ['fr' => ['alt' => 'Steve Aguet'], 'en' => ['alt' => 'Steve Aguet']], $date('2025-01-11 09:00:00'));
+
+    // Twice, as an importer runs its second pass: a Tag found now is handed over now, so a replay hands over what is stored.
+    foreach ([1, 2] as $pass) {
+        foreach (['01JPROJECT0CVCI' => ['CVCI', ['01JTAG0VUE', '01JTAG0PHP', '01JTAG0LARAVEL']], '01JPROJECT0ANIMALIA' => ['Animalia', ['01JTAG0LARAVEL']]] as $ulid => [$title, $tags]) {
+            $import->entry('velox.entry', $ulid, Project::class, [
+                'fr' => ['title' => $title, 'status' => 'published', 'summary' => "{$title}, en bref.", 'website' => "https://{$title}.example", 'tags' => array_values(array_filter(array_map(fn (string $tag): ?string => $import->find('velox.term', $tag)?->id, $tags)))],
+                'en' => ['title' => "{$title} (en)", 'status' => 'published', 'summary' => "{$title}, in short."],
+            ], $date('2025-02-01 09:00:00'), $date('2025-03-01 09:00:00'));
+        }
+    }
+
+    $import->submission('contact', ['subject' => 'Une plateforme', 'email' => 'visitor@example.com', 'message' => 'Bonjour.'], 'fr', $date('2025-04-01 08:00:00'), $date('2025-04-01 09:00:00'));
+    $import->submission('contact', ['subject' => 'A platform', 'email' => 'visitor@example.org', 'message' => 'Hello.'], 'en', $date('2025-04-02 08:00:00'));
+
+    return $import->finish();
+}
+
+// M9's acceptance: aguet.dev's content and messages imported from Velox, then imported again with no write and no event, as a Switch-over rehearsed twice.
+it('imports aguet.dev from a Velox-shaped source, then replays it with no write and no event', function (): void {
+    installAguetDev();
+    config(['kami.forms' => [ContactForm::class]]);
+
+    $first = importVelox();
+    $writes = [];
+    DB::listen(function (QueryExecuted $query) use (&$writes): void {
+        if (preg_match('/^(?:insert into|update|delete from) ["`]?(\w+)/i', $query->sql, $match) === 1) {
+            $writes[] = substr($match[1], strlen($query->connection->getTablePrefix()));
+        }
+    });
+    $events = [];
+    Event::listen('*', function (string $event) use (&$events): void {
+        // Reads and queries are no events of Kami's.
+        if (! str_starts_with($event, 'eloquent.retrieved') && ! str_starts_with($event, 'Illuminate\\')) {
+            $events[] = $event;
+        }
+    });
+    $replay = importVelox();
+
+    expect([$first->created, $first->updated, $first->unchanged])->toBe([8, 0, 2])
+        ->and([$replay->created, $replay->updated, $replay->unchanged, $replay->unseen])->toBe([0, 0, 10, 0])
+        ->and(array_values(array_unique($writes)))->toBe(['kami_import_keys', 'kami_audit_events']);
+    // The run's one summary, and nothing per item.
+    expect(array_values(array_unique($events)))->toBe([AuditEventRecorded::class]);
+    $cvci = Entry::query()->ofType(Project::class)->get()->firstWhere('title', 'CVCI');
+    expect($cvci->tags->pluck('title')->all())->toBe(['Vue', 'PHP', 'Laravel'])
+        ->and($cvci->created_at->toDateTimeString())->toBe('2025-02-01 09:00:00')
+        ->and(Media::query()->sole()->created_at->toDateTimeString())->toBe('2025-01-11 09:00:00')
+        ->and(Submission::query()->orderBy('created_at')->get()->map->only(['locale', 'read_at'])->toArray())->toEqual([
+            ['locale' => 'fr', 'read_at' => CarbonImmutable::parse('2025-04-01 09:00:00')],
+            ['locale' => 'en', 'read_at' => null],
+        ])
+        ->and(DB::table('kami_form_deliveries')->count())->toBe(0);
 });

@@ -7,6 +7,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
@@ -14,6 +15,8 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntrySaved;
+use Psyao\Kami\Forms\Events\SubmissionStored;
+use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Import\Import;
 use Psyao\Kami\Import\ImportReport;
 use Psyao\Kami\Media\Events\MediaSaved;
@@ -371,3 +374,62 @@ it('refuses a run into another Site than the current one', function (): void {
     expect(fn (): Import => Import::start('Velox', 'blog'))->toThrow(InvalidArgumentException::class, 'An Import writes the current Site [default] only, not [blog].')
         ->and(Import::start('Velox', 'default')->finish()->created)->toBe(0);
 });
+
+it('copies a Submission with its dates and read state, and never notifies it', function (): void {
+    $this->withoutDefer();
+    Mail::fake();
+    Event::fake([SubmissionStored::class]);
+    $import = Import::start('Velox');
+
+    $submission = $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.', 'website' => 'spam'], 'fr', CarbonImmutable::parse('2026-03-01 08:30:00'), CarbonImmutable::parse('2026-03-02 09:00:00'));
+    $report = $import->finish();
+
+    expect([$report->created, $report->updated, $report->unchanged, $report->unseen])->toBe([1, 0, 0, 0]);
+    expect(Submission::query()->sole()->only(['id', 'site', 'form', 'locale', 'entry_id', 'data', 'read_at', 'created_at', 'updated_at']))->toEqual([
+        'id' => $submission->id,
+        'site' => 'default',
+        'form' => 'contact',
+        'locale' => 'fr',
+        'entry_id' => null,
+        'data' => ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.'],
+        'read_at' => CarbonImmutable::parse('2026-03-02 09:00:00'),
+        'created_at' => CarbonImmutable::parse('2026-03-01 08:30:00'),
+        'updated_at' => CarbonImmutable::parse('2026-03-02 09:00:00'),
+    ]);
+    expect(DB::table('kami_form_deliveries')->count())->toBe(0);
+    Event::assertNotDispatched(SubmissionStored::class);
+    Mail::assertNothingSent();
+});
+
+it('skips a Submission stored with the same Form, Locale, date and data, whatever the order of its keys', function (): void {
+    $sent = CarbonImmutable::parse('2026-03-01 08:30:00');
+    $import = Import::start('Velox');
+    $first = $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.'], 'fr', $sent);
+    $import->finish();
+    Event::fake([SubmissionStored::class]);
+
+    $import = Import::start('Velox');
+    $skipped = $import->submission('contact', ['message' => 'Bonjour, parlons-en.', 'email' => 'ada@example.com', 'name' => 'Ada'], 'fr', $sent, CarbonImmutable::parse('2026-03-02 09:00:00'));
+    $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Une autre fois.'], 'fr', $sent);
+    $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.'], 'en', $sent);
+    $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.'], 'fr', $sent->addSecond());
+    $report = $import->finish();
+
+    expect([$report->created, $report->updated, $report->unchanged])->toBe([3, 0, 1]);
+    expect($skipped->id)->toBe($first->id);
+    expect($skipped->read_at)->toBeNull();
+    expect(Submission::query()->count())->toBe(4);
+});
+
+it('names the Submission that fails, and stops the run', function (string $form, string $locale): void {
+    $import = Import::start('Velox');
+
+    expect(fn (): Submission => $import->submission($form, ['name' => 'Ada'], $locale, CarbonImmutable::parse('2026-03-01 08:30:00')))
+        ->toThrow(RuntimeException::class, "The import of a [{$form}] Submission in [{$locale}] created at [2026-03-01 08:30:00] failed:");
+
+    expect(Submission::query()->count())->toBe(0)
+        ->and(fn (): Submission => $import->submission('contact', ['name' => 'Ada'], 'fr', now()))->toThrow(LogicException::class, 'This Import is over');
+})->with([
+    'an undeclared Form' => ['newsletter', 'fr'],
+    'a Locale outside the Site' => ['contact', 'de'],
+]);

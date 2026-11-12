@@ -496,6 +496,7 @@ Imports a site's content from another system, again and again until switch-over 
 - `public function finish(): Psyao\Kami\Import\ImportReport`: Closes the run: records one `kami.import.completed` Audit event with the label and the counts, and reports them.
 - `public function media(string $source, string $legacyId, string $path, array $values = [], ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Media\Media`: Imports one source file as a Media item, through `SaveMedia`, with its original dates: in one transaction, whole or not at all, its original deleted again if it fails. An item whose file content and arguments did not change since its last import is skipped; a changed file replaces the stored one, within its family.
 - `public static function start(string $label, ?string $site = NULL): Psyao\Kami\Import\Import`: Opens a run into a Site, the current one when `$site` is null. Until `finish()`, writes record no Audit event of their own: the run records one summary.
+- `public function submission(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, Carbon\CarbonInterface $createdAt, ?Carbon\CarbonInterface $readAt = NULL, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission`: Copies a Form Submission with its original dates and read state, never notified: no delivery, no `SubmissionStored`. It gets no Legacy id: one already stored with the same Form, Locale, `created_at` and data is skipped, so a replay never duplicates a message.
 
 ## `Psyao\Kami\Import\ImportReport`
 
