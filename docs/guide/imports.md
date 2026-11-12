@@ -47,6 +47,9 @@ final class ImportVelox extends Command
 - **Through the core.** Each Locale is written by `SaveEntry`, so its validation, Paths, References and Content events apply as for any write, with a null actor. A publication dated in the past falls outside `kami:announce-publications`' window and is not announced.
 - **Original dates.** Once the values are saved, `Import` sets `created_at` and `updated_at` on the Entry and every Translation. Left out, they keep the time of the write. `SaveEntry` itself takes no dates, so the admin can never backdate an edit.
 
+- **Singletons and Global Sets.** `kami:install`, which a deploy runs before the importer, creates the Entry of each [Singleton and Global Set](content-types.md#singletons), `SiteSettings` included. The first import of such a type, with no key yet, adopts that Entry rather than create a second one: it writes over it, sets its dates, keys it and counts it as created. Later runs replay it as any other item.
+- **Rich text.** A [RichText](content-types.md#rich-text) value goes in as HTML, as the stored array, or as a `Document`, for instance from `Document::fromHtml()`: Kami hashes a `Document` by its content.
+
 `entry()` returns the Entry as stored.
 
 ## Media
@@ -100,7 +103,7 @@ A key disappears with its Entry or Media item. Nothing in content, rendering or 
 
 Run the importer again and each item finds its key:
 
-- **Unchanged.** Kami hashes what `entry()` received: the type, the values and the dates. For `media()`, it hashes the file's content rather than its path, the values and the dates, so a dump unpacked in another folder replays unchanged. When the hash matches the stored one, the item is skipped. Nothing is written, no event fires and `updated_at` stays put. Hand over strings, numbers and booleans, and dates as strings in UTC: an object such as `now()` or a model hashes differently on every run, and its item would be rewritten every time.
+- **Unchanged.** Kami hashes what `entry()` received: the type, the values and the dates. For `media()`, it hashes the file's content rather than its path, the values and the dates, so a dump unpacked in another folder replays unchanged. When the hash matches the stored one, the item is skipped. Nothing is written, no event fires and `updated_at` stays put. Hand over strings, numbers and booleans, `Document`s, and dates as strings in UTC: an object such as `now()` or a model hashes differently on every run, and its item would be rewritten every time.
 - **Changed.** When the hash differs, the item is rewritten from the source: **the source wins**, over any change made by hand in Kami since. Until switch-over, a fix belongs in the source or the importer, never in the admin. A change to the importer's code changes what it hands over, so the next run rewrites what it affects.
 - **New.** An item with no key is created.
 

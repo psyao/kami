@@ -350,6 +350,13 @@ function importVelox(): ImportReport
         $import->entry('velox.term', $ulid, Tag::class, ['fr' => ['title' => $title, 'status' => 'published']], $date('2025-01-10 09:00:00'));
     }
 
+    // Both created by `kami:install`, which a deploy runs first: the import adopts them.
+    $import->entry('velox.entry', '01JHOME', Home::class, [
+        'fr' => ['title' => 'Accueil', 'status' => 'published', 'hero_title' => 'Bonjour', 'contact_email' => 'steve@example.com'],
+        'en' => ['title' => 'Home', 'status' => 'published', 'hero_title' => 'Hello'],
+    ], $date('2025-01-01 09:00:00'), $date('2025-03-01 09:00:00'));
+    $import->entry('velox.settings', 'site', SiteSettings::class, ['fr' => ['site_name' => 'aguet.dev']]);
+
     $import->media('velox.media', '01JMEDIA0SOCIAL', fixture('media/pixel.png'), ['fr' => ['alt' => 'Steve Aguet'], 'en' => ['alt' => 'Steve Aguet']], $date('2025-01-11 09:00:00'));
 
     // Twice, as an importer runs its second pass: a Tag found now is handed over now, so a replay hands over what is stored.
@@ -389,8 +396,8 @@ it('imports aguet.dev from a Velox-shaped source, then replays it with no write 
     });
     $replay = importVelox();
 
-    expect([$first->created, $first->updated, $first->unchanged])->toBe([8, 0, 2])
-        ->and([$replay->created, $replay->updated, $replay->unchanged, $replay->unseen])->toBe([0, 0, 10, 0])
+    expect([$first->created, $first->updated, $first->unchanged])->toBe([10, 0, 2])
+        ->and([$replay->created, $replay->updated, $replay->unchanged, $replay->unseen])->toBe([0, 0, 12, 0])
         ->and(array_values(array_unique($writes)))->toBe(['kami_import_keys', 'kami_audit_events']);
     // The run's one summary, and nothing per item.
     expect(array_values(array_unique($events)))->toBe([AuditEventRecorded::class]);
@@ -398,9 +405,13 @@ it('imports aguet.dev from a Velox-shaped source, then replays it with no write 
     expect($cvci->tags->pluck('title')->all())->toBe(['Vue', 'PHP', 'Laravel'])
         ->and($cvci->created_at->toDateTimeString())->toBe('2025-02-01 09:00:00')
         ->and(Media::query()->sole()->created_at->toDateTimeString())->toBe('2025-01-11 09:00:00')
-        ->and(Submission::query()->orderBy('created_at')->get()->map->only(['locale', 'read_at'])->toArray())->toEqual([
+        ->and(Submission::query()->oldest()->get()->map->only(['locale', 'read_at'])->toArray())->toEqual([
             ['locale' => 'fr', 'read_at' => CarbonImmutable::parse('2025-04-01 09:00:00')],
             ['locale' => 'en', 'read_at' => null],
         ])
         ->and(DB::table('kami_form_deliveries')->count())->toBe(0);
+    $home = Entry::query()->ofType(Home::class)->sole();
+    expect($home->hero_title)->toBe('Bonjour')
+        ->and($home->created_at->toDateTimeString())->toBe('2025-01-01 09:00:00')
+        ->and(SiteSettings::entry()?->site_name)->toBe('aguet.dev');
 });
