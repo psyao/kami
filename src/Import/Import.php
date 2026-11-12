@@ -16,6 +16,10 @@ use Psyao\Kami\Audit\AuditContext;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Internal\Forms;
+use Psyao\Kami\Forms\Submission;
+use Psyao\Kami\Kami;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
@@ -154,6 +158,56 @@ final class Import
     }
 
     /**
+     * Copies a Form Submission with its original dates and read state, never notified: no delivery, no `SubmissionStored`. It gets no Legacy id: one already stored with the same Form, Locale, `created_at` and data is skipped, so a replay never duplicates a message.
+     *
+     * @param  Form|string  $form  The declared Form, or its handle.
+     * @param  array<mixed>  $data  Its values, keyed by the Form's `rules()`; any other key is dropped.
+     * @param  string  $locale  One of the current site's Locales.
+     * @param  CarbonInterface|null  $readAt  When it was read; null when it is unread.
+     * @param  Entry|null  $entry  The page it was sent from.
+     *
+     * @throws RuntimeException When it fails, naming the Form, the Locale and `created_at`: the run stops there.
+     * @throws LogicException When the run is over.
+     */
+    public function submission(Form | string $form, array $data, string $locale, CarbonInterface $createdAt, ?CarbonInterface $readAt = null, ?Entry $entry = null): Submission
+    {
+        $this->refuseOver();
+        $handle = $form instanceof Form ? $form->handle() : $form;
+        $created = $this->utc($createdAt);
+
+        try {
+            $form = $form instanceof Form ? $form : resolve(Kami::class)->form($form);
+
+            if (! in_array($locale, Site::current()->locales, true)) {
+                throw new InvalidArgumentException("the Locale [{$locale}] is not one of the Site's.");
+            }
+
+            // Through the model's cast, as the json column gives it back: an object or a float such as 2.0 then compares equal on a replay.
+            $data = new Submission(['data' => array_intersect_key($data, array_flip(Forms::fields($form)))])->data;
+            $read = $this->utc($readAt);
+
+            // Compared in PHP, not in SQL: JSON equality differs by engine, and MySQL reorders keys.
+            $stored = Submission::query()->where(['site' => $this->site, 'form' => $handle, 'locale' => $locale, 'created_at' => $created])->get()
+                ->first(fn (Submission $submission): bool => self::sorted($submission->data) === self::sorted($data));
+
+            if ($stored instanceof Submission) {
+                $this->unchanged++;
+
+                return $stored;
+            }
+
+            // Read later than it was sent, as `markRead()` moves `updated_at`.
+            $submission = Submission::query()->create(['site' => $this->site, 'locale' => $locale, 'form' => $handle, 'entry_id' => $entry?->id, 'data' => $data, 'read_at' => $read, 'created_at' => $created, 'updated_at' => $read ?? $created]);
+        } catch (Throwable $exception) {
+            $this->fail("a [{$handle}] Submission in [{$locale}] created at [{$created}]", $exception);
+        }
+
+        $this->created++;
+
+        return $submission;
+    }
+
+    /**
      * The Entry imported under this Legacy id, by this run or an earlier one; null when there is none or it is in the Trash, which a relation Field refuses as a target.
      */
     public function find(string $source, string $legacyId): ?Entry
@@ -242,12 +296,7 @@ final class Import
                 return $id;
             });
         } catch (Throwable $exception) {
-            // The run stops here: later writes record their own Audit events again, and the run records no summary.
-            $this->over = true;
-            $this->audit->close();
-
-            // Code 0, not the cause's: a QueryException's is a SQLSTATE string, which Rector would pass on.
-            throw new RuntimeException("The import of [{$source}] item [{$legacyId}] failed: {$exception->getMessage()}", 0, $exception);
+            $this->fail("[{$source}] item [{$legacyId}]", $exception);
         }
 
         $key === null ? $this->created++ : $this->updated++;
@@ -255,10 +304,41 @@ final class Import
         return $id;
     }
 
+    /**
+     * Stops the run: later writes record their own Audit events again, and the run records no summary.
+     *
+     * @throws RuntimeException
+     */
+    private function fail(string $item, Throwable $exception): never
+    {
+        $this->over = true;
+        $this->audit->close();
+
+        // Code 0, not the cause's: a QueryException's is a SQLSTATE string, which Rector would pass on.
+        throw new RuntimeException("The import of {$item} failed: {$exception->getMessage()}", 0, $exception);
+    }
+
     /** @return array<'created_at'|'updated_at', string> The dates given, as UTC strings: hashed alike on every run. */
     private function dates(?CarbonInterface $createdAt, ?CarbonInterface $updatedAt): array
     {
-        return array_filter(['created_at' => $createdAt?->toImmutable()->utc()->format('Y-m-d H:i:s'), 'updated_at' => $updatedAt?->toImmutable()->utc()->format('Y-m-d H:i:s')]);
+        return array_filter(['created_at' => $this->utc($createdAt), 'updated_at' => $this->utc($updatedAt)]);
+    }
+
+    /** @return ($date is null ? null : string) As stored, in UTC to the second. */
+    private function utc(?CarbonInterface $date): ?string
+    {
+        return $date?->toImmutable()->utc()->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     * @return array<mixed> With its keys sorted at every level.
+     */
+    private static function sorted(array $data): array
+    {
+        ksort($data);
+
+        return array_map(fn (mixed $value): mixed => is_array($value) ? self::sorted($value) : $value, $data);
     }
 
     /** @throws LogicException */

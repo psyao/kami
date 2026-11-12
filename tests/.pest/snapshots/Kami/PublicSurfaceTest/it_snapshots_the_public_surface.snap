@@ -245,6 +245,7 @@ class Psyao\Kami\Import\Import::find() public function find(string $source, stri
 class Psyao\Kami\Import\Import::finish() public function finish(): Psyao\Kami\Import\ImportReport
 class Psyao\Kami\Import\Import::media() public function media(string $source, string $legacyId, string $path, array $values = [], ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Media\Media
 class Psyao\Kami\Import\Import::start() public static function start(string $label, ?string $site = NULL): Psyao\Kami\Import\Import
+class Psyao\Kami\Import\Import::submission() public function submission(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, Carbon\CarbonInterface $createdAt, ?Carbon\CarbonInterface $readAt = NULL, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission
 class Psyao\Kami\Import\ImportReport final readonly class
 class Psyao\Kami\Import\ImportReport::$created public protected(set) readonly int $created
 class Psyao\Kami\Import\ImportReport::$unchanged public protected(set) readonly int $unchanged
