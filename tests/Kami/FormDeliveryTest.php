@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Defer\DeferredCallbackCollection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -16,8 +19,10 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Internal\Deliveries;
 use Psyao\Kami\Forms\Internal\Delivery;
 use Psyao\Kami\Forms\Submission;
+use Psyao\Kami\Scheduling\Internal\Tick;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
@@ -71,6 +76,40 @@ final class SlowChannel
     public function send(object $notifiable, Notification $notification): void
     {
         test()->travel(15)->seconds();
+    }
+}
+
+/** A channel whose first send answers after two minutes, while a Tick runs `kami:forms:deliver` beside it. */
+final class HangingChannel
+{
+    public static int $sends = 0;
+
+    public function send(object $notifiable, Notification $notification): void
+    {
+        if (self::$sends++ === 0) {
+            test()->travel(2)->minutes();
+            Artisan::call('kami:forms:deliver');
+        }
+    }
+}
+
+/** A Form whose notification goes through the hanging channel only. */
+final class HangingForm extends Form
+{
+    public function rules(): array
+    {
+        return ['message' => ['required', 'string']];
+    }
+
+    public function notification(Submission $submission): Notification
+    {
+        return new class extends Notification
+        {
+            public function via(object $notifiable): array
+            {
+                return [HangingChannel::class];
+            }
+        };
     }
 }
 
@@ -184,31 +223,90 @@ it('stores a Submission of a Form with no recipient, mails nothing and logs a wa
     Log::shouldHaveReceived('warning')->once()->with("The Form [orphan] has no recipient: its Submission [{$submission->id}] is stored but not mailed.");
 });
 
-it('retries what failed or never ran from kami:forms:deliver, a minute later, abandoning a delivery after five attempts', function () {
+it('retries at once what failed or never ran from kami:forms:deliver, abandoning a delivery after five attempts', function () {
     Exceptions::fake();
     $this->freezeTime();
     $fresh = storedSubmission();
     $failed = storedSubmission();
     $abandoned = storedSubmission();
-    DB::table('kami_form_deliveries')->where('submission_id', $failed->id)->update(['attempts' => 4, 'last_error' => 'Connection refused', 'updated_at' => now()->subMinutes(15)]);
-    DB::table('kami_form_deliveries')->where('submission_id', $abandoned->id)->update(['attempts' => 5, 'updated_at' => now()->subMinutes(15)]);
+    DB::table('kami_form_deliveries')->where('submission_id', $failed->id)->update(['attempts' => 4, 'last_error' => 'Connection refused']);
+    DB::table('kami_form_deliveries')->where('submission_id', $abandoned->id)->update(['attempts' => 5, 'last_error' => 'Connection refused']);
 
-    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 1 of 1 pending delivery.')->assertSuccessful();
+    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 2 of 2 pending deliveries.')->assertSuccessful();
 
     // From the console too, the mail links to the admin.
-    expect(sentMails())->toHaveCount(1)->and(sentMails()->sole()->getTextBody())->toContain("/admin/submissions/{$failed->id}");
+    expect(sentMails())->toHaveCount(2)->and(sentMails()->first()->getTextBody())->toContain("/admin/submissions/{$fresh->id}");
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $failed->id, 'attempts' => 5, 'last_error' => null]);
-    $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $fresh->id, 'attempts' => 0, 'delivered_at' => null]);
+    $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $fresh->id, 'attempts' => 1]);
     $this->assertDatabaseHas('kami_form_deliveries', ['submission_id' => $abandoned->id, 'attempts' => 5, 'delivered_at' => null]);
+});
+
+it('leaves a delivery being sent elsewhere until its claim is an hour old, as when PHP stopped mid-send', function () {
+    $this->freezeTime();
+    $delivery = DB::table('kami_form_deliveries')->where('submission_id', storedSubmission()->id);
+    $delivery->update(['attempts' => 1, 'updated_at' => now()->subMinutes(59)]);
+
+    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 0 of 0 pending deliveries.')->assertSuccessful();
+
+    $delivery->update(['updated_at' => now()->subHour()]);
+    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 1 of 1 pending delivery.')->assertSuccessful();
+    expect(sentMails())->toHaveCount(1);
+});
+
+it('sends once a Submission whose deferred send outlasts a minute while kami:forms:deliver runs beside it', function () {
+    config(['kami.forms' => [HangingForm::class]]);
+    HangingChannel::$sends = 0;
+
+    storedSubmission('hanging', ['message' => 'Hi']);
+    deferred();
+
+    expect(HangingChannel::$sends)->toBe(1);
+    $this->assertDatabaseHas('kami_form_deliveries', ['attempts' => 1, 'last_error' => null]);
+    $this->assertDatabaseMissing('kami_form_deliveries', ['delivered_at' => null]);
+});
+
+it('lets one sender only claim a delivery two have read', function () {
+    $submission = storedSubmission();
+    [$first, $second] = [Delivery::query()->sole(), Delivery::query()->sole()];
+
+    expect(Deliveries::send($first->setRelation('submission', $submission)))->toBeTrue()
+        ->and(Deliveries::send($second->setRelation('submission', $submission)))->toBeNull()
+        ->and(sentMails())->toHaveCount(1);
+    $this->assertDatabaseHas('kami_form_deliveries', ['attempts' => 1]);
+});
+
+it('names the failed deliveries waiting for their next try, and when', function () {
+    Exceptions::fake();
+    config(['kami.forms' => [ChatForm::class]]);
+    Kami::schedule();
+    $this->travelTo('2026-11-09 17:32:00');
+    storedSubmission('chat', ['message' => 'Hi']);
+    deferred();
+
+    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 0 of 1 pending delivery. 1 waiting for its next try at 17:45.')->assertSuccessful();
+});
+
+it('starts no delivery past the remaining budget of the Tick that runs kami:forms:deliver', function () {
+    $this->app->useStoragePath($storage = temporaryPath());
+    config(['kami.forms' => [SlowForm::class]]);
+    resolve(Schedule::class)->command('kami:forms:deliver')->everyMinute();
+    foreach (range(1, 3) as $n) {
+        storedSubmission('slow', ['message' => "Hi {$n}"]);
+    }
+    $this->travelTo('2026-11-09 10:00:00');
+    Tick::run('cli', 10);
+
+    $this->travelTo('2026-11-09 10:05:00');
+    expect(Tick::run('cli', 10))->toBe('OK')
+        ->and(DB::table('kami_form_deliveries')->whereNotNull('delivered_at')->count())->toBe(1);
+    File::deleteDirectory($storage);
 });
 
 it('starts no delivery once kami:forms:deliver has spent 20 seconds, leaving the rest to the next run', function () {
     config(['kami.forms' => [SlowForm::class]]);
-    $this->travelTo(now()->subMinutes(5));
     foreach (range(1, 3) as $n) {
         storedSubmission('slow', ['message' => "Hi {$n}"]);
     }
-    $this->travelBack();
 
     $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 2 of 2 pending deliveries. Out of time: the rest waits for the next run.')->assertSuccessful();
 

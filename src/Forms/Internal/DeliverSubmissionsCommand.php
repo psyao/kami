@@ -7,7 +7,10 @@ namespace Psyao\Kami\Forms\Internal;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Console\Scheduling\Event;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Str;
+use Psyao\Kami\Scheduling\Internal\Tick;
 
 /**
  * The backstop of Submission delivery, every 15 minutes in `Kami::schedule()`: retries each channel that failed after the response,
@@ -22,31 +25,39 @@ final class DeliverSubmissionsCommand extends Command
 {
     private const int BATCH = 50;
 
-    /** Seconds after which no delivery starts: under the web Tick's 40, as each may wait for its mail server's timeout. */
+    /** Seconds after which no delivery starts outside a Tick; inside one, its remaining budget if shorter. Each send may then wait for its mailer's timeout. */
     private const int BUDGET = 20;
 
     public function handle(): int
     {
-        $deadline = now()->addSeconds(self::BUDGET);
-        $pending = Delivery::query()->pending()->with('submission')
-            // Not one that `defer()` may be sending right now.
-            ->where('updated_at', '<=', now()->subMinute())
-            ->orderBy('updated_at')
-            ->limit(self::BATCH)
-            ->get();
+        $deadline = now()->addMilliseconds((int) (min(self::BUDGET, Tick::secondsLeft() ?? self::BUDGET) * 1000));
+        $due = Delivery::query()->due()->with('submission')->orderBy('updated_at')->limit(self::BATCH)->get();
         $tried = $delivered = 0;
+        $outOfTime = false;
 
-        foreach ($pending as $delivery) {
-            if (now()->greaterThanOrEqualTo($deadline)) {
+        foreach ($due as $delivery) {
+            if ($outOfTime = now()->greaterThanOrEqualTo($deadline)) {
                 break;
             }
 
-            $tried++;
-            $delivered += (int) Deliveries::send($delivery);
+            $sent = Deliveries::send($delivery);
+            $tried += (int) ($sent !== null);
+            $delivered += (int) $sent;
         }
 
-        $this->components->info("Delivered {$delivered} of {$tried} pending " . Str::plural('delivery', $tried) . '.' . ($tried < $pending->count() ? ' Out of time: the rest waits for the next run.' : ''));
+        $waiting = Delivery::query()->due()->where('attempts', '>', 0)->count();
+        $this->components->info("Delivered {$delivered} of {$tried} pending " . Str::plural('delivery', $tried) . '.'
+            . ($outOfTime ? ' Out of time: the rest waits for the next run.' : '')
+            . ($waiting > 0 ? " {$waiting} waiting for " . ($waiting === 1 ? 'its' : 'their') . " next try {$this->nextRun()}." : ''));
 
         return self::SUCCESS;
+    }
+
+    /** When this command runs next, as the site's schedule has it, `Kami::schedule()` or its own. */
+    private function nextRun(): string
+    {
+        $event = collect(resolve(Schedule::class)->events())->first(fn (Event $event): bool => Str::endsWith((string) $event->command, ' ' . $this->getName()));
+
+        return $event instanceof Event ? 'at ' . $event->nextRunDate(now())->format('H:i') : 'at the next run';
     }
 }
