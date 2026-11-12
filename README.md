@@ -40,6 +40,7 @@ php artisan serve
 - [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them
 - [Scheduler](docs/guide/scheduler.md): `Kami::schedule()`, `kami:tick`, overdue tasks and a server's crontab
 - [Forms](docs/guide/forms.md): declaring a Form, its accessible markup, protection without a session, and Submissions
+- [Imports](docs/guide/imports.md): moving a running site's content into Kami with an `app:import:<source>` command, Legacy ids and replays
 - [Hosting](docs/guide/hosting.md): what Kami needs from shared hosting and from a server
 - [Deployment](docs/guide/deployment.md): the first deploy and every later one, on Infomaniak shared hosting or a server
 - [Decision records](docs/adr/): why Kami is built the way it is

@@ -15,6 +15,8 @@ final class AuditContext
 {
     private static ?self $current = null;
 
+    private ?self $outer = null;
+
     /** @var array<string, int> */
     private array $counts = [];
 
@@ -34,18 +36,45 @@ final class AuditContext
     {
         RecordAuditEvent::refuseLongContext($context);
 
-        $outer = self::$current;
-        $batch = self::$current = new self;
+        $batch = self::open();
 
         try {
             $result = $callback();
         } finally {
-            self::$current = $outer;
+            $counts = $batch->close();
         }
 
-        resolve(RecordAuditEvent::class)->summarise($event, [...$context, ...array_filter($batch->counts)]);
+        resolve(RecordAuditEvent::class)->summarise($event, [...$context, ...$counts]);
 
         return $result;
+    }
+
+    /**
+     * @internal
+     *
+     * Opens a batch that outlives one call, for `Import`: Audit events count towards it until `close()`.
+     */
+    public static function open(): self
+    {
+        $batch = new self;
+        $batch->outer = self::$current;
+        self::$current = $batch;
+
+        return $batch;
+    }
+
+    /**
+     * @internal
+     *
+     * Hands the current batch back to the one it was opened in, and returns the count of each event recorded inside; the caller records the summary.
+     *
+     * @return array<string, int>
+     */
+    public function close(): array
+    {
+        self::$current = $this->outer;
+
+        return array_filter($this->counts);
     }
 
     /**

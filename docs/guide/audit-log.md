@@ -19,6 +19,7 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.media.deleted` | `DeleteMedia` | `name` |
 | `kami.form-submissions.deleted` | `DeleteSubmissions`, once per Form, with no subject; never the Submission's content | `form`, `count` |
 | `kami.content.migrated` | Each `ContentMigrator` operation | `operation` and its arguments |
+| `kami.import.completed` | [`Import::finish()`](imports.md), once per run, with no subject | `label`, `created`, `updated`, `unchanged`, `unseen` and the count of each event recorded during the run |
 | `kami.roles.granted` | `AssignRoles` gives a User a Role; the User is subject | `role` |
 | `kami.roles.revoked` | `AssignRoles` takes a Role from a User; the User is subject | `role` |
 | `kami.users.lockout-refused` | The [lockout guard](users-and-roles.md#the-lockout-guard) refuses a change; the User is subject. Recorded even when the caller's transaction rolls back | `operation`: `revoke` or `delete` |
