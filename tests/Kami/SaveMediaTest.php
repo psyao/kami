@@ -249,7 +249,18 @@ it('refuses a replacement of another family, changing nothing', function (): voi
         ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
 });
 
-it('keeps the former file and Conversions when the transaction around a replacement rolls back', function (): void {
+it('leaves no original when the transaction around a creation rolls back after its save', function (): void {
+    rescue(fn () => DB::transaction(function (): never {
+        saveMedia(fixture('media/Holiday Photo.JPG'));
+
+        throw new RuntimeException('Rolled back');
+    }), report: false);
+
+    expect(Media::query()->count())->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+});
+
+it('keeps the former file and Conversions, and leaves no new original, when the transaction around a replacement rolls back', function (): void {
     Storage::fake('public');
     $media = saveMedia(fixture('media/Holiday Photo.JPG'));
     $original = $media->file;
@@ -262,6 +273,7 @@ it('keeps the former file and Conversions when the transaction around a replacem
     }), report: false);
 
     expect(Media::query()->findOrFail($media->id))->file->toBe($original)
+        ->and(Storage::disk('local')->allFiles())->toBe([$original])
         ->and(Storage::disk('local')->get($original))->toBe(file_get_contents(fixture('media/Holiday Photo.JPG')))
         ->and(Storage::disk('public')->allFiles())->toHaveCount(1);
 });

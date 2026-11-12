@@ -16,6 +16,8 @@ use Psyao\Kami\Audit\AuditContext;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Media\Actions\SaveMedia;
+use Psyao\Kami\Media\Media;
 use Psyao\Kami\Sites\Internal\Site;
 use RuntimeException;
 use Throwable;
@@ -83,7 +85,7 @@ final class Import
     public function entry(string $source, string $legacyId, string $type, array $values, ?CarbonInterface $createdAt = null, ?CarbonInterface $updatedAt = null): Entry
     {
         $this->refuseOver();
-        $dates = array_filter(['created_at' => $createdAt?->toImmutable()->utc()->format('Y-m-d H:i:s'), 'updated_at' => $updatedAt?->toImmutable()->utc()->format('Y-m-d H:i:s')]);
+        $dates = $this->dates($createdAt, $updatedAt);
 
         $id = $this->item($source, $legacyId, 'entry_id', [$type, $values, $dates], function (?string $id) use ($type, $values, $dates): string {
             $save = resolve(SaveEntry::class);
@@ -107,6 +109,47 @@ final class Import
         });
 
         return Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
+    }
+
+    /**
+     * Imports one source file as a Media item, through `SaveMedia`, with its original dates: in one transaction, whole or not at all, its original deleted again if it fails. An item whose file content and arguments did not change since its last import is skipped; a changed file replaces the stored one, within its family.
+     *
+     * @param  string  $source  The system and its id space, such as `wordpress.attachment`.
+     * @param  string  $legacyId  The item's id in the source.
+     * @param  string  $path  A local file, read in place.
+     * @param  array<string, array<string, mixed>>  $values  The values `SaveMedia` takes, by Locale: `alt` and `caption` in each, `credit` and `decorative` in any of them. None: the item is stored with no text.
+     * @param  CarbonInterface|null  $createdAt  Set on the Media item; the time of the first import when null.
+     * @param  CarbonInterface|null  $updatedAt  Set on the Media item; the time of the write when null.
+     *
+     * @throws RuntimeException When the item fails, naming the source and the Legacy id: the run stops there, and the item leaves nothing behind.
+     * @throws LogicException When the run is over.
+     */
+    public function media(string $source, string $legacyId, string $path, array $values = [], ?CarbonInterface $createdAt = null, ?CarbonInterface $updatedAt = null): Media
+    {
+        $this->refuseOver();
+        $dates = $this->dates($createdAt, $updatedAt);
+        // The file's content, never its path: a dump unpacked elsewhere replays as unchanged.
+        $content = is_file($path) ? hash_file('sha256', $path) : null;
+
+        $id = $this->item($source, $legacyId, 'media_id', [$content, $values, $dates], function (?string $id) use ($path, $values, $dates): string {
+            $save = resolve(SaveMedia::class);
+            $media = $id === null ? null : Media::query()->findOrFail($id);
+            $file = $path;
+
+            foreach ($values ?: [Site::current()->defaultLocale() => []] as $locale => $localeValues) {
+                $media = $save->handle($file, $localeValues, $media, (string) $locale);
+                $file = null;
+            }
+
+            // After the saves, which take no timestamps; Media Translations have none.
+            if ($dates !== []) {
+                DB::table('kami_media')->where('id', $media->id)->update($dates);
+            }
+
+            return $media->id;
+        });
+
+        return Media::query()->findOrFail($id);
     }
 
     /**
@@ -170,6 +213,11 @@ final class Import
         try {
             $checksum = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
             $key = DB::table('kami_import_keys')->where(['site' => $this->site, 'source' => $source, 'legacy_id' => $legacyId])->first();
+
+            // An Entry's key handed to `media()`, or the reverse: SQLite has no check to refuse both columns set.
+            if ($key?->{$column === 'entry_id' ? 'media_id' : 'entry_id'} !== null) {
+                throw new LogicException('its key holds another kind of item.');
+            }
             $id = is_string($key?->{$column}) ? $key->{$column} : null;
 
             if ($id !== null && $key->checksum === $checksum) {
@@ -203,6 +251,12 @@ final class Import
         $key === null ? $this->created++ : $this->updated++;
 
         return $id;
+    }
+
+    /** @return array<'created_at'|'updated_at', string> The dates given, as UTC strings: hashed alike on every run. */
+    private function dates(?CarbonInterface $createdAt, ?CarbonInterface $updatedAt): array
+    {
+        return array_filter(['created_at' => $createdAt?->toImmutable()->utc()->format('Y-m-d H:i:s'), 'updated_at' => $updatedAt?->toImmutable()->utc()->format('Y-m-d H:i:s')]);
     }
 
     /** @throws LogicException */

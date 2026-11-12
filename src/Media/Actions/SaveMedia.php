@@ -100,11 +100,13 @@ final class SaveMedia
                 $translation->save();
             }
 
-            // Last, so a row that fails to save leaves no file.
+            // Last, so a row that fails to save leaves no file; and gone again if any transaction around this one rolls back (ADR 0026).
             if (($created || $former !== null) && $file !== null) {
-                // ponytail: an outer transaction rolled back afterwards leaves the new file behind, of a creation or a replacement; M9 cleans up after a failed import.
-                Storage::disk(Config::string('kami.media.originals_disk'))->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
+                $disk = Storage::disk(Config::string('kami.media.originals_disk'));
+                $disk->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
                     ?: throw new RuntimeException("The original of Media [{$media->id}] could not be written.");
+                $written = $media->file;
+                DB::afterRollBack(fn (): bool => $disk->delete($written));
             }
 
             // Once committed, so a rollback keeps what the row still points to. The former Conversions go at once, not at the next

@@ -49,19 +49,38 @@ final class ImportVelox extends Command
 
 `entry()` returns the Entry as stored.
 
+## Media
+
+`media()` imports a file into the [Media library](media.md), keyed and replayed like an Entry. It takes the item's source, its Legacy id, the path of a local file, its text by Locale and, optionally, its original creation and modification dates:
+
+```php
+$import->media('velox.file', (string) $file->id, storage_path("import/velox/{$file->path}"), [
+    'fr' => ['alt' => $file->alt_fr, 'credit' => $file->credit],
+    'en' => ['alt' => $file->alt_en],
+], CarbonImmutable::parse($file->created_at, 'UTC'), CarbonImmutable::parse($file->updated_at, 'UTC'));
+```
+
+- **A local file, read in place.** Copy the old system's files next to the dump first, for instance with `rsync`. Kami reads the file where it lies and stores its own copy on `kami.media.originals_disk`.
+- **Through the core.** The file and each Locale's values go through [`SaveMedia`](media.md#storing-a-file): its checks, its `alt` and `caption` per Locale, its `credit` and `decorative` in any Locale, and `MediaSaved` with a null actor. Without values, the item is stored with no text, to be filled in later.
+- **Original dates.** Once saved, `Import` sets `created_at` and `updated_at` on the Media item. Its text has no dates of its own.
+
+`media()` returns the Media item as stored. Link it from an Entry's [Media Field](content-types.md#media) by its id: import the files before the Entries that show them.
+
 ## Legacy ids
 
-Each imported Entry gets a key in `kami_import_keys`: its Site, its source and its Legacy id, unique together. The source names the old system and its id space, such as `velox.post` and `velox.term`, so a post and a term with the same id never meet.
+Each imported Entry or Media item gets a key in `kami_import_keys`: its Site, its source and its Legacy id, unique together. The source names the old system and its id space, such as `velox.post` and `velox.term`, so a post and a term with the same id never meet. A key holds an Entry or a Media item, never both: a Legacy id its source already holds for an Entry fails in `media()`, and the reverse.
 
-A key disappears with its Entry. Nothing in content, rendering or the admin reads these keys.
+A key disappears with its Entry or Media item. Nothing in content, rendering or the admin reads these keys.
 
 ## Replays
 
 Run the importer again and each item finds its key:
 
-- **Unchanged.** Kami hashes what `entry()` received: the type, the values and the dates. When the hash matches the stored one, the item is skipped. Nothing is written, no event fires and `updated_at` stays put. Hand over strings, numbers and booleans, and dates as strings in UTC: an object such as `now()` or a model hashes differently on every run, and its item would be rewritten every time.
+- **Unchanged.** Kami hashes what `entry()` received: the type, the values and the dates. For `media()`, it hashes the file's content rather than its path, the values and the dates, so a dump unpacked in another folder replays unchanged. When the hash matches the stored one, the item is skipped. Nothing is written, no event fires and `updated_at` stays put. Hand over strings, numbers and booleans, and dates as strings in UTC: an object such as `now()` or a model hashes differently on every run, and its item would be rewritten every time.
 - **Changed.** When the hash differs, the item is rewritten from the source: **the source wins**, over any change made by hand in Kami since. Until switch-over, a fix belongs in the source or the importer, never in the admin. A change to the importer's code changes what it hands over, so the next run rewrites what it affects.
 - **New.** An item with no key is created.
+
+A changed file replaces the Media item's original within its family, keeping its id and every Entry's link to it ([Replacing a file](media.md#replacing-a-file)); a file of another family fails the item.
 
 To resume an interrupted run, run it again: what was done is skipped.
 
@@ -77,7 +96,7 @@ The items whose links now resolve hand over new values and are rewritten; all th
 
 ## One item at a time
 
-Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key. When an item fails, `entry()` throws a `RuntimeException` naming its source and Legacy id, with the cause as its previous exception. The item leaves nothing behind, the items before it stay imported, and the run stops: a later `entry()` or `finish()` throws a `LogicException`, and the run records no Audit summary. Fix the cause and run the importer again.
+Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key, or the Media item, its text, its dates and its key. When an item fails, `entry()` or `media()` throws a `RuntimeException` naming its source and Legacy id, with the cause as its previous exception. The item leaves nothing behind, not even the original a failed `media()` wrote; the items before it stay imported, and the run stops: any later call but `find()` throws a `LogicException`, and the run records no Audit summary. Fix the cause and run the importer again.
 
 Read the source in chunks, as above, so memory stays bounded however large it is.
 
