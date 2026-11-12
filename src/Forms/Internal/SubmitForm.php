@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\Uri;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationRuleParser;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Psyao\Kami\Forms\Form;
@@ -68,7 +69,8 @@ final class SubmitForm
         $validator = Validator::make($input, $form->rules());
 
         if ($validator->fails()) {
-            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD));
+            // Laravel's own parsed rules: one list per field, `*` expanded against the posted data.
+            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), $validator->getRules());
         }
 
         resolve(StoreSubmission::class)->handle($form, $validator->validated(), $locale, $entry);
@@ -128,15 +130,19 @@ final class SubmitForm
         return 'kami:form:' . hash('sha256', "{$form->handle()}|{$group}");
     }
 
-    /** The page again with the errors and the visitor's input, for this response only: a store held in memory, so no cookie, under the `web` group the real session. */
-    /** @param  array<mixed>  $old */
-    private function invalid(Request $request, Entry $entry, MessageBag $errors, array $old): Response
+    /**
+     * The page again with the errors and the visitor's input, for this response only: a store held in memory, so no cookie, under the `web` group the real session.
+     *
+     * @param  array<mixed>  $old
+     * @param  array<mixed>  $rules
+     */
+    private function invalid(Request $request, Entry $entry, MessageBag $errors, array $old, array $rules): Response
     {
         if (! $request->hasSession()) {
             $request->setLaravelSession(new Store('kami', new ArraySessionHandler(0)));
         }
 
-        $request->session()->now('_old_input', $old);
+        $request->session()->now('_old_input', self::shaped($old, $rules));
         $bag = new ViewErrorBag()->put('default', $errors);
 
         $response = Router::toResponse($request, RenderEntry::render($request, $entry, $bag));
@@ -147,5 +153,32 @@ final class SubmitForm
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
+    }
+
+    /**
+     * The old input in the shape its rules allow, so `{{ old('name') }}` never receives an array a bot posted as `name[]=x`, nor a
+     * checkbox group's `in_array()` a string (#530). An array is kept where a rule says `array` or `list` at its path, or a rule reaches
+     * below it (`topics.*`, `answer.text`); a value of the other shape is dropped.
+     *
+     * @param  array<mixed>  $values
+     * @param  array<mixed>  $rules
+     * @return array<mixed>
+     */
+    private static function shaped(array $values, array $rules, string $prefix = ''): array
+    {
+        foreach ($values as $key => $value) {
+            $path = "{$prefix}{$key}";
+            // A rule object left by the parser is a custom rule, never `array`.
+            $array = array_any((array) ($rules[$path] ?? []), fn (mixed $rule): bool => is_string($rule) && in_array(ValidationRuleParser::parse($rule)[0], ['Array', 'List'], true))
+                || array_any(array_keys($rules), fn (int | string $key): bool => str_starts_with((string) $key, "{$path}."));
+
+            if (is_array($value) && $array) {
+                $values[$key] = self::shaped($value, $rules, "{$path}.");
+            } elseif (is_array($value) || $array) {
+                unset($values[$key]);
+            }
+        }
+
+        return $values;
     }
 }

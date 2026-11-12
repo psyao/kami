@@ -39,6 +39,7 @@ use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
+use Psyao\Kami\Forms\Actions\DeleteSubmissions;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Internal\Deliveries;
 use Psyao\Kami\Forms\Internal\Delivery;
@@ -1125,7 +1126,12 @@ final readonly class Doctor
             ->groupBy('form')->orderBy('form')->selectRaw('form, count(*) as total')->pluck('total', 'form');
 
         if ($undeclared->isNotEmpty()) {
-            $problems[] = new Problem(Severity::Warning, 'Submissions of Forms no longer declared: ' . $undeclared->map(fn (mixed $count, string $form): string => $form . ' (' . (is_numeric($count) ? $count : 0) . ')')->implode(', ') . '. Kept, never pruned.', 'declare the Form again under kami.forms, or delete its Submissions in the admin.', 'forms.md#submissions');
+            // The Submissions screen needs a declared Form: with none, it is gone.
+            $handles = $undeclared->keys()->map(fn (string $form): string => var_export($form, true))->implode(', ');
+            $delete = $forms === []
+                ? 'from php artisan tinker: resolve(\\' . DeleteSubmissions::class . '::class)->handle(\\' . Submission::class . "::query()->whereIn('form', [{$handles}])->lazy())."
+                : 'in the admin.';
+            $problems[] = new Problem(Severity::Warning, 'Submissions of Forms no longer declared: ' . $undeclared->map(fn (mixed $count, string $form): string => $form . ' (' . (is_numeric($count) ? $count : 0) . ')')->implode(', ') . '. Kept, never pruned.', "declare the Form again under kami.forms, or delete its Submissions {$delete}", 'forms.md#submissions');
         }
 
         return $problems;

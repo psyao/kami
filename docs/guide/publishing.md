@@ -52,6 +52,7 @@ $save->handle(Article::class, ['status' => 'draft'], $entry);                   
 - Publishing with no `published_at` publishes now.
 - A past date backdates: the page is visible at once and shows that date.
 - A date to come schedules: the page appears at that moment, with no task to run.
+- A `published_at` value is stored as UTC (`app.timezone`) without conversion: a string keeps its clock time, any offset in it ignored, and so does a date in another time zone. For a time in the Site's time zone, convert it: `CarbonImmutable::parse('2027-01-01 09:00', 'Europe/Zurich')->utc()`.
 - Unpublishing keeps `published_at`, so republishing without a date keeps the original one.
 
 After each write and each `kami:install`, Kami records the next visibility change, the earliest date a Scheduled Translation of any Site appears, in the [page cache](page-cache.md#when-pages-go-stale)'s manifest. The page cache reads it with no query to know when cached pages go stale, so nothing needs to run at that moment.

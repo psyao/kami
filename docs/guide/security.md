@@ -151,7 +151,7 @@ That file must never reach production: pages would load their scripts from a dev
 
 ## Local development over HTTP
 
-The front policy sends `upgrade-insecure-requests` in every environment. On a local site served over plain `http`, the browser therefore requests `/build/*` over HTTPS, the certificate check fails (for example `ERR_CERT_COMMON_NAME_INVALID`) and the page renders unstyled.
+The front policy sends `upgrade-insecure-requests` in every environment. On a local site served over plain `http`, the browser therefore requests `/build/*` over HTTPS, the certificate check fails (for example `ERR_CERT_COMMON_NAME_INVALID`) and the page renders unstyled. A [Form](forms.md)'s post is upgraded too and fails the same way: nothing is stored and the visitor's text is lost. A page whose Vite build is already in place renders styled, so only the post shows it.
 
 Serve the site over HTTPS, with an `https` `APP_URL`. On Herd, from the site's directory:
 
