@@ -173,7 +173,7 @@ final class ContactForm extends Form
         return ['hello@example.com'];
     }
 
-    public function replyTo(): ?string
+    public function replyTo(): string
     {
         return 'email';
     }

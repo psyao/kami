@@ -17,4 +17,5 @@ The decision trades a little simplicity (principle 6) for stability (principle 5
 - A starter pull request that needs a package change merges after it: `next` installs Kami's `dev-main` from Packagist, so the starter's own CI only sees what `main` of `psyao/kami` holds.
 - Between releases `next` may be ahead of `main` with commits that only make sense with unreleased Kami; nobody installs `next` but the smoke.
 - The After Packagist step is the only point where `next` merges into `main`: a release that skips it leaves `main` drifting behind, on the previous Kami, while `next` already relies on the new one.
+- **Amended by psyao/kami#545.** The starter kit's pull requests into `next` also run this smoke, from Kami's `main` checkout and its own `tests/Smoke/run.sh`, on the pull request's branch. It adds to the package's smoke and copies no Docker stack, so it is not the option rejected above: a package pull request is still tested against `next`.
 - **Shared hosting and server** are not concerned: this is the release flow of two repositories, not a runtime behaviour.
