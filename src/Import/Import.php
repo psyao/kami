@@ -128,13 +128,14 @@ final class Import
     {
         $this->refuseOver();
         $dates = $this->dates($createdAt, $updatedAt);
-        // The file's content, never its path: a dump unpacked elsewhere replays as unchanged.
-        $content = is_file($path) ? hash_file('sha256', $path) : null;
+        // The file's content, never its path: a dump unpacked elsewhere replays as unchanged. One it cannot read fails in `SaveMedia`, within the item.
+        $checksum = is_file($path) && is_readable($path) ? hash_file('sha256', $path) : null;
 
-        $id = $this->item($source, $legacyId, 'media_id', [$content, $values, $dates], function (?string $id) use ($path, $values, $dates): string {
+        $id = $this->item($source, $legacyId, 'media_id', [$checksum, $values, $dates], function (?string $id) use ($path, $checksum, $values, $dates): string {
             $save = resolve(SaveMedia::class);
             $media = $id === null ? null : Media::query()->findOrFail($id);
-            $file = $path;
+            // The same file again: only its text changed, so it is neither read nor checked a second time.
+            $file = $media instanceof Media && $media->checksum === $checksum ? null : $path;
 
             foreach ($values ?: [Site::current()->defaultLocale() => []] as $locale => $localeValues) {
                 $media = $save->handle($file, $localeValues, $media, (string) $locale);
@@ -218,6 +219,7 @@ final class Import
             if ($key?->{$column === 'entry_id' ? 'media_id' : 'entry_id'} !== null) {
                 throw new LogicException('its key holds another kind of item.');
             }
+
             $id = is_string($key?->{$column}) ? $key->{$column} : null;
 
             if ($id !== null && $key->checksum === $checksum) {

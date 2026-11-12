@@ -289,8 +289,27 @@ it('imports a Media item with its text by Locale and its original dates, skips a
         ->and(Media::query()->count())->toBe(1)
         ->and(DB::table('kami_import_keys')->get(['entry_id', 'media_id'])->map(fn (object $row): array => (array) $row)->all())
         ->toBe([['entry_id' => null, 'media_id' => $media->id]]);
-    // The replacement's two Locales; none for the skipped replay.
+    // The replacement's two Locales, with no actor; none for the skipped replay.
     Event::assertDispatchedTimes(MediaSaved::class, 2);
+    Event::assertDispatched(MediaSaved::class, fn (MediaSaved $event): bool => $event->actor === null);
+});
+
+it('rewrites the text of a Media item whose file did not change, leaving its original alone', function (): void {
+    Storage::fake('local');
+    $import = Import::start('Velox');
+    $media = $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), ['fr' => ['alt' => 'Un carré']]);
+    $import->finish();
+    // A limit tightened since: the file, not read again, is not checked again.
+    config(['kami.media.max_pixels' => 1]);
+
+    $import = Import::start('Velox');
+    $rewritten = $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), ['fr' => ['alt' => 'Un carré rouge']]);
+    $report = $import->finish();
+
+    expect($report->updated)->toBe(1)
+        ->and($rewritten->alt())->toBe('Un carré rouge')
+        ->and($rewritten->file)->toBe($media->file)
+        ->and(Storage::disk('local')->allFiles())->toBe([$media->file]);
 });
 
 it('imports a Media item with no text, in the default Locale', function (): void {
@@ -314,15 +333,39 @@ it('leaves no original of a Media item that fails', function (): void {
         ->and(Storage::disk('local')->allFiles())->toBe([]);
 });
 
-it('refuses a Legacy id its source already holds for the other kind of item', function (): void {
+it('names the item whose file is missing or unreadable', function (Closure $path): void {
+    $import = Import::start('Velox');
+
+    expect(fn (): Media => $import->media('velox.file', '7', $path()))
+        ->toThrow(RuntimeException::class, 'The import of [velox.file] item [7] failed: No readable file at')
+        ->and(fn (): ImportReport => $import->finish())->toThrow(LogicException::class);
+})->with([
+    'missing' => [fn (): string => temporaryPath() . '/gone.jpg'],
+    'unreadable' => [function (): string {
+        if (posix_getuid() === 0) {
+            test()->markTestSkipped('root reads any file.');
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'kami');
+        file_put_contents($path, (string) file_get_contents(fixture('media/pixel.png')));
+        chmod($path, 0o000);
+
+        return $path;
+    }],
+]);
+
+it('refuses a Legacy id its source already holds for the other kind of item', function (Closure $first, Closure $second): void {
     Storage::fake('local');
     $import = Import::start('Velox');
-    $import->entry('velox.node', '1', Article::class, veloxPost('Un'));
+    $first($import);
 
-    expect(fn (): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf')))
+    expect(fn (): mixed => $second($import))
         ->toThrow(RuntimeException::class, 'The import of [velox.node] item [1] failed: its key holds another kind of item.')
-        ->and(Media::query()->count())->toBe(0);
-});
+        ->and(DB::table('kami_import_keys')->count())->toBe(1);
+})->with([
+    'an Entry’s key handed to media()' => [fn (Import $import): Entry => $import->entry('velox.node', '1', Article::class, veloxPost('Un')), fn (Import $import): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf'))],
+    'a Media item’s key handed to entry()' => [fn (Import $import): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf')), fn (Import $import): Entry => $import->entry('velox.node', '1', Article::class, veloxPost('Un'))],
+]);
 
 it('refuses a run into another Site than the current one', function (): void {
     expect(fn (): Import => Import::start('Velox', 'blog'))->toThrow(InvalidArgumentException::class, 'An Import writes the current Site [default] only, not [blog].')

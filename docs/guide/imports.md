@@ -80,7 +80,7 @@ Run the importer again and each item finds its key:
 - **Changed.** When the hash differs, the item is rewritten from the source: **the source wins**, over any change made by hand in Kami since. Until switch-over, a fix belongs in the source or the importer, never in the admin. A change to the importer's code changes what it hands over, so the next run rewrites what it affects.
 - **New.** An item with no key is created.
 
-A changed file replaces the Media item's original within its family, keeping its id and every Entry's link to it ([Replacing a file](media.md#replacing-a-file)); a file of another family fails the item.
+A changed file replaces the Media item's original within its family, keeping its id and every Entry's link to it ([Replacing a file](media.md#replacing-a-file)); a file of another family fails the item. When only the text changed, the stored original is left as it is, and the file is not checked again.
 
 To resume an interrupted run, run it again: what was done is skipped.
 
