@@ -15,7 +15,9 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntrySaved;
+use Psyao\Kami\Forms\Actions\DeleteSubmissions;
 use Psyao\Kami\Forms\Events\SubmissionStored;
+use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Import\Import;
 use Psyao\Kami\Import\ImportReport;
@@ -433,3 +435,43 @@ it('names the Submission that fails, and stops the run', function (string $form,
     'an undeclared Form' => ['newsletter', 'fr'],
     'a Locale outside the Site' => ['contact', 'de'],
 ]);
+
+it('skips a Submission whose values do not survive JSON as given, such as a float or an object', function (): void {
+    $form = new class extends Form
+    {
+        public function handle(): string
+        {
+            return 'quote';
+        }
+
+        public function rules(): array
+        {
+            return ['budget' => ['numeric'], 'sent' => ['date']];
+        }
+    };
+    $values = ['budget' => 2.0, 'sent' => CarbonImmutable::parse('2026-03-01 08:30:00')];
+    $import = Import::start('Velox');
+    $import->submission($form, $values, 'fr', CarbonImmutable::parse('2026-03-01 08:30:00'));
+    $import->finish();
+
+    $import = Import::start('Velox');
+    $import->submission($form, $values, 'fr', CarbonImmutable::parse('2026-03-01 08:30:00'));
+    $report = $import->finish();
+
+    expect([$report->created, $report->unchanged])->toBe([0, 1]);
+    expect(Submission::query()->count())->toBe(1);
+});
+
+it('copies again a Submission deleted since, as the source wins', function (): void {
+    $import = Import::start('Velox');
+    $first = $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.'], 'fr', CarbonImmutable::parse('2026-03-01 08:30:00'));
+    $import->finish();
+    resolve(DeleteSubmissions::class)->handle(Submission::query()->whereKey($first->id)->get());
+
+    $import = Import::start('Velox');
+    $again = $import->submission('contact', ['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Bonjour, parlons-en.'], 'fr', CarbonImmutable::parse('2026-03-01 08:30:00'));
+    $report = $import->finish();
+
+    expect($report->created)->toBe(1);
+    expect($again->id)->not->toBe($first->id);
+});

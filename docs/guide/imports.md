@@ -68,13 +68,16 @@ $import->media('velox.file', (string) $file->id, storage_path("import/velox/{$fi
 
 ## Submissions
 
-`submission()` copies a message sent through a [Form](forms.md) in the old system. It takes the Form, by class or handle, the values, the Locale of the page it was sent from, its original sending date and, optionally, when it was read and the Entry it was sent from:
+`submission()` copies a message sent through a [Form](forms.md) in the old system. It takes the Form, as an instance or by its handle, the values, the Locale of the page it was sent from, its original sending date and, optionally, when it was read and the Entry it was sent from:
 
 ```php
 DB::connection('velox')->table('contact_messages')->orderBy('id')->chunk(200, function ($messages) use ($import): void {
     foreach ($messages as $message) {
-        $import->submission('contact', ['subject' => $message->subject, 'email' => $message->email, 'message' => $message->body], $message->locale,
-            CarbonImmutable::parse($message->created_at, 'UTC'), $message->read_at === null ? null : CarbonImmutable::parse($message->read_at, 'UTC'));
+        $import->submission('contact', [
+            'subject' => $message->subject,
+            'email' => $message->email,
+            'message' => $message->body,
+        ], $message->locale, CarbonImmutable::parse($message->created_at, 'UTC'), $message->read_at === null ? null : CarbonImmutable::parse($message->read_at, 'UTC'));
     }
 });
 ```
@@ -83,7 +86,9 @@ DB::connection('velox')->table('contact_messages')->orderBy('id')->chunk(200, fu
 - **As stored.** The values keep the Form's fields only, as a visitor's post does, and the Locale must be one of the Site's. `created_at` is the sending date, `read_at` the reading date, and `updated_at` the later of the two.
 - **No Legacy id.** A Submission is skipped when one is already stored with the same Form, Locale, `created_at` and values, in any key order: a replay never duplicates a message. A message with the same values sent in the same second is taken for the same one.
 
-`submission()` returns the Submission as stored. It counts as created when copied and unchanged when skipped. A Submission your Form's retention has pruned since is copied again by the next replay.
+`submission()` returns the Submission as stored. It counts as created when copied and unchanged when skipped.
+
+Kami tells a copied message by what is stored, so a replay copies again a Submission deleted since: one your Form's retention pruned, or one erased at its sender's request. The source wins here too, as for an Entry deleted in Kami: until switch-over, erase a message in the old system as well, and before an `--again` replay check that the source holds none you erased since.
 
 ## Legacy ids
 
@@ -169,4 +174,4 @@ public function handle(): int
 }
 ```
 
-It exits successfully, so a deploy that reaches it again goes on. Run `--again` by hand only, for instance after a failed switch-over rolled back: the source wins for Entries and Media items, and the messages already copied are skipped.
+`handle()` returns an exit code here, so the guard can exit successfully: a deploy that reaches it again goes on. Run `--again` by hand only, for instance after a failed switch-over rolled back: the source wins for Entries and Media items, and the messages already copied are skipped.

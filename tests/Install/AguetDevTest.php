@@ -383,7 +383,7 @@ it('imports aguet.dev from a Velox-shaped source, then replays it with no write 
     $events = [];
     Event::listen('*', function (string $event) use (&$events): void {
         // Reads and queries are no events of Kami's.
-        if (! str_starts_with($event, 'eloquent.retrieved') && ! str_starts_with($event, 'Illuminate\\')) {
+        if (! str_starts_with($event, 'eloquent.retrieved') && ! str_starts_with($event, 'Illuminate\\Database\\')) {
             $events[] = $event;
         }
     });

@@ -173,7 +173,7 @@ final class Import
     {
         $this->refuseOver();
         $handle = $form instanceof Form ? $form->handle() : $form;
-        $created = $createdAt->toImmutable()->utc()->format('Y-m-d H:i:s');
+        $created = $this->utc($createdAt);
 
         try {
             $form = $form instanceof Form ? $form : resolve(Kami::class)->form($form);
@@ -182,8 +182,9 @@ final class Import
                 throw new InvalidArgumentException("the Locale [{$locale}] is not one of the Site's.");
             }
 
-            $data = array_intersect_key($data, array_flip(Forms::fields($form)));
-            $read = $readAt?->toImmutable()->utc()->format('Y-m-d H:i:s');
+            // Through the model's cast, as the json column gives it back: an object or a float such as 2.0 then compares equal on a replay.
+            $data = new Submission(['data' => array_intersect_key($data, array_flip(Forms::fields($form)))])->data;
+            $read = $this->utc($readAt);
 
             // Compared in PHP, not in SQL: JSON equality differs by engine, and MySQL reorders keys.
             $stored = Submission::query()->where(['site' => $this->site, 'form' => $handle, 'locale' => $locale, 'created_at' => $created])->get()
@@ -320,7 +321,13 @@ final class Import
     /** @return array<'created_at'|'updated_at', string> The dates given, as UTC strings: hashed alike on every run. */
     private function dates(?CarbonInterface $createdAt, ?CarbonInterface $updatedAt): array
     {
-        return array_filter(['created_at' => $createdAt?->toImmutable()->utc()->format('Y-m-d H:i:s'), 'updated_at' => $updatedAt?->toImmutable()->utc()->format('Y-m-d H:i:s')]);
+        return array_filter(['created_at' => $this->utc($createdAt), 'updated_at' => $this->utc($updatedAt)]);
+    }
+
+    /** @return ($date is null ? null : string) As stored, in UTC to the second. */
+    private function utc(?CarbonInterface $date): ?string
+    {
+        return $date?->toImmutable()->utc()->format('Y-m-d H:i:s');
     }
 
     /**
