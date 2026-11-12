@@ -99,7 +99,7 @@ Kami renders no input: the markup is yours, in the view of the page that holds t
 Each Submission posts to `POST /kami/forms/{handle}`, named `kami.form`, which `Kami::routes()` registers.
 
 - **Accepted.** The Submission is stored and the visitor is sent back to the page with `?sent=contact#contact`. `Kami::form('contact')->sent()` is true there, so the page shows its confirmation. A URL with a query string is never page-cached, so the confirmation is never served to another visitor.
-- **Refused by validation.** The page is rendered again, with a 422 status (unless your type's `render()` answers another), `Cache-Control: no-store` and no cookie. `$errors`, `@error` and `old()` work there as in Laravel's `web` group, for this response only. A field named `password`, `password_confirmation` or `current_password` is never filled again.
+- **Refused by validation.** The page is rendered again, with a 422 status (unless your type's `render()` answers another), `Cache-Control: no-store` and no cookie. `$errors`, `@error` and `old()` work there as in Laravel's `web` group, for this response only. `old()` holds a field's values in the shape its rules allow: an array only where a rule says `array` or `list` or reaches below it (`topics.*`), so a field posted as `name[]=x` comes back empty rather than as an array. A field named `password`, `password_confirmation` or `current_password` is never filled again.
 
 A refused Submission stores nothing. With no session, a reload of that page asks the browser to send the form again.
 

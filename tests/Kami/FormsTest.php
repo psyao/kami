@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\Rule;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
@@ -39,12 +40,15 @@ final class QuoteRequest extends Form
     }
 }
 
-/** A Form with array fields: a checkbox group by `array`, one by `tags.*` alone, and a nested field. */
+/** A Form with array fields: a checkbox group by `array`, one by `tags.*` alone, one by a rule object, one by `list`, and a nested field. */
 final class SurveyForm extends Form
 {
     public function rules(): array
     {
-        return ['name' => ['required', 'string'], 'topics' => ['array'], 'topics.*' => ['string'], 'tags.*' => ['string'], 'answer.text' => ['required', 'string']];
+        return [
+            'name' => ['required', 'string'], 'topics' => ['array'], 'topics.*' => ['string'], 'tags.*' => ['string'], 'answer.text' => ['required', 'string'],
+            'choices' => [Rule::array()], 'picks' => 'nullable|list',
+        ];
     }
 }
 
@@ -290,9 +294,11 @@ it('sends back as old input only the arrays a field\'s rules allow', function ()
         'topics' => ['a', ['nested']],
         'tags' => ['b'],
         'answer' => ['text' => ['c'], 'note' => 'd'],
+        'choices' => ['e'],
+        'picks' => 'f',
     ])->assertUnprocessable();
 
-    expect($old)->toBe(['topics' => ['a'], 'tags' => ['b'], 'answer' => ['note' => 'd']]);
+    expect($old)->toBe(['topics' => ['a'], 'tags' => ['b'], 'answer' => ['note' => 'd'], 'choices' => ['e']]);
 });
 
 it('derives a Form\'s handle from its class name without a trailing Form, and labels it from kami-forms', function () {

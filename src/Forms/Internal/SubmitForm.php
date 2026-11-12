@@ -13,9 +13,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
-use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationRuleParser;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Psyao\Kami\Forms\Form;
@@ -69,7 +69,8 @@ final class SubmitForm
         $validator = Validator::make($input, $form->rules());
 
         if ($validator->fails()) {
-            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), $form->rules());
+            // Laravel's own parsed rules: one list per field, `*` expanded against the posted data.
+            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), $validator->getRules());
         }
 
         resolve(StoreSubmission::class)->handle($form, $validator->validated(), $locale, $entry);
@@ -133,7 +134,7 @@ final class SubmitForm
      * The page again with the errors and the visitor's input, for this response only: a store held in memory, so no cookie, under the `web` group the real session.
      *
      * @param  array<mixed>  $old
-     * @param  array<string, mixed>  $rules
+     * @param  array<mixed>  $rules
      */
     private function invalid(Request $request, Entry $entry, MessageBag $errors, array $old, array $rules): Response
     {
@@ -155,48 +156,29 @@ final class SubmitForm
     }
 
     /**
-     * The old input without the arrays its rules do not allow, so `{{ old('name') }}` never receives one a bot posted as `name[]=x` (#530).
-     * An array is kept where a rule names `array` at its path or a rule reaches below it (`topics.*`, `answer.text`).
+     * The old input in the shape its rules allow, so `{{ old('name') }}` never receives an array a bot posted as `name[]=x`, nor a
+     * checkbox group's `in_array()` a string (#530). An array is kept where a rule says `array` or `list` at its path, or a rule reaches
+     * below it (`topics.*`, `answer.text`); a value of the other shape is dropped.
      *
      * @param  array<mixed>  $values
-     * @param  array<string, mixed>  $rules
-     * @param  list<int|string>  $path
+     * @param  array<mixed>  $rules
      * @return array<mixed>
      */
-    private static function shaped(array $values, array $rules, array $path = []): array
+    private static function shaped(array $values, array $rules, string $prefix = ''): array
     {
         foreach ($values as $key => $value) {
-            if (is_array($value)) {
-                $at = [...$path, $key];
-                if (self::allowsArray($rules, $at)) {
-                    $values[$key] = self::shaped($value, $rules, $at);
-                } else {
-                    unset($values[$key]);
-                }
+            $path = "{$prefix}{$key}";
+            // A rule object left by the parser is a custom rule, never `array`.
+            $array = array_any((array) ($rules[$path] ?? []), fn (mixed $rule): bool => is_string($rule) && in_array(ValidationRuleParser::parse($rule)[0], ['Array', 'List'], true))
+                || array_any(array_keys($rules), fn (int | string $key): bool => str_starts_with((string) $key, "{$path}."));
+
+            if (is_array($value) && $array) {
+                $values[$key] = self::shaped($value, $rules, "{$path}.");
+            } elseif (is_array($value) || $array) {
+                unset($values[$key]);
             }
         }
 
         return $values;
-    }
-
-    /**
-     * @param  array<string, mixed>  $rules
-     * @param  list<int|string>  $path
-     */
-    private static function allowsArray(array $rules, array $path): bool
-    {
-        return array_any(array_keys($rules), function (string $key) use ($rules, $path): bool {
-            $segments = explode('.', $key);
-            $head = array_slice($segments, 0, count($path));
-
-            if (count($head) !== count($path) || ! array_all($head, fn (string $segment, int $i): bool => $segment === '*' || $segment === (string) $path[$i])) {
-                return false;
-            }
-
-            $rule = $rules[$key];
-            $names = array_map(fn (mixed $one): string => is_string($one) ? Str::before($one, ':') : '', is_string($rule) ? explode('|', $rule) : (array) $rule);
-
-            return count($segments) > count($path) || in_array('array', $names, true);
-        });
     }
 }
