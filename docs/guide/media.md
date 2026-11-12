@@ -33,6 +33,8 @@ An SVG is never decoded as a picture: its dimensions come from its `width` and `
 
 The original is kept on `kami.media.originals_disk`, private by default, with its metadata (EXIF, GPS) intact. Visitors are never served the original.
 
+`SaveMedia` writes the original last, once its row is saved. Called inside a transaction of your own, it deletes that original again if the transaction rolls back, for a new item and for a replacement alike, so a failed write leaves no file behind on `kami.media.originals_disk`. Nothing sweeps that disk for orphan originals.
+
 ## Alt text, caption and credit
 
 `SaveMedia` writes the alt text and caption in one Locale, the default one unless its fourth argument names another. Pass the Media item as the third argument to change its text without touching its file:
@@ -71,7 +73,7 @@ Pass a file and the Media item to replace its file. The item keeps its id, so ev
 $media = app(SaveMedia::class)->handle($request->file('photo'), media: $media, actor: $request->user());
 ```
 
-The new file goes through the same checks as an upload, and must be of the same family: an image replaces an image, a document a document. Another family is refused on `file`, changing nothing. Kami reads the name, type, size, dimensions and checksum from the new file, so the Conversions get new URLs ([URLs](#urls)): browsers and caches never keep the former picture. Once the change is committed, the former original and every former Conversion are deleted at once rather than left to `kami:media:prune`, so the former picture stops being served at its former URLs straight away. A file holding the same bytes as the current one changes nothing.
+The new file goes through the same checks as an upload, and must be of the same family: an image replaces an image, a document a document. Another family is refused on `file`, changing nothing. Kami reads the name, type, size, dimensions and checksum from the new file, so the Conversions get new URLs ([URLs](#urls)): browsers and caches never keep the former picture. Once the change is committed, the former original and every former Conversion are deleted at once rather than left to `kami:media:prune`, so the former picture stops being served at its former URLs straight away. A file holding the same bytes as the current one changes nothing. A transaction rolled back around a replacement deletes the new original and keeps the former one, with its Conversions.
 
 ## Deleting a Media item
 

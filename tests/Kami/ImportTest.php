@@ -7,6 +7,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -15,6 +16,8 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Import\Import;
 use Psyao\Kami\Import\ImportReport;
+use Psyao\Kami\Media\Events\MediaSaved;
+use Psyao\Kami\Media\Media;
 use Workbench\App\Content\Article;
 
 uses(RefreshDatabase::class);
@@ -257,6 +260,112 @@ it('sets exactly one of entry_id and media_id, which engines with a check refuse
             ->and($key($entry->id, $media))->toThrow(QueryException::class, 'kami_import_keys_one_target');
     }
 });
+
+it('imports a Media item with its text by Locale and its original dates, skips an unchanged file, and replaces a changed one', function (): void {
+    Storage::fake('local');
+    $created = CarbonImmutable::parse('2019-03-04 05:06:07', 'UTC');
+    $values = ['fr' => ['alt' => 'Un carré rouge', 'credit' => 'Ada'], 'en' => ['alt' => 'A red square']];
+
+    $import = Import::start('Velox');
+    $media = $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), $values, $created, $created);
+    $first = $import->finish();
+
+    Event::fake([MediaSaved::class]);
+    $import = Import::start('Velox');
+    $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), $values, $created, $created);
+    $replay = $import->finish();
+
+    $import = Import::start('Velox');
+    $replaced = $import->media('velox.file', '7', fixture('media/rotated-gps.jpg'), $values, $created, $created);
+    $change = $import->finish();
+
+    expect([$first->created, $replay->unchanged, $change->updated])->toBe([1, 1, 1])
+        ->and($media->credit)->toBe('Ada')
+        ->and($media->translations->pluck('alt', 'locale')->sortKeys()->all())->toBe(['en' => 'A red square', 'fr' => 'Un carré rouge'])
+        ->and($media->created_at->toDateTimeString())->toBe('2019-03-04 05:06:07')
+        ->and($media->updated_at->toDateTimeString())->toBe('2019-03-04 05:06:07')
+        ->and($replaced->id)->toBe($media->id)
+        ->and($replaced->checksum)->toBe(hash_file('sha256', fixture('media/rotated-gps.jpg')))
+        ->and(Media::query()->count())->toBe(1)
+        ->and(DB::table('kami_import_keys')->get(['entry_id', 'media_id'])->map(fn (object $row): array => (array) $row)->all())
+        ->toBe([['entry_id' => null, 'media_id' => $media->id]]);
+    // The replacement's two Locales, with no actor; none for the skipped replay.
+    Event::assertDispatchedTimes(MediaSaved::class, 2);
+    Event::assertDispatched(MediaSaved::class, fn (MediaSaved $event): bool => $event->actor === null);
+});
+
+it('rewrites the text of a Media item whose file did not change, leaving its original alone', function (): void {
+    Storage::fake('local');
+    $import = Import::start('Velox');
+    $media = $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), ['fr' => ['alt' => 'Un carré']]);
+    $import->finish();
+    // A limit tightened since: the file, not read again, is not checked again.
+    config(['kami.media.max_pixels' => 1]);
+
+    $import = Import::start('Velox');
+    $rewritten = $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), ['fr' => ['alt' => 'Un carré rouge']]);
+    $report = $import->finish();
+
+    expect($report->updated)->toBe(1)
+        ->and($rewritten->alt())->toBe('Un carré rouge')
+        ->and($rewritten->file)->toBe($media->file)
+        ->and(Storage::disk('local')->allFiles())->toBe([$media->file]);
+});
+
+it('imports a Media item with no text, in the default Locale', function (): void {
+    Storage::fake('local');
+
+    $import = Import::start('Velox');
+    $media = $import->media('velox.file', '7', fixture('media/brochure.pdf'));
+    $import->finish();
+
+    expect($media->family)->toBe('document')
+        ->and(Storage::disk('local')->allFiles())->toBe([$media->file]);
+});
+
+it('leaves no original of a Media item that fails', function (): void {
+    Storage::fake('local');
+    $import = Import::start('Velox');
+
+    expect(fn (): Media => $import->media('velox.file', '7', fixture('media/Holiday Photo.JPG'), ['fr' => ['alt' => 'Un carré'], 'de' => ['alt' => 'Ein Quadrat']]))
+        ->toThrow(RuntimeException::class, 'The import of [velox.file] item [7] failed: No Locale [de] is declared in Site [default].')
+        ->and(Media::query()->count())->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+});
+
+it('names the item whose file is missing or unreadable', function (Closure $path): void {
+    $import = Import::start('Velox');
+
+    expect(fn (): Media => $import->media('velox.file', '7', $path()))
+        ->toThrow(RuntimeException::class, 'The import of [velox.file] item [7] failed: No readable file at')
+        ->and(fn (): ImportReport => $import->finish())->toThrow(LogicException::class);
+})->with([
+    'missing' => [fn (): string => temporaryPath() . '/gone.jpg'],
+    'unreadable' => [function (): string {
+        if (posix_getuid() === 0) {
+            test()->markTestSkipped('root reads any file.');
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'kami');
+        file_put_contents($path, (string) file_get_contents(fixture('media/pixel.png')));
+        chmod($path, 0o000);
+
+        return $path;
+    }],
+]);
+
+it('refuses a Legacy id its source already holds for the other kind of item', function (Closure $first, Closure $second): void {
+    Storage::fake('local');
+    $import = Import::start('Velox');
+    $first($import);
+
+    expect(fn (): mixed => $second($import))
+        ->toThrow(RuntimeException::class, 'The import of [velox.node] item [1] failed: its key holds another kind of item.')
+        ->and(DB::table('kami_import_keys')->count())->toBe(1);
+})->with([
+    'an Entry’s key handed to media()' => [fn (Import $import): Entry => $import->entry('velox.node', '1', Article::class, veloxPost('Un')), fn (Import $import): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf'))],
+    'a Media item’s key handed to entry()' => [fn (Import $import): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf')), fn (Import $import): Entry => $import->entry('velox.node', '1', Article::class, veloxPost('Un'))],
+]);
 
 it('refuses a run into another Site than the current one', function (): void {
     expect(fn (): Import => Import::start('Velox', 'blog'))->toThrow(InvalidArgumentException::class, 'An Import writes the current Site [default] only, not [blog].')

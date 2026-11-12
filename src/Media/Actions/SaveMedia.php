@@ -100,11 +100,12 @@ final class SaveMedia
                 $translation->save();
             }
 
-            // Last, so a row that fails to save leaves no file.
+            // Last, so a row that fails to save leaves no file; and gone again if any transaction around this one rolls back (ADR 0026).
             if (($created || $former !== null) && $file !== null) {
-                // ponytail: an outer transaction rolled back afterwards leaves the new file behind, of a creation or a replacement; M9 cleans up after a failed import.
-                Storage::disk(Config::string('kami.media.originals_disk'))->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
+                $disk = Storage::disk(Config::string('kami.media.originals_disk'));
+                $disk->putFileAs(dirname($media->file), is_string($file) ? new File($file) : $file, basename($media->file))
                     ?: throw new RuntimeException("The original of Media [{$media->id}] could not be written.");
+                DB::afterRollBack(fn (): bool => $disk->delete($media->file));
             }
 
             // Once committed, so a rollback keeps what the row still points to. The former Conversions go at once, not at the next
@@ -153,7 +154,8 @@ final class SaveMedia
             'width' => $new->width,
             'height' => $new->height,
             'checksum' => $new->checksum,
-            'file' => "media/{$media->id}-" . substr($new->checksum, 0, 8) . '.' . pathinfo($new->file, PATHINFO_EXTENSION),
+            // A path never used before, so neither the write nor a rollback's cleanup can touch the current file.
+            'file' => $new->file,
         ]);
 
         return $former;
@@ -168,7 +170,7 @@ final class SaveMedia
     {
         [$path, $name] = is_string($file) ? [$file, $file] : [$file->getRealPath(), $file->getClientOriginalName()];
 
-        if ($path === false || ! is_file($path)) {
+        if ($path === false || ! is_file($path) || ! is_readable($path)) {
             throw new InvalidArgumentException("No readable file at [{$name}].");
         }
 

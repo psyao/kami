@@ -243,6 +243,7 @@ class Psyao\Kami\Import\Import final class
 class Psyao\Kami\Import\Import::entry() public function entry(string $source, string $legacyId, string $type, array $values, ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Import\Import::find() public function find(string $source, string $legacyId): ?Psyao\Kami\Content\Entry
 class Psyao\Kami\Import\Import::finish() public function finish(): Psyao\Kami\Import\ImportReport
+class Psyao\Kami\Import\Import::media() public function media(string $source, string $legacyId, string $path, array $values = [], ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Media\Media
 class Psyao\Kami\Import\Import::start() public static function start(string $label, ?string $site = NULL): Psyao\Kami\Import\Import
 class Psyao\Kami\Import\ImportReport final readonly class
 class Psyao\Kami\Import\ImportReport::$created public protected(set) readonly int $created
