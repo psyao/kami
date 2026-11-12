@@ -393,17 +393,21 @@ it('refuses a Legacy id its source already holds for the other kind of item', fu
 it('adopts the Singleton or Global Set Entry kami:install created, and replays it unchanged', function (string $type, array $values, string $attribute, string $expected): void {
     $installed = resolve(SaveEntry::class)->handle($type, ['title' => 'Created by kami:install']);
     $created = CarbonImmutable::parse('2019-03-04 05:06:07', 'UTC');
+    $updated = CarbonImmutable::parse('2021-08-09 10:11:12', 'UTC');
 
     $import = Import::start('Velox');
-    $entry = $import->entry('velox.entry', 'singleton', $type, $values, $created);
+    $entry = $import->entry('velox.entry', 'singleton', $type, $values, $created, $updated);
     $first = $import->finish();
     $import = Import::start('Velox');
-    $import->entry('velox.entry', 'singleton', $type, $values, $created);
+    $import->entry('velox.entry', 'singleton', $type, $values, $created, $updated);
     $replay = $import->finish();
 
     expect($entry->id)->toBe($installed->id)
         ->and($entry->getAttribute($attribute))->toBe($expected)
         ->and($entry->created_at->toDateTimeString())->toBe('2019-03-04 05:06:07')
+        ->and($entry->updated_at->toDateTimeString())->toBe('2021-08-09 10:11:12')
+        ->and(DB::table('kami_translations')->where('entry_id', $entry->id)->get(['created_at', 'updated_at'])->map(fn (object $row): array => (array) $row)->all())
+        ->toBe([['created_at' => '2019-03-04 05:06:07', 'updated_at' => '2021-08-09 10:11:12']])
         ->and(Entry::query()->withUnpublished()->ofType($type)->count())->toBe(1)
         ->and(DB::table('kami_import_keys')->value('entry_id'))->toBe($installed->id)
         ->and([$first->created, $first->updated, $first->unchanged])->toBe([1, 0, 0])

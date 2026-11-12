@@ -96,7 +96,7 @@ final class Import
 
         $id = $this->item($source, $legacyId, 'entry_id', [$type, $values, $dates], function (?string $id) use ($type, $values, $dates): string {
             $save = resolve(SaveEntry::class);
-            $entry = $id === null ? $this->singleton($type) : Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
+            $entry = $id === null ? $this->installedEntry($type) : Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
 
             foreach ($values as $locale => $localeValues) {
                 $entry = $save->handle($type, $localeValues, $entry, (string) $locale);
@@ -312,7 +312,7 @@ final class Import
     }
 
     /** The Entry `kami:install` created for a Singleton or a Global Set, adopted by its first import; null for any other type. */
-    private function singleton(string $type): ?Entry
+    private function installedEntry(string $type): ?Entry
     {
         $contentType = resolve(ContentTypes::class)->find($type);
 
