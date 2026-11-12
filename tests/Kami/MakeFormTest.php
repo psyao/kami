@@ -49,7 +49,8 @@ it('writes a final Form class and its view, a trailing Form in the name or not',
         ->and($form->handle())->toBe('made_contact')
         ->and(array_keys($form->rules()))->toBe(['name', 'email', 'message'])
         ->and($form->replyTo())->toBe('email')
-        ->and(File::get(app_path('Forms/MadeContactForm.php')))->toContain('final class MadeContactForm extends Form')
+        // As the Workbench's ContactForm: a site's Rector would narrow `?string`, the parent's signature, at its first commit (#540).
+        ->and(File::get(app_path('Forms/MadeContactForm.php')))->toContain('final class MadeContactForm extends Form', 'public function replyTo(): string')
         ->and(File::get("{$this->site}/views/forms/made_contact.blade.php"))
         ->toContain('<x-kami::form form="made_contact">')
         ->toContain('<x-kami::form.errors level="3" />');

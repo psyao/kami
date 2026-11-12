@@ -7,6 +7,8 @@ cd "$(dirname "$0")"
 
 # The starter kit's `next` branch requires Kami's dev-main and carries the milestone's starter changes (ADR 0039).
 # STARTER_VERSION=dev-<branch> tries another starter kit branch: dev-main is what `laravel new` installs.
+# STARTER_REPOSITORY, a Composer repository as JSON, reads the starter kit there instead of on Packagist: the starter kit's
+# own CI points it at its GitHub repository, for the exact head of a pull request's branch (psyao/kami#545).
 starter_version=${STARTER_VERSION:-dev-next}
 base_url="http://localhost:${SMOKE_PORT:-8080}"
 
@@ -27,7 +29,7 @@ timeout 600 docker compose up --build --detach --wait php mariadb
 # below capture with their command's output.
 export COMPOSE_PROGRESS=quiet
 # -T: no TTY, so the runs work in CI; stdin stays attached, which the Page's heredoc below relies on.
-docker compose run -T --rm --env STARTER_VERSION="$starter_version" cli bash /kami/tests/Smoke/install.sh
+docker compose run -T --rm --env STARTER_VERSION="$starter_version" --env STARTER_REPOSITORY="${STARTER_REPOSITORY:-}" cli bash /kami/tests/Smoke/install.sh
 docker compose run -T --rm node
 
 # The starter kit's demo first: it does nothing once a Page exists. It publishes a Singleton and a Page with a relation.

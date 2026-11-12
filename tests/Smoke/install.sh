@@ -3,7 +3,9 @@
 # the checkout under test, as its Kami, then installs it as a deploy over SSH would.
 set -euo pipefail
 
-composer create-project psyao/kami-starter . "$STARTER_VERSION" --no-install --no-scripts --no-interaction
+repository=()
+if [ -n "${STARTER_REPOSITORY:-}" ]; then repository=(--repository="$STARTER_REPOSITORY"); fi
+composer create-project psyao/kami-starter . "$STARTER_VERSION" "${repository[@]}" --no-install --no-scripts --no-interaction
 
 # The checkout replaces the Kami the starter kit requires: dev-main on `next` and its branches, a release on `main`.
 composer config repositories.kami '{"type":"path","url":"/kami","options":{"versions":{"psyao/kami":"dev-main"}}}'
