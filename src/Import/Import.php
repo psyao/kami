@@ -16,6 +16,9 @@ use Psyao\Kami\Audit\AuditContext;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\RichText\Document;
+use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Forms\Submission;
@@ -74,7 +77,7 @@ final class Import
     }
 
     /**
-     * Imports one source item as an Entry, through `SaveEntry`, with its original dates: in one transaction, whole or not at all. An item whose payload, the arguments here, did not change since its last import is skipped.
+     * Imports one source item as an Entry, through `SaveEntry`, with its original dates: in one transaction, whole or not at all. An item whose payload, the arguments here, did not change since its last import is skipped. The first import of a Singleton or a Global Set adopts the Entry `kami:install` created for it.
      *
      * @param  string  $source  The system and its id space, such as `wordpress.post`.
      * @param  string  $legacyId  The item's id in the source.
@@ -93,7 +96,7 @@ final class Import
 
         $id = $this->item($source, $legacyId, 'entry_id', [$type, $values, $dates], function (?string $id) use ($type, $values, $dates): string {
             $save = resolve(SaveEntry::class);
-            $entry = $id === null ? null : Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
+            $entry = $id === null ? $this->installedEntry($type) : Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
 
             foreach ($values as $locale => $localeValues) {
                 $entry = $save->handle($type, $localeValues, $entry, (string) $locale);
@@ -266,6 +269,10 @@ final class Import
         $this->sources[$source] = true;
 
         try {
+            // A Document's properties are private: as given, every one would hash as `{}`.
+            array_walk_recursive($payload, function (mixed &$value): void {
+                $value = $value instanceof Document ? $value->content() : $value;
+            });
             $checksum = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
             $key = DB::table('kami_import_keys')->where(['site' => $this->site, 'source' => $source, 'legacy_id' => $legacyId])->first();
 
@@ -302,6 +309,16 @@ final class Import
         $key === null ? $this->created++ : $this->updated++;
 
         return $id;
+    }
+
+    /** The Entry `kami:install` created for a Singleton or a Global Set, adopted by its first import; null for any other type. */
+    private function installedEntry(string $type): ?Entry
+    {
+        $contentType = resolve(ContentTypes::class)->find($type);
+
+        return $contentType instanceof Singleton
+            ? Entry::query()->withUnpublished()->ofType($contentType->handle())->where('site', $this->site)->first()
+            : null;
     }
 
     /**

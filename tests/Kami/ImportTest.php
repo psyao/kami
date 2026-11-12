@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,9 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntrySaved;
+use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\RichText\Document;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Forms\Actions\DeleteSubmissions;
 use Psyao\Kami\Forms\Events\SubmissionStored;
 use Psyao\Kami\Forms\Form;
@@ -24,6 +28,7 @@ use Psyao\Kami\Import\ImportReport;
 use Psyao\Kami\Media\Events\MediaSaved;
 use Psyao\Kami\Media\Media;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Home;
 
 uses(RefreshDatabase::class);
 
@@ -200,6 +205,19 @@ it('fails a changed item whose Entry is in the Trash, and skips an unchanged one
         ->and(fn (): Entry => $import->entry('velox.post', '1', Article::class, veloxPost('Un, revu')))->toThrow(RuntimeException::class, 'is in the Trash');
 });
 
+it('rewrites an item whose RichText, handed over as a Document, changed', function (): void {
+    $body = fn (string $html): Document => Document::fromHtml($html, RichText::make('body'));
+
+    $import = Import::start('Velox');
+    $import->entry('velox.post', '1', Article::class, veloxPost('Un', ['body' => $body('<p>Avant</p>')]));
+    $import->entry('velox.post', '1', Article::class, veloxPost('Un', ['body' => $body('<p>Avant</p>')]));
+    $entry = $import->entry('velox.post', '1', Article::class, veloxPost('Un', ['body' => $body('<p>Après</p>')]));
+    $report = $import->finish();
+
+    expect($entry->body->text())->toBe('Après')
+        ->and([$report->created, $report->updated, $report->unchanged])->toBe([1, 1, 1]);
+});
+
 it('keeps the Translation of a Locale the source no longer gives', function (): void {
     $import = Import::start('Velox');
     $import->entry('velox.post', '1', Article::class, veloxPost('Un'));
@@ -296,7 +314,7 @@ it('imports a Media item with its text by Locale and its original dates, skips a
         ->toBe([['entry_id' => null, 'media_id' => $media->id]]);
     // The replacement's two Locales, with no actor; none for the skipped replay.
     Event::assertDispatchedTimes(MediaSaved::class, 2);
-    Event::assertDispatched(MediaSaved::class, fn (MediaSaved $event): bool => $event->actor === null);
+    Event::assertDispatched(MediaSaved::class, fn (MediaSaved $event): bool => ! $event->actor instanceof Authenticatable);
 });
 
 it('rewrites the text of a Media item whose file did not change, leaving its original alone', function (): void {
@@ -371,6 +389,42 @@ it('refuses a Legacy id its source already holds for the other kind of item', fu
     'an Entry’s key handed to media()' => [fn (Import $import): Entry => $import->entry('velox.node', '1', Article::class, veloxPost('Un')), fn (Import $import): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf'))],
     'a Media item’s key handed to entry()' => [fn (Import $import): Media => $import->media('velox.node', '1', fixture('media/brochure.pdf')), fn (Import $import): Entry => $import->entry('velox.node', '1', Article::class, veloxPost('Un'))],
 ]);
+
+it('adopts the Singleton or Global Set Entry kami:install created, and replays it unchanged', function (string $type, array $values, string $attribute, string $expected): void {
+    $installed = resolve(SaveEntry::class)->handle($type, ['title' => 'Created by kami:install']);
+    $created = CarbonImmutable::parse('2019-03-04 05:06:07', 'UTC');
+    $updated = CarbonImmutable::parse('2021-08-09 10:11:12', 'UTC');
+
+    $import = Import::start('Velox');
+    $entry = $import->entry('velox.entry', 'singleton', $type, $values, $created, $updated);
+    $first = $import->finish();
+    $import = Import::start('Velox');
+    $import->entry('velox.entry', 'singleton', $type, $values, $created, $updated);
+    $replay = $import->finish();
+
+    expect($entry->id)->toBe($installed->id)
+        ->and($entry->getAttribute($attribute))->toBe($expected)
+        ->and($entry->created_at->toDateTimeString())->toBe('2019-03-04 05:06:07')
+        ->and($entry->updated_at->toDateTimeString())->toBe('2021-08-09 10:11:12')
+        ->and(DB::table('kami_translations')->where('entry_id', $entry->id)->get(['created_at', 'updated_at'])->map(fn (object $row): array => (array) $row)->all())
+        ->toBe([['created_at' => '2019-03-04 05:06:07', 'updated_at' => '2021-08-09 10:11:12']])
+        ->and(Entry::query()->withUnpublished()->ofType($type)->count())->toBe(1)
+        ->and(DB::table('kami_import_keys')->value('entry_id'))->toBe($installed->id)
+        ->and([$first->created, $first->updated, $first->unchanged])->toBe([1, 0, 0])
+        ->and([$replay->created, $replay->updated, $replay->unchanged])->toBe([0, 0, 1]);
+})->with([
+    'a Singleton' => [Home::class, ['fr' => ['title' => 'Accueil', 'status' => 'published', 'intro' => 'Bonjour.']], 'intro', 'Bonjour.'],
+    'a Global Set' => [SiteSettings::class, ['fr' => ['site_name' => 'aguet.dev']], 'site_name', 'aguet.dev'],
+]);
+
+it('creates a Singleton\'s Entry when none exists yet', function (): void {
+    $import = Import::start('Velox');
+    $entry = $import->entry('velox.entry', 'home', Home::class, ['fr' => ['title' => 'Accueil']]);
+    $report = $import->finish();
+
+    expect($entry->title)->toBe('Accueil')
+        ->and($report->created)->toBe(1);
+});
 
 it('refuses a run into another Site than the current one', function (): void {
     expect(fn (): Import => Import::start('Velox', 'blog'))->toThrow(InvalidArgumentException::class, 'An Import writes the current Site [default] only, not [blog].')
