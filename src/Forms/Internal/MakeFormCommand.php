@@ -107,7 +107,7 @@ final class MakeFormCommand extends Command
                     return [];
                 }
 
-                public function replyTo(): ?string
+                public function replyTo(): string
                 {
                     return 'email';
                 }
