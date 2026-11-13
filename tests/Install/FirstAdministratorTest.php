@@ -359,7 +359,9 @@ it('does nothing with --email once a User may manage Users, whatever the email',
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])->assertSuccessful();
     User::query()->forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => 'hash']);
 
-    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => $email, '--name' => 'Other'])->assertSuccessful();
+    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => $email, '--name' => 'Other'])
+        ->expectsOutputToContain('Ignored --email and --name: a User may already manage Users. Give a Role with kami:user:grant or from the Users screen.')
+        ->assertSuccessful();
 
     expect(User::query()->count())->toBe(2)
         ->and(DB::table('kami_role_user')->count())->toBe(1);
@@ -369,7 +371,9 @@ it('changes nothing when an administrator exists', function () {
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])->assertSuccessful();
     unset($_SERVER['KAMI_ADMIN_PASSWORD']);
 
-    $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
+    $this->artisan('kami:install', ['--no-interaction' => true])
+        ->doesntExpectOutputToContain('Ignored')
+        ->assertSuccessful();
 
     expect(User::query()->count())->toBe(1)
         ->and(DB::table('kami_role_user')->pluck('role')->all())->toBe(['administrator']);
