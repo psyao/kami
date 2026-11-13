@@ -75,7 +75,7 @@ An email that belongs to an existing User gives that User the `administrator` Ro
 
 The email is compared case-insensitively on every database, for ASCII letters: `Grace@example.com` finds `grace@example.com`, and the output shows the address as stored. When several Users hold spellings of the same address, which SQLite and PostgreSQL allow, `kami:install` lists them and fails, granting and creating nothing: fix the duplicates in your users table, then run it again. A new User's email is stored as typed. Sign-in stays your application's: Kami normalises neither your data nor it, so on SQLite and PostgreSQL the email must be typed as stored to sign in.
 
-Once a User holds a Role that grants `kami.users.manage`, the step does nothing, and later deploys need neither the options nor the variable. `--email` or `--name` passed then is ignored with a warning: give another User a Role with `kami:user:grant` or from the Users screen ([Users and roles](users-and-roles.md)).
+Once a User holds a Role that grants `kami.users.manage`, the step does nothing, and later deploys need neither the options nor the variable. From then on, `kami:install` ignores `--email` and `--name`, with a warning: give another User a Role from the Users screen, or with [`kami:user:grant`](users-and-roles.md#from-the-command-line).
 
 ## Checking the environment
 

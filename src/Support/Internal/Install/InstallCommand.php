@@ -182,7 +182,7 @@ final class InstallCommand extends Command
             $ignored = array_keys(array_filter(['--email' => $this->option('email'), '--name' => $this->option('name')], is_string(...)));
 
             if ($ignored !== []) {
-                $this->components->warn('Ignored ' . implode(' and ', $ignored) . ': a User may already manage Users. Give a Role with kami:user:grant or from the Users screen.');
+                $this->components->warn(implode(' and ', $ignored) . (count($ignored) === 1 ? ' was' : ' were') . ' ignored: a User may already manage Users. Give a Role with kami:user:grant <email> <role> or from the Users screen.');
             }
 
             return true;
