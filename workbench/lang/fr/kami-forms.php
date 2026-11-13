@@ -7,7 +7,8 @@ return [
     'contact' => [
         'label' => 'Contact',
         // The Workbench view's own strings, beside the Form's label.
-        'sent' => 'Merci, votre message est envoyé.',
+        'confirmation' => 'Merci, votre message est envoyé.',
         'send' => 'Envoyer',
+        'error' => 'Votre message n’a pas pu être envoyé. Réessayez plus tard.',
     ],
 ];

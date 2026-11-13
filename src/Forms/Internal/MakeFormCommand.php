@@ -124,7 +124,7 @@ final class MakeFormCommand extends Command
             <section aria-labelledby="{handle}-heading">
                 <h2 id="{handle}-heading">{{ __('kami-forms.{handle}.label') }}</h2>
                 @if (Kami::form('{handle}')->sent())
-                    <p id="{handle}" role="status">{{ __('kami-forms.{handle}.sent') }}</p>
+                    <p id="{handle}" role="status">{{ Kami::form('{handle}')->confirmation() }}</p>
                 @else
                     <x-kami::form form="{handle}">
                         <x-kami::form.errors level="3" />
@@ -163,7 +163,7 @@ final class MakeFormCommand extends Command
         $this->line("    {$class}::class,");
         $this->line('Name who receives its Submissions in recipients(), or they are stored and mailed to nobody.');
         $this->line('Add its strings to lang/<locale>/kami-forms.php, for each Locale:');
-        $this->line("    '{$handle}' => ['label' => '{$label}', 'send' => 'Send', 'sent' => 'Thank you, your message is sent.'],");
+        $this->line("    '{$handle}' => ['label' => '{$label}', 'send' => 'Send'],");
         $this->line('Add its field labels to <comment>attributes</comment> in lang/<locale>/validation.php, for each Locale:');
         $this->line("    'name' => 'name', 'email' => 'email address', 'message' => 'message',");
         $this->line('A Locale other than English also needs Laravel\'s validation messages in that file, from laravel-lang:');

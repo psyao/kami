@@ -457,6 +457,7 @@ Stores a Submission of the current Site with a pending delivery per channel of i
 
 A front form a site declares under `kami.forms`: its handle, Laravel rules whose keys are its fields, and what becomes of a Submission (ADR 0015).
 
+- `final public function confirmation(): string`: The Confirmation a visitor reads once their Submission is accepted: `kami-forms.{handle}.confirmation`, or Kami's own.
 - `public function handle(): string`: `ContactForm` → `contact`: the class name in snake_case, without a trailing `Form`. Used in the route, `form="…"` and `?sent=`.
 - `final public function label(): string`: `kami-forms.{handle}.label`, or the humanised handle.
 - `public function notification(Psyao\Kami\Forms\Submission $submission): Illuminate\Notifications\Notification`: What tells the site owner about a Submission: by default `SubmissionReceived`, a mail to `recipients()`. Each channel of its `via()`
@@ -464,7 +465,7 @@ A front form a site declares under `kami.forms`: its handle, Laravel rules whose
 - `public function replyTo(): ?string`: The field holding the visitor's mail address, put on `Reply-To`; `null` for none.
 - `public function retention(): ?Carbon\CarbonInterval`: How long a Submission is kept: twelve months by default, `null` forever.
 - `abstract public function rules(): array`: Laravel validation rules; their keys are the fields, and only their validated values are stored. Field labels come from `validation.attributes`.
-- `final public function sent(): bool`: Whether the current request is the confirmation after this Form's Submission: `?sent={handle}`.
+- `final public function sent(): bool`: Whether the current request is the page shown after this Form's Submission was accepted: `?sent={handle}`.
 - `public function summary(Psyao\Kami\Forms\Submission $submission): string`: One line naming a Submission: by default its first text value in the order of `rules()`, truncated.
 
 ## `Psyao\Kami\Forms\Submission`
