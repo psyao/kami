@@ -172,9 +172,10 @@ it('moves a row by the keyboard buttons, within its page', function () {
 
 // Filament's French table strings lack these lines; Kami ships them (#589).
 it('names the keyboard buttons and announces a move in a French admin', function () {
-    [$one, $two] = projects(['One', 'Two']);
+    [, $two] = projects(['One', 'Two']);
     app()->setLocale('fr');
 
+    // The announcement after a move goes to Filament's JavaScript as a template, which fills in the title and position.
     entriesTable('administrator')
         ->call('toggleTableReordering')
         ->assertSee(['Déplacer Two vers le haut', 'Two, position 2 sur 2.', ':label, maintenant en position :position sur :count.'])

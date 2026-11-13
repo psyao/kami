@@ -30,7 +30,7 @@ return [
             ],
 
             'reorder' => [
-                'label' => 'Réordonner la colonne',
+                'label' => 'Classer la colonne',
             ],
 
         ],
@@ -76,7 +76,7 @@ return [
     'actions' => [
 
         'reorder_record' => [
-            'label' => 'Réordonner l’élément :key',
+            'label' => 'Classer l’élément :key',
         ],
 
         'move_record_up' => [

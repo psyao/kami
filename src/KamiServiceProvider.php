@@ -86,7 +86,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         $this->app->singleton(ImagePresets::class);
         // The Admin language, as configured: a visitor's request switches `app.locale` to its page's Locale.
         $this->app->instance(Deliveries::ADMIN_LANGUAGE, config('app.locale'));
-        // Filament's French lacks lines Kami's admin reads, its keyboard reorder among them: Kami's `vendor` overrides fill them in (#589).
+        // Filament's French table strings lack lines, the keyboard reorder's among them: Kami's `vendor` overrides fill them in (#589).
         // ponytail: added after the site's `lang`, so for these keys only Kami's line beats a site's own override; lifted by #593 once Filament ships them.
         $this->callAfterResolving('translation.loader', function (Loader $loader): void {
             if ($loader instanceof FileLoader) {
