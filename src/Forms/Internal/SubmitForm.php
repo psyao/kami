@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Forms\Internal;
 
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Session\ArraySessionHandler;
@@ -15,6 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\Uri;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\ValidationRuleParser;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
@@ -50,7 +50,10 @@ final class SubmitForm
         abort_unless($this->sameOrigin($request), 403);
 
         $origin = $this->origin($request);
-        $sent = fn (?string $url): RedirectResponse => redirect()->away("{$url}?sent={$form->handle()}#{$form->handle()}", 303);
+        // A site's own script gets the Confirmation, in the Locale `_kami_origin` set; a browser goes back to the page.
+        $sent = fn (?string $url): Response => $request->expectsJson()
+            ? response()->json(['message' => $form->confirmation()], headers: ['Cache-Control' => 'no-store'])
+            : redirect()->away("{$url}?sent={$form->handle()}#{$form->handle()}", 303);
 
         // The normal success before the page and the throttle are checked, nothing stored and nothing counted: a bot learns nothing, and a person behind its IP keeps their quota.
         if ($request->filled(self::HONEYPOT)) {
@@ -67,6 +70,13 @@ final class SubmitForm
 
         $input = $request->except([self::HONEYPOT, self::ORIGIN]);
         $validator = Validator::make($input, $form->rules());
+
+        if ($validator->fails() && $request->expectsJson()) {
+            // The body Laravel's handler renders for a `ValidationException`, kept out of any cache.
+            $exception = new ValidationException($validator);
+
+            return response()->json(['message' => $exception->getMessage(), 'errors' => $exception->errors()], 422, ['Cache-Control' => 'no-store']);
+        }
 
         if ($validator->fails()) {
             // Laravel's own parsed rules, one list per field with `*` expanded against the posted data, and the Form's unexpanded wildcard keys.

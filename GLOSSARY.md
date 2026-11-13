@@ -303,6 +303,10 @@ _Avoid_: Form builder, web form
 What a visitor sent through a Form, kept by the site.
 _Avoid_: Message, entry (an Entry is content), response
 
+**Confirmation**:
+The text a Form shows a visitor once their Submission is accepted, the same whether the page reloads or not.
+_Avoid_: Success message, thank-you message
+
 ### Performance
 
 **Page cache**:

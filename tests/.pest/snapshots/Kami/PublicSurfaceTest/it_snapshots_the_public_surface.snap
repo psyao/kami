@@ -224,6 +224,7 @@ class Psyao\Kami\Forms\Events\SubmissionsDeleted::$site public protected(set) re
 class Psyao\Kami\Forms\Events\SubmissionsDeleted::$submissionIds public protected(set) readonly array $submissionIds
 class Psyao\Kami\Forms\Events\SubmissionsDeleted::__construct() public function __construct(string $form, string $site, array $submissionIds, ?Illuminate\Contracts\Auth\Authenticatable $actor)
 class Psyao\Kami\Forms\Form abstract class
+class Psyao\Kami\Forms\Form::confirmation() final public function confirmation(): string
 class Psyao\Kami\Forms\Form::handle() public function handle(): string
 class Psyao\Kami\Forms\Form::label() final public function label(): string
 class Psyao\Kami\Forms\Form::notification() public function notification(Psyao\Kami\Forms\Submission $submission): Illuminate\Notifications\Notification

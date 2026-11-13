@@ -31,6 +31,8 @@ class WorkbenchServiceProvider extends ServiceProvider
 
         // A site's stylesheet, served from 'self' as the front policy requires; declared before Kami's routes, which would take its path.
         $router->get('workbench.css', fn () => response()->file(dirname(__DIR__, 2) . '/resources/css/front.css', ['Content-Type' => 'text/css']));
+        // The Forms guide's script, which submits the contact Form without a reload (docs/guide/forms.md).
+        $router->get('workbench-form.js', fn () => response()->file(dirname(__DIR__, 2) . '/resources/js/form.js', ['Content-Type' => 'text/javascript']));
 
         // `composer serve` shows the front, its links at `app.url`, the address it serves. Tests call Kami::routes() themselves and keep the declared URL.
         if (! $this->app->runningUnitTests()) {

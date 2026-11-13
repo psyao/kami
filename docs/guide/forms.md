@@ -32,12 +32,12 @@ final class ContactForm extends Form
 
 - **Handle.** The class name in snake_case, without a trailing `Form`: `ContactForm` is `contact`, `QuoteRequestForm` is `quote_request`. Override `handle()` to choose another. It names the Form in its markup, its route and its confirmation, so changing it changes all three.
 - **Rules.** Their keys are the Form's fields, and only their validated values are stored: anything else the request carries is dropped. A nested rule, `topics.*`, stores its parent key, `topics`.
-- **Labels.** The Form's name comes from `lang/<locale>/kami-forms.php`, by handle, and each field's name in validation messages from `validation.attributes`:
+- **Labels.** The Form's name comes from `lang/<locale>/kami-forms.php`, by handle, and so does its Confirmation, the text a visitor reads once their Submission is accepted (Kami's own, "Thank you, your message has been sent.", when you write none). Each field's name in validation messages comes from `validation.attributes`:
 
 ```php
 // lang/fr/kami-forms.php
 return [
-    'contact' => ['label' => 'Contact'],
+    'contact' => ['label' => 'Contact', 'confirmation' => 'Merci, votre message est envoyé.'],
 ];
 
 // lang/fr/validation.php
@@ -69,7 +69,7 @@ Kami renders no input: the markup is yours, in the view of the page that holds t
 
 ```blade
 @if (Kami::form('contact')->sent())
-    <p id="contact" role="status">{{ __('Thank you, your message is sent.') }}</p>
+    <p id="contact" role="status">{{ Kami::form('contact')->confirmation() }}</p>
 @else
     <x-kami::form form="contact">
         <x-kami::form.errors />
@@ -103,6 +103,8 @@ Each Submission posts to `POST /kami/forms/{handle}`, named `kami.form`, which `
 
 A refused Submission stores nothing. With no session, a reload of that page asks the browser to send the form again.
 
+`Kami::form('contact')->confirmation()` gives the Confirmation in the page's Locale, the text a script shows too ([Without a reload](#without-a-reload)).
+
 ## Protection
 
 The route checks, in this order:
@@ -116,6 +118,135 @@ The route checks, in this order:
 Over plain `http`, a browser never reaches the route: the front's `upgrade-insecure-requests` sends the post to `https`, and the visitor's text is lost. Serve a local site over HTTPS ([Local development over HTTP](security.md#local-development-over-http)).
 
 A bot that posts directly forges any header, from its own address: the honeypot and the throttle are aimed at it. Kami ships no captcha, which would be a remote service; a self-hosted proof-of-work check fits in `rules()` as a custom rule.
+
+## Without a reload
+
+A page reloads after each Submission: a Form in a modal closes, and its errors or Confirmation show on the reloaded page. Your own script can submit it instead and show the answer in place. Kami ships no front script: it answers JSON, and the script below is yours to copy and change.
+
+### The JSON answers
+
+The route answers JSON when the request expects it, as Laravel's `expectsJson()` reads it: `Accept: application/json`. It runs the same checks in the same order ([Protection](#protection)); a request that does not expect JSON keeps the page and the redirect above.
+
+| Status | When | Body |
+|---|---|---|
+| 200 | Accepted, or caught by the honeypot | `{"message": "…"}`, the Form's Confirmation in the page's Locale |
+| 422 | Refused by validation | Laravel's own: `{"message": "…", "errors": {"email": ["…"]}}`, each field's messages, keyed as `rules()` names them (`topics.0` for a wildcard) |
+| 403 | Another origin | `{"message": …}` |
+| 422 | No known page in `_kami_origin` | `{"message": …}`, with no `errors` |
+| 429 | The throttle, with `Retry-After` | `{"message": …}` |
+
+The 200 and the validation 422 carry `Cache-Control: no-store`. The status is the contract for the last three: their `message` is Laravel's, not text for a visitor, so show your own. A honeypot caught answers the same 200 as a Submission accepted, so a bot learns nothing.
+
+### The script
+
+Save it as `public/js/form.js`, or in your Vite entry, and load it from the layout of the page that holds the Form:
+
+```blade
+<script src="{{ asset('js/form.js') }}" defer></script>
+```
+
+```js
+// Submits each Kami Form on the page without a reload, through the Form route's JSON answers.
+// Loaded from the site's origin with `defer`: no inline script and no eval, so the front's CSP holds.
+for (const form of document.querySelectorAll('form.kami-form')) {
+    const status = document.getElementById(`${form.id}-status`);
+    const button = form.querySelector('[type="submit"]');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        clearErrors(form);
+        status.textContent = '';
+        button.disabled = true;
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { Accept: 'application/json' },
+            });
+            const body = [200, 422].includes(response.status) ? await response.json() : {};
+
+            if (response.status === 200) {
+                form.hidden = true;
+                status.textContent = body.message;
+                status.focus();
+            } else if (body.errors) {
+                showErrors(form, body.errors);
+            } else {
+                status.textContent = form.dataset.error;
+            }
+        } catch {
+            status.textContent = form.dataset.error;
+        } finally {
+            button.disabled = false;
+        }
+    });
+}
+
+// A summary that takes the focus and links to each field, and each field's message beside it.
+function showErrors(form, errors) {
+    const summary = document.createElement('div');
+    summary.className = 'kami-form-errors';
+    summary.setAttribute('role', 'alert');
+    summary.tabIndex = -1;
+    const heading = summary.appendChild(document.createElement('h2'));
+    heading.className = 'kami-form-errors-heading';
+    heading.textContent = form.dataset.errorsHeading;
+    const list = summary.appendChild(document.createElement('ul'));
+
+    for (const [name, [message]] of Object.entries(errors)) {
+        const link = list.appendChild(document.createElement('li')).appendChild(document.createElement('a'));
+        link.href = `#${name}`;
+        link.textContent = message;
+
+        const field = form.elements.namedItem(name);
+        if (field instanceof Element) {
+            const error = document.createElement('span');
+            error.id = `${name}-error`;
+            error.textContent = message;
+            field.after(error);
+            field.setAttribute('aria-invalid', 'true');
+            field.setAttribute('aria-describedby', [field.getAttribute('aria-describedby'), error.id].filter(Boolean).join(' '));
+        }
+    }
+
+    form.prepend(summary);
+    summary.focus();
+}
+
+// Removes the errors of an earlier attempt, the page's own included.
+function clearErrors(form) {
+    form.querySelector('.kami-form-errors')?.remove();
+
+    for (const field of form.querySelectorAll('[aria-invalid]')) {
+        const id = `${field.name}-error`;
+        const describedBy = (field.getAttribute('aria-describedby') ?? '').split(' ').filter((token) => token !== id).join(' ');
+        field.removeAttribute('aria-invalid');
+        describedBy ? field.setAttribute('aria-describedby', describedBy) : field.removeAttribute('aria-describedby');
+        document.getElementById(id)?.remove();
+    }
+}
+```
+
+It submits each `form.kami-form` of the page with `fetch()`. `FormData` carries the honeypot and `_kami_origin`, and the browser sends `Sec-Fetch-Site` as for a page's own post. The file is served from your origin, with no inline script and no `eval`, so the front's policy holds as it is ([Security](security.md)), and the page holding the Form stays cached.
+
+### Its markup
+
+Give the form the texts the script shows, and add an empty status element after it, with the form's id and `-status`:
+
+```blade
+<x-kami::form form="contact" data-error="{{ __('Your message could not be sent. Please try again later.') }}"
+    data-errors-heading="{{ __('kami::forms.errors.heading') }}">
+    {{-- … --}}
+</x-kami::form>
+<p id="contact-status" role="status" tabindex="-1"></p>
+```
+
+- **Accepted.** The form is hidden, and the Confirmation goes in the status element, which takes the focus. It is a live region present when the page loads, so a screen reader announces it.
+- **Refused by validation.** The script builds the summary `<x-kami::form.errors />` renders, with `role="alert"`, and moves the focus to it. Each field gets `aria-invalid="true"` and its message in an element `{name}-error`, added to its `aria-describedby`. Change the summary's `h2` to the level `<x-kami::form.errors>` has on your page. A field the summary links to needs the `id` of its `name`, as without the script.
+- **Anything else**, a 403, a 429, a server error or no network: the status element shows `data-error`, and the visitor's input stays.
+- **While the request runs**, the submit button is disabled, so a second click sends nothing.
+- **Without JavaScript**, nothing changes: the form posts, and the page reloads.
 
 ## Submissions
 

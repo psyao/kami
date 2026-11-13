@@ -457,6 +457,7 @@ Stores a Submission of the current Site with a pending delivery per channel of i
 
 A front form a site declares under `kami.forms`: its handle, Laravel rules whose keys are its fields, and what becomes of a Submission (ADR 0015).
 
+- `final public function confirmation(): string`: The Confirmation a visitor reads once their Submission is accepted: `kami-forms.{handle}.confirmation`, or Kami's own.
 - `public function handle(): string`: `ContactForm` → `contact`: the class name in snake_case, without a trailing `Form`. Used in the route, `form="…"` and `?sent=`.
 - `final public function label(): string`: `kami-forms.{handle}.label`, or the humanised handle.
 - `public function notification(Psyao\Kami\Forms\Submission $submission): Illuminate\Notifications\Notification`: What tells the site owner about a Submission: by default `SubmissionReceived`, a mail to `recipients()`. Each channel of its `via()`

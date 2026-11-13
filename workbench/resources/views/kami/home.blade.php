@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <x-kami::seo />
     <link rel="stylesheet" href="/workbench.css">
+    <script src="/workbench-form.js" defer></script>
 </head>
 <body>
     <x-kami::preview-banner />
@@ -14,9 +15,9 @@
         <section aria-labelledby="contact-heading">
             <h2 id="contact-heading">{{ __('kami-forms.contact.label') }}</h2>
             @if (\Psyao\Kami\Facades\Kami::form('contact')->sent())
-                <p id="contact" role="status">{{ __('kami-forms.contact.sent') }}</p>
+                <p id="contact" role="status">{{ \Psyao\Kami\Facades\Kami::form('contact')->confirmation() }}</p>
             @else
-                <x-kami::form form="contact">
+                <x-kami::form form="contact" data-error="{{ __('kami-forms.contact.error') }}" data-errors-heading="{{ __('kami::forms.errors.heading') }}">
                     <x-kami::form.errors />
                     @foreach (['name' => 'text', 'email' => 'email'] as $field => $type)
                         <p>
@@ -32,6 +33,7 @@
                     </p>
                     <p><button type="submit">{{ __('kami-forms.contact.send') }}</button></p>
                 </x-kami::form>
+                <p id="contact-status" role="status" tabindex="-1"></p>
             @endif
         </section>
     </main>

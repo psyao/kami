@@ -98,6 +98,60 @@ it('stores a valid Submission and answers 303 to the page with ?sent=', function
     Event::assertDispatched(SubmissionStored::class, fn (SubmissionStored $event): bool => $event->submission->is($submission));
 });
 
+it('answers a request that expects JSON with a 200 and the Confirmation in the page\'s Locale, storing the Submission', function () {
+    $page = contactPage();
+
+    $response = sendContact($page, locale: 'en', headers: ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json']);
+
+    $response->assertOk()->assertExactJson(['message' => 'Thank you, your message is sent.'])->assertHeader('Cache-Control', 'no-store, private');
+    expect(Submission::query()->count())->toBe(1);
+});
+
+it('answers a refused Submission that expects JSON with Laravel\'s 422, its errors per field with the page\'s Locale\'s attributes', function () {
+    $page = contactPage();
+
+    $response = sendContact($page, ['message' => '', 'email' => 'not an address'], headers: ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json']);
+
+    $response->assertUnprocessable()->assertHeader('Cache-Control', 'no-store, private')->assertExactJson([
+        'message' => 'The adresse e-mail field must be a valid email address. (and 1 more error)',
+        'errors' => [
+            'email' => ['The adresse e-mail field must be a valid email address.'],
+            'message' => ['The message field is required.'],
+        ],
+    ]);
+    expect(Submission::query()->count())->toBe(0);
+});
+
+it('keeps the status of a cross-origin post, a missing origin and the throttle for a request that expects JSON, with a JSON body', function () {
+    $page = contactPage();
+    $json = ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json'];
+
+    sendContact($page, headers: [...$json, 'Sec-Fetch-Site' => 'cross-site'])->assertForbidden()->assertJsonStructure(['message']);
+    sendContact($page, ['_kami_origin' => ''], headers: $json)->assertUnprocessable()->assertJsonStructure(['message']);
+    foreach (range(1, 5) as $ignored) {
+        sendContact($page, headers: $json)->assertOk();
+    }
+    sendContact($page, headers: $json)->assertTooManyRequests()->assertHeader('Retry-After')->assertJsonStructure(['message']);
+});
+
+it('prints in the Forms guide the very script the Browser suite runs', function () {
+    preg_match('/^```js\n(.*?)^```$/ms', (string) file_get_contents(__DIR__ . '/../../docs/guide/forms.md'), $block);
+
+    expect($block[1] ?? null)->toBe(file_get_contents(__DIR__ . '/../../workbench/resources/js/form.js'));
+});
+
+it('answers a filled honeypot that expects JSON with the same 200, storing nothing', function (Closure $origin, string $confirmation) {
+    $page = contactPage();
+
+    $response = sendContact($page, ['_kami_origin' => $origin($page), 'kami_website' => 'https://spam.test'], headers: ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json']);
+
+    $response->assertOk()->assertExactJson(['message' => $confirmation])->assertHeader('Cache-Control', 'no-store, private');
+    expect(Submission::query()->count())->toBe(0);
+})->with([
+    'the page in English' => [fn (Entry $page): string => "{$page->id}:en", 'Thank you, your message is sent.'],
+    'an unknown page, in the Site\'s default Locale' => [fn (Entry $page): string => 'forged', 'Merci, votre message est envoyé.'],
+]);
+
 it('checks the origin: Sec-Fetch-Site when sent, else an absent or matching Origin', function (array $headers, int $status) {
     $page = contactPage();
 
@@ -216,7 +270,7 @@ it('renders the form with the page, its honeypot and origin, and the confirmatio
     $page = contactPage();
 
     $this->get('/en')->assertOk()
-        ->assertSee('<form method="post" action="/kami/forms/contact" id="contact" class="kami-form">', escape: false)
+        ->assertSee('<form method="post" action="/kami/forms/contact" id="contact" class="kami-form"', escape: false)
         ->assertSee("name=\"_kami_origin\" value=\"{$page->id}:en\"", escape: false)
         ->assertSee('<div class="kami-form-honeypot" hidden>', escape: false)
         ->assertSee('name="kami_website" tabindex="-1" autocomplete="off"', escape: false)
@@ -315,6 +369,13 @@ it('derives a Form\'s handle from its class name without a trailing Form, and la
         ->and(new QuoteRequest()->handle())->toBe('quote_request')
         ->and(new ContactFormV2()->handle())->toBe('contact_form_v2')
         ->and(Kami::form('contact')->label())->toBe('Contact');
+});
+
+it('reads a Form\'s Confirmation from kami-forms, else Kami\'s own in the current Locale', function () {
+    app()->setLocale('fr');
+
+    expect(Kami::form('contact')->confirmation())->toBe('Merci, votre message est envoyé.')
+        ->and(new QuoteRequest()->confirmation())->toBe('Merci, votre message a bien été envoyé.');
 });
 
 it('validates kami.forms when a Form is first read', function (array $forms, string $message) {

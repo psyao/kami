@@ -78,6 +78,14 @@ abstract class Form
         return Lang::has($key) ? (string) __($key) : Str::headline($this->handle());
     }
 
+    /** The Confirmation a visitor reads once their Submission is accepted: `kami-forms.{handle}.confirmation`, or Kami's own. */
+    final public function confirmation(): string
+    {
+        $key = "kami-forms.{$this->handle()}.confirmation";
+
+        return (string) __(Lang::has($key) ? $key : 'kami::forms.confirmation');
+    }
+
     /** Whether the current request is the confirmation after this Form's Submission: `?sent={handle}`. */
     final public function sent(): bool
     {
