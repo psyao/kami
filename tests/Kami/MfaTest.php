@@ -184,6 +184,39 @@ it('lets an editor disable MFA, never a manager', function (string $role, bool $
     'manager' => ['administrator', false],
 ]);
 
+it('ignores a wrong code left in the Disable form once a recovery code is used, spending only that one (#578)', function () {
+    $this->actingAs(mfaUser('editor', ['first-code', 'second-code']));
+    Filament::setCurrentPanel('admin');
+
+    Livewire::test(EditProfile::class)
+        ->mountAction(TestAction::make('disableAppAuthentication')->schemaComponent(schema: 'content'))
+        ->fillForm(['password' => 'secret-password', 'code' => '000000'])
+        ->callMountedAction()
+        ->assertHasFormErrors(['code'])
+        ->fillForm(['useRecoveryCode' => true, 'recoveryCode' => 'first-code'])
+        ->callMountedAction()
+        ->assertHasNoFormErrors();
+
+    expect(DB::table('kami_user_mfa')->count())->toBe(0)
+        ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.recovery-used', 'kami.mfa.disabled']);
+});
+
+it('refuses a wrong recovery code in the Disable form, spending none', function () {
+    $user = mfaUser('editor', ['first-code', 'second-code']);
+    $this->actingAs($user);
+    Filament::setCurrentPanel('admin');
+
+    Livewire::test(EditProfile::class)
+        ->callAction(
+            TestAction::make('disableAppAuthentication')->schemaComponent(schema: 'content'),
+            ['password' => 'secret-password', 'code' => '000000', 'useRecoveryCode' => true, 'recoveryCode' => 'wrong-code'],
+        )
+        ->assertHasFormErrors(['recoveryCode']);
+
+    expect($user->fresh()->getAppAuthenticationRecoveryCodes())->toHaveCount(2)
+        ->and(auditEvents())->toBe([]);
+});
+
 it('deletes the authenticator with its User', function () {
     mfaUser('editor', ['a-code'])->delete();
 
