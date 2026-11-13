@@ -192,6 +192,16 @@ it('builds an item\'s values from a closure, and names the item when building th
         ]);
 });
 
+it('records a failed Import call within an item\'s closure once, under its own item', function (): void {
+    $import = Import::start('Velox');
+
+    expect(fn (): Entry => $import->entry('velox.post', '7', Article::class, fn (): array => veloxPost('Sept', ['cover' => $import->media('velox.file', '9', '/nowhere.jpg')->id])))
+        ->toThrow(RuntimeException::class, 'The import of [velox.file] item [9] failed: No readable file at')
+        ->and(importAudit())->toEqual([
+            ['kami.import.failed', ['label' => 'Velox', 'created' => 0, 'updated' => 0, 'unchanged' => 0, 'item' => '[velox.file] item [9]']],
+        ]);
+});
+
 it('refuses an item with no Locale\'s values, for every type', function (string $type, array $installed): void {
     // A Singleton's or a Global Set's Entry, as `kami:install` creates it.
     if ($installed !== []) {
@@ -200,6 +210,8 @@ it('refuses an item with no Locale\'s values, for every type', function (string 
     $import = Import::start('Velox');
 
     expect(fn (): Entry => $import->entry('velox.entry', '7', $type, []))
+        ->toThrow(RuntimeException::class, 'The import of [velox.entry] item [7] failed: An item holds the values of one Locale at least.')
+        ->and(fn (): Entry => Import::start('Velox')->entry('velox.entry', '7', $type, fn (): array => []))
         ->toThrow(RuntimeException::class, 'The import of [velox.entry] item [7] failed: An item holds the values of one Locale at least.');
 
     expect(DB::table('kami_import_keys')->count())->toBe(0);
