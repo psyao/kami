@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.9.0](https://github.com/psyao/kami/compare/v0.8.0...v0.9.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* `Import::entry()` also takes its values as a closure. `Import` is unreleased: no site is affected.
+
+### Features
+
+* Import adopts the Entry kami:install created for a Singleton or Global Set ([#573](https://github.com/psyao/kami/issues/573)) ([09736c0](https://github.com/psyao/kami/commit/09736c0b724eb0c94349857e10981e0c62cd72d7))
+* import Entries replayably through Legacy ids ([#566](https://github.com/psyao/kami/issues/566)) ([ab21f71](https://github.com/psyao/kami/commit/ab21f71f9b78fc52a2a7656e4dcf4373f66c2cba))
+* Import::media() and SaveMedia's rollback cleanup ([#568](https://github.com/psyao/kami/issues/568)) ([48ead28](https://github.com/psyao/kami/commit/48ead2847f19e621ee404d5358beb5102ea1fa4b))
+* Import::submission() and aguet.dev's acceptance import ([#569](https://github.com/psyao/kami/issues/569)) ([1daa0e6](https://github.com/psyao/kami/commit/1daa0e65a91ce1498cd3f05999289c5bfebf9aa7))
+* reach the move buttons by Tab, name selection checkboxes by title ([#581](https://github.com/psyao/kami/issues/581)) ([1b9e6d5](https://github.com/psyao/kami/commit/1b9e6d54f16a9f23653827a136f6a2782323a0df))
+
+
+### Bug Fixes
+
+* a wildcard field's old input, a failed Import's audit, empty items, the next-try zone ([#586](https://github.com/psyao/kami/issues/586)) ([3ea428f](https://github.com/psyao/kami/commit/3ea428f0283ead818727e6150e234f296d2e3a77))
+* an importer's failed value conversion names its item ([#598](https://github.com/psyao/kami/issues/598)) ([277639c](https://github.com/psyao/kami/commit/277639c0858e5f53093d272e9ec583aaa6f9ab9d))
+* claim a delivery before sending, keep to the Tick's budget, name waiting deliveries ([#577](https://github.com/psyao/kami/issues/577)) ([686a010](https://github.com/psyao/kami/commit/686a0106c89ccae894037ada104293b14d32a235))
+* ContentMigrator refuses an unknown Field ([#583](https://github.com/psyao/kami/issues/583)) ([2fcd206](https://github.com/psyao/kami/commit/2fcd206164f56ebb6e4c8d7c803892ad2f190400))
+* disabling MFA spends a recovery code only when it disables ([#582](https://github.com/psyao/kami/issues/582)) ([aea304a](https://github.com/psyao/kami/commit/aea304ae90097ed6b4543e07a1244fe8db9cf05b))
+* Forms take any input shape, and the guides fill the playground's gaps ([#574](https://github.com/psyao/kami/issues/574)) ([c0d4aea](https://github.com/psyao/kami/commit/c0d4aeae8e933bd982f24664ecb4f1f5e875fe18))
+* kami:install warns when it ignores --email or --name, UPGRADING 0.9.0 cites the link's copy button ([#595](https://github.com/psyao/kami/issues/595)) ([115c306](https://github.com/psyao/kami/commit/115c3065c3d42d8cf18983f9bf597ce8e845f4f5))
+* kami:make:form declares replyTo(): string ([#576](https://github.com/psyao/kami/issues/576)) ([e1cfa17](https://github.com/psyao/kami/commit/e1cfa17f0486fc749b7c974f701eec2b1b0db80c))
+* recovery codes spent once, translated admin titles, a set-password link ([#579](https://github.com/psyao/kami/issues/579)) ([6780608](https://github.com/psyao/kami/commit/6780608ee12acde1d6b5a29b3fe8da20456dc75b))
+* singular labels read in lower case mid-sentence, the fallback in sentence case ([#592](https://github.com/psyao/kami/issues/592)) ([5739c2f](https://github.com/psyao/kami/commit/5739c2fe688dacf71d3de7d97abff8c2c85ac2c3)), closes [#588](https://github.com/psyao/kami/issues/588)
+* the Entry table's move buttons and their announcements read in French ([#594](https://github.com/psyao/kami/issues/594)) ([d68810e](https://github.com/psyao/kami/commit/d68810e4df91ac6bef1e9c6451474717063759fe))
+
+
+### Documentation
+
+* UPGRADING 0.9.0, what a site acts on in the switch-over release ([#585](https://github.com/psyao/kami/issues/585)) ([46277ba](https://github.com/psyao/kami/commit/46277ba5237775a49e7d885244591d7f129bb839))
+
 ## [0.8.0](https://github.com/psyao/kami/compare/v0.7.0...v0.8.0) (2026-11-11)
 
 
