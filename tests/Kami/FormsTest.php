@@ -52,6 +52,20 @@ final class SurveyForm extends Form
     }
 }
 
+/** A Form whose one rule counts how often it runs, and always refuses. */
+final class CountingForm extends Form
+{
+    public static int $runs = 0;
+
+    public function rules(): array
+    {
+        return ['name' => [function (string $attribute, mixed $value, Closure $fail): void {
+            self::$runs++;
+            $fail('Refused.');
+        }]];
+    }
+}
+
 beforeEach(function () {
     Kami::routes();
 });
@@ -65,13 +79,13 @@ function contactPage(): Entry
 }
 
 /**
- * A browser's POST from the page: a valid Submission unless overridden.
+ * A browser's POST from the page, or a script's expecting JSON: a valid Submission unless overridden.
  *
  * @param  array<string, string>  $values
  */
-function sendContact(Entry $page, array $values = [], string $locale = 'fr', array $headers = ['Sec-Fetch-Site' => 'same-origin']): TestResponse
+function sendContact(Entry $page, array $values = [], string $locale = 'fr', array $headers = ['Sec-Fetch-Site' => 'same-origin'], bool $json = false): TestResponse
 {
-    return test()->withHeaders($headers)->post('/kami/forms/contact', [
+    return test()->withHeaders($json ? [...$headers, 'Accept' => 'application/json'] : $headers)->post('/kami/forms/contact', [
         '_kami_origin' => "{$page->id}:{$locale}",
         'name' => 'Ada Lovelace',
         'email' => 'ada@example.com',
@@ -101,7 +115,7 @@ it('stores a valid Submission and answers 303 to the page with ?sent=', function
 it('answers a request that expects JSON with a 200 and the Confirmation in the page\'s Locale, storing the Submission', function () {
     $page = contactPage();
 
-    $response = sendContact($page, locale: 'en', headers: ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json']);
+    $response = sendContact($page, locale: 'en', json: true);
 
     $response->assertOk()->assertExactJson(['message' => 'Thank you, your message is sent.'])->assertHeader('Cache-Control', 'no-store, private');
     expect(Submission::query()->count())->toBe(1);
@@ -110,8 +124,9 @@ it('answers a request that expects JSON with a 200 and the Confirmation in the p
 it('answers a refused Submission that expects JSON with Laravel\'s 422, its errors per field with the page\'s Locale\'s attributes', function () {
     $page = contactPage();
 
-    $response = sendContact($page, ['message' => '', 'email' => 'not an address'], headers: ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json']);
+    $response = sendContact($page, ['message' => '', 'email' => 'not an address'], json: true);
 
+    // The Workbench has no French messages of Laravel's, only French attributes: those show the page's Locale is the one used.
     $response->assertUnprocessable()->assertHeader('Cache-Control', 'no-store, private')->assertExactJson([
         'message' => 'The adresse e-mail field must be a valid email address. (and 1 more error)',
         'errors' => [
@@ -124,14 +139,12 @@ it('answers a refused Submission that expects JSON with Laravel\'s 422, its erro
 
 it('keeps the status of a cross-origin post, a missing origin and the throttle for a request that expects JSON, with a JSON body', function () {
     $page = contactPage();
-    $json = ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json'];
-
-    sendContact($page, headers: [...$json, 'Sec-Fetch-Site' => 'cross-site'])->assertForbidden()->assertJsonStructure(['message']);
-    sendContact($page, ['_kami_origin' => ''], headers: $json)->assertUnprocessable()->assertJsonStructure(['message']);
+    sendContact($page, headers: ['Sec-Fetch-Site' => 'cross-site'], json: true)->assertForbidden()->assertJsonStructure(['message']);
+    sendContact($page, ['_kami_origin' => ''], json: true)->assertUnprocessable()->assertJsonStructure(['message']);
     foreach (range(1, 5) as $ignored) {
-        sendContact($page, headers: $json)->assertOk();
+        sendContact($page, json: true)->assertOk();
     }
-    sendContact($page, headers: $json)->assertTooManyRequests()->assertHeader('Retry-After')->assertJsonStructure(['message']);
+    sendContact($page, json: true)->assertTooManyRequests()->assertHeader('Retry-After')->assertJsonStructure(['message']);
 });
 
 it('prints in the Forms guide the very script the Browser suite runs', function () {
@@ -140,10 +153,22 @@ it('prints in the Forms guide the very script the Browser suite runs', function 
     expect($block[1] ?? null)->toBe(file_get_contents(__DIR__ . '/../../workbench/resources/js/form.js'));
 });
 
+it('runs each rule once on a refused Submission, whatever it expects', function (bool $json) {
+    config(['kami.forms' => [ContactForm::class, CountingForm::class]]);
+    $page = contactPage();
+    CountingForm::$runs = 0;
+
+    test()->withHeaders(['Sec-Fetch-Site' => 'same-origin', ...($json ? ['Accept' => 'application/json'] : [])])
+        ->post('/kami/forms/counting', ['_kami_origin' => "{$page->id}:fr", 'name' => 'Ada'])
+        ->assertUnprocessable();
+
+    expect(CountingForm::$runs)->toBe(1);
+})->with(['the page' => false, 'JSON' => true]);
+
 it('answers a filled honeypot that expects JSON with the same 200, storing nothing', function (Closure $origin, string $confirmation) {
     $page = contactPage();
 
-    $response = sendContact($page, ['_kami_origin' => $origin($page), 'kami_website' => 'https://spam.test'], headers: ['Sec-Fetch-Site' => 'same-origin', 'Accept' => 'application/json']);
+    $response = sendContact($page, ['_kami_origin' => $origin($page), 'kami_website' => 'https://spam.test'], json: true);
 
     $response->assertOk()->assertExactJson(['message' => $confirmation])->assertHeader('Cache-Control', 'no-store, private');
     expect(Submission::query()->count())->toBe(0);

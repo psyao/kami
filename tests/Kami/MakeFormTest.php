@@ -60,7 +60,7 @@ it('prints the lines a site adds elsewhere', function (): void {
     $this->artisan('kami:make:form', ['name' => 'QuoteRequest'])
         ->expectsOutputToContain($this->app->getNamespace() . 'Forms\QuoteRequestForm::class,')
         ->expectsOutputToContain('recipients()')
-        ->expectsOutputToContain("'quote_request' => ['label' => 'Quote Request', 'send' => 'Send', 'confirmation' => 'Thank you, your message is sent.'],")
+        ->expectsOutputToContain("'quote_request' => ['label' => 'Quote Request', 'send' => 'Send'],")
         ->expectsOutputToContain("'name' => 'name', 'email' => 'email address', 'message' => 'message',")
         ->expectsOutputToContain('php artisan lang:add <locale>')
         ->expectsOutputToContain("@include('forms.quote_request')")

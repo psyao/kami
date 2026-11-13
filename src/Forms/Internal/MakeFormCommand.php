@@ -163,7 +163,7 @@ final class MakeFormCommand extends Command
         $this->line("    {$class}::class,");
         $this->line('Name who receives its Submissions in recipients(), or they are stored and mailed to nobody.');
         $this->line('Add its strings to lang/<locale>/kami-forms.php, for each Locale:');
-        $this->line("    '{$handle}' => ['label' => '{$label}', 'send' => 'Send', 'confirmation' => 'Thank you, your message is sent.'],");
+        $this->line("    '{$handle}' => ['label' => '{$label}', 'send' => 'Send'],");
         $this->line('Add its field labels to <comment>attributes</comment> in lang/<locale>/validation.php, for each Locale:');
         $this->line("    'name' => 'name', 'email' => 'email address', 'message' => 'message',");
         $this->line('A Locale other than English also needs Laravel\'s validation messages in that file, from laravel-lang:');

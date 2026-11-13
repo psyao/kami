@@ -30,7 +30,7 @@ final class ContactForm extends Form
 ],
 ```
 
-- **Handle.** The class name in snake_case, without a trailing `Form`: `ContactForm` is `contact`, `QuoteRequestForm` is `quote_request`. Override `handle()` to choose another. It names the Form in its markup, its route and its confirmation, so changing it changes all three.
+- **Handle.** The class name in snake_case, without a trailing `Form`: `ContactForm` is `contact`, `QuoteRequestForm` is `quote_request`. Override `handle()` to choose another. It names the Form in its markup, its route and the `?sent=` query after a Submission, so changing it changes all three.
 - **Rules.** Their keys are the Form's fields, and only their validated values are stored: anything else the request carries is dropped. A nested rule, `topics.*`, stores its parent key, `topics`.
 - **Labels.** The Form's name comes from `lang/<locale>/kami-forms.php`, by handle, and so does its Confirmation, the text a visitor reads once their Submission is accepted (Kami's own, "Thank you, your message has been sent.", when you write none). Each field's name in validation messages comes from `validation.attributes`:
 
@@ -150,7 +150,11 @@ Save it as `public/js/form.js`, or in your Vite entry, and load it from the layo
 // Loaded from the site's origin with `defer`: no inline script and no eval, so the front's CSP holds.
 for (const form of document.querySelectorAll('form.kami-form')) {
     const status = document.getElementById(`${form.id}-status`);
-    const button = form.querySelector('[type="submit"]');
+    const button = form.querySelector('button:not([type]), [type="submit"]');
+    // Without its status element or a button, the form posts and the page reloads, as without this script.
+    if (!status || !button) {
+        continue;
+    }
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -164,11 +168,12 @@ for (const form of document.querySelectorAll('form.kami-form')) {
                 body: new FormData(form),
                 headers: { Accept: 'application/json' },
             });
-            const body = [200, 422].includes(response.status) ? await response.json() : {};
+            // The status decides: a 200 whose body cannot be read is still a Submission stored, never one to send again.
+            const body = await response.json().catch(() => ({}));
 
             if (response.status === 200) {
                 form.hidden = true;
-                status.textContent = body.message;
+                status.textContent = body.message ?? '';
                 status.focus();
             } else if (body.errors) {
                 showErrors(form, body.errors);
@@ -243,10 +248,10 @@ Give the form the texts the script shows, and add an empty status element after 
 ```
 
 - **Accepted.** The form is hidden, and the Confirmation goes in the status element, which takes the focus. It is a live region present when the page loads, so a screen reader announces it.
-- **Refused by validation.** The script builds the summary `<x-kami::form.errors />` renders, with `role="alert"`, and moves the focus to it. Each field gets `aria-invalid="true"` and its message in an element `{name}-error`, added to its `aria-describedby`. Change the summary's `h2` to the level `<x-kami::form.errors>` has on your page. A field the summary links to needs the `id` of its `name`, as without the script.
+- **Refused by validation.** The script builds the summary `<x-kami::form.errors />` renders, with `role="alert"`, and moves the focus to it. Each field gets `aria-invalid="true"` and its message in an element `{name}-error`, added to its `aria-describedby`. Change the summary's `h2` to the level `<x-kami::form.errors>` has on your page. A field the summary links to needs the `id` of its `name`, as without the script. A field the script cannot find by its name, a radio or checkbox group, or a wildcard key such as `topics.0`, gets its message in the summary only: mark such a group up yourself if it needs more.
 - **Anything else**, a 403, a 429, a server error or no network: the status element shows `data-error`, and the visitor's input stays.
 - **While the request runs**, the submit button is disabled, so a second click sends nothing.
-- **Without JavaScript**, nothing changes: the form posts, and the page reloads.
+- **Without JavaScript**, nothing changes: the form posts, and the page reloads. So does a form with no status element or no submit button: the script leaves it alone.
 
 ## Submissions
 

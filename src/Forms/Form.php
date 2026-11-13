@@ -86,7 +86,7 @@ abstract class Form
         return (string) __(Lang::has($key) ? $key : 'kami::forms.confirmation');
     }
 
-    /** Whether the current request is the confirmation after this Form's Submission: `?sent={handle}`. */
+    /** Whether the current request is the page shown after this Form's Submission was accepted: `?sent={handle}`. */
     final public function sent(): bool
     {
         return request()->query('sent') === $this->handle();

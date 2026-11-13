@@ -10,9 +10,9 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 
 ## 0.9.1
 
-0.9.1 breaks nothing; one name is now Kami's.
+0.9.1 changes nothing a site's Form does today, unless it declares a method named `confirmation()`.
 
-1. **A Form can be submitted without a reload.** The Form route answers JSON to a request that expects it, for a script of your own, which the Forms guide gives to copy: the Confirmation in place, the errors beside their fields, no reload and the page still cached ([Without a reload](docs/guide/forms.md#without-a-reload)). Without the script, nothing changes. The Confirmation comes from `Form::confirmation()`, `kami-forms.{handle}.confirmation` or Kami's own: a view that printed its own string on `?sent=` can print `Kami::form('contact')->confirmation()` instead, so both paths read one text. `confirmation()` is `final` on `Form`: a Form of yours declaring a method of that name no longer loads, so rename it.
+1. **A Form can be submitted without a reload.** The Form route answers JSON to a request that expects it, for a script of your own, which the Forms guide gives to copy: the Confirmation in place, the errors beside their fields, no reload and the page still cached ([Without a reload](docs/guide/forms.md#without-a-reload)). Without the script, nothing changes. The Confirmation comes from `Form::confirmation()`, `kami-forms.{handle}.confirmation` or Kami's own: a view that printed its own string on `?sent=` can print `Kami::form('contact')->confirmation()` instead, so both paths read one text. A Form made by `kami:make:form` before 0.9.1 keeps that string under `kami-forms.{handle}.sent`: rename the key `confirmation` in each `lang/<locale>/kami-forms.php`, or `confirmation()` reads Kami's own text instead of yours. `confirmation()` is `final` on `Form`: a Form of yours declaring a method of that name no longer loads, so rename that method; it is the one change that can stop a site, and no Form Kami generated has one.
 
 ## 0.9.0
 

@@ -2,7 +2,11 @@
 // Loaded from the site's origin with `defer`: no inline script and no eval, so the front's CSP holds.
 for (const form of document.querySelectorAll('form.kami-form')) {
     const status = document.getElementById(`${form.id}-status`);
-    const button = form.querySelector('[type="submit"]');
+    const button = form.querySelector('button:not([type]), [type="submit"]');
+    // Without its status element or a button, the form posts and the page reloads, as without this script.
+    if (!status || !button) {
+        continue;
+    }
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -16,11 +20,12 @@ for (const form of document.querySelectorAll('form.kami-form')) {
                 body: new FormData(form),
                 headers: { Accept: 'application/json' },
             });
-            const body = [200, 422].includes(response.status) ? await response.json() : {};
+            // The status decides: a 200 whose body cannot be read is still a Submission stored, never one to send again.
+            const body = await response.json().catch(() => ({}));
 
             if (response.status === 200) {
                 form.hidden = true;
-                status.textContent = body.message;
+                status.textContent = body.message ?? '';
                 status.focus();
             } else if (body.errors) {
                 showErrors(form, body.errors);

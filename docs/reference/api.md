@@ -465,7 +465,7 @@ A front form a site declares under `kami.forms`: its handle, Laravel rules whose
 - `public function replyTo(): ?string`: The field holding the visitor's mail address, put on `Reply-To`; `null` for none.
 - `public function retention(): ?Carbon\CarbonInterval`: How long a Submission is kept: twelve months by default, `null` forever.
 - `abstract public function rules(): array`: Laravel validation rules; their keys are the fields, and only their validated values are stored. Field labels come from `validation.attributes`.
-- `final public function sent(): bool`: Whether the current request is the confirmation after this Form's Submission: `?sent={handle}`.
+- `final public function sent(): bool`: Whether the current request is the page shown after this Form's Submission was accepted: `?sent={handle}`.
 - `public function summary(Psyao\Kami\Forms\Submission $submission): string`: One line naming a Submission: by default its first text value in the order of `rules()`, truncated.
 
 ## `Psyao\Kami\Forms\Submission`

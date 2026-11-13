@@ -71,14 +71,15 @@ final class SubmitForm
         $input = $request->except([self::HONEYPOT, self::ORIGIN]);
         $validator = Validator::make($input, $form->rules());
 
-        if ($validator->fails() && $request->expectsJson()) {
-            // The body Laravel's handler renders for a `ValidationException`, kept out of any cache.
-            $exception = new ValidationException($validator);
-
-            return response()->json(['message' => $exception->getMessage(), 'errors' => $exception->errors()], 422, ['Cache-Control' => 'no-store']);
-        }
-
+        // `fails()` runs every rule again on each call: once only.
         if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                // The body Laravel's handler renders for a `ValidationException`, kept out of any cache.
+                $exception = new ValidationException($validator);
+
+                return response()->json(['message' => $exception->getMessage(), 'errors' => $exception->errors()], 422, ['Cache-Control' => 'no-store']);
+            }
+
             // Laravel's own parsed rules, one list per field with `*` expanded against the posted data, and the Form's unexpanded wildcard keys.
             return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), [...$form->rules(), ...$validator->getRules()]);
         }
