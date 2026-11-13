@@ -94,14 +94,15 @@ final class Import
     public function entry(string $source, string $legacyId, string $type, array $values, ?CarbonInterface $createdAt = null, ?CarbonInterface $updatedAt = null): Entry
     {
         $this->refuseOver();
+
+        // Before the checksum and any save: a Singleton's installed Entry would otherwise pass as the item, with nothing written.
+        if ($values === []) {
+            $this->fail("[{$source}] item [{$legacyId}]", new InvalidArgumentException('An item holds the values of one Locale at least.'));
+        }
+
         $dates = $this->dates($createdAt, $updatedAt);
 
         $id = $this->item($source, $legacyId, 'entry_id', [$type, $values, $dates], function (?string $id) use ($type, $values, $dates): string {
-            // Before any save: a Singleton's installed Entry would otherwise pass as the item, with nothing written.
-            if ($values === []) {
-                throw new InvalidArgumentException('An item holds the values of one Locale at least.');
-            }
-
             $save = resolve(SaveEntry::class);
             $entry = $id === null ? $this->installedEntry($type) : Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
 

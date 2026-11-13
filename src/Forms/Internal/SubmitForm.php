@@ -69,7 +69,7 @@ final class SubmitForm
         $validator = Validator::make($input, $form->rules());
 
         if ($validator->fails()) {
-            // Laravel's own parsed rules: one list per field, `*` expanded against the posted data.
+            // Laravel's own parsed rules, one list per field with `*` expanded against the posted data, and the Form's unexpanded wildcard keys.
             return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), [...$form->rules(), ...$validator->getRules()]);
         }
 
@@ -173,10 +173,10 @@ final class SubmitForm
             // A rule object left by the parser is a custom rule, never `array`.
             $array = array_any((array) ($rules[$path] ?? []), fn (mixed $rule): bool => is_string($rule) && in_array(ValidationRuleParser::parse($rule)[0], ['Array', 'List'], true))
                 || array_any(array_keys($rules), function (int | string $key) use ($segments): bool {
-                    $below = explode('.', (string) $key);
+                    $rule = explode('.', (string) $key);
 
-                    return count($below) > count($segments)
-                        && array_all($segments, fn (string $segment, int $i): bool => in_array($below[$i], ['*', $segment], true));
+                    return count($rule) > count($segments)
+                        && array_all($segments, fn (string $segment, int $i): bool => in_array($rule[$i], ['*', $segment], true));
                 });
 
             if (is_array($value) && $array) {

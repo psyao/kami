@@ -52,7 +52,7 @@ final class AuditContext
     /**
      * @internal
      *
-     * Opens a batch that outlives one call, for `Import`: Audit events count towards it until `close()`.
+     * Opens a batch for `Import`, one per write: Audit events count towards it until `close()`.
      */
     public static function open(): self
     {
