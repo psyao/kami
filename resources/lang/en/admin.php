@@ -105,6 +105,11 @@ return [
         'sent_body' => 'If an account uses this address, we have sent it a link to reset its password.',
     ],
 
+    'set_password' => [
+        'title' => 'Set your password',
+        'submit' => 'Set password',
+    ],
+
     'users' => [
         'created_by' => 'Created by :name',
         'last_modified_by' => 'Last modified by :name',

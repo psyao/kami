@@ -66,7 +66,7 @@ Writing to `kami_role_user` yourself skips the guard and the Audit log. Shared h
 
 ## The Users screen
 
-Kami ships no Users screen of its own: it would collide with your application's. The starter kit's `UserResource` is yours to change; in an existing application, add Kami's Roles field to your own User form. Give the screen a policy granting every method to `kami.users.manage` only, so an editor cannot promote themselves:
+Kami ships no Users screen of its own: it would collide with your application's. The starter kit's `UserResource` is yours to change; in an existing application, add Kami's Roles field to your own User form, and set `protected static bool $hasTitleCaseModelLabel = false;` on its Resource so a translated label reads as written, as Kami's own screens do. Give the screen a policy granting every method to `kami.users.manage` only, so an editor cannot promote themselves:
 
 ```php
 public function viewAny(User $user): bool
@@ -108,7 +108,7 @@ TextColumn::make('roles')->badge()
 
 ### Creating a User
 
-Nobody chooses a new User's password. Create the User with an unusable one, then give the administrator the same one-time link `kami:install` prints, for the User to set theirs. `Psyao\Kami\Admin\SetPasswordLink::make($user)` returns its `url` and the `minutes` it stays valid, from the password broker of the panel serving the request, or of the panel you pass as `$panel`; the panel needs `->passwordReset()`. Past that, the User asks for a new link from the sign-in page.
+Nobody chooses a new User's password. Create the User with an unusable one, then give the administrator the same one-time link `kami:install` prints, for the User to set theirs. `Psyao\Kami\Admin\SetPasswordLink::make($user)` returns its `url` and the `minutes` it stays valid, from the password broker of the panel serving the request, or of the panel you pass as `$panel`. The panel needs `->passwordReset()`: without it, `make()` throws a `LogicException` saying so. The link opens the panel's reset page, which then reads "Set your password" with a "Set password" button, translated, unless the panel serves a reset page of its own. Past that, the User asks for a new link from the sign-in page, which resets the password.
 
 ```php
 use Psyao\Kami\Admin\SetPasswordLink;
@@ -127,7 +127,7 @@ protected function afterCreate(): void
 }
 ```
 
-The starter kit shows the link in a persistent notification once the User is created. The transaction creates the User, their Roles and the link's token together.
+The starter kit shows the link in a persistent notification once the User is created, with a button that copies it. The transaction creates the User, their Roles and the link's token together.
 
 ### Deleting a User
 

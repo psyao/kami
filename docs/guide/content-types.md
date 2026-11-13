@@ -699,6 +699,8 @@ return [
 ];
 ```
 
+The admin shows each label as written: "Blog posts" stays "Blog posts" in the page title and breadcrumbs, where Filament would title-case it.
+
 The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')`, `optionLabel('kind', 'news')`, with `links.fields.url` for a sub-Field, `tabLabel('details')` and `sectionLabel('highlight')`. `kami:doctor` warns about each missing `label`, `plural`, Field or sub-Field `label`, `Select` option key and tab or section `label`, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 
 ### Your own form

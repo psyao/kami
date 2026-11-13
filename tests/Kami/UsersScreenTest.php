@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
+use Filament\Notifications\NotificationMailbox;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -65,13 +66,18 @@ it('creates a User with Roles and no password of anyone’s choosing, offering a
     usersPage(CreateUser::class)
         ->fillForm(['name' => 'Grace', 'email' => 'grace@example.test', 'kami_roles' => ['editor']])
         ->call('create')
-        ->assertHasNoFormErrors()
-        ->assertNotified('Send Grace this link to set their password');
+        ->assertHasNoFormErrors();
+    $mailbox = resolve(NotificationMailbox::class);
+    $mailbox->flush();
+    $link = collect($mailbox->pull())->firstWhere('title', 'Send Grace this link to set their password');
 
     $grace = User::query()->where('email', 'grace@example.test')->sole();
     expect($grace->kamiRoles())->toBe(['editor'])
         ->and(DB::table('password_reset_tokens')->where('email', 'grace@example.test')->exists())->toBeTrue()
-        ->and(collect(auditEvents())->pluck('event')->all())->toBe(['kami.users.created', 'kami.roles.granted']);
+        ->and(collect(auditEvents())->pluck('event')->all())->toBe(['kami.users.created', 'kami.roles.granted'])
+        // One click copies the set-password link, which runs to some 230 characters (#389).
+        ->and($link['actions'][0]['label'])->toBe('Copy link')
+        ->and($link['actions'][0]['alpineClickHandler'])->toContain('navigator.clipboard.writeText')->toContain('grace%40example.test')->toContain('set=1');
 });
 
 it('gives and takes away Roles, each change in the Audit log under the User who made it', function () {

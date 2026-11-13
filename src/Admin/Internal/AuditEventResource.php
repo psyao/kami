@@ -33,6 +33,10 @@ final class AuditEventResource extends FilamentResource
     #[\Override]
     protected static ?string $model = AuditEvent::class;
 
+    /** Its label as translated: Filament would title-case it ("Journal D’audit"). */
+    #[\Override]
+    protected static bool $hasTitleCaseModelLabel = false;
+
     public static function getModelLabel(): string
     {
         return __('kami::admin.audit.label');

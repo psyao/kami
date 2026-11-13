@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Queue;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\KamiPlugin;
+use Psyao\Kami\Admin\SetPasswordLink;
 use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
@@ -77,12 +78,14 @@ it('sends the link only after the response, and not through the queue, as no wor
         ->and($sent()->first()->getEnvelope()->getRecipients()[0]->getAddress())->toBe('grace@example.test');
 });
 
-it('serves Kami\'s page whether the panel enables reset before or after the plugin, and keeps a host\'s own page', function () {
+it('serves Kami\'s pages whether the panel enables reset before or after the plugin, and keeps a host\'s own page', function () {
     $host = (new class extends RequestPasswordReset {})::class;
+    $hostReset = (new class extends ResetPassword {})::class;
     $panels = [
         'before' => Panel::make()->id('before')->passwordReset()->plugin(KamiPlugin::make()),
         'after' => Panel::make()->id('after')->plugin(KamiPlugin::make())->passwordReset(),
         'host' => Panel::make()->id('host')->passwordReset($host)->plugin(KamiPlugin::make()),
+        'host reset' => Panel::make()->id('host-reset')->passwordReset(resetAction: $hostReset)->plugin(KamiPlugin::make()),
     ];
 
     // What Filament's route file does for each panel, before it reads the reset page's class.
@@ -94,7 +97,12 @@ it('serves Kami\'s page whether the panel enables reset before or after the plug
 
     expect($panels['before']->getRequestPasswordResetRouteAction())->not->toBe(RequestPasswordReset::class)->toBe(Filament::getPanel('admin')->getRequestPasswordResetRouteAction())
         ->and($panels['after']->getRequestPasswordResetRouteAction())->toBe($panels['before']->getRequestPasswordResetRouteAction())
-        ->and($panels['host']->getRequestPasswordResetRouteAction())->toBe($host);
+        ->and($panels['host']->getRequestPasswordResetRouteAction())->toBe($host)
+        ->and($panels['before']->getResetPasswordRouteAction())->not->toBe(ResetPassword::class)->toBe(Filament::getPanel('admin')->getResetPasswordRouteAction())
+        ->and($panels['after']->getResetPasswordRouteAction())->toBe($panels['before']->getResetPasswordRouteAction())
+        ->and($panels['host']->getResetPasswordRouteAction())->toBe($panels['before']->getResetPasswordRouteAction())
+        ->and($panels['host reset']->getResetPasswordRouteAction())->toBe($hostReset)
+        ->and($panels['host reset']->getRequestPasswordResetRouteAction())->toBe($panels['before']->getRequestPasswordResetRouteAction());
 });
 
 it('records a completed reset in the Audit log, with the User as subject and actor', function () {
@@ -116,4 +124,28 @@ it('records nothing for the reset of a model that is not a Kami User', function 
     event(new PasswordReset(new PlainUser));
 
     expect(DB::table('kami_audit_events')->count())->toBe(0);
+});
+
+describe('the one-time set-password link', function (): void {
+    it('refuses a panel without password reset, naming what it needs', function () {
+        expect(fn () => SetPasswordLink::make(resetUser(), Panel::make()->id('bare')))
+            ->toThrow(LogicException::class, '->passwordReset()');
+    });
+
+    it('opens a page that sets a password, where a reset link resets one', function (string $locale, string $title, string $button) {
+        app()->setLocale($locale);
+        Filament::setCurrentPanel('admin');
+        $grace = resetUser();
+
+        $this->get(SetPasswordLink::make($grace)['url'])->assertOk()->assertSee($title)->assertSee($button);
+        $this->get(Filament::getPanel('admin')->getResetPasswordUrl(Password::broker()->createToken($grace), $grace))->assertOk()
+            ->assertSee(__('filament-panels::auth/pages/password-reset/reset-password.heading'))->assertDontSee($title);
+    })->with([['en', 'Set your password', 'Set password'], ['fr', 'Définissez votre mot de passe', 'Définir le mot de passe']]);
+
+    it('keeps its wording under the link\'s signature', function () {
+        Filament::setCurrentPanel('admin');
+        $url = SetPasswordLink::make(resetUser())['url'];
+
+        $this->get(str_replace('set=1', 'set=0', $url))->assertForbidden();
+    });
 });
