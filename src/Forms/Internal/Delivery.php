@@ -37,6 +37,9 @@ final class Delivery extends Model
 
     public const int MAX_ATTEMPTS = 5;
 
+    /** Seconds after which a claim with no outcome is an attempt PHP stopped mid-send, retried as a failure. */
+    public const int CLAIM_TIMEOUT = 3600;
+
     /** Not delivered after `MAX_ATTEMPTS`: no run retries it. `abandoned()` is the same rule in a query. */
     public function isAbandoned(): bool
     {
@@ -63,6 +66,41 @@ final class Delivery extends Model
     protected function pending(Builder $query): void
     {
         $query->whereNull('delivered_at')->whereNot(fn (Builder $query): Builder => $query->abandoned());
+    }
+
+    /**
+     * Claimed by a sender whose attempt has no outcome yet: `Deliveries::send()` clears `last_error` as it claims, and records one when the attempt fails.
+     * After `CLAIM_TIMEOUT`, PHP is taken to have stopped the attempt.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function sending(Builder $query): void
+    {
+        $query->where('attempts', '>', 0)->whereNull('delivered_at')->whereNull('last_error')
+            ->where('updated_at', '>', now()->subSeconds(self::CLAIM_TIMEOUT));
+    }
+
+    /**
+     * Pending, and no sender holds it: what `kami:forms:deliver` tries.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function due(Builder $query): void
+    {
+        $query->pending()->whereNot(fn (Builder $query): Builder => $query->sending());
+    }
+
+    /**
+     * Due after a failed attempt, or one PHP stopped: what `kami:forms:deliver` names as waiting and `kami:doctor` reports.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function waiting(Builder $query): void
+    {
+        $query->due()->where('attempts', '>', 0);
     }
 
     /** @return BelongsTo<Submission, $this> */

@@ -67,11 +67,21 @@ final class Deliveries
         }
     }
 
-    /** One attempt through one channel; a failure is recorded and reported, never thrown, so the next channel still goes. */
-    public static function send(Delivery $delivery): bool
+    /**
+     * One attempt through one channel; a failure is recorded and reported, never thrown, so the next channel still goes.
+     * Null when another sender claimed the delivery since it was read.
+     */
+    public static function send(Delivery $delivery): ?bool
     {
-        // Counted first: an attempt that dies mid-send, out of time or memory, still counts towards abandoning it.
-        $delivery->increment('attempts');
+        // The claim: only the sender that read the current `attempts` moves it on. Counted first, so an attempt that dies mid-send,
+        // out of time or memory, still counts towards abandoning it; `last_error` cleared, so the row reads as being sent (`Delivery::sending()`).
+        $claim = ['attempts' => $delivery->attempts + 1, 'last_error' => null, 'updated_at' => now()];
+
+        if (Delivery::query()->whereKey($delivery->getKey())->whereNull('delivered_at')->where('attempts', $delivery->attempts)->update($claim) === 0) {
+            return null;
+        }
+
+        $delivery->forceFill($claim)->syncOriginal();
 
         try {
             $submission = $delivery->submission;
@@ -88,7 +98,7 @@ final class Deliveries
             return false;
         }
 
-        $delivery->update(['delivered_at' => now(), 'last_error' => null]);
+        $delivery->update(['delivered_at' => now()]);
 
         return true;
     }

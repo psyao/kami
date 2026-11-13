@@ -35,8 +35,8 @@ use Throwable;
  */
 final class Tick
 {
-    /** Seconds the lock outlives the budget, for a Tick finishing its last task. */
-    private const int MARGIN = 10;
+    /** Seconds the lock outlives the budget, for a Tick finishing its last task: a Submission sent just before the deadline, three times the advised `MAIL_TIMEOUT=10`, among them. */
+    private const int MARGIN = 30;
 
     /** Each writes its `tick-*` file: `kami:tick`, the planner's URL and visits. */
     public const array TRIGGERS = ['cli', 'web', 'visit'];
@@ -46,6 +46,9 @@ final class Tick
 
     /** `Application::formatCommandString('')`, which looks for the PHP binary on disk: once per process. */
     private static ?string $prefix = null;
+
+    /** When the running Tick's budget ends, as `microtime(true)`; null outside a Tick. */
+    private static ?float $deadline = null;
 
     /**
      * Runs the overdue tasks, one after the other, starting none once the budget is spent; the rest wait for the next Tick. Then works through the queue with the budget left.
@@ -68,6 +71,7 @@ final class Tick
         }
 
         $start = microtime(true);
+        self::$deadline = $start + $budget;
         $failed = false;
 
         try {
@@ -105,6 +109,7 @@ final class Tick
             report($exception);
             $failed = true;
         } finally {
+            self::$deadline = null;
             $lock->release();
         }
 
@@ -122,6 +127,12 @@ final class Tick
         }, report: $trigger !== 'visit');
 
         return $result;
+    }
+
+    /** Seconds left of the running Tick's budget, which a task such as `kami:forms:deliver` keeps to; null outside a Tick. */
+    public static function secondsLeft(): ?float
+    {
+        return self::$deadline === null ? null : self::$deadline - microtime(true);
     }
 
     /** Whether every trigger's `tick-*` file is missing or over five minutes old: one `filemtime()` each, no SQL, as the page cache reader checks them. */

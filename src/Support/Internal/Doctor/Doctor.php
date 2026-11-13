@@ -1107,17 +1107,17 @@ final readonly class Doctor
             return $problems;
         }
 
-        // An attempt counts before it sends: one stopped mid-send, as by max_execution_time, leaves no error.
-        $attempted = Delivery::query()->where('attempts', '>', 0)->where('updated_at', '<=', Date::now()->subMinute());
+        // At once, but not while a sender holds it. An attempt counts as it is claimed: one stopped mid-send, as by max_execution_time,
+        // leaves no error, and shows once its claim times out.
         $states = [
-            'that failed and wait for a retry' => $attempted->clone()->pending(),
-            'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => $attempted->clone()->abandoned(),
+            'that failed and wait for a retry' => Delivery::query()->waiting(),
+            'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => Delivery::query()->abandoned()->whereNot(fn (Builder $query): Builder => $query->sending()),
         ];
 
         foreach ($states as $state => $deliveries) {
             if (($count = $deliveries->count()) > 0) {
                 $error = $deliveries->latest('updated_at')->value('last_error');
-                $problems[] = new Problem(Severity::Warning, "Submission deliveries {$state}: {$count}. Last error: " . (is_string($error) ? $error : 'none recorded, as when PHP stops an attempt mid-send.'), 'check the mail settings in .env, and each channel of a notification of your own; kami:forms:deliver retries every 15 minutes, up to ' . Delivery::MAX_ATTEMPTS . ' attempts.', 'forms.md#delivery');
+                $problems[] = new Problem(Severity::Warning, "Submission deliveries {$state}: {$count}. Last error: " . (is_string($error) ? $error : 'none recorded, as when PHP stops an attempt mid-send.'), 'check the mail settings in .env, and each channel of a notification of your own; kami:forms:deliver retries a failed one at its next run, every 15 minutes, up to ' . Delivery::MAX_ATTEMPTS . ' attempts.', 'forms.md#delivery');
             }
         }
 
