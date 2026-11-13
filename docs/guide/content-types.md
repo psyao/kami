@@ -773,7 +773,7 @@ final class ProjectTable extends EntryTable
 Four things to know:
 
 - A cell links to the Entry, and an empty one is a link with no name for assistive technology. Give a column that may be empty a `default()`, or `disabledClick()` to make no link. Filament's `placeholder()` is too pale to meet the contrast minimum.
-- Replacing a list drops what `parent::` gave it unless you put it back: the title and state columns, and the hidden **Created by** and **Last modified by**, from `parent::columns()`.
+- Replacing a list drops what `parent::` gave it unless you put it back: the title and state columns, and the hidden **Created by** and **Last modified by**, from `parent::columns()`. Each row's selection checkbox takes its name from the column named `title`: without one, a screen reader announces the Entry's ULID.
 - Likewise **Edit**, **Duplicate**, **Move to Trash**, **Restore** and, on a hierarchical type, **Children** from `parent::recordActions()`, the bulk actions from `parent::toolbarActions()`, and the Trash filter from `parent::filters()`.
 - The level shown, the manual order and their Permissions stay Kami's, whatever the class returns. Reordering writes through Kami's own action, so Filament's `beforeReordering()` and `afterReordering()` are neither reachable here nor called.
 

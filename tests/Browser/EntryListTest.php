@@ -47,10 +47,10 @@ it('moves a row with Tab and Enter alone, its control shown and focus kept', fun
     $page->wait(1);
     assertAxeClean($page, admin: true);
 
-    // From the toggle, Tab alone reaches the controls (WCAG 2.1.1); a row's disabled button is skipped.
+    // From the toggle, Tab alone reaches the controls (WCAG 2.1.1); the loop stops if focus leaves the page.
     $page->keys('internal:role=button[name="Finish reordering records"i]', 'Tab');
 
-    for ($i = 0; $i < 20 && $page->script($focused) !== 'Move Third up'; $i++) {
+    for ($i = 0; $i < 20 && $page->script('document.activeElement !== document.body') && $page->script($focused) !== 'Move Third up'; $i++) {
         $page->keys(':focus', 'Tab');
     }
 

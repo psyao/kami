@@ -10,7 +10,7 @@
 
 /* A reorderable table's move buttons, which Filament hides in `fi-sr-only` (filamentphp/filament#20713), shown in reorder mode beside the drag handle:
    a keyboard user sees what Tab reaches (WCAG 2.4.7), and a pointer has an alternative to dragging (WCAG 2.5.7). `kami.js` puts them in the Tab order (WCAG 2.1.1).
-   ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; it goes once Filament shows and reaches them itself. */
+   ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; it goes once Filament shows and reaches them itself (#580). */
 .fi-sr-only:has(> [data-table-reorder-direction]) {
     position: static;
     display: inline-flex;
@@ -46,12 +46,14 @@
 
 /* An arrow drawn for the eye; the button keeps Filament's text, "Move … up", as its name. */
 [data-table-reorder-direction]::before {
+    content: "↑";
     content: "↑" / "";
     font-size: 1rem;
     line-height: 1;
 }
 
 [data-table-reorder-direction="down"]::before {
+    content: "↓";
     content: "↓" / "";
 }
 
