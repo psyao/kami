@@ -179,6 +179,23 @@ it('names the source and the Legacy id of a failed item, and leaves nothing of i
     'a payload that is not UTF-8' => [['fr' => ['title' => "Sept \xB1"]]],
 ]);
 
+it('refuses an item with no Locale\'s values, for every type', function (string $type, array $installed): void {
+    // A Singleton's or a Global Set's Entry, as `kami:install` creates it.
+    if ($installed !== []) {
+        resolve(SaveEntry::class)->handle($type, $installed);
+    }
+    $import = Import::start('Velox');
+
+    expect(fn (): Entry => $import->entry('velox.entry', '7', $type, []))
+        ->toThrow(RuntimeException::class, 'The import of [velox.entry] item [7] failed: An item holds the values of one Locale at least.');
+
+    expect(DB::table('kami_import_keys')->count())->toBe(0);
+})->with([
+    'an Article' => [Article::class, []],
+    'a Singleton' => [Home::class, ['title' => 'Created by kami:install']],
+    'a Global Set' => [SiteSettings::class, ['title' => 'Created by kami:install']],
+]);
+
 it('names the item a database error stops, whose code is no integer', function (): void {
     Event::listen('eloquent.saving: ' . Entry::class, function (): never {
         // PDO's code is a SQLSTATE string, which a QueryException keeps.
@@ -241,8 +258,9 @@ it('records one Audit summary for the run, and no event per item', function (): 
     ]);
 });
 
-it('records Audit events again once a run has failed', function (): void {
+it('records a failed summary with what the run committed and the item that stopped it, then Audit events again', function (): void {
     $import = Import::start('Velox');
+    $import->entry('velox.post', '1', Article::class, veloxPost('Un', ['status' => 'published']));
 
     try {
         $import->entry('velox.post', '7', Article::class, ['fr' => ['pages' => 'many']]);
@@ -251,9 +269,48 @@ it('records Audit events again once a run has failed', function (): void {
 
     resolve(RecordAuditEvent::class)->handle('acme.after.failure');
 
-    expect(importAudit())->toBe([['acme.after.failure', []]])
+    expect(importAudit())->toEqual([
+        ['kami.import.failed', ['label' => 'Velox', 'created' => 1, 'updated' => 0, 'unchanged' => 0, 'item' => '[velox.post] item [7]', 'kami.entries.published' => 1]],
+        ['acme.after.failure', []],
+    ])
         ->and(fn (): Entry => $import->entry('velox.post', '8', Article::class, veloxPost('Huit')))->toThrow(LogicException::class, 'This Import is over')
         ->and(fn (): ImportReport => $import->finish())->toThrow(LogicException::class, 'This Import is over');
+});
+
+it('aborts a run on the importer\'s own exception, recording what it committed, and throws the exception again', function (): void {
+    $import = Import::start('Velox');
+    $import->entry('velox.post', '1', Article::class, veloxPost('Un', ['status' => 'published']));
+    $truncated = new UnexpectedValueException('The dump ends mid-row.');
+
+    expect(fn (): never => $import->abort($truncated))->toThrow($truncated)
+        ->and(fn (): never => $import->abort($truncated))->toThrow($truncated)
+        ->and(importAudit())->toEqual([['kami.import.failed', ['label' => 'Velox', 'created' => 1, 'updated' => 0, 'unchanged' => 0, 'kami.entries.published' => 1]]])
+        ->and(fn (): ImportReport => $import->finish())->toThrow(LogicException::class, 'This Import is over');
+});
+
+it('records nothing more when aborted after an item stopped the run', function (): void {
+    $import = Import::start('Velox');
+
+    try {
+        $import->entry('velox.post', '7', Article::class, ['fr' => ['pages' => 'many']]);
+    } catch (RuntimeException $exception) {
+        expect(fn (): never => $import->abort($exception))->toThrow($exception);
+    }
+
+    expect(array_column(importAudit(), 0))->toBe(['kami.import.failed']);
+});
+
+it('leaves no Audit batch open between items, whatever the importer does there', function (): void {
+    $first = Import::start('Velox');
+    $second = Import::start('WordPress');
+    $first->entry('velox.post', '1', Article::class, veloxPost('Un', ['status' => 'published']));
+    $second->entry('wordpress.post', '1', Article::class, veloxPost('One'));
+    $first->finish();
+    resolve(RecordAuditEvent::class)->handle('acme.between.items');
+    $second->finish();
+    resolve(RecordAuditEvent::class)->handle('acme.after.runs');
+
+    expect(array_column(importAudit(), 0))->toBe(['kami.import.completed', 'acme.between.items', 'kami.import.completed', 'acme.after.runs']);
 });
 
 it('finishes a run once', function (): void {

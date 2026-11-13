@@ -11,6 +11,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Psyao\Kami\Import\Import;
+use Throwable;
 use App\Content\Article;
 
 final class ImportVelox extends Command
@@ -23,14 +24,18 @@ final class ImportVelox extends Command
     {
         $import = Import::start('Velox');
 
-        DB::connection('velox')->table('posts')->orderBy('id')->chunk(200, function ($posts) use ($import): void {
-            foreach ($posts as $post) {
-                $import->entry('velox.post', (string) $post->id, Article::class, [
-                    'fr' => ['title' => $post->title_fr, 'slug' => $post->slug_fr, 'body' => $post->body_fr, 'author' => $post->author, 'status' => 'published', 'published_at' => $post->published_at],
-                    'en' => ['title' => $post->title_en, 'slug' => $post->slug_en, 'body' => $post->body_en, 'status' => 'published', 'published_at' => $post->published_at],
-                ], CarbonImmutable::parse($post->created_at, 'UTC'), CarbonImmutable::parse($post->updated_at, 'UTC'));
-            }
-        });
+        try {
+            DB::connection('velox')->table('posts')->orderBy('id')->chunk(200, function ($posts) use ($import): void {
+                foreach ($posts as $post) {
+                    $import->entry('velox.post', (string) $post->id, Article::class, [
+                        'fr' => ['title' => $post->title_fr, 'slug' => $post->slug_fr, 'body' => $post->body_fr, 'author' => $post->author, 'status' => 'published', 'published_at' => $post->published_at],
+                        'en' => ['title' => $post->title_en, 'slug' => $post->slug_en, 'body' => $post->body_en, 'status' => 'published', 'published_at' => $post->published_at],
+                    ], CarbonImmutable::parse($post->created_at, 'UTC'), CarbonImmutable::parse($post->updated_at, 'UTC'));
+                }
+            });
+        } catch (Throwable $exception) {
+            $import->abort($exception);
+        }
 
         $report = $import->finish();
 
@@ -122,7 +127,9 @@ The items whose links now resolve hand over new values and are rewritten; all th
 
 ## One item at a time
 
-Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key, or the Media item, its text, its dates and its key. When an item fails, `entry()` or `media()` throws a `RuntimeException` naming its source and Legacy id, and `submission()` one naming its Form, Locale and `created_at`, with the cause as its previous exception. The item leaves nothing behind, not even the original a failed `media()` wrote; the items before it stay imported, and the run stops: any later call but `find()` throws a `LogicException`, and the run records no Audit summary. Fix the cause and run the importer again.
+Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key, or the Media item, its text, its dates and its key. When an item fails, `entry()` or `media()` throws a `RuntimeException` naming its source and Legacy id, and `submission()` one naming its Form, Locale and `created_at`, with the cause as its previous exception. The item leaves nothing behind, not even the original a failed `media()` wrote; the items before it stay imported, and the run stops: any later call but `find()` throws a `LogicException`, and the run records a `kami.import.failed` Audit summary. Fix the cause and run the importer again.
+
+An exception of your importer's own, between items, such as a source it cannot read, does not go through `Import`: catch it and hand it to `abort()`, as above. `abort()` stops the run, records the `kami.import.failed` summary and throws the exception again; after a failed item it only throws it again, as the summary is already recorded. A run left neither finished nor aborted records no summary for the items it committed.
 
 Read the source in chunks, as above, so memory stays bounded however large it is.
 
@@ -140,7 +147,7 @@ Read the source in chunks, as above, so memory stays bounded however large it is
 
 Unseen keys belong to the sources the run touched and were not seen during it: their items are gone from the source. Kami never deletes on its own. Your importer decides, for instance by trashing them with `TrashEntry`.
 
-Between `start()` and `finish()`, writes record no Audit event of their own. `finish()` records one `kami.import.completed` event with the label, the counts and the count of each event the run's writes would have recorded. A run that fails records none.
+The run's writes record no Audit event of their own; anything else written between them records its own, as usual. `finish()` records one `kami.import.completed` event with the label, the counts and the count of each event the run's writes would have recorded. A run that fails records one `kami.import.failed` event instead, with the label, the counts of what it committed and, when an item stopped it, the `item`.
 
 ## Running an import
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -276,16 +277,18 @@ it('lets one sender only claim a delivery two have read', function () {
     $this->assertDatabaseHas('kami_form_deliveries', ['attempts' => 1]);
 });
 
-it('names the failed deliveries waiting for their next try, and when', function () {
+it('names the failed deliveries waiting for their next try, and when, in UTC', function (?string $timezone) {
     Exceptions::fake();
     config(['kami.forms' => [ChatForm::class]]);
     Kami::schedule();
+    // A site may run its schedule in its own time zone: the time printed stays UTC, and says so.
+    collect(resolve(Schedule::class)->events())->each(fn (Event $event): Event => $event->timezone($timezone ?? 'UTC'));
     $this->travelTo('2026-11-09 17:32:00');
     storedSubmission('chat', ['message' => 'Hi']);
     deferred();
 
-    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 0 of 1 pending delivery. 1 waiting for its next try at 17:45.')->assertSuccessful();
-});
+    $this->artisan('kami:forms:deliver')->expectsOutputToContain('Delivered 0 of 1 pending delivery. 1 waiting for its next try at 17:45 UTC.')->assertSuccessful();
+})->with(['the default time zone' => [null], 'a schedule in Zurich' => ['Europe/Zurich']]);
 
 it('starts no delivery past the remaining budget of the Tick that runs kami:forms:deliver', function () {
     $this->app->useStoragePath($storage = temporaryPath());

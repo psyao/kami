@@ -40,14 +40,14 @@ final class QuoteRequest extends Form
     }
 }
 
-/** A Form with array fields: a checkbox group by `array`, one by `tags.*` alone, one by a rule object, one by `list`, and a nested field. */
+/** A Form with array fields: a checkbox group by `array`, one by `tags.*` alone, one by a rule object, one by `list`, a nested field, and a wildcard inside a wildcard. */
 final class SurveyForm extends Form
 {
     public function rules(): array
     {
         return [
             'name' => ['required', 'string'], 'topics' => ['array'], 'topics.*' => ['string'], 'tags.*' => ['string'], 'answer.text' => ['required', 'string'],
-            'choices' => [Rule::array()], 'picks' => 'nullable|list',
+            'choices' => [Rule::array()], 'picks' => 'nullable|list', 'items.*.tags.*' => ['string'],
         ];
     }
 }
@@ -299,6 +299,15 @@ it('sends back as old input only the arrays a field\'s rules allow', function ()
     ])->assertUnprocessable();
 
     expect($old)->toBe(['topics' => ['a'], 'tags' => ['b'], 'answer' => ['note' => 'd'], 'choices' => ['e']]);
+
+    // A scalar where only a wildcard rule reaches below: `in_array()` on it would throw a `TypeError`.
+    test()->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/survey', [
+        '_kami_origin' => "{$page->id}:fr",
+        'tags' => 'b',
+        'items' => [['tags' => 'g']],
+    ])->assertUnprocessable();
+
+    expect($old)->toBe(['items' => [[]]]);
 });
 
 it('derives a Form\'s handle from its class name without a trailing Form, and labels it from kami-forms', function () {
