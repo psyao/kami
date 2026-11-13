@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/psyao/kami/compare/v0.9.0...v0.9.1) (2026-11-13)
+
+
+### Features
+
+* the Form route answers JSON, so a site can submit without a reload ([#601](https://github.com/psyao/kami/issues/601)) ([1bf298a](https://github.com/psyao/kami/commit/1bf298ad9571114db01fde7cc09b24616e558f61))
+
 ## [0.9.0](https://github.com/psyao/kami/compare/v0.8.0...v0.9.0) (2026-11-13)
 
 
