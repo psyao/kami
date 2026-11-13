@@ -355,21 +355,29 @@ it('refuses a malformed --email before looking for a User, even one the table ho
     expect(DB::table('kami_role_user')->count())->toBe(0);
 });
 
-it('does nothing with --email once a User may manage Users, whatever the email', function (string $email) {
+it('does nothing with --email once a User may manage Users, whatever the email, and says it ignored the options', function (array $options, string $ignored) {
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])->assertSuccessful();
     User::query()->forceCreate(['name' => 'Grace', 'email' => 'grace@example.test', 'password' => 'hash']);
 
-    $this->artisan('kami:install', ['--no-interaction' => true, '--email' => $email, '--name' => 'Other'])->assertSuccessful();
+    $this->artisan('kami:install', ['--no-interaction' => true, ...$options])
+        ->expectsOutputToContain("{$ignored} ignored: a User may already manage Users. Give a Role with kami:user:grant <email> <role> or from the Users screen.")
+        ->assertSuccessful();
 
     expect(User::query()->count())->toBe(2)
         ->and(DB::table('kami_role_user')->count())->toBe(1);
-})->with(['existing' => 'grace@example.test', 'unknown' => 'new@example.test']);
+})->with([
+    'existing' => [['--email' => 'grace@example.test', '--name' => 'Other'], '--email and --name were'],
+    'unknown' => [['--email' => 'new@example.test', '--name' => 'Other'], '--email and --name were'],
+    'email only' => [['--email' => 'new@example.test'], '--email was'],
+]);
 
 it('changes nothing when an administrator exists', function () {
     $this->artisan('kami:install', ['--no-interaction' => true, '--email' => 'ada@example.test', '--name' => 'Ada'])->assertSuccessful();
     unset($_SERVER['KAMI_ADMIN_PASSWORD']);
 
-    $this->artisan('kami:install', ['--no-interaction' => true])->assertSuccessful();
+    $this->artisan('kami:install', ['--no-interaction' => true])
+        ->doesntExpectOutputToContain('ignored')
+        ->assertSuccessful();
 
     expect(User::query()->count())->toBe(1)
         ->and(DB::table('kami_role_user')->pluck('role')->all())->toBe(['administrator']);

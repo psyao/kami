@@ -179,6 +179,12 @@ final class InstallCommand extends Command
 
         // Asked of the host's model: a soft-deleted manager keeps its rows, yet signs in no more.
         if ($users::query()->whereIn((new $users)->getKeyName(), DB::table('kami_role_user')->whereIn('role', $granting)->select('user_id'))->exists()) {
+            $ignored = array_keys(array_filter(['--email' => $this->option('email'), '--name' => $this->option('name')], is_string(...)));
+
+            if ($ignored !== []) {
+                $this->components->warn(implode(' and ', $ignored) . (count($ignored) === 1 ? ' was' : ' were') . ' ignored: a User may already manage Users. Give a Role with kami:user:grant <email> <role> or from the Users screen.');
+            }
+
             return true;
         }
 
