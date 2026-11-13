@@ -108,6 +108,7 @@ return [
     'set_password' => [
         'title' => 'Définissez votre mot de passe',
         'submit' => 'Définir le mot de passe',
+        'done' => 'Votre mot de passe est défini.',
     ],
 
     'users' => [

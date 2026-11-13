@@ -63,7 +63,7 @@ final class MediaResource extends FilamentResource
     #[\Override]
     protected static ?string $model = Media::class;
 
-    /** Its label as translated: Filament would title-case it ("Journal D’audit"). */
+    /** Its label as translated: Filament would title-case it. */
     #[\Override]
     protected static bool $hasTitleCaseModelLabel = false;
 

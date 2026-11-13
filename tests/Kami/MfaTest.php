@@ -130,6 +130,15 @@ it('ignores a wrong code left in the challenge once a recovery code is used, spe
         ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.challenge-failed', 'kami.mfa.recovery-used', 'kami.auth.signed-in']);
 });
 
+it('still signs in with the code once the recovery field shows, if no recovery code is typed', function () {
+    $user = mfaUser('administrator', ['first-code']);
+
+    passwordStep($user)->set('data.multiFactor.app.useRecoveryCode', true)->set('data.multiFactor.app.code', totp())->call('authenticate')->assertHasNoErrors();
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->fresh()->getAppAuthenticationRecoveryCodes())->toHaveCount(1);
+});
+
 it('stores the authenticator encrypted in its own table, and records set-up and disabling', function () {
     $user = mfaUser('editor');
     $this->actingAs($user);

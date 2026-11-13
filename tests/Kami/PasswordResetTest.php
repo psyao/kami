@@ -142,6 +142,21 @@ describe('the one-time set-password link', function (): void {
             ->assertSee(__('filament-panels::auth/pages/password-reset/reset-password.heading'))->assertDontSee($title);
     })->with([['en', 'Set your password', 'Set password'], ['fr', 'Définissez votre mot de passe', 'Définir le mot de passe']]);
 
+    it('says the password is set once chosen, where a reset says it is reset', function (bool $sets, string $title) {
+        Filament::setCurrentPanel('admin');
+        $grace = resetUser();
+        $token = Password::broker()->createToken($grace);
+
+        Livewire::withQueryParams($sets ? ['set' => '1'] : [])->test(Filament::getPanel('admin')->getResetPasswordRouteAction(), ['email' => 'grace@example.test', 'token' => $token])
+            ->fillForm(['password' => 'new-secret-password', 'passwordConfirmation' => 'new-secret-password'])
+            ->call('resetPassword')
+            ->assertHasNoFormErrors()
+            ->assertNotified($title);
+    })->with([
+        'set' => [true, 'Your password is set.'],
+        'reset' => [false, 'Your password has been reset.'],
+    ]);
+
     it('keeps its wording under the link\'s signature', function () {
         Filament::setCurrentPanel('admin');
         $url = SetPasswordLink::make(resetUser())['url'];

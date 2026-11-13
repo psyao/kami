@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Psyao\Kami\Admin\Internal;
 
 use Filament\Actions\Action;
+use Filament\Auth\Http\Responses\Contracts\PasswordResetResponse;
 use Filament\Auth\Pages\PasswordReset\ResetPassword as FilamentResetPassword;
+use Filament\Support\Components\Attributes\Exposed;
 use Filament\Support\Components\Attributes\Unexposed;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Lang;
 use Livewire\Attributes\Locked;
 use SensitiveParameter;
 
@@ -42,7 +45,21 @@ final class ResetPassword extends FilamentResetPassword
     #[Unexposed]
     public function getHeading(): string | Htmlable | null
     {
-        return $this->setsPassword ? (string) __('kami::admin.set_password.title') : parent::getHeading();
+        return $this->setsPassword ? $this->getTitle() : parent::getHeading();
+    }
+
+    #[Exposed]
+    public function resetPassword(): ?PasswordResetResponse
+    {
+        if ($this->setsPassword) {
+            // Filament titles its notification with the broker's status line, `passwords.reset`, and offers no other hook: this request reads its own.
+            // Loaded first, as a line added to a group not yet loaded would hide the group's other lines.
+            $locale = app()->getLocale();
+            Lang::load('*', 'passwords', $locale);
+            Lang::addLines(['passwords.reset' => (string) __('kami::admin.set_password.done')], $locale);
+        }
+
+        return parent::resetPassword();
     }
 
     #[Unexposed]

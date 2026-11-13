@@ -108,6 +108,7 @@ return [
     'set_password' => [
         'title' => 'Set your password',
         'submit' => 'Set password',
+        'done' => 'Your password is set.',
     ],
 
     'users' => [

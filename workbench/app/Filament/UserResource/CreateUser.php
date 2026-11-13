@@ -52,7 +52,7 @@ class CreateUser extends CreateRecord
             ->actions([
                 Action::make('copy')
                     ->label(__('users.link.copy'))
-                    ->alpineClickHandler('window.navigator.clipboard.writeText(' . Js::from($url) . '); $tooltip(' . Js::from(__('users.link.copied')) . ', { theme: $store.theme })'),
+                    ->alpineClickHandler('window.navigator.clipboard.writeText(' . Js::from($url) . ').then(() => $tooltip(' . Js::from(__('users.link.copied')) . ', { theme: $store.theme }))'),
             ]);
     }
 

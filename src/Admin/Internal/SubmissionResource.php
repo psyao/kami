@@ -38,7 +38,7 @@ final class SubmissionResource extends FilamentResource
     #[\Override]
     protected static ?string $model = Submission::class;
 
-    /** Its label as translated: Filament would title-case it ("Journal D’audit"). */
+    /** Its label as translated: Filament would title-case it. */
     #[\Override]
     protected static bool $hasTitleCaseModelLabel = false;
 
