@@ -30,7 +30,7 @@ final class ImportVelox extends Command
         try {
             DB::connection('velox')->table('posts')->orderBy('id')->chunk(200, function ($posts) use ($import, $body): void {
                 foreach ($posts as $post) {
-                    $import->entry('velox.post', (string) $post->id, Article::class, [
+                    $import->entry('velox.post', (string) $post->id, Article::class, fn (): array => [
                         'fr' => ['title' => $post->title_fr, 'slug' => $post->slug_fr, 'body' => Document::fromHtml($post->body_fr ?? '', $body), 'author' => $post->author, 'status' => 'published', 'published_at' => $post->published_at],
                         'en' => ['title' => $post->title_en, 'slug' => $post->slug_en, 'body' => Document::fromHtml($post->body_en ?? '', $body), 'status' => 'published', 'published_at' => $post->published_at],
                     ], CarbonImmutable::parse($post->created_at, 'UTC'), CarbonImmutable::parse($post->updated_at, 'UTC'));
@@ -52,10 +52,11 @@ final class ImportVelox extends Command
 `entry()` takes the item's source, its Legacy id, its Content Type, its values and, optionally, its original creation and modification dates:
 
 - **Values by Locale.** Each Locale gets the values [`SaveEntry`](publishing.md) takes in it, the Site's default Locale first. [Shared Fields](multilingual.md) go in any of them, once. An untranslatable type takes one set of values, under any key. `published_at` is one of the values, read in UTC.
+- **Built in a closure.** The values can come as a closure that returns them, as the example does. `entry()` calls it as part of the item, so an exception it throws fails the item and names it, as below: `Document::fromHtml()` refusing a post's HTML names that post. Built outside, the same exception leaves the read loop before `entry()` sees the item, and `abort()` records no item.
 - **Through the core.** Each Locale is written by `SaveEntry`, so its validation, Paths, References and Content events apply as for any write, with a null actor. A publication dated in the past falls outside `kami:announce-publications`' window and is not announced.
 - **Original dates.** Once the values are saved, `Import` sets `created_at` and `updated_at` on the Entry and every Translation. Left out, they keep the time of the write. `SaveEntry` itself takes no dates, so the admin can never backdate an edit.
 - **Singletons and Global Sets.** `kami:install`, which a deploy runs before the importer, creates the Entry of each [Singleton and Global Set](content-types.md#singletons), `SiteSettings` included. The first import of such a type, with no key yet, adopts that Entry rather than create a second one: it writes over it, sets its dates, keys it and counts it as created. Left out, `created_at` keeps the time `kami:install` created it. Later runs replay it as any other item.
-- **Rich text.** A [RichText](content-types.md#rich-text) value goes in as the stored array or as a `Document`: an HTML string is refused. Turn HTML into a `Document` with `Document::fromHtml($html, $field)`, as the example does. Give it a Field that allows at least what the type declares (`->code()`, its heading levels): `fromHtml()` flattens the rest. Kami hashes a `Document` by its content.
+- **Rich text.** A [RichText](content-types.md#rich-text) value goes in as the stored array or as a `Document`: an HTML string is refused. Turn HTML into a `Document` with `Document::fromHtml($html, $field)`, as the example does, within the closure. Give it a Field that allows at least what the type declares (`->code()`, its heading levels): `fromHtml()` flattens the rest. Kami hashes a `Document` by its content.
 
 `entry()` returns the Entry as stored.
 
@@ -130,7 +131,7 @@ The items whose links now resolve hand over new values and are rewritten; all th
 
 ## One item at a time
 
-Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key, or the Media item, its text, its dates and its key. When an item fails, `entry()` or `media()` throws a `RuntimeException` naming its source and Legacy id, and `submission()` one naming its Form, Locale and `created_at`, with the cause as its previous exception. The item leaves nothing behind, not even the original a failed `media()` wrote; the items before it stay imported, and the run stops: any later call but `find()` throws a `LogicException`, and the run records a `kami.import.failed` Audit summary. Fix the cause and run the importer again.
+Each item is written in one transaction: the Entry, all its Translations and Fields, its dates and its key, or the Media item, its text, its dates and its key. When an item fails, `entry()` or `media()` throws a `RuntimeException` naming its source and Legacy id, and `submission()` one naming its Form, Locale and `created_at`, with the cause as its previous exception: an exception the values' closure throws is that cause. The item leaves nothing behind, not even the original a failed `media()` wrote; the items before it stay imported, and the run stops: any later call but `find()` throws a `LogicException`, and the run records a `kami.import.failed` Audit summary. Fix the cause and run the importer again.
 
 An exception of your importer's own, between items, such as a source it cannot read, does not go through `Import`: catch it and hand it to `abort()`, as above. `abort()` stops the run, records the `kami.import.failed` summary and throws the exception again; after a failed item it only throws it again, as the summary is already recorded. A run left neither finished nor aborted records no summary for the items it committed.
 
