@@ -70,7 +70,7 @@ final class SubmitForm
 
         if ($validator->fails()) {
             // Laravel's own parsed rules: one list per field, `*` expanded against the posted data.
-            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), $validator->getRules());
+            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), [...$form->rules(), ...$validator->getRules()]);
         }
 
         resolve(StoreSubmission::class)->handle($form, $validator->validated(), $locale, $entry);
@@ -158,19 +158,26 @@ final class SubmitForm
     /**
      * The old input in the shape its rules allow, so `{{ old('name') }}` never receives an array a bot posted as `name[]=x`, nor a
      * checkbox group's `in_array()` a string (#530). An array is kept where a rule says `array` or `list` at its path, or a rule reaches
-     * below it (`topics.*`, `answer.text`); a value of the other shape is dropped.
+     * below it (`topics.*`, `answer.text`), a wildcard matching any key: the unexpanded rules hold the wildcards the posted data did not
+     * expand, such as `tags.*` for a scalar `tags`. A value of the other shape is dropped.
      *
      * @param  array<mixed>  $values
-     * @param  array<mixed>  $rules
+     * @param  array<mixed>  $rules  The parsed rules, by expanded key, and the Form's own wildcard keys.
      * @return array<mixed>
      */
     private static function shaped(array $values, array $rules, string $prefix = ''): array
     {
         foreach ($values as $key => $value) {
             $path = "{$prefix}{$key}";
+            $segments = explode('.', $path);
             // A rule object left by the parser is a custom rule, never `array`.
             $array = array_any((array) ($rules[$path] ?? []), fn (mixed $rule): bool => is_string($rule) && in_array(ValidationRuleParser::parse($rule)[0], ['Array', 'List'], true))
-                || array_any(array_keys($rules), fn (int | string $key): bool => str_starts_with((string) $key, "{$path}."));
+                || array_any(array_keys($rules), function (int | string $key) use ($segments): bool {
+                    $below = explode('.', (string) $key);
+
+                    return count($below) > count($segments)
+                        && array_all($segments, fn (string $segment, int $i): bool => in_array($below[$i], ['*', $segment], true));
+                });
 
             if (is_array($value) && $array) {
                 $values[$key] = self::shaped($value, $rules, "{$path}.");

@@ -240,6 +240,7 @@ class Psyao\Kami\Forms\SubmissionReceived::__construct() public function __const
 class Psyao\Kami\Forms\SubmissionReceived::toMail() public function toMail(object $notifiable): Illuminate\Notifications\Messages\MailMessage
 class Psyao\Kami\Forms\SubmissionReceived::via() public function via(object $notifiable): array
 class Psyao\Kami\Import\Import final class
+class Psyao\Kami\Import\Import::abort() public function abort(Throwable $exception): never
 class Psyao\Kami\Import\Import::entry() public function entry(string $source, string $legacyId, string $type, array $values, ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Import\Import::find() public function find(string $source, string $legacyId): ?Psyao\Kami\Content\Entry
 class Psyao\Kami\Import\Import::finish() public function finish(): Psyao\Kami\Import\ImportReport

@@ -53,11 +53,11 @@ final class DeliverSubmissionsCommand extends Command
         return self::SUCCESS;
     }
 
-    /** When this command runs next, as the site's schedule has it, `Kami::schedule()` or its own. */
+    /** When this command runs next, as the site's schedule has it, `Kami::schedule()` or its own: in UTC, named, as `kami:doctor` prints times. */
     private function nextRun(): string
     {
         $event = collect(resolve(Schedule::class)->events())->first(fn (Event $event): bool => Str::endsWith((string) $event->command, ' ' . $this->getName()));
 
-        return $event instanceof Event ? 'at ' . $event->nextRunDate(now())->format('H:i') : 'at the next run';
+        return $event instanceof Event ? 'at ' . $event->nextRunDate(now())->utc()->format('H:i \U\T\C') : 'at the next run';
     }
 }

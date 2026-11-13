@@ -45,6 +45,9 @@ final class Import
     /** @var array<string, true> */
     private array $sources = [];
 
+    /** @var array<string, int> The count of each Audit event the run's writes would have recorded. */
+    private array $events = [];
+
     /** Once an item failed or the run finished: a run is not resumed, it is run again. */
     private bool $over = false;
 
@@ -52,11 +55,10 @@ final class Import
         private readonly string $label,
         private readonly string $site,
         private readonly CarbonImmutable $startedAt,
-        private readonly AuditContext $audit,
     ) {}
 
     /**
-     * Opens a run into a Site, the current one when `$site` is null. Until `finish()`, writes record no Audit event of their own: the run records one summary.
+     * Opens a run into a Site, the current one when `$site` is null. The run's writes record no Audit event of their own: the run records one summary, when it finishes or fails.
      *
      * @param  string  $label  Names the run in its Audit summary, such as `Velox`.
      *
@@ -73,7 +75,7 @@ final class Import
         }
 
         // Stored to the second, as `seen_at` is: what this run sees is never older.
-        return new self($label, $current, now()->toImmutable()->startOfSecond(), AuditContext::open());
+        return new self($label, $current, now()->toImmutable()->startOfSecond());
     }
 
     /**
@@ -95,15 +97,16 @@ final class Import
         $dates = $this->dates($createdAt, $updatedAt);
 
         $id = $this->item($source, $legacyId, 'entry_id', [$type, $values, $dates], function (?string $id) use ($type, $values, $dates): string {
+            // Before any save: a Singleton's installed Entry would otherwise pass as the item, with nothing written.
+            if ($values === []) {
+                throw new InvalidArgumentException('An item holds the values of one Locale at least.');
+            }
+
             $save = resolve(SaveEntry::class);
             $entry = $id === null ? $this->installedEntry($type) : Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
 
             foreach ($values as $locale => $localeValues) {
                 $entry = $save->handle($type, $localeValues, $entry, (string) $locale);
-            }
-
-            if (! $entry instanceof Entry) {
-                throw new InvalidArgumentException('An item holds the values of one Locale at least.');
             }
 
             // After the saves, which take no timestamps: the admin cannot backdate an edit (ADR 0026).
@@ -200,7 +203,7 @@ final class Import
             }
 
             // Read later than it was sent, as `markRead()` moves `updated_at`.
-            $submission = Submission::query()->create(['site' => $this->site, 'locale' => $locale, 'form' => $handle, 'entry_id' => $entry?->id, 'data' => $data, 'read_at' => $read, 'created_at' => $created, 'updated_at' => $read ?? $created]);
+            $submission = $this->audited(fn (): Submission => Submission::query()->create(['site' => $this->site, 'locale' => $locale, 'form' => $handle, 'entry_id' => $entry?->id, 'data' => $data, 'read_at' => $read, 'created_at' => $created, 'updated_at' => $read ?? $created]));
         } catch (Throwable $exception) {
             $this->fail("a [{$handle}] Submission in [{$locale}] created at [{$created}]", $exception);
         }
@@ -243,16 +246,24 @@ final class Import
 
         $report = new ImportReport($this->created, $this->updated, $this->unchanged, $unseen);
 
-        resolve(RecordAuditEvent::class)->summarise('kami.import.completed', [
-            'label' => $this->label,
-            'created' => $report->created,
-            'updated' => $report->updated,
-            'unchanged' => $report->unchanged,
-            'unseen' => $report->unseen,
-            ...$this->audit->close(),
-        ]);
+        $this->summarise('kami.import.completed', ['unseen' => $report->unseen]);
 
         return $report;
+    }
+
+    /**
+     * Stops the run on an importer's own exception, between items: records one `kami.import.failed` Audit event with the label and the counts of what it committed, then throws the exception again. A run an item already stopped records nothing more.
+     *
+     * @throws Throwable The exception given.
+     */
+    public function abort(Throwable $exception): never
+    {
+        if (! $this->over) {
+            $this->over = true;
+            $this->summarise('kami.import.failed');
+        }
+
+        throw $exception;
     }
 
     /**
@@ -290,7 +301,7 @@ final class Import
                 return $id;
             }
 
-            $id = DB::transaction(function () use ($write, $id, $key, $column, $source, $legacyId, $checksum): string {
+            $id = $this->audited(fn (): string => DB::transaction(function () use ($write, $id, $key, $column, $source, $legacyId, $checksum): string {
                 $id = $write($id);
                 $row = [$column => $id, 'checksum' => $checksum, 'seen_at' => now(), 'updated_at' => now()];
 
@@ -301,7 +312,7 @@ final class Import
                 }
 
                 return $id;
-            });
+            }));
         } catch (Throwable $exception) {
             $this->fail("[{$source}] item [{$legacyId}]", $exception);
         }
@@ -322,17 +333,48 @@ final class Import
     }
 
     /**
-     * Stops the run: later writes record their own Audit events again, and the run records no summary.
+     * Runs one write in its own Audit batch and adds its counts to the run's: no batch stays open between calls, so an importer's own exception leaves none behind.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $write
+     * @return T
+     */
+    private function audited(Closure $write): mixed
+    {
+        $batch = AuditContext::open();
+
+        try {
+            return $write();
+        } finally {
+            foreach ($batch->close() as $event => $count) {
+                $this->events[$event] = ($this->events[$event] ?? 0) + $count;
+            }
+        }
+    }
+
+    /** @param  array<string, scalar>  $context */
+    private function summarise(string $event, array $context = []): void
+    {
+        resolve(RecordAuditEvent::class)->summarise($event, ['label' => $this->label, 'created' => $this->created, 'updated' => $this->updated, 'unchanged' => $this->unchanged, ...$context, ...$this->events]);
+    }
+
+    /**
+     * Stops the run, recording one `kami.import.failed` Audit event with the label, the counts of what it committed and the item.
      *
      * @throws RuntimeException
      */
     private function fail(string $item, Throwable $exception): never
     {
         $this->over = true;
-        $this->audit->close();
 
-        // Code 0, not the cause's: a QueryException's is a SQLSTATE string, which Rector would pass on.
-        throw new RuntimeException("The import of {$item} failed: {$exception->getMessage()}", 0, $exception);
+        try {
+            $this->summarise('kami.import.failed', ['item' => $item]);
+        } finally {
+            // Thrown even when the summary cannot be written, the database gone for instance: the item's name matters more.
+            // Code 0, not the cause's: a QueryException's is a SQLSTATE string, which Rector would pass on.
+            throw new RuntimeException("The import of {$item} failed: {$exception->getMessage()}", 0, $exception);
+        }
     }
 
     /** @return array<'created_at'|'updated_at', string> The dates given, as UTC strings: hashed alike on every run. */
