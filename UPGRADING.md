@@ -8,6 +8,17 @@ Every breaking release has a section here, 0.x included, newest first: what chan
 - **Upgrade floor.** From 1.0, a release that squashes Kami's migrations is a major, and its section names the release a site must reach first.
 - **Security fixes.** A patch that tightens a default for security reasons is listed here too, though it breaks the rule above.
 
+## 0.9.0
+
+0.9.0 breaks nothing a site declared, but it is the release a site switches over with, and some of its fixes change what a site sees or must have.
+
+1. **Kami's migrations are append-only from 0.9.0** ([ADR 0035](docs/adr/0035-package-migrations-append-only-squashed-only-in-a-major.md)). A released migration never changes again; a schema change comes as a new one, which `kami:install` runs as usual. 0.9.0 adds `kami_import_keys`, for [Imports](docs/guide/imports.md).
+2. **A panel without `->passwordReset()` cannot give a set-password link.** `SetPasswordLink::make()` now throws a `LogicException` saying so, where it used to fail on a missing route; `kami:install` already refused. Add `->passwordReset()` to the panel's provider, as the starter kit has ([Users and Roles](docs/guide/users-and-roles.md)). The link now opens a page that reads "Set your password", unless the panel serves a reset page of its own.
+3. **Labels read as translated.** Kami's Resources and a site's Content Types no longer title-case their labels: "Journal d’audit", not "Journal D’audit". A Resource of yours copied from the starter kit before 0.9, its Users screen for one, keeps title-casing until it sets `protected static bool $hasTitleCaseModelLabel = false;`, as the starter kit now does.
+4. **A Form on a page in another Locale than English needs Laravel's validation messages in it.** Without them, a French page shows `The nom field is required.`. Install them once with `composer require laravel-lang/common --dev` and `php artisan lang:add fr` ([Declaring a Form](docs/guide/forms.md#declaring-a-form)). `old()` now holds a field's value in the shape its rules allow: a view reading a field that was posted as `name[]=x` gets nothing back rather than an array.
+5. **A failed delivery shows at once.** `kami:doctor` warns about a Submission delivery that failed as soon as it failed, not a minute later, so a deploy running `--strict` right after a failure stops there; `kami:forms:deliver` retries it at its next run and says when that is ([Retries](docs/guide/forms.md#retries)).
+6. **`ContentMigrator` refuses an unknown Field.** `renameField()`, `makeTranslatable()` and `makeShared()` throw on a name that is neither a column, a declared relation Field nor a handle the type's Entries hold links under, instead of recording the migration as done with nothing moved ([Schema changes](docs/guide/content-types.md#schema-changes)). A migration already run is not run again; one not yet run on an environment, with a mistyped name, now fails there: correct the name.
+
 ## 0.8.0
 
 1. **Kami's Scheduled tasks are declared by `Kami::schedule()`.** Kami no longer registers `kami:sitemap` on Laravel's scheduler by itself, and `kami:install` no longer rebuilds a stale sitemap on each deploy. Add the line to `routes/console.php`, as the starter kit now does, or the sitemap stays stale once built:
