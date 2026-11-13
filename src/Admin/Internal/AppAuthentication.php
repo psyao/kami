@@ -45,11 +45,15 @@ final class AppAuthentication extends FilamentAppAuthentication
     private function skipCodeOnRecovery(Action $action): Action
     {
         // ponytail: while `filamentphp/filament` validates both fields; V1 drops it once Filament's `code` rule skips a recovery attempt.
-        // Filament's schema is an array of components, adjusted in place: the action's own schema keeps the same objects.
+        // Filament's schema is a flat array of components, adjusted in place: the action's own schema keeps the same objects. Built from a closure
+        // or nested in a layout, the `code` field would go unfound and this a no-op: the Disable tests in `MfaTest` would fail.
+        // Without recovery the recovery field is hidden and unvalidated, so the `code` must stay validated, as Filament's `required` has it.
+        $isRecoverable = $this->isRecoverable();
+
         foreach ($action->getSchema(Schema::make())?->getComponents(withActions: false, withHidden: true) ?? [] as $component) {
             if ($component instanceof OneTimeCodeInput && $component->getName() === 'code') {
                 $component
-                    ->dehydrated(fn (Get $get): bool => $get('useRecoveryCode') !== true || blank($get('recoveryCode')))
+                    ->dehydrated(fn (Get $get): bool => ! $isRecoverable || $get('useRecoveryCode') !== true || blank($get('recoveryCode')))
                     ->validatedWhenNotDehydrated(false);
             }
         }

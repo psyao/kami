@@ -201,6 +201,24 @@ it('ignores a wrong code left in the Disable form once a recovery code is used, 
         ->and(array_column(auditEvents(), 'event'))->toBe(['kami.mfa.recovery-used', 'kami.mfa.disabled']);
 });
 
+it('still checks the code in the Disable form once the recovery field shows, if no recovery code is typed', function (?string $code, bool $disabled) {
+    $user = mfaUser('editor', ['first-code']);
+    $this->actingAs($user);
+    Filament::setCurrentPanel('admin');
+
+    $page = Livewire::test(EditProfile::class)->callAction(
+        TestAction::make('disableAppAuthentication')->schemaComponent(schema: 'content'),
+        ['password' => 'secret-password', 'code' => $code === 'valid' ? totp() : $code, 'useRecoveryCode' => true, 'recoveryCode' => null],
+    );
+
+    $disabled ? $page->assertHasNoFormErrors() : $page->assertHasFormErrors(['code']);
+    expect(DB::table('kami_user_mfa')->count())->toBe($disabled ? 0 : 1);
+})->with([
+    'a valid code' => ['valid', true],
+    'a wrong code' => ['000000', false],
+    'no code' => [null, false],
+]);
+
 it('refuses a wrong recovery code in the Disable form, spending none', function () {
     $user = mfaUser('editor', ['first-code', 'second-code']);
     $this->actingAs($user);
