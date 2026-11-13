@@ -639,6 +639,8 @@ public function up(): void
 | `dropType('news')` | Deletes the table, the Entries, their Translations, Paths and links, including other types' links to them. |
 | `dropLocale('de')` | Deletes the Locale's Translations, Field values, links and Paths. |
 
+`renameField`, `makeTranslatable` and `makeShared` refuse a name that is neither a column of the type's table, a declared relation Field (for a rename, the new name, as the code is already renamed), nor a handle the type's Entries hold links under: a mistyped name fails the migration before it is recorded, rather than passing with nothing done. On a type with no Entry they pass, as there is nothing to move, so a fresh database still runs a migration whose relation Field was renamed since.
+
 `makeShared` and `makeTypeShared` check every Entry first, and throw, naming the Entry, while another Locale holds something else, or the kept Locale nothing; nothing is written then. Pass `discardOthers: true` to lose it. A `keep` of `'*'`, or of a Locale nothing holds, is refused either way. Links compare in pick order, json values whatever the order of their keys.
 
 `dropType` and `dropLocale` are final, and refuse a type or Locale still declared: remove it from `config/kami.php` in the same change. An Entry that `dropLocale` or `discardOthers: true` leaves with no Translation stays, answering nowhere, until one is written.

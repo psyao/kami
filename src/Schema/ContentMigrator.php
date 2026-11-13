@@ -82,6 +82,9 @@ final class ContentMigrator
             throw new InvalidArgumentException("{$table}.{$from} cannot become {$to}: that column already exists.");
         }
 
+        // The declaration is the code the migration ships with, already renamed.
+        self::refuseUnknown($type, $from, declaredAs: $to);
+
         if (! Schema::hasColumn($table, $from)) {
             self::eachBatch($type, function (array $ids) use ($type, $from, $to): void {
                 if (DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $to)->exists()) {
@@ -157,6 +160,7 @@ final class ContentMigrator
      */
     public static function makeTranslatable(string $type, string $field): void
     {
+        self::refuseUnknown($type, $field);
         $table = self::table($type);
         $column = Schema::hasColumn($table, $field);
 
@@ -221,6 +225,7 @@ final class ContentMigrator
      */
     public static function makeShared(string $type, string $field, string $keep, bool $discardOthers = false): void
     {
+        self::refuseUnknown($type, $field);
         $table = self::table($type);
         $column = Schema::hasColumn($table, $field);
 
@@ -283,6 +288,32 @@ final class ContentMigrator
         });
 
         self::migrated('makeTypeShared', ['type' => $type, 'keep' => $keep, 'discard_others' => $discardOthers]);
+    }
+
+    /**
+     * A mistyped name would be recorded as migrated with nothing moved (#226). Links count too: the declaration is today's code, which a site several deploys behind replays older migrations against. A type with no Entry has nothing to move, and passes, so a fresh `migrate` replays a call on a relation Field renamed since.
+     *
+     * @throws InvalidArgumentException When the name is the row's own key column, or neither a column, a declared relation Field nor a handle the type's Entries link under.
+     */
+    private static function refuseUnknown(string $type, string $field, ?string $declaredAs = null): void
+    {
+        $table = self::table($type);
+
+        if (in_array($field, ['entry_id', 'locale'], true)) {
+            throw new InvalidArgumentException("{$table}.entry_id and {$table}.locale hold no Field.");
+        }
+
+        $entries = DB::table('kami_entries')->where('type', $type)->select('id');
+        $relations = collect(resolve(ContentTypes::class)->declared())->first(fn (ContentType $declaredType): bool => $declaredType->handle() === $type)?->relationFields() ?? [];
+
+        if (Schema::hasColumn($table, $field)
+            || in_array($declaredAs ?? $field, array_column($relations, 'handle'), true)
+            || ! (clone $entries)->exists()
+            || DB::table(self::REFERENCES)->where('field', $field)->whereIn('source_entry_id', $entries)->exists()) {
+            return;
+        }
+
+        throw new InvalidArgumentException("The type {$type} has no Field {$field}: {$table} has no such column, no link is held under {$field}, and no relation Field " . ($declaredAs ?? $field) . ' is declared.');
     }
 
     /**

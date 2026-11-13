@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
@@ -637,6 +638,60 @@ it('goes through more Entries than one batch holds', function () {
 
     expect(DB::table('kami_type_memo')->where(['locale' => 'fr', 'summary' => 'Partout'])->count())->toBe(501)
         ->and(DB::table('kami_type_memo')->where('locale', '*')->whereNotNull('summary')->count())->toBe(0);
+});
+
+describe('an unknown Field', function () {
+    it('fails the migration before it is recorded, naming the type and the Field', function (string $call) {
+        ($this->declare)(Text::make('summary'), Entries::make('related')->of(Memo::class));
+        memoRow($entry = memo(), 'fr', ['summary' => 'Bonjour']);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::{$call};"))->toThrow(InvalidArgumentException::class, 'The type memo has no Field sumary')
+            ->and(DB::table('migrations')->where('migration', 'like', '%_content')->exists())->toBeFalse()
+            ->and(DB::table('kami_audit_events')->exists())->toBeFalse()
+            ->and(column($entry, 'summary'))->toBe(['fr' => 'Bonjour']);
+    })->with([
+        "renameField('memo', 'sumary', 'abstract')",
+        "makeShared('memo', 'sumary', keep: 'fr')",
+        "makeTranslatable('memo', 'sumary')",
+    ]);
+
+    it('takes a declared relation Field holding no link yet, under its new name for a rename', function (string $call) {
+        ($this->declare)(Text::make('summary'), Entries::make('related')->of(Memo::class));
+        memo();
+
+        ($this->inMigration)("ContentMigrator::{$call};");
+
+        expect(DB::table('migrations')->where('migration', 'like', '%_content')->exists())->toBeTrue();
+    })->with([
+        "renameField('memo', 'see_also', 'related')",
+        "makeShared('memo', 'related', keep: 'fr')",
+        "makeTranslatable('memo', 'related')",
+    ]);
+
+    it('refuses the row\'s own key columns, which hold no Field', function (string $call) {
+        ($this->declare)(Text::make('summary'));
+        memoRow(memo(), 'fr', ['summary' => 'Bonjour']);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::{$call};"))->toThrow(InvalidArgumentException::class, 'hold no Field');
+    })->with([
+        "makeShared('memo', 'locale', keep: 'fr')",
+        "makeTranslatable('memo', 'entry_id')",
+    ]);
+
+    it('names the declaration a rename looks for', function () {
+        ($this->declare)(Text::make('summary'));
+        memo();
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameField('memo', 'relatd', 'see_also');"))->toThrow(InvalidArgumentException::class, 'no relation Field see_also is declared');
+    });
+
+    it('passes on a type with no Entry, where there is nothing to move', function () {
+        ($this->declare)(Text::make('summary'));
+
+        ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'sumary');");
+
+        expect(DB::table('migrations')->where('migration', 'like', '%_content')->exists())->toBeTrue();
+    });
 });
 
 describe('what must not be lost', function () {
