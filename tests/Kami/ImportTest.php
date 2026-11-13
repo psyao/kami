@@ -179,6 +179,19 @@ it('names the source and the Legacy id of a failed item, and leaves nothing of i
     'a payload that is not UTF-8' => [['fr' => ['title' => "Sept \xB1"]]],
 ]);
 
+it('builds an item\'s values from a closure, and names the item when building them fails', function (): void {
+    $body = fn (string $html): Document => Document::fromHtml($html, RichText::make('body'));
+    $import = Import::start('Velox');
+    $one = $import->entry('velox.post', '1', Article::class, fn (): array => veloxPost('Un', ['body' => $body('<p>Un</p>'), 'status' => 'published']));
+
+    expect($one->body->text())->toBe('Un')
+        ->and(fn (): Entry => $import->entry('velox.post', '7', Article::class, fn (): array => veloxPost('Sept', ['body' => $body("Sept \xB1")])))
+        ->toThrow(RuntimeException::class, 'The import of [velox.post] item [7] failed: Unreadable HTML: not valid UTF-8.')
+        ->and(importAudit())->toEqual([
+            ['kami.import.failed', ['label' => 'Velox', 'created' => 1, 'updated' => 0, 'unchanged' => 0, 'item' => '[velox.post] item [7]', 'kami.entries.published' => 1]],
+        ]);
+});
+
 it('refuses an item with no Locale\'s values, for every type', function (string $type, array $installed): void {
     // A Singleton's or a Global Set's Entry, as `kami:install` creates it.
     if ($installed !== []) {

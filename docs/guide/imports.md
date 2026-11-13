@@ -30,7 +30,7 @@ final class ImportVelox extends Command
         try {
             DB::connection('velox')->table('posts')->orderBy('id')->chunk(200, function ($posts) use ($import, $body): void {
                 foreach ($posts as $post) {
-                    $import->entry('velox.post', (string) $post->id, Article::class, [
+                    $import->entry('velox.post', (string) $post->id, Article::class, fn (): array => [
                         'fr' => ['title' => $post->title_fr, 'slug' => $post->slug_fr, 'body' => Document::fromHtml($post->body_fr ?? '', $body), 'author' => $post->author, 'status' => 'published', 'published_at' => $post->published_at],
                         'en' => ['title' => $post->title_en, 'slug' => $post->slug_en, 'body' => Document::fromHtml($post->body_en ?? '', $body), 'status' => 'published', 'published_at' => $post->published_at],
                     ], CarbonImmutable::parse($post->created_at, 'UTC'), CarbonImmutable::parse($post->updated_at, 'UTC'));
@@ -52,10 +52,11 @@ final class ImportVelox extends Command
 `entry()` takes the item's source, its Legacy id, its Content Type, its values and, optionally, its original creation and modification dates:
 
 - **Values by Locale.** Each Locale gets the values [`SaveEntry`](publishing.md) takes in it, the Site's default Locale first. [Shared Fields](multilingual.md) go in any of them, once. An untranslatable type takes one set of values, under any key. `published_at` is one of the values, read in UTC.
+- **Built in a closure.** The values can come as a closure that returns them, as the example does. `entry()` calls it as part of the item, so an exception it throws fails the item and names it, as below: `Document::fromHtml()` refusing a post's HTML names that post. Built outside, the same exception leaves the read loop before `entry()` sees the item, and `abort()` records no item.
 - **Through the core.** Each Locale is written by `SaveEntry`, so its validation, Paths, References and Content events apply as for any write, with a null actor. A publication dated in the past falls outside `kami:announce-publications`' window and is not announced.
 - **Original dates.** Once the values are saved, `Import` sets `created_at` and `updated_at` on the Entry and every Translation. Left out, they keep the time of the write. `SaveEntry` itself takes no dates, so the admin can never backdate an edit.
 - **Singletons and Global Sets.** `kami:install`, which a deploy runs before the importer, creates the Entry of each [Singleton and Global Set](content-types.md#singletons), `SiteSettings` included. The first import of such a type, with no key yet, adopts that Entry rather than create a second one: it writes over it, sets its dates, keys it and counts it as created. Left out, `created_at` keeps the time `kami:install` created it. Later runs replay it as any other item.
-- **Rich text.** A [RichText](content-types.md#rich-text) value goes in as the stored array or as a `Document`: an HTML string is refused. Turn HTML into a `Document` with `Document::fromHtml($html, $field)`, as the example does. Give it a Field that allows at least what the type declares (`->code()`, its heading levels): `fromHtml()` flattens the rest. Kami hashes a `Document` by its content.
+- **Rich text.** A [RichText](content-types.md#rich-text) value goes in as the stored array or as a `Document`: an HTML string is refused. Turn HTML into a `Document` with `Document::fromHtml($html, $field)`, as the example does, within the closure. Give it a Field that allows at least what the type declares (`->code()`, its heading levels): `fromHtml()` flattens the rest. Kami hashes a `Document` by its content.
 
 `entry()` returns the Entry as stored.
 

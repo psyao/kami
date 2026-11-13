@@ -241,7 +241,7 @@ class Psyao\Kami\Forms\SubmissionReceived::toMail() public function toMail(objec
 class Psyao\Kami\Forms\SubmissionReceived::via() public function via(object $notifiable): array
 class Psyao\Kami\Import\Import final class
 class Psyao\Kami\Import\Import::abort() public function abort(Throwable $exception): never
-class Psyao\Kami\Import\Import::entry() public function entry(string $source, string $legacyId, string $type, array $values, ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
+class Psyao\Kami\Import\Import::entry() public function entry(string $source, string $legacyId, string $type, Closure|array $values, ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Import\Import::find() public function find(string $source, string $legacyId): ?Psyao\Kami\Content\Entry
 class Psyao\Kami\Import\Import::finish() public function finish(): Psyao\Kami\Import\ImportReport
 class Psyao\Kami\Import\Import::media() public function media(string $source, string $legacyId, string $path, array $values = [], ?Carbon\CarbonInterface $createdAt = NULL, ?Carbon\CarbonInterface $updatedAt = NULL): Psyao\Kami\Media\Media

@@ -84,20 +84,26 @@ final class Import
      * @param  string  $source  The system and its id space, such as `wordpress.post`.
      * @param  string  $legacyId  The item's id in the source.
      * @param  class-string<ContentType>|string  $type  The Content Type, by class or handle.
-     * @param  array<string, array<string, mixed>>  $values  The values `SaveEntry` takes, by Locale, the default Locale first. Shared Fields go in any of them. An untranslatable type takes one, under any key.
+     * @param  array<string, array<string, mixed>>|(Closure(): array<string, array<string, mixed>>)  $values  The values `SaveEntry` takes, by Locale, the default Locale first. Shared Fields go in any of them. An untranslatable type takes one, under any key. A closure returning them fails the item, named, when it throws: a `Document::fromHtml()` that refuses the HTML, for instance.
      * @param  CarbonInterface|null  $createdAt  Set on the Entry and its Translations; the time of the first import when null.
      * @param  CarbonInterface|null  $updatedAt  Set on the Entry and its Translations; the time of the write when null.
      *
      * @throws RuntimeException When the item fails, naming the source and the Legacy id: the run stops there, and the item leaves nothing behind.
      * @throws LogicException When the run is over.
      */
-    public function entry(string $source, string $legacyId, string $type, array $values, ?CarbonInterface $createdAt = null, ?CarbonInterface $updatedAt = null): Entry
+    public function entry(string $source, string $legacyId, string $type, array | Closure $values, ?CarbonInterface $createdAt = null, ?CarbonInterface $updatedAt = null): Entry
     {
         $this->refuseOver();
 
-        // Before the checksum and any save: a Singleton's installed Entry would otherwise pass as the item, with nothing written.
-        if ($values === []) {
-            $this->fail("[{$source}] item [{$legacyId}]", new InvalidArgumentException('An item holds the values of one Locale at least.'));
+        try {
+            $values = $values instanceof Closure ? $values() : $values;
+
+            // Before the checksum and any save: a Singleton's installed Entry would otherwise pass as the item, with nothing written.
+            if ($values === []) {
+                throw new InvalidArgumentException('An item holds the values of one Locale at least.');
+            }
+        } catch (Throwable $exception) {
+            $this->fail("[{$source}] item [{$legacyId}]", $exception);
         }
 
         $dates = $this->dates($createdAt, $updatedAt);
