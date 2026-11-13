@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Lang;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\AuditEventResource\ListAuditEvents;
+use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
 use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Admin\Internal\MediaResource\ListMedia;
 use Psyao\Kami\Admin\Internal\SubmissionResource\ListSubmissions;
@@ -17,7 +18,8 @@ uses(RefreshDatabase::class);
 // Filament title-cases a Resource's label by default: "Audit Log", "Journal D’audit" (#387).
 it('titles every Kami Resource as its label is translated, without title-casing it', function (string $locale, string $page, string $title) {
     config(['kami.forms' => [ContactForm::class]]);
-    // A site's multi-word type label, which Filament would turn into "Blog Posts".
+    // A site's multi-word type label, which Filament would turn into "Blog Posts"; loaded first, so the Workbench's other lines stay.
+    Lang::load('*', 'kami-types', $locale);
     Lang::addLines(['kami-types.article.plural' => $locale === 'fr' ? 'Billets du blog' : 'Blog posts'], $locale);
     app()->setLocale($locale);
     signInWith();
@@ -34,4 +36,7 @@ it('titles every Kami Resource as its label is translated, without title-casing 
     ['fr', ListMedia::class, 'Médias'],
     ['en', ListEntries::class, 'Blog posts'],
     ['fr', ListEntries::class, 'Billets du blog'],
+    // Filament puts the singular mid-sentence: the site writes it in lower case, as the Workbench does (#588).
+    ['en', CreateEntry::class, 'Create article'],
+    ['fr', CreateEntry::class, 'Créer article'],
 ]);

@@ -119,8 +119,9 @@ final class MakeTypeCommand extends Command
 
     private function printNextSteps(string $class, string $handle, string $base): void
     {
-        $label = Str::headline(class_basename($class));
-        $labels = is_a($base, Singleton::class, true) ? "['label' => '{$label}']" : "['label' => '{$label}', 'plural' => '" . Str::plural($label) . "']";
+        // A Singleton's label titles its navigation and Entry; another type's is put mid-sentence by Filament, its plural titles the list.
+        $label = Str::ucfirst(Str::lower(Str::headline(class_basename($class))));
+        $labels = is_a($base, Singleton::class, true) ? "['label' => '{$label}']" : "['label' => '" . Str::lower($label) . "', 'plural' => '" . Str::plural($label) . "']";
 
         $this->line('Add it to <comment>types</comment> in config/kami.php:');
         $this->line("    {$class}::class,");

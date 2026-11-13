@@ -23,7 +23,7 @@ it('builds a page with a tab, a condition and a Term created from its picker, an
         ->click('internal:role=tab[name="Story"s]')
         ->fill('[id="form.story"]', 'Une histoire')
         ->click('internal:role=tab[name="Details"s]')
-        ->click('[aria-label="Create a Tag"]')
+        ->click('[aria-label="Create a tag"]')
         ->fill('internal:role=dialog >> internal:role=textbox', 'Laravel'), admin: true)
         ->press('internal:role=dialog >> internal:role=button[name="Create"s]')
         ->assertSee('Laravel')

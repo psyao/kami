@@ -38,7 +38,7 @@ it('prints the lines a site adds elsewhere, and the view only for a type with a 
     $this->artisan('kami:make:type', ['name' => 'NewsItem'])
         ->expectsOutputToContain($this->app->getNamespace() . 'Content\NewsItem::class,')
         ->expectsOutputToContain('php artisan kami:make:migration news_item')
-        ->expectsOutputToContain("'news_item' => ['label' => 'News Item', 'plural' => 'News Items'],")
+        ->expectsOutputToContain("'news_item' => ['label' => 'news item', 'plural' => 'News items'],")
         ->expectsOutputToContain('fields.<field>.label')
         ->expectsOutputToContain('resources/views/kami/news_item.blade.php')
         ->expectsOutputToContain('php artisan kami:install')
@@ -49,9 +49,9 @@ it('prints the lines a site adds elsewhere, and the view only for a type with a 
         ->expectsOutputToContain('resources/views/kami/home.blade.php')
         ->assertSuccessful();
 
-    $this->artisan('kami:make:type', ['name' => 'Footer', '--global-set' => true])
-        ->expectsOutputToContain("'footer' => ['label' => 'Footer'],")
-        ->doesntExpectOutputToContain('resources/views/kami/footer.blade.php')
+    $this->artisan('kami:make:type', ['name' => 'SiteFooter', '--global-set' => true])
+        ->expectsOutputToContain("'site_footer' => ['label' => 'Site footer'],")
+        ->doesntExpectOutputToContain('resources/views/kami/site_footer.blade.php')
         ->assertSuccessful();
 });
 

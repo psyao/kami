@@ -221,7 +221,7 @@ return [
     ],
 
     'media' => [
-        'label' => 'Media item',
+        'label' => 'media item',
         'plural_label' => 'Media',
         'columns' => [
             'thumbnail' => 'Preview',
@@ -295,7 +295,7 @@ return [
     ],
 
     'submissions' => [
-        'label' => 'Submission',
+        'label' => 'submission',
         'plural_label' => 'Submissions',
         'unread' => 'Unread',
         'message' => 'Message',
@@ -324,7 +324,7 @@ return [
     ],
 
     'audit' => [
-        'label' => 'Audit event',
+        'label' => 'audit event',
         'plural_label' => 'Audit log',
         'columns' => [
             'occurred_at' => 'When',

@@ -683,12 +683,12 @@ A User sees a type only with its `view` Permission ([Users and roles](users-and-
 
 ### Labels
 
-Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration; the package ships those of [`SiteSettings`](#site-settings), which a site's file overrides. A missing key falls back to the humanised handle: `news_item` reads `News Item`, its plural `News Items`, and a Field with no `help` has no help text:
+Labels come from the site's `lang/<locale>/kami-types.php`, by handle, never from the declaration; the package ships those of [`SiteSettings`](#site-settings), which a site's file overrides. A missing key falls back to the humanised handle, in sentence case: `news_item` reads `News item`, its plural `News items`, and a Field with no `help` has no help text:
 
 ```php
 return [
     'article' => [
-        'label' => 'Article',
+        'label' => 'article',
         'plural' => 'Blog posts',
         'tabs' => ['details' => ['label' => 'Details']],
         'sections' => ['highlight' => ['label' => 'Highlight']],
@@ -701,7 +701,7 @@ return [
 ];
 ```
 
-The admin shows each label as written: "Blog posts" stays "Blog posts" in the page title and breadcrumbs, where Filament would title-case it.
+The admin shows each label as written: "Blog posts" stays "Blog posts" in the page title and breadcrumbs, where Filament would title-case it. Filament puts the singular `label` mid-sentence, as in "Create article", a modal's heading or an empty list's prompt, so write it in lower case where the language does; the dashboard capitalises it in its Type column. `plural` titles the list and the navigation, and starts with a capital. A [Singleton](#singletons)'s or Global Set's `label` keeps its capital: it titles the navigation and the Entry `kami:install` creates.
 
 The same strings are read in code through the type: `label()`, `pluralLabel()`, `fieldLabel('summary')`, `fieldHelp('summary')`, `optionLabel('kind', 'news')`, with `links.fields.url` for a sub-Field, `tabLabel('details')` and `sectionLabel('highlight')`. `kami:doctor` warns about each missing `label`, `plural`, Field or sub-Field `label`, `Select` option key and tab or section `label`, in the application's language and each of the Site's Locales; `help` stays optional. It also warns about a type with no `kami.<handle>` view that keeps the default `render()` ([Routing and rendering](routing-and-rendering.md#rendering)).
 

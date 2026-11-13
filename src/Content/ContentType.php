@@ -122,31 +122,31 @@ abstract class ContentType
     /** `kami-types.{handle}.tabs.{tab}.label`, or the humanised handle. */
     final public function tabLabel(string $tab): string
     {
-        return $this->translation("tabs.{$tab}.label") ?? Str::headline($tab);
+        return $this->translation("tabs.{$tab}.label") ?? $this->humanise($tab);
     }
 
     /** `kami-types.{handle}.sections.{section}.label`, or the humanised handle. */
     final public function sectionLabel(string $section): string
     {
-        return $this->translation("sections.{$section}.label") ?? Str::headline($section);
+        return $this->translation("sections.{$section}.label") ?? $this->humanise($section);
     }
 
     /** The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle. */
     final public function label(): string
     {
-        return $this->translation('label') ?? Str::headline($this->handle());
+        return $this->translation('label') ?? $this->humanise($this->handle());
     }
 
     /** `kami-types.{handle}.plural`, or the humanised handle in the plural. */
     final public function pluralLabel(): string
     {
-        return $this->translation('plural') ?? Str::plural(Str::headline($this->handle()));
+        return $this->translation('plural') ?? Str::plural($this->humanise($this->handle()));
     }
 
     /** `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`. */
     final public function fieldLabel(string $field): string
     {
-        return $this->translation("fields.{$field}.label") ?? Str::headline(Str::afterLast($field, '.'));
+        return $this->translation("fields.{$field}.label") ?? $this->humanise(Str::afterLast($field, '.'));
     }
 
     /** `kami-types.{handle}.fields.{field}.help`, or none. */
@@ -158,7 +158,7 @@ abstract class ContentType
     /** `kami-types.{handle}.fields.{field}.options.{option}`, or the humanised option key. */
     final public function optionLabel(string $field, string $option): string
     {
-        return $this->translation("fields.{$field}.options.{$option}") ?? Str::headline($option);
+        return $this->translation("fields.{$field}.options.{$option}") ?? $this->humanise($option);
     }
 
     /**
@@ -277,6 +277,12 @@ abstract class ContentType
         }
 
         return $items;
+    }
+
+    /** In sentence case, as Filament humanises its own: `news_item` reads `News item`. */
+    private function humanise(string $key): string
+    {
+        return Str::ucfirst(Str::lower(Str::headline($key)));
     }
 
     /** Display strings come from the site's translation files, never from the declaration (ADR 0007); the package's own types have theirs in the package. */

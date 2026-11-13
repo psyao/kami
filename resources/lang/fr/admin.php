@@ -295,7 +295,7 @@ return [
     ],
 
     'submissions' => [
-        'label' => 'Message reçu',
+        'label' => 'message reçu',
         'plural_label' => 'Messages reçus',
         'unread' => 'Non lu',
         'message' => 'Message',
@@ -324,7 +324,7 @@ return [
     ],
 
     'audit' => [
-        'label' => 'Événement d’audit',
+        'label' => 'événement d’audit',
         'plural_label' => 'Journal d’audit',
         'columns' => [
             'occurred_at' => 'Quand',
