@@ -170,6 +170,18 @@ it('moves a row by the keyboard buttons, within its page', function () {
     expect(orderedTitles())->toBe(['One', 'Three', 'Two']);
 });
 
+// Filament's French table strings lack these lines; Kami ships them (#589).
+it('names the keyboard buttons and announces a move in a French admin', function () {
+    [, $two] = projects(['One', 'Two']);
+    app()->setLocale('fr');
+
+    // The announcement after a move goes to Filament's JavaScript as a template, which fills in the title and position.
+    entriesTable('administrator')
+        ->call('toggleTableReordering')
+        ->assertSee(['Déplacer Two vers le haut', 'Two, position 2 sur 2.', ':label, maintenant en position :position sur :count.'])
+        ->assertDontSee(['Move Two up', 'position 2 of 2', 'moved to position']);
+});
+
 it('reorders one page of the table without touching the other rows', function () {
     $entries = projects(array_map(fn (int $n): string => "P{$n}", range(1, 6)));
     $page = entriesTable('administrator')->set('tableRecordsPerPage', 5)->call('toggleTableReordering');
