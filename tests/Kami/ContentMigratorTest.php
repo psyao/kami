@@ -668,6 +668,23 @@ describe('an unknown Field', function () {
         "makeTranslatable('memo', 'related')",
     ]);
 
+    it('refuses the row\'s own key columns, which hold no Field', function (string $call) {
+        ($this->declare)(Text::make('summary'));
+        memoRow(memo(), 'fr', ['summary' => 'Bonjour']);
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::{$call};"))->toThrow(InvalidArgumentException::class, 'hold no Field');
+    })->with([
+        "makeShared('memo', 'locale', keep: 'fr')",
+        "makeTranslatable('memo', 'entry_id')",
+    ]);
+
+    it('names the declaration a rename looks for', function () {
+        ($this->declare)(Text::make('summary'));
+        memo();
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameField('memo', 'relatd', 'see_also');"))->toThrow(InvalidArgumentException::class, 'no relation Field see_also is declared');
+    });
+
     it('passes on a type with no Entry, where there is nothing to move', function () {
         ($this->declare)(Text::make('summary'));
 
