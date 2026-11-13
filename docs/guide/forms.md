@@ -191,7 +191,7 @@ final class ContactForm extends Form
 
 Kami writes one delivery per channel, in the Submission's transaction, then tries each once the response is sent. A channel that fails is recorded with its error and never stops the others. `kami:forms:deliver`, which `Kami::schedule()` runs every 15 minutes, retries a failed delivery at its next run, so within 15 minutes, and leaves it once it has failed 5 times. It tries up to 50 deliveries per run, and starts none after 20 seconds, or after the budget left to the Tick running it if that is shorter, so that a mail server that hangs never holds a Tick past its budget. It then names the failed deliveries left waiting, and the time of its next run.
 
-Each attempt first claims its delivery, so a Submission is sent once even when `defer()` is still sending it while a Tick runs `kami:forms:deliver`. An attempt that PHP stops mid-send, out of time or memory, leaves its claim, and is retried once the claim is an hour old. A delivery is at least once: a mail server that accepted a mail but answered too late gets it again.
+Each attempt first claims its delivery, so a Submission is sent once even when `defer()` is still sending it while a Tick runs `kami:forms:deliver`. An attempt that PHP stops mid-send, out of time or memory, leaves its claim and no error: it is retried, and `kami:doctor` reports it, once the claim is an hour old. A delivery is at least once: a mail server that accepted a mail but answered too late gets it again.
 
 `kami:doctor` warns, as soon as an attempt has failed, about deliveries that wait for a retry, those abandoned, with the last error, and the Submissions of a Form no longer declared under `kami.forms`.
 

@@ -1109,10 +1109,9 @@ final readonly class Doctor
 
         // At once, but not while a sender holds it. An attempt counts as it is claimed: one stopped mid-send, as by max_execution_time,
         // leaves no error, and shows once its claim times out.
-        $attempted = Delivery::query()->where('attempts', '>', 0)->whereNot(fn (Builder $query): Builder => $query->sending());
         $states = [
-            'that failed and wait for a retry' => $attempted->clone()->pending(),
-            'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => $attempted->clone()->abandoned(),
+            'that failed and wait for a retry' => Delivery::query()->waiting(),
+            'abandoned after ' . Delivery::MAX_ATTEMPTS . ' attempts' => Delivery::query()->abandoned()->whereNot(fn (Builder $query): Builder => $query->sending()),
         ];
 
         foreach ($states as $state => $deliveries) {

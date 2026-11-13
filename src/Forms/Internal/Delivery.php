@@ -92,6 +92,17 @@ final class Delivery extends Model
         $query->pending()->whereNot(fn (Builder $query): Builder => $query->sending());
     }
 
+    /**
+     * Due after a failed attempt, or one PHP stopped: what `kami:forms:deliver` names as waiting and `kami:doctor` reports.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function waiting(Builder $query): void
+    {
+        $query->due()->where('attempts', '>', 0);
+    }
+
     /** @return BelongsTo<Submission, $this> */
     public function submission(): BelongsTo
     {

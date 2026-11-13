@@ -256,6 +256,7 @@ it('leaves a delivery being sent elsewhere until its claim is an hour old, as wh
 it('sends once a Submission whose deferred send outlasts a minute while kami:forms:deliver runs beside it', function () {
     config(['kami.forms' => [HangingForm::class]]);
     HangingChannel::$sends = 0;
+    $this->travelTo('2026-11-09 10:00:00');
 
     storedSubmission('hanging', ['message' => 'Hi']);
     deferred();
@@ -297,9 +298,13 @@ it('starts no delivery past the remaining budget of the Tick that runs kami:form
     Tick::run('cli', 10);
 
     $this->travelTo('2026-11-09 10:05:00');
-    expect(Tick::run('cli', 10))->toBe('OK')
-        ->and(DB::table('kami_form_deliveries')->whereNotNull('delivered_at')->count())->toBe(1);
-    File::deleteDirectory($storage);
+
+    try {
+        expect(Tick::run('cli', 10))->toBe('OK')
+            ->and(DB::table('kami_form_deliveries')->whereNotNull('delivered_at')->count())->toBe(1);
+    } finally {
+        File::deleteDirectory($storage);
+    }
 });
 
 it('starts no delivery once kami:forms:deliver has spent 20 seconds, leaving the rest to the next run', function () {

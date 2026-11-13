@@ -45,7 +45,7 @@ final class DeliverSubmissionsCommand extends Command
             $delivered += (int) $sent;
         }
 
-        $waiting = Delivery::query()->due()->where('attempts', '>', 0)->count();
+        $waiting = Delivery::query()->waiting()->count();
         $this->components->info("Delivered {$delivered} of {$tried} pending " . Str::plural('delivery', $tried) . '.'
             . ($outOfTime ? ' Out of time: the rest waits for the next run.' : '')
             . ($waiting > 0 ? " {$waiting} waiting for " . ($waiting === 1 ? 'its' : 'their') . " next try {$this->nextRun()}." : ''));
