@@ -101,7 +101,7 @@ Entry::query()->ofType(Project::class)->ordered()->get();
 
 A new Entry goes last. `SaveEntry` also takes a `position`, for seeders and imports; Entries sharing one read in creation order, so a type made orderable later starts in creation order. A type that is not orderable refuses a `position`. An Entry in the [Trash](#the-trash) keeps its Position, as it keeps its Paths: a new Entry goes after it, a reorder leaves it its place, and restoring it brings it back there.
 
-In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move by dragging, or with the move buttons Filament offers to assistive technology, within the page shown; focus stays on the moved row. Filament keeps those buttons out of the Tab order, so a keyboard alone does not reach them yet. To move a row further, show more rows per page, or set its `position` in code.
+In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move within the page shown, by dragging or with each row's up and down buttons, which Tab reaches and Enter presses; focus stays on the moved row. To move a row further, show more rows per page, or set its `position` in code.
 
 ### Hierarchical types
 
@@ -773,7 +773,7 @@ final class ProjectTable extends EntryTable
 Four things to know:
 
 - A cell links to the Entry, and an empty one is a link with no name for assistive technology. Give a column that may be empty a `default()`, or `disabledClick()` to make no link. Filament's `placeholder()` is too pale to meet the contrast minimum.
-- Replacing a list drops what `parent::` gave it unless you put it back: the title and state columns, and the hidden **Created by** and **Last modified by**, from `parent::columns()`.
+- Replacing a list drops what `parent::` gave it unless you put it back: the title and state columns, and the hidden **Created by** and **Last modified by**, from `parent::columns()`. Each row's selection checkbox takes its name from the column named `title`: without one, a screen reader announces the Entry's ULID.
 - Likewise **Edit**, **Duplicate**, **Move to Trash**, **Restore** and, on a hierarchical type, **Children** from `parent::recordActions()`, the bulk actions from `parent::toolbarActions()`, and the Trash filter from `parent::filters()`.
 - The level shown, the manual order and their Permissions stay Kami's, whatever the class returns. Reordering writes through Kami's own action, so Filament's `beforeReordering()` and `afterReordering()` are neither reachable here nor called.
 
