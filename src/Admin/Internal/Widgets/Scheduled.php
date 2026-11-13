@@ -48,7 +48,7 @@ final class Scheduled extends TableWidget
             ->emptyStateHeading(__('kami::admin.widgets.scheduled.empty'))
             ->columns([
                 TextColumn::make('title')->label(__('kami::admin.fields.title'))->default(__('kami::admin.fields.untitled')),
-                TextColumn::make('type')->label(__('kami::admin.widgets.type'))->state(fn (Translation $record): string => EntryResource::withConfiguration($record->entry->type, EntryResource::getModelLabel(...))),
+                TextColumn::make('type')->label(__('kami::admin.widgets.type'))->state(fn (Translation $record): string => Str::ucfirst(EntryResource::withConfiguration($record->entry->type, EntryResource::getModelLabel(...)))),
                 TextColumn::make('locale')->label(__('kami::admin.search.locale'))->state(fn (Translation $record): ?string => $record->locale === '*' ? null : Str::upper($record->locale)),
                 TextColumn::make('published_at')->label(__('kami::admin.fields.published_at'))->dateTime(timezone: Site::current()->timezone),
             ])

@@ -106,7 +106,7 @@ it('fails on an invalid declaration, naming the class and the handle', function 
     'Field handle of an Entry method' => ['declared', [Text::make('url')], [Declared::class], 'Declared: the Field handle "url" names a method of Psyao\\Kami\\Content\\Entry'],
 ]);
 
-it('reads labels from kami-types by handle, or humanises the handle', function () {
+it('reads labels from kami-types by handle, or humanises the handle in sentence case', function () {
     app('translator')->addLines([
         'kami-types.news_item.label' => 'Story',
         'kami-types.news_item.fields.cover_alt.label' => 'Alternative text',
@@ -116,10 +116,11 @@ it('reads labels from kami-types by handle, or humanises the handle', function (
     $type = new Declared;
 
     expect($type->label())->toBe('Story')
-        ->and($type->pluralLabel())->toBe('News Items')
+        ->and($type->pluralLabel())->toBe('News items')
         ->and($type->fieldLabel('cover_alt'))->toBe('Alternative text')
         ->and($type->fieldHelp('cover_alt'))->toBe('Describe the image.')
         ->and($type->fieldLabel('lead'))->toBe('Lead')
+        ->and($type->fieldLabel('starts_on'))->toBe('Starts on')
         ->and($type->fieldHelp('lead'))->toBeNull();
 });
 
@@ -128,7 +129,7 @@ it('reads an option\'s label from kami-types by key, or humanises the key', func
     $type = new Declared;
 
     expect($type->optionLabel('kind', 'news'))->toBe('Latest news')
-        ->and($type->optionLabel('kind', 'long_read'))->toBe('Long Read');
+        ->and($type->optionLabel('kind', 'long_read'))->toBe('Long read');
 });
 
 it('reserves every Translation attribute as a Field handle', function () {

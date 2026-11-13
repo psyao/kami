@@ -5,7 +5,7 @@ declare(strict_types=1);
 // The Workbench Site's labels, as a site's lang/en/kami-types.php gives them.
 return [
     'article' => [
-        'label' => 'Article',
+        'label' => 'article',
         'plural' => 'Articles',
         'fields' => [
             'summary' => ['label' => 'Summary', 'help' => 'Two sentences at most.'],
@@ -23,7 +23,7 @@ return [
         ],
     ],
     'page' => [
-        'label' => 'Page',
+        'label' => 'page',
         'plural' => 'Pages',
         'fields' => [
             'body' => ['label' => 'Body'],
@@ -43,25 +43,25 @@ return [
         ],
     ],
     'testimonial' => [
-        'label' => 'Testimonial',
+        'label' => 'testimonial',
         'plural' => 'Testimonials',
         'fields' => [
             'quote' => ['label' => 'Quote'],
         ],
     ],
     'label' => [
-        'label' => 'Label',
+        'label' => 'label',
         'plural' => 'Labels',
         'fields' => [
             'colour' => ['label' => 'Colour'],
         ],
     ],
     'tag' => [
-        'label' => 'Tag',
+        'label' => 'tag',
         'plural' => 'Tags',
     ],
     'project' => [
-        'label' => 'Project',
+        'label' => 'project',
         'plural' => 'Projects',
         'tabs' => [
             'details' => ['label' => 'Details'],

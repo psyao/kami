@@ -95,11 +95,11 @@ it('accepts a target declared after the Field, in another tab', function () {
     expect(fn () => $this->artisan('kami:doctor')->run())->not->toThrow(InvalidArgumentException::class);
 });
 
-it('reads tab and section titles from kami-types by handle, or humanises the handle', function () {
+it('reads tab and section titles from kami-types by handle, or humanises the handle in sentence case', function () {
     expect((new Project)->tabLabel('details'))->toBe('Details')
         ->and((new Project)->sectionLabel('highlight'))->toBe('Highlight')
-        ->and((new Project)->tabLabel('long_story'))->toBe('Long Story')
-        ->and((new Project)->sectionLabel('long_story'))->toBe('Long Story');
+        ->and((new Project)->tabLabel('long_story'))->toBe('Long story')
+        ->and((new Project)->sectionLabel('long_story'))->toBe('Long story');
 });
 
 it('warns about each missing tab and section title', function (array $declared, string $key) {
