@@ -105,6 +105,12 @@ return [
         'sent_body' => 'Si un compte utilise cette adresse, nous lui avons envoyé un lien pour réinitialiser son mot de passe.',
     ],
 
+    'set_password' => [
+        'title' => 'Définissez votre mot de passe',
+        'submit' => 'Définir le mot de passe',
+        'done' => 'Votre mot de passe est défini.',
+    ],
+
     'users' => [
         'created_by' => 'Créé par :name',
         'last_modified_by' => 'Modifié en dernier par :name',

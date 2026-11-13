@@ -9,6 +9,7 @@ use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
 use Filament\Auth\Pages\Login as FilamentLogin;
 use Filament\Auth\Pages\PasswordReset\RequestPasswordReset as FilamentRequestPasswordReset;
+use Filament\Auth\Pages\PasswordReset\ResetPassword as FilamentResetPassword;
 use Filament\AvatarProviders\UiAvatarsProvider;
 use Filament\Contracts\Plugin;
 use Filament\Enums\GlobalSearchPosition;
@@ -47,6 +48,7 @@ use Psyao\Kami\Admin\Internal\NoIndex;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RequireMfa;
+use Psyao\Kami\Admin\Internal\ResetPassword;
 use Psyao\Kami\Admin\Internal\RichTextInput;
 use Psyao\Kami\Admin\Internal\SubmissionResource;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
@@ -247,16 +249,21 @@ final class KamiPlugin implements Plugin
             $panel->profile();
         }
 
-        // Kami's sign-in and reset request pages in place of Filament's, unless the host set its own: this runs mid-chain, before a later `->login()`
+        // Kami's sign-in and reset pages in place of Filament's, each unless the host set its own: this runs mid-chain, before a later `->login()`
         // or `->passwordReset()`, and `boot()` after the routes, so the swap waits for the panel's route callbacks, which Filament runs just before reading the pages' classes.
-        $panel->livewireComponents([Login::class, RequestPasswordReset::class]);
+        $panel->livewireComponents([Login::class, RequestPasswordReset::class, ResetPassword::class]);
         $panel->routes(function (Panel $panel): void {
             if ($panel->getLoginRouteAction() === FilamentLogin::class) {
                 $panel->login(Login::class);
             }
 
-            if ($panel->getRequestPasswordResetRouteAction() === FilamentRequestPasswordReset::class) {
-                $panel->passwordReset(RequestPasswordReset::class, $panel->getResetPasswordRouteAction());
+            if ($panel->hasPasswordReset()) {
+                $request = $panel->getRequestPasswordResetRouteAction();
+                $reset = $panel->getResetPasswordRouteAction();
+                $panel->passwordReset(
+                    $request === FilamentRequestPasswordReset::class ? RequestPasswordReset::class : $request,
+                    $reset === FilamentResetPassword::class ? ResetPassword::class : $reset,
+                );
             }
         });
 

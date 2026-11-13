@@ -116,6 +116,10 @@ final class EntryResource extends FilamentResource
     #[\Override]
     protected static ?string $model = Entry::class;
 
+    /** Its label as translated: Filament would title-case it. */
+    #[\Override]
+    protected static bool $hasTitleCaseModelLabel = false;
+
     #[\Override]
     protected static ?string $configurationClass = ResourceConfiguration::class;
 

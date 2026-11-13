@@ -30,6 +30,10 @@ class UserResource extends FilamentResource
     #[\Override]
     protected static ?string $model = User::class;
 
+    /** Its label as translated: Filament would title-case it. */
+    #[\Override]
+    protected static bool $hasTitleCaseModelLabel = false;
+
     #[\Override]
     protected static string | BackedEnum | null $navigationIcon = Heroicon::OutlinedUsers;
 

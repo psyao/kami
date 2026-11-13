@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Workbench\App\Filament\UserResource;
 
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Js;
 use Illuminate\Support\Str;
 use Psyao\Kami\Admin\SetPasswordLink;
 use Workbench\App\Filament\UserResource;
@@ -45,7 +47,13 @@ class CreateUser extends CreateRecord
             ->success()
             ->persistent()
             ->title(__('users.link.title', ['name' => $user->name]))
-            ->body(__('users.link.body', ['url' => $url, 'minutes' => $minutes]));
+            ->body(__('users.link.body', ['url' => $url, 'minutes' => $minutes]))
+            // The URL runs to some 230 characters: one click copies it, as Filament copies recovery codes.
+            ->actions([
+                Action::make('copy')
+                    ->label(__('users.link.copy'))
+                    ->alpineClickHandler('window.navigator.clipboard.writeText(' . Js::from($url) . ').then(() => $tooltip(' . Js::from(__('users.link.copied')) . ', { theme: $store.theme }))'),
+            ]);
     }
 
     /** In place of Filament's "Created". */

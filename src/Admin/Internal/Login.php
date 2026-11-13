@@ -28,6 +28,17 @@ final class Login extends FilamentLogin
      */
     public function authenticate(): ?LoginResponse
     {
+        // Filament validates a filled `code` even once the recovery field shows, after the recovery rule has spent its code: a wrong code left there
+        // would refuse the sign-in yet use the recovery code up (#384). A typed recovery code alone decides; with none, the `code` still signs in.
+        // ponytail: while `filamentphp/filament` validates both fields; V1 drops it once Filament's `code` rule skips a recovery attempt.
+        if (is_array($challenge = $this->data['multiFactor'] ?? null)) {
+            foreach ($challenge as $provider => $state) {
+                if (is_array($state) && ($state['useRecoveryCode'] ?? false) === true && filled($state['recoveryCode'] ?? null)) {
+                    $this->data['multiFactor'][$provider] = [...$state, 'code' => null];
+                }
+            }
+        }
+
         try {
             return parent::authenticate();
         } catch (ValidationException $exception) {

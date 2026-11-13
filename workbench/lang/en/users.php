@@ -11,5 +11,7 @@ return [
     'link' => [
         'title' => 'Send :name this link to set their password',
         'body' => ':url — it works once and expires in :minutes minutes. Past that, they can ask for a new one from the sign-in page.',
+        'copy' => 'Copy link',
+        'copied' => 'Copied',
     ],
 ];
