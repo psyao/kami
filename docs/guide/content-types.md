@@ -101,7 +101,7 @@ Entry::query()->ofType(Project::class)->ordered()->get();
 
 A new Entry goes last. `SaveEntry` also takes a `position`, for seeders and imports; Entries sharing one read in creation order, so a type made orderable later starts in creation order. A type that is not orderable refuses a `position`. An Entry in the [Trash](#the-trash) keeps its Position, as it keeps its Paths: a new Entry goes after it, a reorder leaves it its place, and restoring it brings it back there.
 
-In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move by dragging, or with the move buttons Filament offers to assistive technology, within the page shown; focus stays on the moved row. Filament keeps those buttons out of the Tab order, so a keyboard alone does not reach them yet. To move a row further, show more rows per page, or set its `position` in code.
+In the admin, its table lists Entries by Position, and **Reorder records** appears to a User holding the type's `reorder` Permission. Rows move within the page shown, by dragging or with each row's up and down buttons, which Tab reaches and Enter presses; focus stays on the moved row. To move a row further, show more rows per page, or set its `position` in code.
 
 ### Hierarchical types
 

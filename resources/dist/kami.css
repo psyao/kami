@@ -7,3 +7,77 @@
     margin-block: -0.375rem;
     margin-inline: -0.375rem -0.5rem;
 }
+
+/* A reorderable table's move buttons, which Filament hides in `fi-sr-only` (filamentphp/filament#20713), shown in reorder mode beside the drag handle:
+   a keyboard user sees what Tab reaches (WCAG 2.4.7), and a pointer has an alternative to dragging (WCAG 2.5.7). `kami.js` puts them in the Tab order (WCAG 2.1.1).
+   ponytail: tied to Filament's reorder markup, with `tests/Browser/EntryListTest.php` as its alarm; it goes once Filament shows and reaches them itself. */
+.fi-sr-only:has(> [data-table-reorder-direction]) {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    width: auto;
+    height: auto;
+    margin: 0;
+    vertical-align: middle;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+}
+
+.fi-ta-cell:has([data-table-reorder-direction]) {
+    white-space: nowrap;
+
+    & > .fi-ta-reorder-handle {
+        display: inline-flex;
+        vertical-align: middle;
+    }
+}
+
+[data-table-reorder-direction] {
+    display: inline-grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    color: var(--color-gray-500);
+    font-size: 0;
+}
+
+/* An arrow drawn for the eye; the button keeps Filament's text, "Move … up", as its name. */
+[data-table-reorder-direction]::before {
+    content: "↑" / "";
+    font-size: 1rem;
+    line-height: 1;
+}
+
+[data-table-reorder-direction="down"]::before {
+    content: "↓" / "";
+}
+
+[data-table-reorder-direction]:enabled:hover {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-700);
+}
+
+[data-table-reorder-direction]:focus-visible {
+    outline: 2px solid var(--color-primary-600);
+    outline-offset: 2px;
+}
+
+[data-table-reorder-direction]:disabled {
+    opacity: 0.5;
+}
+
+.dark [data-table-reorder-direction] {
+    color: var(--color-gray-400);
+}
+
+.dark [data-table-reorder-direction]:enabled:hover {
+    background-color: rgb(255 255 255 / 0.05);
+    color: var(--color-gray-200);
+}
+
+.dark [data-table-reorder-direction]:focus-visible {
+    outline-color: var(--color-primary-500);
+}

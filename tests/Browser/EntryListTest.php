@@ -33,7 +33,7 @@ it('shows a site\'s own form and table', function () {
         ->assertNoJavaScriptErrors();
 });
 
-it('keeps focus on the moved row\'s control after a keyboard move, and names the row', function () {
+it('moves a row with Tab and Enter alone, its control shown and focus kept', function () {
     $save = resolve(SaveEntry::class);
 
     foreach (['Premier', 'Second', 'Third'] as $title) {
@@ -44,18 +44,42 @@ it('keeps focus on the moved row\'s control after a keyboard move, and names the
     $page = signIn()
         ->navigate('/admin/projects')
         ->click('internal:role=button[name="Reorder records"i]');
+    $page->wait(1);
+    assertAxeClean($page, admin: true);
 
-    $page->script("document.querySelectorAll('[data-table-reorder-direction=up]')[2].focus()");
+    // From the toggle, Tab alone reaches the controls (WCAG 2.1.1); a row's disabled button is skipped.
+    $page->keys('internal:role=button[name="Finish reordering records"i]', 'Tab');
+
+    for ($i = 0; $i < 20 && $page->script($focused) !== 'Move Third up'; $i++) {
+        $page->keys(':focus', 'Tab');
+    }
+
+    $page->assertScript($focused, 'Move Third up');
+    // Shown, with a focus indicator (WCAG 2.4.7), and in reorder mode before any focus (WCAG 2.5.7).
+    $page->assertScript("document.activeElement.matches(':focus-visible') && document.activeElement.getBoundingClientRect().width > 1", true);
+    $page->assertScript("[...document.querySelectorAll('[data-table-reorder-direction]')].every((button) => button.checkVisibility() && button.getBoundingClientRect().width >= 24)", true);
+
     $page->keys(':focus', 'Enter');
     $page->wait(1);
     $page->assertScript($focused, 'Move Third up');
+    $page->assertScript("document.activeElement.matches(':focus-visible')", true);
     $page->assertScript("document.querySelector('[x-ref=tableReorderStatus]').textContent", 'Third moved to position 2 of 3.');
 
-    // Reaching the top disables the button pressed: its other one takes focus.
+    // Reaching the top disables the button pressed: its other one takes focus (WCAG 2.4.3).
     $page->keys(':focus', 'Enter');
     $page->wait(1);
     $page->assertScript($focused, 'Move Third down');
     $page->assertNoJavaScriptErrors();
+});
+
+it('names each selection checkbox with its row\'s title, whichever Locale holds it', function () {
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr');
+    resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Sketch'], locale: 'en');
+
+    assertAxeClean(signIn()->navigate('/admin/projects')->assertSee('Sketch'), admin: true)
+        ->assertVisible('internal:role=checkbox[name="Select/deselect item Esquisse for bulk actions."s]')
+        ->assertVisible('internal:role=checkbox[name="Select/deselect item Sketch for bulk actions."s]')
+        ->assertNoJavaScriptErrors();
 });
 
 it('writes in the rich text editor, and keeps a document holding a Block whole', function () {
