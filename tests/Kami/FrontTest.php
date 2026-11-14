@@ -6,6 +6,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\DeleteEntry;
@@ -146,18 +147,20 @@ it('runs the site\'s middleware on an Entry, after the kami group, on either mou
 })->with(['sessionless' => [false], 'with the session' => [true]]);
 
 // `route:cache` keeps the route's own middleware but neither the `kami` group nor its alias, which `KamiServiceProvider` declares at boot.
-it('keeps the site\'s middleware on an Entry read from a cached route table', function () {
+it('keeps the site\'s middleware on an Entry read from a cached route table', function (bool $session) {
     saveArticle();
-    Kami::routes(middleware: [MarksRendering::class]);
+    Kami::routes(session: $session, middleware: [MarksRendering::class]);
     foreach (Route::getRoutes() as $route) {
         $route->prepareForSerialization();
     }
     Route::setCompiledRoutes(Route::getRoutes()->compile());
 
     $this->get('/articles/hello-world')->assertOk()->assertHeader('X-Rendered-By', 'site');
-});
+})->with(['sessionless' => [false], 'with the session' => [true]]);
 
 it('keeps the site\'s middleware off the Tick, Conversions, the Form route, Preview links and the sitemap', function (bool $session, string $method, string $uri) {
+    // A table of its own: `Kami::routes()` leaves a `/sitemap.xml` already registered, as `beforeEach` did, untouched.
+    Route::setRoutes(new RouteCollection);
     Kami::routes(session: $session, middleware: [MarksRendering::class]);
 
     expect(Route::getRoutes()->match(Request::create($uri, $method))->gatherMiddleware())->not->toContain(MarksRendering::class);

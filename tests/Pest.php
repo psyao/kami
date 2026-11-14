@@ -62,6 +62,7 @@ function inertiaPage(bool $middleware = true): void
     View::addNamespace('inertia-fixture', dirname(__DIR__) . '/tests/Fixtures/Inertia');
 
     if ($middleware) {
+        // Replaces the routes the test registered: each one of Kami's takes the place of its earlier self.
         Kami::routes(middleware: [HandleInertiaRequests::class]);
     }
 

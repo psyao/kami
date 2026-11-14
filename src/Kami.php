@@ -31,12 +31,12 @@ use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 final class Kami
 {
     /**
-     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms.
+     * Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone.
      *
      * The fallback lets the site's own routes always win, in the `kami` middleware group. All run without the `web` group's session, cookies and CSRF, even when called inside it,
      * but the fallback and the form route under `$session`: they then join the `web` group, its CSRF check included, so the application's signed-in members stay signed in on Kami's pages, which the page cache never stores (ADR 0038).
      *
-     * `$middleware` runs on the pages only, after the `kami` group, as an Inertia site's `HandleInertiaRequests` does: never on the Tick, media, Preview links, the sitemap or the form route (ADR 0040).
+     * `$middleware` runs on the fallback only, after the `kami` group: never on the Tick, media, Preview links, the sitemap or the form route (ADRs 0038, 0040).
      *
      * @param  list<string>  $middleware
      */

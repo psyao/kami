@@ -26,7 +26,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 Kami::routes(middleware: [HandleInertiaRequests::class]);
 ```
 
-It runs on every Entry's page, after the `kami` group, on either mount and from a cached route table. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap and the form route never get it.
+It runs on every answer of Kami's fallback route, after the `kami` group, on either mount and from a cached route table: an Entry's page, but also the 404 of an address no Entry holds and the 301 or 410 of a former one. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap and the form route never get it. Without `session: true` there is no session to read: shared props must not read one, and Inertia's `errors` prop stays empty.
 
 Beside Entries, `Kami::routes()` answers `/kami/tick/{token}`, named `kami.tick`, for a host's planner, with no session either. It answers 404 until `KAMI_TICK_TOKEN` is set ([Scheduler](scheduler.md#on-shared-hosting)).
 
