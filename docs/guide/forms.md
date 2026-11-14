@@ -107,7 +107,7 @@ A refused Submission stores nothing. With no session, a reload of that page asks
 
 ## Protection
 
-The route checks, in this order:
+The route checks, in this order, the last four through `SubmitForm`, the action a [Livewire component](#from-a-livewire-component) calls too:
 
 1. **The origin.** A browser's `Sec-Fetch-Site` must be `same-origin`; a browser that sends no such header passes when its `Origin` is absent or the Site's. Otherwise: 403. No script can set these headers, so another site cannot make its visitors' browsers post to your Form.
 2. **The honeypot.** When the hidden field is filled, the answer is the normal success, back to the page or to the Site's home when the page is unknown, and nothing is stored or counted.
@@ -252,6 +252,53 @@ Give the form the texts the script shows, and add an empty status element after 
 - **Anything else**, a 403, a 429, a server error or no network: the status element shows `data-error`, and the visitor's input stays.
 - **While the request runs**, the submit button is disabled, so a second click sends nothing.
 - **Without JavaScript**, nothing changes: the form posts, and the page reloads. So does a form with no status element or no submit button: the script leaves it alone.
+
+## From a Livewire component
+
+A Livewire component of your own, on a page Kami renders, stores its Submissions through `Psyao\Kami\Forms\Actions\SubmitForm`, with the route's protection: the honeypot, the page, the throttle and validation, in the [same order](#protection). Its snapshot sits in a cached page that anyone can read, and a bot can post it back with forged headers, so a component that called `StoreSubmission` itself would skip the honeypot and the throttle.
+
+```php
+use Livewire\Component;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Forms\Actions\SubmitForm;
+
+final class Contact extends Component
+{
+    public Entry $entry;
+
+    public string $locale = 'fr';
+
+    public string $name = '';
+
+    public string $email = '';
+
+    public string $message = '';
+
+    public string $kami_website = '';
+
+    public bool $sent = false;
+
+    public function send(SubmitForm $submit): void
+    {
+        $this->resetErrorBag();
+        $submit->handle('contact', $this->only(['name', 'email', 'message', SubmitForm::HONEYPOT]), $this->entry, $this->locale);
+        $this->sent = true;
+    }
+
+    // render() …
+}
+```
+
+Mount it from the page's view with `<livewire:contact :entry="$entry" :locale="app()->getLocale()" />`, and give it a field `wire:model="kami_website"`, hidden as `<x-kami::form>` hides its own.
+
+`handle($form, $input, $entry, $locale)` takes the Form or its handle, the visitor's values with the honeypot's, the page and its Locale:
+
+- **Accepted.** It returns the stored `Submission`, in that Locale.
+- **Honeypot filled.** It returns `null`, storing and counting nothing: show the normal success, so a bot learns nothing.
+- **Refused by validation.** It throws Laravel's `ValidationException`: Livewire shows its errors through `$errors` and `@error`, in the page's Locale. `$this->resetErrorBag()` first clears the previous attempt's errors.
+- **The page is no longer visible** in that Locale: a 422. **Above the throttle**: a 429 with `Retry-After`. Both are `HttpException`s: Livewire answers its update with that status.
+
+The visitor's origin stays Livewire's to check: its update route runs your `web` group, whose CSRF check refuses a cross-site post. A controller of your own calls the action the same way, behind its own CSRF or origin check.
 
 ## Submissions
 

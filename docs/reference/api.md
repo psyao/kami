@@ -451,6 +451,15 @@ Stores a Submission of the current Site with a pending delivery per channel of i
 
 - `public function handle(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission`
 
+## `Psyao\Kami\Forms\Actions\SubmitForm`
+
+`final class`
+
+A visitor's Submission, checked as the Form route checks it, in this order: the honeypot, the page, the per-IP throttle, then the
+
+- `public const string HONEYPOT = 'kami_website'`: The honeypot's name: a field a person never sees, which a bot fills.
+- `public function handle(Psyao\Kami\Forms\Form|string $form, array $input, ?Psyao\Kami\Content\Entry $entry, string $locale): ?Psyao\Kami\Forms\Submission`
+
 ## `Psyao\Kami\Forms\Form`
 
 `abstract class`
