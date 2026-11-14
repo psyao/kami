@@ -214,6 +214,9 @@ class Psyao\Kami\Forms\Actions\DeleteSubmissions final class
 class Psyao\Kami\Forms\Actions\DeleteSubmissions::handle() public function handle(Traversable|array $submissions, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Forms\Actions\StoreSubmission final class
 class Psyao\Kami\Forms\Actions\StoreSubmission::handle() public function handle(Psyao\Kami\Forms\Form|string $form, array $data, string $locale, ?Psyao\Kami\Content\Entry $entry = NULL): Psyao\Kami\Forms\Submission
+class Psyao\Kami\Forms\Actions\SubmitForm final class
+class Psyao\Kami\Forms\Actions\SubmitForm::HONEYPOT public const string HONEYPOT = 'kami_website'
+class Psyao\Kami\Forms\Actions\SubmitForm::handle() public function handle(Psyao\Kami\Forms\Form|string $form, array $input, ?Psyao\Kami\Content\Entry $entry, string $locale): ?Psyao\Kami\Forms\Submission
 class Psyao\Kami\Forms\Events\SubmissionStored final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Forms\Events\SubmissionStored::$submission public protected(set) readonly Psyao\Kami\Forms\Submission $submission
 class Psyao\Kami\Forms\Events\SubmissionStored::__construct() public function __construct(Psyao\Kami\Forms\Submission $submission)

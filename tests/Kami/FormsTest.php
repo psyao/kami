@@ -10,10 +10,14 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
+use Livewire\Component;
+use Livewire\Livewire;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Forms\Actions\StoreSubmission;
+use Psyao\Kami\Forms\Actions\SubmitForm;
 use Psyao\Kami\Forms\Events\SubmissionStored;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Submission;
@@ -63,6 +67,37 @@ final class CountingForm extends Form
             self::$runs++;
             $fail('Refused.');
         }]];
+    }
+}
+
+/** A site's own Livewire contact form, as `docs/guide/forms.md` shows it. */
+final class ContactComponent extends Component
+{
+    public Entry $entry;
+
+    #[Locked]
+    public string $locale = 'fr';
+
+    public string $name = '';
+
+    public string $email = '';
+
+    public string $message = '';
+
+    public string $kami_website = '';
+
+    public bool $sent = false;
+
+    public function send(SubmitForm $submit): void
+    {
+        $this->resetErrorBag();
+        $submit->handle('contact', $this->only(['name', 'email', 'message', SubmitForm::HONEYPOT]), $this->entry, $this->locale);
+        $this->sent = true;
+    }
+
+    public function render(): string
+    {
+        return '<div></div>';
     }
 }
 
@@ -223,6 +258,7 @@ it('answers a filled honeypot with the normal success even when the page is unkn
 })->with([
     'forged' => ['forged', 'https://spam.test'],
     'neither a string' => [['forged'], ['https://spam.test']],
+    'an empty array' => ['forged', []],
 ]);
 
 it('refuses a missing or invalid origin page with a 422 error page, storing nothing', function (Closure $origin) {
@@ -249,6 +285,46 @@ it('refuses a missing or invalid origin page with a 422 error page, storing noth
         return "{$page->id}:en";
     },
 ]);
+
+it('stores from a Livewire action, its errors shown by Livewire in the page\'s Locale, the throttle applied', function () {
+    $page = contactPage();
+    $component = Livewire::test(ContactComponent::class, ['entry' => $page, 'locale' => 'en'])
+        ->set(['name' => 'Ada Lovelace', 'email' => 'not an email', 'message' => 'Hello, I would like to talk.']);
+
+    $component->call('send')->assertHasErrors(['email' => 'The email address field must be a valid email address.'])->assertSet('sent', false);
+    $component->set('email', 'ada@example.com')->call('send')->assertHasNoErrors()->assertSet('sent', true);
+
+    expect(Submission::query()->sole()->only(['locale', 'entry_id', 'data']))->toBe([
+        'locale' => 'en',
+        'entry_id' => $page->id,
+        'data' => ['name' => 'Ada Lovelace', 'email' => 'ada@example.com', 'message' => 'Hello, I would like to talk.'],
+    ]);
+    foreach (range(1, 3) as $ignored) {
+        $component->call('send')->assertSet('sent', true);
+    }
+    $component->call('send')->assertStatus(429);
+    expect(Submission::query()->count())->toBe(4);
+});
+
+it('answers a Livewire action with a filled honeypot as a success, storing and counting nothing', function () {
+    $component = Livewire::test(ContactComponent::class, ['entry' => contactPage()])
+        ->set(['email' => 'not an email', SubmitForm::HONEYPOT => 'https://spam.test']);
+
+    foreach (range(1, 6) as $ignored) {
+        $component->call('send')->assertHasNoErrors()->assertSet('sent', true);
+    }
+
+    expect(Submission::query()->count())->toBe(0);
+});
+
+it('refuses a Livewire action whose page is no longer visible with a 422', function () {
+    $page = contactPage();
+    $component = Livewire::test(ContactComponent::class, ['entry' => $page, 'locale' => 'en']);
+    resolve(SaveEntry::class)->handle(Home::class, ['status' => 'draft'], $page, 'en');
+
+    $component->set(['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Hello, I would like to talk.'])->call('send')->assertStatus(422);
+    expect(Submission::query()->count())->toBe(0);
+});
 
 it('answers 404 for a Form that is not declared', function () {
     test()->withHeaders(['Sec-Fetch-Site' => 'same-origin'])->post('/kami/forms/newsletter')->assertNotFound();

@@ -17,8 +17,8 @@ use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Stores a Submission of the current Site with a pending delivery per channel of its Form's notification, dispatches `SubmissionStored`
- * after commit (ADR 0011, ADR 0029), and sends the notification after the response. It neither validates nor checks the visitor: the form
- * route does, before it. No Content version bump and no Audit event: a Submission is not Content.
+ * after commit (ADR 0011, ADR 0029), and sends the notification after the response. It neither validates nor checks the visitor: `SubmitForm`
+ * does, before it. No Content version bump and no Audit event: a Submission is not Content.
  */
 final class StoreSubmission
 {

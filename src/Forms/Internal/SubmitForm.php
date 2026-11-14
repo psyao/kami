@@ -9,84 +9,63 @@ use Illuminate\Routing\Router;
 use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\Uri;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\ValidationRuleParser;
+use Illuminate\Validation\Validator;
 use Psyao\Kami\Content\Entry;
-use Psyao\Kami\Forms\Actions\StoreSubmission;
-use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Forms\Actions\SubmitForm as Submit;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Sites\Internal\Site;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * `POST /kami/forms/{handle}`: no session, cookie or CSRF token, so the page holding the Form stays cached (ADR 0015).
- * Checks the origin, the honeypot, `_kami_origin` and the throttle, then validates: errors re-render the page as a 422, success answers 303.
+ * Checks the origin, reads `_kami_origin`, and leaves the rest to the public `SubmitForm` action: errors re-render the page as a 422, success answers 303.
  *
  * @internal
  */
 final class SubmitForm
 {
-    /** The honeypot's name: a field a person never sees, which a bot fills. */
-    public const string HONEYPOT = 'kami_website';
-
     public const string ORIGIN = '_kami_origin';
-
-    private const int MAX_ATTEMPTS = 5;
-
-    private const int DECAY_SECONDS = 60;
 
     /** Never sent back to the page, as Laravel's handler never flashes them. */
     private const array NEVER_OLD = ['password', 'password_confirmation', 'current_password'];
 
-    public function __invoke(Request $request, string $handle): Response
+    public function __invoke(Request $request, string $handle, Submit $submit): Response
     {
         $form = resolve(Forms::class)->find($handle) ?? abort(404);
 
         abort_unless($this->sameOrigin($request), 403);
 
         $origin = $this->origin($request);
-        // A site's own script gets the Confirmation, in the Locale `_kami_origin` set; a browser goes back to the page.
-        $sent = fn (?string $url): Response => $request->expectsJson()
-            ? response()->json(['message' => $form->confirmation()], headers: ['Cache-Control' => 'no-store'])
-            : redirect()->away("{$url}?sent={$form->handle()}#{$form->handle()}", 303);
+        $input = $request->except(self::ORIGIN);
 
-        // The normal success before the page and the throttle are checked, nothing stored and nothing counted: a bot learns nothing, and a person behind its IP keeps their quota.
-        if ($request->filled(self::HONEYPOT)) {
-            return $sent($origin === null ? Site::current()->url : $origin[0]->url($origin[1]));
-        }
-
-        [$entry, $locale] = $origin ?? abort(422);
-        $key = $this->throttleKey($request, $form);
-
-        // Counted first, so parallel requests cannot all pass a check made before any of them counts.
-        if (RateLimiter::hit($key, self::DECAY_SECONDS) > self::MAX_ATTEMPTS) {
-            abort(429, headers: ['Retry-After' => RateLimiter::availableIn($key)]);
-        }
-
-        $input = $request->except([self::HONEYPOT, self::ORIGIN]);
-        $validator = Validator::make($input, $form->rules());
-
-        // `fails()` runs every rule again on each call: once only.
-        if ($validator->fails()) {
+        try {
+            $submit->handle($form, $input, $origin[0] ?? null, $origin[1] ?? '');
+        } catch (ValidationException $exception) {
             if ($request->expectsJson()) {
                 // The body Laravel's handler renders for a `ValidationException`, kept out of any cache.
-                $exception = new ValidationException($validator);
-
                 return response()->json(['message' => $exception->getMessage(), 'errors' => $exception->errors()], 422, ['Cache-Control' => 'no-store']);
             }
 
+            $validator = $exception->validator;
+
+            // Validation runs once the page is known, through Laravel's own validator unless a site replaced it.
+            if (! $validator instanceof Validator || $origin === null) {
+                throw $exception;
+            }
+
             // Laravel's own parsed rules, one list per field with `*` expanded against the posted data, and the Form's unexpanded wildcard keys.
-            return $this->invalid($request, $entry, $validator->errors(), Arr::except($input, self::NEVER_OLD), [...$form->rules(), ...$validator->getRules()]);
+            return $this->invalid($request, $origin[0], $validator->errors(), Arr::except($input, [Submit::HONEYPOT, ...self::NEVER_OLD]), [...$form->rules(), ...$validator->getRules()]);
         }
 
-        resolve(StoreSubmission::class)->handle($form, $validator->validated(), $locale, $entry);
-
-        return $sent($entry->url($locale));
+        // A site's own script gets the Confirmation, in the Locale `_kami_origin` set; a browser goes back to the page, or to the Site's home for a bot with no known page.
+        return $request->expectsJson()
+            ? response()->json(['message' => $form->confirmation()], headers: ['Cache-Control' => 'no-store'])
+            : redirect()->away(($origin === null ? Site::current()->url : $origin[0]->url($origin[1])) . "?sent={$form->handle()}#{$form->handle()}", 303);
     }
 
     /** `Sec-Fetch-Site` from a browser that sends it; otherwise an `Origin` that is absent or the Site's (ADR 0015). Scripts can set neither. */
@@ -124,21 +103,6 @@ final class SubmitForm
         $entry = Entry::query()->whereKey($id)->first();
 
         return $entry?->url($locale) === null ? null : [$entry, $locale];
-    }
-
-    /** Per Form and per IP, an IPv6 address grouped by its /64, hashed so the cache holds no address. */
-    private function throttleKey(Request $request, Form $form): string
-    {
-        $ip = (string) $request->ip();
-        $packed = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) === false ? false : inet_pton($ip);
-        // An IPv4 address a dual-stack listener reports as `::ffff:a.b.c.d` counts as itself, not with every IPv4 visitor in `::/64`.
-        $group = match (true) {
-            $packed === false => $ip,
-            str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff") => (string) inet_ntop(substr($packed, 12)),
-            default => bin2hex(substr($packed, 0, 8)),
-        };
-
-        return 'kami:form:' . hash('sha256', "{$form->handle()}|{$group}");
     }
 
     /**

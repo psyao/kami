@@ -12,7 +12,7 @@
     <input type="hidden" name="{{ \Psyao\Kami\Forms\Internal\SubmitForm::ORIGIN }}" value="{{ $kamiEntry->id }}:{{ \Psyao\Kami\Sites\Internal\Site::current()->currentLocale() }}">
     <div class="kami-form-honeypot" hidden>
         <label for="{{ $kamiForm->handle() }}-kami-website">{{ __('kami::forms.honeypot') }}</label>
-        <input type="text" id="{{ $kamiForm->handle() }}-kami-website" name="{{ \Psyao\Kami\Forms\Internal\SubmitForm::HONEYPOT }}" tabindex="-1" autocomplete="off">
+        <input type="text" id="{{ $kamiForm->handle() }}-kami-website" name="{{ \Psyao\Kami\Forms\Actions\SubmitForm::HONEYPOT }}" tabindex="-1" autocomplete="off">
     </div>
     {{ $slot }}
 </form>
