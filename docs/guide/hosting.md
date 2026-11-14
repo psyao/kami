@@ -25,6 +25,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | --- | --- | --- |
 | **Install and deploy** | `kami:install` over SSH, under the command line's limits (no time limit on Infomaniak) | The same |
 | **Admin assets** | Precompiled in the package, copied to `public/` by `kami:install` | The same |
+| **Video facade** | Prebuilt in the package, copied to `public/vendor/kami/` by `kami:install` and served by Apache with `nosniff` from its `.htaccess` ([Front script](#front-script)) | nginx serves it once given the header below, on a site offering the Video Block |
 | **Front assets** | Built by the site in CI or on the developer's machine, then copied with the code | The same |
 | **Cache and sessions** | `file` cache, `database` sessions, as the starter kit sets them | The same; Redis or Memcached possible, never required |
 | **Page cache** | Served by the line in `public/index.php` before Laravel boots: the manifest and one file read, about a hundred lines compiled with OPcache off ([Page cache](page-cache.md#serving-before-laravel-boots)) | The same; behind several web servers, share `storage/` or turn the page cache off |
@@ -62,9 +63,15 @@ Originals keep their metadata, GPS included, so they never sit where the web ser
 
 `kami:doctor` fails when `public/media` is missing or links elsewhere, and when the public disk is not local. It then writes a probe SVG under `public/media`, asks for it at the Site's URL, deletes it, and warns about each header missing from the answer. Run it where that URL can be reached: when it cannot be, the check is skipped with an information. With `APP_ENV=local`, a missing header or file is an information too: a local server, such as Herd's nginx, is not the one the site is deployed on.
 
+## Front script
+
+The [Video Block](blocks.md#video)'s facade, `public/vendor/kami/video.js`, is Kami's only front JavaScript: a static file, prebuilt in the package, with no Node on the server. `kami:install` copies it and writes `public/vendor/kami/.htaccess` at each run, so both follow Kami's version, and edits to either are lost on the next deploy. Apache serves the file with `X-Content-Type-Options: nosniff`, which keeps a browser from reading it as anything but JavaScript. Its name carries no version, so the file keeps Apache's default cache headers.
+
+On a site that lists the `Video` Block in `kami.blocks`, `kami:doctor` warns when the file is missing, then asks for it at the Site's URL and warns when the answer lacks `nosniff` or is not a 200, as for [Conversions](#conversions); with `APP_ENV=local`, each is an information. Without the file, a Video Block still links to its provider.
+
 ## nginx
 
-nginx reads no `.htaccess`. Serve `public/media` with the same headers, and hand a missing file to Laravel:
+nginx reads no `.htaccess`. Serve `public/media` with the same headers, and hand a missing file to Laravel; serve `public/vendor/kami` with `nosniff`:
 
 ```nginx
 location ^~ /media/ {
@@ -79,13 +86,17 @@ location ^~ /media/ {
         try_files $uri /index.php?$query_string;
     }
 }
+
+location ^~ /vendor/kami/ {
+    add_header X-Content-Type-Options "nosniff" always;
+}
 ```
 
 Laravel's own nginx configuration, `try_files $uri $uri/ /index.php?$query_string;` in `location /`, already hands a missing sitemap file to Kami, which builds it ([SEO](seo.md#sitemap)). Keep it, and send no other rule's 404 for `/sitemap.xml` or `/sitemaps/`.
 
-On a copy that is not indexable, such as staging, add `add_header X-Robots-Tag "noindex, nofollow" always;` to both blocks.
+On a copy that is not indexable, such as staging, add `add_header X-Robots-Tag "noindex, nofollow" always;` to both `/media/` blocks.
 
-`^~` keeps a regex `location` for images, such as one setting `expires`, from taking these requests instead. In nginx, a `location` that sets a header drops every `add_header` of the levels above it, so the SVG block repeats them, and a header your `server` block sends to every response, such as `Strict-Transport-Security`, must be repeated in both. `disable_symlinks` must stay off, its default, for the link to work. Run `kami:doctor` after a change to check the headers.
+`^~` keeps a regex `location` for images, such as one setting `expires`, from taking these requests instead. In nginx, a `location` that sets a header drops every `add_header` of the levels above it, so the SVG block repeats them, and a header your `server` block sends to every response, such as `Strict-Transport-Security`, must be repeated in each. `disable_symlinks` must stay off, its default, for the link to work. Run `kami:doctor` after a change to check the headers.
 
 ## Infomaniak shared hosting
 

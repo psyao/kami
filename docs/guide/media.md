@@ -217,13 +217,14 @@ use Psyao\Kami\Media\ImagePreset;
 | `widths([...])` | The only widths generated, in pixels. |
 | `sizes($sizes)` | The default `sizes` of the image's `srcset`. |
 
-Kami ships three presets, whose handles yours cannot take:
+Kami ships four presets, whose handles yours cannot take:
 
 | Handle | Conversions |
 | --- | --- |
 | `admin-thumb` | 1:1, 320 wide, for the admin |
 | `original` | the image's own proportions, at its own width |
 | `kami-social` | 40:21, 1200 × 630, in the fallback format only, for social cards: link previews often read nothing else ([Social image](seo.md#social-image)) |
+| `kami-block` | the image's own proportions, 640, 1280 and 1920 wide, for the [`Image` Block](blocks.md#image) |
 
 `file` is reserved too, for [documents and SVG](#documents-and-svg). A preset with no width, a width outside 1 to 999,999 pixels, a ratio side that is not positive, a malformed handle or a handle used twice fails the first time something reads the presets, with a message naming it, as an invalid [Content Type](content-types.md#handle) does.
 

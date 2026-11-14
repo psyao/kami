@@ -56,12 +56,12 @@ describe('warm', function (): void {
         $logo = mediaFixture('logo.svg');
 
         $this->artisan('kami:media:warm')
-            ->expectsOutputToContain('4 Media items: 12 files written, 0 already there.')
+            ->expectsOutputToContain('4 Media items: 18 files written, 0 already there.')
             ->assertSuccessful();
 
         // Stored 60 × 40 with EXIF Orientation 6, so 40 pixels wide once oriented.
-        expect(servedFiles($photo))->toBe(['admin-thumb-320.jpg', 'card-20.jpg', 'card-40.jpg', 'kami-social-1200.jpg', 'original-40.jpg'])
-            ->and(servedFiles($pixel))->toBe(['admin-thumb-320.png', 'card-20.png', 'card-40.png', 'kami-social-1200.png', 'original-20.png'])
+        expect(servedFiles($photo))->toBe(['admin-thumb-320.jpg', 'card-20.jpg', 'card-40.jpg', 'kami-block-1280.jpg', 'kami-block-1920.jpg', 'kami-block-640.jpg', 'kami-social-1200.jpg', 'original-40.jpg'])
+            ->and(servedFiles($pixel))->toBe(['admin-thumb-320.png', 'card-20.png', 'card-40.png', 'kami-block-1280.png', 'kami-block-1920.png', 'kami-block-640.png', 'kami-social-1200.png', 'original-20.png'])
             ->and(servedFiles($brochure))->toBe(['brochure.pdf'])
             ->and(servedFiles($logo))->toBe(['logo.svg']);
         Storage::disk('public')->assertExists([diskPath($photo->url('card', 40)), diskPath($brochure->url())]);
@@ -72,8 +72,8 @@ describe('warm', function (): void {
         $card = diskPath($photo->url('card', 40));
         Storage::disk('public')->put($card, 'on disk');
 
-        $this->artisan('kami:media:warm')->expectsOutputToContain('1 Media item: 4 files written, 1 already there.')->assertSuccessful();
-        $this->artisan('kami:media:warm')->expectsOutputToContain('1 Media item: 0 files written, 5 already there.')->assertSuccessful();
+        $this->artisan('kami:media:warm')->expectsOutputToContain('1 Media item: 7 files written, 1 already there.')->assertSuccessful();
+        $this->artisan('kami:media:warm')->expectsOutputToContain('1 Media item: 0 files written, 8 already there.')->assertSuccessful();
 
         expect(Storage::disk('public')->get($card))->toBe('on disk');
     });
@@ -267,5 +267,5 @@ it('runs both commands within a small, steady memory over a library of fixture i
         expect(memory_get_peak_usage() - $before)->toBeLessThan(32 * 1024 * 1024);
     }
 
-    expect(Storage::disk('public')->allFiles('media'))->toHaveCount(142);
+    expect(Storage::disk('public')->allFiles('media'))->toHaveCount(226);
 });

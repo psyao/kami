@@ -30,6 +30,8 @@ While the Site is not indexable, as outside production by default, every respons
 
 Images and files under `public/media`, which Apache serves without PHP, get `nosniff` and, for an SVG, a policy that runs no script and loads nothing, from Kami's `.htaccess` ([Hosting](hosting.md#conversions)). On nginx, add them yourself ([nginx](hosting.md#nginx)).
 
+The [Video Block](blocks.md#video)'s script, Kami's only front JavaScript, is a file under `public/vendor/kami/`, which the policy's `script-src 'self'` allows as it stands. Apache serves it with `nosniff` from Kami's `.htaccess` there ([Hosting](hosting.md#front-script)); on nginx, add it yourself ([nginx](hosting.md#nginx)). `frame-src` lists the two players it loads after a click, and nothing else.
+
 `X-Powered-By` is removed. Kami sends no `Strict-Transport-Security`: HTTPS is your host's, and Infomaniak sends it once a certificate is active.
 
 ## Your own pages

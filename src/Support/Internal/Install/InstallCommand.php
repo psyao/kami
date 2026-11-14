@@ -23,6 +23,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\VideoFacade;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -95,6 +96,12 @@ final class InstallCommand extends Command
 
         if (($refusal = PublicMedia::install()) !== null) {
             $this->components->error("public/media cannot be linked: {$refusal} Then run kami:install again.");
+
+            return self::FAILURE;
+        }
+
+        if (($refusal = VideoFacade::install()) !== null) {
+            $this->components->error("The Video facade cannot be copied: {$refusal} Then run kami:install again.");
 
             return self::FAILURE;
         }

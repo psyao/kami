@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Workbench\App\Content;
 
+use Psyao\Kami\Content\Blocks\Image;
+use Psyao\Kami\Content\Blocks\Video;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
@@ -36,7 +38,7 @@ final class Article extends ContentType
     {
         return [
             Text::make('summary')->rules(['max:200']),
-            RichText::make('body')->code()->blocks([Callout::class]),
+            RichText::make('body')->code()->blocks([Callout::class, Image::class, Video::class]),
             Text::make('author')->shared()->required(),
             Boolean::make('featured'),
             Colour::make('accent'),

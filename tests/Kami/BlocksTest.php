@@ -24,6 +24,8 @@ use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Blocks\Block;
+use Psyao\Kami\Content\Blocks\Image;
+use Psyao\Kami\Content\Blocks\Video;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Date;
@@ -187,7 +189,7 @@ it('stores an offered Block with its declared Fields only, each normalised', fun
 
 it('keeps an unavailable Block as it is, unvalidated', function (array $block) {
     Declaring::$declared = [Text::make('text')->required()];
-    config(['kami.blocks' => [Callout::class, Declaring::class]]);
+    config(['kami.blocks' => [Callout::class, Image::class, Video::class, Declaring::class]]);
     $entry = saveCalloutArticle(['body' => bodyOf($block)]);
 
     expect(storedBody($entry)['content'][1])->toEqual($block);
@@ -435,7 +437,8 @@ it('keeps an unavailable Block read-only, deletable, under its handle', function
 });
 
 it('refuses a 65th Block on the panel, naming the ceiling', function () {
-    foreach (range(1, 64) as $n) {
+    // The Workbench's three Blocks, which its Article offers, then 62 more.
+    foreach (range(1, 62) as $n) {
         app()->bind("numbered-block-{$n}", fn (): Block => new class($n) extends Block
         {
             public function __construct(private readonly int $n) {}
@@ -457,7 +460,7 @@ it('refuses a 65th Block on the panel, naming the ceiling', function () {
         });
     }
 
-    config(['kami.blocks' => [Callout::class, ...array_map(fn (int $n): string => "numbered-block-{$n}", range(1, 64))]]);
+    config(['kami.blocks' => [Callout::class, Image::class, Video::class, ...array_map(fn (int $n): string => "numbered-block-{$n}", range(1, 62))]]);
 
     expect(fn () => blockEditor(['record' => saveCalloutArticle([], 'draft')->id]))->toThrow(Exception::class, 'kami.blocks lists 65 Blocks; the admin\'s editor reaches 64 at most');
 });

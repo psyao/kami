@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Blocks\Video;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
@@ -36,6 +37,7 @@ use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\VideoFacade;
 use Psyao\Kami\Content\Layout;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
@@ -123,7 +125,7 @@ final readonly class Doctor
             ...$this->missingViews(),
             ...$this->undescribedTypes(),
             ...$this->missingLabels(),
-            ...array_filter([$this->lockStore(), $this->publicMedia(), $this->pageCacheStorage(), $this->smtpTimeout()]),
+            ...array_filter([$this->lockStore(), $this->publicMedia(), $this->videoFacade(), $this->pageCacheStorage(), $this->smtpTimeout()]),
             ...$this->searchEngines(),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
@@ -1192,28 +1194,64 @@ final readonly class Doctor
     private function conversionHeaders(): ?Problem
     {
         $disk = Storage::disk(Config::string('kami.media.public_disk'));
-        $base = rtrim(Site::current()->url, '/');
-        $url = "{$base}/media/kami-doctor.svg";
         $disk->put('media/kami-doctor.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>');
+
+        try {
+            return $this->servedHeaders(
+                'media/kami-doctor.svg',
+                [...PublicMedia::HEADERS, ...PublicMedia::SVG_HEADERS],
+                'serve the files under public/media as they are, and hand a missing one to index.php.',
+            );
+        } finally {
+            $disk->delete('media/kami-doctor.svg');
+        }
+    }
+
+    /** On a site offering the `Video` Block: `kami:install`'s copy of its facade, then its `nosniff`, checked over HTTP as `public/media`'s headers are. */
+    private function videoFacade(): ?Problem
+    {
+        if (! in_array(Video::class, Config::array('kami.blocks', []), true)) {
+            return null;
+        }
+
+        // Without it, a Video Block still links to its provider. On a developer's machine, as for the headers: the deploy's own run decides.
+        return is_file(public_path(Video::SCRIPT))
+            ? $this->servedHeaders(Video::SCRIPT, VideoFacade::HEADERS, 'serve the files under public/vendor/kami as they are.')
+            : new Problem(
+                app()->isLocal() ? Severity::Info : Severity::Warning,
+                'public/' . Video::SCRIPT . ' is missing: a Video Block plays nowhere but on its provider\'s site.',
+                'run php artisan kami:install, which copies it, as every deploy does.',
+                'hosting.md#front-script',
+            );
+    }
+
+    /**
+     * The headers the server sends on a file under `public/`, asked for at the Site's URL: the command line cannot tell Apache from nginx.
+     *
+     * @param  array<string, string>  $expected
+     */
+    private function servedHeaders(string $path, array $expected, string $unservedFix): ?Problem
+    {
+        $base = rtrim(Site::current()->url, '/');
+        $url = "{$base}/{$path}";
+        $directory = 'public/' . dirname($path);
 
         try {
             $response = Http::connectTimeout(3)->timeout(5)->get($url);
         } catch (ConnectionException $exception) {
             return new Problem(
                 Severity::Info,
-                "The headers of public/media were not checked: {$base} cannot be reached from here ({$exception->getMessage()}).",
+                "The headers of {$directory} were not checked: {$base} cannot be reached from here ({$exception->getMessage()}).",
                 'run kami:doctor where the site\'s URL can be reached, or compare its headers with the guide by hand.',
                 'hosting.md#nginx',
             );
-        } finally {
-            $disk->delete('media/kami-doctor.svg');
         }
 
         // A staging site behind a password: as unreachable as one with no server.
         if (in_array($response->status(), [401, 403], true)) {
             return new Problem(
                 Severity::Info,
-                "The headers of public/media were not checked: {$url} answers {$response->status()}, behind a password or a firewall.",
+                "The headers of {$directory} were not checked: {$url} answers {$response->status()}, behind a password or a firewall.",
                 'compare its headers with the guide by hand.',
                 'hosting.md#nginx',
             );
@@ -1225,20 +1263,20 @@ final readonly class Doctor
         if (! $response->successful()) {
             return new Problem(
                 $severity,
-                "{$url} answers {$response->status()}: the server does not serve public/media.",
-                'serve the files under public/media as they are, and hand a missing one to index.php.',
+                "{$url} answers {$response->status()}: the server does not serve {$directory}.",
+                $unservedFix,
                 'hosting.md#nginx',
             );
         }
 
         // In any order: Symfony sorts Cache-Control's directives, nginx keeps them as written.
         $directives = fn (string $value): array => collect(preg_split('/\s*[,;]\s*/', strtolower(trim($value))) ?: [])->sort()->values()->all();
-        $missing = array_filter([...PublicMedia::HEADERS, ...PublicMedia::SVG_HEADERS], fn (string $value, string $name): bool => $directives($response->header($name)) !== $directives($value), ARRAY_FILTER_USE_BOTH);
+        $missing = array_filter($expected, fn (string $value, string $name): bool => $directives($response->header($name)) !== $directives($value), ARRAY_FILTER_USE_BOTH);
 
         return $missing === [] ? null : new Problem(
             $severity,
-            'Files under public/media go out without ' . implode(', ', array_map(fn (string $name, string $value): string => "{$name}: {$value}", array_keys($missing), $missing)) . '.',
-            'send them from the server\'s configuration, as public/media/.htaccess does on Apache.',
+            "Files under {$directory} go out without " . implode(', ', array_map(fn (string $name, string $value): string => "{$name}: {$value}", array_keys($missing), $missing)) . '.',
+            "send them from the server's configuration, as {$directory}/.htaccess does on Apache.",
             'hosting.md#nginx',
         );
     }

@@ -249,6 +249,11 @@ else
     failed=1
 fi
 
+# The Video facade (psyao/kami#626): a static file kami:install copied, served by Apache with nosniff from its .htaccess, as a
+# script a module tag accepts.
+expect_file /vendor/kami/video.js 'Video facade served by Apache' "$nosniff"
+grep -q '^content-type: text/javascript\|^content-type: application/javascript' <<<"$last_response" || { echo "GET /vendor/kami/video.js: not served as JavaScript"; failed=1; }
+
 # The Tick (psyao/kami#476), in-process under FPM with `proc_open` off. The planner's URL: a wrong token is a 404; the first visits above
 # recorded each task's baseline, so `kami:sitemap`, a `command()` task made overdue, runs inside the call, then a queued job (psyao/kami#477).
 tick_body() {

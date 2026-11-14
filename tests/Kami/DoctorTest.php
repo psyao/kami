@@ -49,6 +49,7 @@ use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Home;
+use Workbench\App\Content\Page;
 use Workbench\App\Content\Testimonial;
 use Workbench\App\Forms\ContactForm;
 use Workbench\App\Models\User;
@@ -720,7 +721,7 @@ describe('Conversions', function () {
         expect($problem->severity)->toBe(Severity::Error)
             ->and($problem->message)->toBe('public/media does not link to the public disk\'s media directory (' . Storage::disk('public')->path('media') . '): every Conversion goes through PHP.')
             ->and($problem->fix)->toContain('php artisan kami:install');
-        Http::assertNothingSent();
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/media/'));
     });
 
     it('fails on a link to another directory', function () {
@@ -748,7 +749,7 @@ describe('Conversions', function () {
         $problems = mediaProblems();
 
         expect($problems)->toEqual([[Severity::Error, 'kami.media.public_disk is remote, whose driver is s3: Conversions need a local disk, which public/media links to.']]);
-        Http::assertNothingSent();
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/media/'));
     });
 
     it('fails on an originals disk the web server can serve, as originals keep their GPS', function (Closure $exposed) {
@@ -1279,5 +1280,66 @@ describe('Forms', function () {
         config(['kami.forms' => [NoRecipientForm::class]]);
 
         expect(problem('Submissions of Forms no longer declared')?->fix)->toContain('in the admin');
+    });
+});
+
+describe('the Video facade', function () {
+    /** @return list<array{0: Severity, 1: string}> */
+    function facadeProblems(): array
+    {
+        return collect(resolve(Doctor::class)->problems())
+            ->filter(fn ($problem) => str_contains($problem->message, 'vendor/kami'))
+            ->map(fn ($problem) => [$problem->severity, $problem->message])
+            ->values()->all();
+    }
+
+    it('accepts the script kami:install copied, served with nosniff', function () {
+        $problems = facadeProblems();
+
+        expect($problems)->toBeEmpty()
+            ->and(file_get_contents(public_path('vendor/kami/.htaccess')))->toContain('Header always set X-Content-Type-Options "nosniff"');
+        Http::assertSent(fn (Request $request) => $request->url() === 'http://localhost/vendor/kami/video.js');
+    });
+
+    it('checks nothing on a site that offers no Video Block', function () {
+        config(['kami.types' => [Page::class], 'kami.blocks' => []]);
+        unlink(public_path('vendor/kami/video.js'));
+
+        expect(facadeProblems())->toBeEmpty();
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/vendor/kami/'));
+    });
+
+    it('only informs about a missing script on a developer\'s machine', function () {
+        app()->detectEnvironment(fn () => 'local');
+        unlink(public_path('vendor/kami/video.js'));
+
+        expect(facadeProblems())->toHaveCount(1)->{0}->{0}->toBe(Severity::Info);
+    });
+
+    it('warns about a missing script, naming kami:install, without asking the server', function () {
+        unlink(public_path('vendor/kami/video.js'));
+
+        $problem = collect(resolve(Doctor::class)->problems())->firstWhere('guide', 'hosting.md#front-script');
+
+        expect($problem->severity)->toBe(Severity::Warning)
+            ->and($problem->message)->toBe('public/vendor/kami/video.js is missing: a Video Block plays nowhere but on its provider\'s site.')
+            ->and($problem->fix)->toContain('php artisan kami:install');
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/vendor/kami/'));
+    });
+
+    it('warns when the server sends the script without nosniff, as nginx does without its configuration', function () {
+        $this->facadeServed = Http::response('', 200);
+
+        $problems = facadeProblems();
+
+        expect($problems)->toEqual([[Severity::Warning, 'Files under public/vendor/kami go out without X-Content-Type-Options: nosniff.']]);
+    });
+
+    it('warns when the server does not serve the script', function () {
+        $this->facadeServed = Http::response('Not Found', 404);
+
+        $problems = facadeProblems();
+
+        expect($problems)->toEqual([[Severity::Warning, 'http://localhost/vendor/kami/video.js answers 404: the server does not serve public/vendor/kami.']]);
     });
 });

@@ -7,6 +7,9 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Blocks\Image;
+use Psyao\Kami\Content\Blocks\Video;
+use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Facades\Kami;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputDefinition;
@@ -104,6 +107,11 @@ function publicSurface(): array
         $element('component', 'x-kami::' . str_replace(['/', '.blade.php'], ['.', ''], $view->getRelativePathname()), $props[1] ?? '');
     }
 
+    // Kami's Blocks' views, which a site overrides, with the data each receives: its Block's Field handles.
+    foreach ([Image::class, Video::class] as $block) {
+        $element('view', (new $block)->view(), implode(', ', array_map(fn (Field $field): string => '$' . $field->handle, (new $block)->fields())));
+    }
+
     // A Content Type's Permissions are named after the site's handles: the vocabulary is their pattern (ADR 0014).
     $permissions = collect(Gate::abilities())->keys()->filter(fn (string $ability): bool => str_starts_with($ability, 'kami.'));
     $permissions->map(fn (string $permission): string => (string) preg_replace('/^kami\.entries\.[^.]+\./', 'kami.entries.{type}.', $permission))->unique()->each(fn (string $permission) => $element('permission', $permission));
@@ -162,7 +170,7 @@ function referencePages(array $surface): array
     $page = fn (array $element): string => match ($element['group']) {
         'class' => preg_match('/\\\\Events\\\\\w+$/', Str::before($element['name'], '::')) ? 'events.md' : 'api.md',
         'command' => 'commands.md',
-        'component' => 'components.md',
+        'component', 'view' => 'components.md',
         'config' => 'config.md',
         'middleware' => 'middleware.md',
         'permission' => 'permissions.md',
@@ -173,6 +181,7 @@ function referencePages(array $surface): array
     $entry = fn (array $element): string => match (true) {
         // Before members: a component's name holds `::` too.
         $element['group'] === 'component' => "- `<{$element['name']} />`" . ($element['signature'] !== '' ? ": props `{$element['signature']}`" : '') . "\n",
+        $element['group'] === 'view' => "- view `{$element['name']}`: given `{$element['signature']}`\n",
         // A member: a method, property or constant of a class, an argument or option of a command.
         str_contains($element['name'], '::') || str_contains($element['name'], ' ') => "- `{$element['signature']}`" . ($element['summary'] !== '' ? ": {$element['summary']}" : '') . "\n",
         $element['group'] === 'class' => "\n## `{$element['name']}`\n\n`{$element['signature']}`\n\n" . ($element['summary'] !== '' ? "{$element['summary']}\n\n" : ''),

@@ -29,6 +29,9 @@ final class ImagePresets
     /** Read by link previews, many of which read JPEG and PNG only: the fallback format alone. */
     public const string SOCIAL = 'kami-social';
 
+    /** The `Image` Block's, whatever the layout: a site wanting others overrides `kami::blocks.image`. */
+    public const string BLOCK = 'kami-block';
+
     /** @var array<mixed>|null The `kami.media.presets` last found valid. */
     private ?array $validated = null;
 
@@ -105,6 +108,7 @@ final class ImagePresets
             ImagePreset::make(self::ADMIN_THUMB)->ratio(1, 1)->widths([320]),
             ImagePreset::make(self::ORIGINAL),
             ImagePreset::make(self::SOCIAL)->ratio(40, 21)->widths([1200]),
+            ImagePreset::make(self::BLOCK)->widths([640, 1280, 1920]),
         ], null, 'handle');
 
         $shipped = [...array_keys($presets), self::FILE];

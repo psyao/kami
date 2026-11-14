@@ -62,6 +62,22 @@ class Psyao\Kami\Content\Blocks\Block::label() final public function label(): st
 class Psyao\Kami\Content\Blocks\Block::optionLabel() final public function optionLabel(string $field, string $option): string
 class Psyao\Kami\Content\Blocks\Block::summary() public function summary(array $data): ?string
 class Psyao\Kami\Content\Blocks\Block::view() abstract public function view(): string
+class Psyao\Kami\Content\Blocks\Image final class extends Psyao\Kami\Content\Blocks\Block
+class Psyao\Kami\Content\Blocks\Image::fields() public function fields(): array
+class Psyao\Kami\Content\Blocks\Image::handle() public function handle(): string
+class Psyao\Kami\Content\Blocks\Image::summary() public function summary(array $data): ?string
+class Psyao\Kami\Content\Blocks\Image::view() public function view(): string
+class Psyao\Kami\Content\Blocks\Video final class extends Psyao\Kami\Content\Blocks\Block
+class Psyao\Kami\Content\Blocks\Video::SCRIPT public const string SCRIPT = 'vendor/kami/video.js'
+class Psyao\Kami\Content\Blocks\Video::fields() public function fields(): array
+class Psyao\Kami\Content\Blocks\Video::handle() public function handle(): string
+class Psyao\Kami\Content\Blocks\Video::summary() public function summary(array $data): ?string
+class Psyao\Kami\Content\Blocks\Video::view() public function view(): string
+class Psyao\Kami\Content\Blocks\VideoLink final readonly class
+class Psyao\Kami\Content\Blocks\VideoLink::$player public protected(set) readonly string $player
+class Psyao\Kami\Content\Blocks\VideoLink::$provider public protected(set) readonly string $provider
+class Psyao\Kami\Content\Blocks\VideoLink::$watch public protected(set) readonly string $watch
+class Psyao\Kami\Content\Blocks\VideoLink::of() public static function of(mixed $url): ?Psyao\Kami\Content\Blocks\VideoLink
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$archive protected bool $archive = false
 class Psyao\Kami\Content\ContentType::$feed protected bool $feed = false
@@ -459,3 +475,5 @@ table kami_task_runs
 table kami_translations
 table kami_type_site_settings
 table kami_user_mfa
+view kami::blocks.image $image, $caption
+view kami::blocks.video $url, $caption

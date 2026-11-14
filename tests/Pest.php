@@ -25,6 +25,7 @@ use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use PragmaRX\Google2FAQRCode\Google2FA;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Internal\VideoFacade;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Support\Internal\WebEnvironment;
@@ -36,7 +37,9 @@ use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Models\User;
 
 // One directory per suite: `Install/` boots without the Workbench.
-pest()->extend(TestCase::class)->in('Kami', 'Volume');
+// Livewire keeps static state between tests of a process: a component booted by one test leaves `disableBackButtonCache` set,
+// and the next test's first response, a Conversion's for one, goes out with Livewire's `no-store` instead of its own Cache-Control.
+pest()->extend(TestCase::class)->beforeEach(fn () => Livewire::flushState())->in('Kami', 'Volume');
 // The browser loads Filament's scripts and Kami's stylesheet from the skeleton's public directory, as on a Site after `kami:install`.
 // For every test of the suite, whichever runs first: the browser's server may keep the first test's application.
 pest()->extend(TestCase::class)->beforeEach(function (): void {
@@ -230,8 +233,8 @@ function withRunningSite(): void
 }
 
 /**
- * Conversions as `kami:install` leaves a site, for a test that expects `kami:doctor` clean: a shared lock store, `public/`
- * and the public disk the test's own, linked, and served with Kami's headers. A test changes the answer through `$this->served`.
+ * Conversions and the Video facade as `kami:install` leaves a site, for a test that expects `kami:doctor` clean: a shared lock store, `public/`
+ * and the public disk the test's own, linked, and served with Kami's headers. A test changes the answers through `$this->served` and `$this->facadeServed`.
  */
 function withConversionsServed(): void
 {
@@ -239,14 +242,19 @@ function withConversionsServed(): void
     app()->usePublicPath(temporaryPath());
     File::ensureDirectoryExists(public_path());
     PublicMedia::install();
+    VideoFacade::install();
     Http::preventStrayRequests();
     // A second Http::fake() would come after this one.
     test()->served = null;
-    Http::fake(['*/media/kami-doctor.svg' => fn () => value(test()->served ?? Http::response('<svg/>', 200, [
-        'X-Content-Type-Options' => 'nosniff',
-        'Cache-Control' => 'public, max-age=31536000, immutable',
-        'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
-    ]))]);
+    test()->facadeServed = null;
+    Http::fake([
+        '*/media/kami-doctor.svg' => fn () => value(test()->served ?? Http::response('<svg/>', 200, [
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+        ])),
+        '*/vendor/kami/video.js' => fn () => value(test()->facadeServed ?? Http::response('', 200, ['X-Content-Type-Options' => 'nosniff'])),
+    ]);
 }
 
 /** Both Image drivers failing to write these formats, as a library without their encoder, or a generation out of memory, does; none restores them. */
