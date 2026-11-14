@@ -182,7 +182,7 @@ final class PageCache
     }
 
     /**
-     * Stores the response, atomically, then marks it as a fresh hit; with no version, stores nothing.
+     * Stores the response as it was sent, atomically; with no version, stores nothing. The response is left as it is: it has gone, and only a hit carries the ETag.
      */
     public static function store(Request $request, Response $response): void
     {
@@ -195,18 +195,11 @@ final class PageCache
         // Set per hit, or describing this one only.
         $headers = array_diff_key($response->headers->allPreserveCaseWithoutCookies(), array_flip(['Date', 'Cache-Control', 'ETag']));
 
-        $stored = rescue(function () use ($request, $version, $headers, $etag, $body): bool {
+        rescue(function () use ($request, $version, $headers, $etag, $body): void {
             $path = self::pagePath($request, $version);
             File::ensureDirectoryExists(dirname($path));
             File::replace($path, json_encode(['headers' => $headers, 'etag' => $etag], JSON_THROW_ON_ERROR) . "\n" . $body);
-
-            return true;
-        }, false);
-
-        // A page not stored is no hit: `kami:bench` reads the ETag as one.
-        if ($stored) {
-            self::fresh($response, $etag);
-        }
+        });
     }
 
     private static function fresh(Response $response, string $etag): Response

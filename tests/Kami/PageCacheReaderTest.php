@@ -7,7 +7,6 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
-use Livewire\Livewire;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
@@ -27,9 +26,9 @@ beforeEach(function () {
     Http::allowStrayRequests();
 
     resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello world', 'status' => 'published', 'author' => 'Ada Lovelace']);
-    // An admin test earlier in this process leaves Livewire injecting its styles into the response after the page is stored (#434).
-    Livewire::flushState();
-    $this->stored = $this->get('/articles/hello-world')->assertOk();
+    $this->get('/articles/hello-world')->assertOk();
+    // The page as the middleware serves it once stored: the reader repeats it.
+    $this->stored = $this->get('/articles/hello-world')->assertOk()->assertHeader('ETag');
     // A Tick in the last five minutes, which that request's visit Tick wrote as well.
     touch("{$this->storage}/framework/kami/tick-cli");
 

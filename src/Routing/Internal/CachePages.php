@@ -11,11 +11,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Writes the page cache, and serves it too when the pre-boot reader is not installed (ADR 0021). First in the `kami` group, so what it stores carries the front's security headers.
+ * A miss is stored from `terminate()`, as it was sent: Livewire injects its script and style on `RequestHandled`, once this middleware has returned.
  *
  * @internal
  */
 final class CachePages
 {
+    /** Set on the request by a miss `handle()` let through, so `terminate()` never stores a hit again. */
+    private const string MISS = 'kami.page_cache_miss';
+
     /** @param  Closure(Request): Response  $next */
     public function handle(Request $request, Closure $next): Response
     {
@@ -27,13 +31,16 @@ final class CachePages
             return $hit;
         }
 
-        $response = $next($request);
+        $request->attributes->set(self::MISS, true);
 
-        if ($this->storable($request, $response)) {
+        return $next($request);
+    }
+
+    public function terminate(Request $request, Response $response): void
+    {
+        if ($request->attributes->get(self::MISS) === true && $this->storable($request, $response)) {
             PageCache::store($request, $response);
         }
-
-        return $response;
     }
 
     private function cacheable(Request $request): bool
@@ -51,7 +58,7 @@ final class CachePages
 
     private function storable(Request $request, Response $response): bool
     {
-        // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie marks a response for one visitor.
+        // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie, ours or the outer middleware's, marks a response for one visitor.
         return $request->isMethod('GET')
             && $response->getStatusCode() === 200
             && $response->getContent() !== false
