@@ -39,6 +39,8 @@ use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Routing\Internal\PathTooLong;
+use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
 
@@ -132,8 +134,13 @@ final class SaveEntry
                 References::clear($entry->id, $handle);
             }
 
+            if ($writesTranslation || $entry->wasChanged('parent_id')) {
+                // A descendant's Path holds this Entry's slug: it moves with a new Parent, a new slug or a first Translation in the Locale.
+                $moves = $entry->wasChanged('parent_id') || ($writesTranslation && ($translation->wasRecentlyCreated || $translation->wasChanged('slug')));
+                $this->reservePaths($contentType, $site, $entry, $locale, $writesTranslation ? $wasPublic : null, $moves);
+            }
+
             if ($writesTranslation) {
-                $this->reservePath($contentType, $site, $entry, $locale, $translation->slug, $wasPublic);
                 $this->recordVisibility($entry, $translation, $wasPublished, $publishedAt, $actor);
             }
 
@@ -465,36 +472,32 @@ final class SaveEntry
         };
     }
 
-    /** The Translation's 200 row; the `'*'` Translation answers in every Locale of the Site, one row each. A moved one stays as a 301 to the Entry once public, and is rewritten in place otherwise (ADR 0008). */
-    private function reservePath(ContentType $contentType, Site $site, Entry $entry, string $locale, ?string $slug, bool $wasPublic): void
+    /**
+     * The Translation's 200 rows, and its descendants' on a hierarchical type, whose Paths hold its slug: the `'*'` Translation answers in every Locale of the Site, one row each,
+     * and a new Parent moves the Entry in every Locale. A moved row stays as a 301 to the Entry once public, and is rewritten in place otherwise (ADR 0008).
+     */
+    private function reservePaths(ContentType $contentType, Site $site, Entry $entry, string $locale, ?bool $wasPublic, bool $moves): void
     {
-        $locales = $locale === '*' ? $site->locales : [$locale];
-        // ponytail: no ancestor's slug, so a Parent change moves no Path; M10's hierarchical URLs add them.
-        $path = Path::of($contentType, $slug);
-
-        if ($path === null) {
-            Path::query()->where(['site' => $site->handle, 'entry_id' => $entry->id, 'status' => 200])->whereIn('locale', $locales)->delete();
-
-            return;
-        }
+        $moved = $entry->wasChanged('parent_id');
+        $written = $locale === '*' ? $site->locales : [$locale];
+        $ids = $moves && $contentType->isHierarchical() && $contentType->isRoutable() ? SyncPaths::subtree($entry->id) : [$entry->id];
+        $field = match (true) {
+            $moved => 'parent',
+            $contentType->hasSlug() => 'slug',
+            default => 'title',
+        };
 
         try {
-            foreach ($locales as $pathLocale) {
-                // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008).
-                Path::query()->where(['site' => $site->handle, 'locale' => $pathLocale, 'path' => $path])->where('status', '!=', 200)->delete();
-
-                if ($wasPublic) {
-                    Path::query()->where(['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200])->where('path', '!=', $path)->update(['status' => 301]);
-                }
-
-                Path::query()->updateOrCreate(
-                    ['site' => $site->handle, 'locale' => $pathLocale, 'entry_id' => $entry->id, 'status' => 200],
-                    ['path' => $path],
-                );
-            }
+            resolve(SyncPaths::class)->sync($site, $contentType, $ids, $moved ? $site->locales : $written, $wasPublic === null ? [] : array_fill_keys($written, $wasPublic));
         } catch (UniqueConstraintViolationException) {
             // Caught from the unique index, so two concurrent saves cannot both pass a prior lookup.
-            throw ValidationException::withMessages($contentType->hasSlug() ? ['slug' => __('validation.unique', ['attribute' => 'slug'])] : ['title' => __('kami::admin.fields.path_taken')]);
+            throw ValidationException::withMessages([$field => match ($field) {
+                'parent' => __('kami::admin.fields.parent_path_taken'),
+                'slug' => __('validation.unique', ['attribute' => 'slug']),
+                default => __('kami::admin.fields.path_taken'),
+            }]);
+        } catch (PathTooLong) {
+            throw ValidationException::withMessages([$field => __('kami::admin.fields.path_too_long', ['max' => Path::MAX_LENGTH])]);
         }
     }
 }

@@ -14,6 +14,8 @@ return [
         'untitled' => 'Sans titre',
         'encoding' => 'Le champ :attribute doit être un texte UTF-8 valide.',
         'path_taken' => 'Une autre Entry répond déjà au Prefix de ce type : changez le Prefix.',
+        'parent_path_taken' => 'Sous ce Parent, une adresse que prendrait cette Entry ou l’un de ses enfants est déjà utilisée.',
+        'path_too_long' => 'Cette adresse, slugs des Parents compris, dépasse :max caractères : raccourcissez un slug.',
         'slug_moves' => 'Le modifier déplace l’adresse : une fois la page publiée, l’ancienne redirige vers la nouvelle.',
         'slug_reserved' => 'Cette adresse est utilisée par le site lui-même.',
         'slug_locale' => 'Cette adresse appartient à la version :LOCALE.',
@@ -46,6 +48,10 @@ return [
 
     'restore' => [
         'parent' => 'Restaurez d’abord son Parent : :parent.',
+    ],
+
+    'unpublish' => [
+        'children' => 'Dépublier :title rend aussi ses enfants visibles inaccessibles : :children.',
     ],
 
     'bulk' => [

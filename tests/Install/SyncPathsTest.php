@@ -125,6 +125,24 @@ it('keeps a once-public Translation\'s former address as a 301 to its Entry, and
     $this->get('/en/about')->assertNotFound();
 });
 
+it('rewrites the flat Paths an earlier version gave nested Entries, a 301 at each once-public one', function () {
+    installedSite();
+    $parent = saved(Page::class, ['title' => 'Parent'], locale: 'fr');
+    $child = saved(Page::class, ['title' => 'Child', 'parent' => $parent->id], locale: 'fr');
+    $draft = saved(Page::class, ['title' => 'Draft', 'parent' => $child->id, 'status' => 'draft'], locale: 'fr');
+    // As 0.9 stored them: the slug alone.
+    DB::table('kami_paths')->where('entry_id', $child->id)->update(['path' => 'child']);
+    DB::table('kami_paths')->where('entry_id', $draft->id)->update(['path' => 'draft']);
+
+    install()->expectsOutputToContain('Paths: 0 created, 2 rewritten, 0 deleted.')->assertSuccessful();
+
+    expect(paths())->toBe(['fr parent' => $parent->id, 'fr parent/child' => $child->id, 'fr parent/child/draft' => $draft->id])
+        ->and(DB::table('kami_paths')->where('status', 301)->pluck('path', 'entry_id')->all())->toBe([$child->id => 'child']);
+
+    Kami::routes();
+    $this->get('/child')->assertMovedPermanently()->assertRedirect('http://localhost/parent/child');
+});
+
 it('gives untranslatable Entries a Path in a new Locale, and nothing else', function () {
     installedSite(['fr']);
     $page = saved(Page::class, ['title' => 'Accueil', 'slug' => 'accueil'], locale: 'fr');

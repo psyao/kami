@@ -532,13 +532,23 @@ final class EntryResource extends FilamentResource
                 ->label(__('kami::admin.search.locale'))
                 ->options(array_combine($locales, array_map(strtoupper(...), $locales)))
                 ->default(Site::current()->defaultLocale())
-                ->required()])
+                ->required()
+                // Unpublish names the children each Parent leaves unreachable in that Locale.
+                ->live($status === Translation::DRAFT)])
             ->authorize(fn (): bool => self::can('publish'))
             // Hidden where every row would be refused, the Trash alone shown, as Filament's `DeleteBulkAction` is; a trashed row in a mixed selection is refused.
             ->hidden(fn (HasTable $livewire): bool => filled($trash = $livewire->getTableFilterState(TrashedFilter::class)['value'] ?? null) && ! $trash)
             ->authorizeIndividualRecords(fn (Entry $record): bool => self::can('update', $record) && self::can('publish', $record))
             ->successNotificationTitle(__("kami::admin.bulk.{$name}_done"))
             ->deselectRecordsAfterCompletion();
+
+        if ($status === Translation::DRAFT) {
+            $action->modalDescription(fn (BulkAction $action, EloquentCollection $records): ?string => $records
+                // @phpstan-ignore argument.type (Filament types the selected records as plain Models; this Resource's are Entries)
+                ->map(fn (Entry $record): ?string => self::unpublishWarning($record, $locale($action->getRawData()) ?? Site::current()->defaultLocale()))
+                ->filter()->implode(' ') ?: null);
+        }
+
         /** @var list<string> $written The rows this run wrote: Filament calls `after()` once every row's `action()` has run. */
         $written = [];
 
@@ -564,6 +574,23 @@ final class EntryResource extends FilamentResource
                 $written[] = $record->id;
             },
         );
+    }
+
+    /**
+     * What unpublishing a Parent in a Locale costs: the sentence naming its children visible there, which become unreachable with it (ADR 0019); null for none,
+     * or when it is not published there.
+     *
+     * @internal
+     */
+    public static function unpublishWarning(Entry $parent, string $locale): ?string
+    {
+        if (! self::type()->isHierarchical() || $parent->translation($locale)?->status !== Translation::PUBLISHED) {
+            return null;
+        }
+
+        $children = Entry::query()->inLocale($locale === '*' ? Site::current()->defaultLocale() : $locale)->where('parent_id', $parent->id)->ordered();
+
+        return $children->exists() ? (string) __('kami::admin.unpublish.children', ['title' => EntryTitles::of($parent), 'children' => EntryTitles::list($children)]) : null;
     }
 
     /**

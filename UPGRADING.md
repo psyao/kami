@@ -10,6 +10,8 @@ Every release has a section here, newest first (before 0.9.1, breaking releases 
 
 ## Unreleased
 
+1. **Nested Entries' Paths hold their ancestors' slugs.** A child Page answers at `/parent/child`, no longer at `/child`, and an Entry under a Draft or Scheduled ancestor answers 404, its `url()` returning `null`. The next `kami:install` rewrites the Paths of nested Entries; a former address once public answers 301 to the new one. Until then, a nested Entry answers 404: run `kami:install` in the same deploy, as usual. A site with no nested Entries has nothing to do ([Paths](docs/guide/routing-and-rendering.md#paths)).
+
 ## 0.9.1
 
 0.9.1 changes nothing a site's Form does today, unless it declares a method named `confirmation()`.

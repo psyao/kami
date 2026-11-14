@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,7 @@ use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
+use Workbench\App\Content\Page;
 use Workbench\App\Content\Testimonial;
 
 uses(RefreshDatabase::class);
@@ -221,3 +223,27 @@ it('answers a file a built sitemap does not have with a 404, building nothing', 
 it('keeps the sitemap routes out of the page cache and the session', function (string $uri) {
     expect(Route::getRoutes()->match(Request::create($uri))->gatherMiddleware())->not->toContain('kami', 'web');
 })->with(['/sitemap.xml', '/sitemaps/fr-1.xml']);
+
+it('leaves out an Entry under a non-visible ancestor, checking ancestors per batch', function () {
+    $save = resolve(SaveEntry::class);
+    $page = fn (string $title, ?Entry $parent = null, string $status = 'published'): Entry => $save->handle(Page::class, ['title' => $title, 'status' => $status, 'parent' => $parent?->id], locale: 'fr');
+    $shown = $page('Shown');
+    $page('Child', $page('Middle', $shown));
+    $page('Lost', $page('Hidden', status: 'draft'));
+    $count = function (): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->artisan('kami:sitemap')->assertSuccessful();
+
+        return count(DB::getQueryLog());
+    };
+
+    $queries = $count();
+
+    expect(array_keys(sitemapUrls("{$this->public}/sitemaps/fr-1.xml")))->toEqualCanonicalizing(['http://localhost/shown', 'http://localhost/shown/middle', 'http://localhost/shown/middle/child']);
+
+    $page('More', $page('Deeper', $page('Deep', $shown)));
+    File::delete("{$this->public}/sitemap.xml");
+
+    expect($count())->toBe($queries);
+});

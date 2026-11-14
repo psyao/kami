@@ -178,7 +178,7 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
 - `public function summary(): ?string`: Its type's `summary()`: the page's description when it has no Meta description. `$entry->summary`, with no call, reads a Field of that name.
-- `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL.
+- `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it or one of its ancestors is not visible there, or its type has no URL.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
 
 ## `Psyao\Kami\Content\Fields\Boolean`

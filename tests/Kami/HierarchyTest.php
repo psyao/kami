@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,7 +18,6 @@ use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ReorderEntries;
-use Psyao\Kami\Routing\Internal\Path;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
@@ -134,20 +134,6 @@ it('keeps hierarchy and order apart: a hierarchical type alone has Parents and n
     expect($save->handle(Tag::class, ['title' => 'Child', 'parent' => $parent->id])->parent_id)->toBe($parent->id)
         ->and(fn () => $save->handle(Tag::class, ['title' => 'Other', 'position' => 1]))->toThrow(ValidationException::class)
         ->and(fn () => $save->handle(Label::class, ['title' => 'Flat', 'parent' => $parent->id]))->toThrow(ValidationException::class);
-});
-
-it('leaves Paths out of it: no ancestor in a Path, and a Parent change moves none', function () {
-    $save = resolve(SaveEntry::class);
-    $one = page('One');
-    $two = page('Two');
-    $child = page('Child', ['parent' => $one->id]);
-    $path = fn (): array => Path::query()->where('entry_id', $child->id)->pluck('path')->all();
-
-    expect($path())->toBe(['child']);
-
-    $save->handle(Page::class, ['parent' => $two->id], $child, 'fr');
-
-    expect($path())->toBe(['child']);
 });
 
 it('reads a Term\'s visible ancestors, nearest first', function () {
@@ -417,4 +403,49 @@ it('stops at a cycle concurrent moves could close', function () {
     DB::table('kami_entries')->where('id', $top->id)->update(['parent_id' => $bottom->id]);
 
     expect($bottom->ancestors()->pluck('title')->all())->toBe(['Top', 'Bottom']);
+});
+
+describe('the Unpublish confirmation on a Parent', function () {
+    beforeEach(function () {
+        $save = resolve(SaveEntry::class);
+        $this->parent = $save->handle(Page::class, ['title' => 'Parent', 'status' => 'published'], locale: 'fr');
+        $save->handle(Page::class, ['title' => 'Parent EN', 'status' => 'published'], $this->parent, 'en');
+        $this->child = $save->handle(Page::class, ['title' => 'Visible', 'status' => 'published', 'parent' => $this->parent->id], locale: 'fr');
+        $save->handle(Page::class, ['title' => 'Hidden', 'status' => 'draft', 'parent' => $this->parent->id], locale: 'fr');
+        $this->lonely = $save->handle(Page::class, ['title' => 'Lonely', 'status' => 'published'], locale: 'fr');
+        $this->sentence = __('kami::admin.unpublish.children', ['title' => 'Parent', 'children' => 'Visible']);
+    });
+
+    it('lists the visible children on the edit page, and asks nothing of a Parent without any', function () {
+        entriesPage(EditEntry::class, parameters: ['record' => $this->parent->id], type: 'page')
+            ->mountAction(TestAction::make('unpublish')->schemaComponent('form-actions', schema: 'content'))
+            ->assertMountedActionModalSee($this->sentence)
+            ->assertMountedActionModalDontSee('Hidden')
+            ->callMountedAction();
+
+        expect(Entry::query()->withUnpublished()->findOrFail($this->parent->id)->status)->toBe('draft');
+
+        // Mounting runs an action with no modal at once.
+        entriesPage(EditEntry::class, parameters: ['record' => $this->lonely->id], type: 'page')
+            ->mountAction(TestAction::make('unpublish')->schemaComponent('form-actions', schema: 'content'));
+
+        expect(Entry::query()->withUnpublished()->findOrFail($this->lonely->id)->status)->toBe('draft');
+    });
+
+    it('lists each selected Parent\'s visible children in the bulk Unpublish, for the Locale chosen', function () {
+        entriesPage(ListEntries::class, type: 'page')
+            ->selectTableRecords([$this->parent->id, $this->lonely->id])
+            ->mountAction(TestAction::make('unpublish')->table()->bulk())
+            ->assertMountedActionModalSee($this->sentence)
+            ->setActionData(['locale' => 'en'])
+            ->assertMountedActionModalDontSee($this->sentence);
+
+        // Already a Draft there: nothing more becomes unreachable.
+        resolve(SaveEntry::class)->handle(Page::class, ['status' => 'draft'], $this->parent, 'fr');
+
+        entriesPage(ListEntries::class, type: 'page')
+            ->selectTableRecords([$this->parent->id])
+            ->mountAction(TestAction::make('unpublish')->table()->bulk())
+            ->assertMountedActionModalDontSee($this->sentence);
+    });
 });
