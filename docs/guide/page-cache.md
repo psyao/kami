@@ -4,7 +4,7 @@ A page Kami has rendered once is stored and served again, with no query and no r
 
 ## What is cached
 
-Kami stores a response of its Entry route, an Entry's page or an [Archive](routing-and-rendering.md#archives)'s, only when all of these hold:
+Kami stores a response of its Entry route, an Entry's page or an [Archive](routing-and-rendering.md#archives)'s, or of its [Feed](routing-and-rendering.md#feeds) route, only when all of these hold:
 
 - the request is `GET` or `HEAD`, with no query string and no `Authorization` header;
 - the request carries no session, as under [`Kami::routes(session: true)`](existing-application.md#keep-your-members-signed-in);
@@ -12,7 +12,7 @@ Kami stores a response of its Entry route, an Entry's page or an [Archive](routi
 - the response is a 200 and sets no cookie;
 - the response did not call [`Kami::withoutPageCache()`](#keeping-a-page-out).
 
-An Archive's first page and a Term Archive's are stored like any page. A page reached through a cursor (`?cursor=`) has a query string, so it never is: it is rendered each time, in the same number of queries whatever the number of Entries. Redirects, 404 and 410 pages, Previews, Preview links, Conversions and your own routes are never stored. A stored page is replayed with its headers, the Content Security Policy included, but `Set-Cookie` and `Date`. What is stored is the response as it was sent, once everything after your route has changed it: the script and style Livewire injects into a page with a component are replayed too. It carries an `ETag` and `Cache-Control: no-cache`: browsers ask again each time, and a page that has not changed answers `304 Not Modified` with no body. The response that stored the page went out before it was stored, so it carries no `ETag`; the next one does.
+An Archive's first page, a Term Archive's and a Feed are stored like any page, a Feed with its `application/rss+xml` content type, so a feed reader is served before Laravel boots too. A page reached through a cursor (`?cursor=`) has a query string, so it never is: it is rendered each time, in the same number of queries whatever the number of Entries. Redirects, 404 and 410 pages, Previews, Preview links, Conversions and your own routes are never stored. A stored page is replayed with its headers, the Content Security Policy included, but `Set-Cookie` and `Date`. What is stored is the response as it was sent, once everything after your route has changed it: the script and style Livewire injects into a page with a component are replayed too. It carries an `ETag` and `Cache-Control: no-cache`: browsers ask again each time, and a page that has not changed answers `304 Not Modified` with no body. The response that stored the page went out before it was stored, so it carries no `ETag`; the next one does.
 
 An [Inertia](https://inertiajs.com) visit (`X-Inertia: true`) gets the page's JSON answer, stored as a copy of its own beside the HTML: the copy is served only to a visit carrying the same `X-Inertia-Version`, so after a deploy Laravel answers Inertia's 409 and the browser reloads. A partial reload, or any request with an `X-Inertia-*` header other than `X-Inertia-Version`, is never stored or served. An Inertia visit never gets the HTML from the cache, and a plain request never gets the JSON.
 
@@ -41,7 +41,7 @@ One Content version covers the whole installation, and every cached page and fra
 - any write through a core action: `SaveEntry` (Global Sets included), `DuplicateEntry`, `TrashEntry`, `RestoreEntry`, `DeleteEntry`, `DeleteTranslation`, `SaveMedia`, `DeleteMedia`, and reordering a type in the admin;
 - every `kami:install`, as a deploy may have changed views;
 - `Kami::flushCache()`, `kami:cache:clear` and `optimize:clear`;
-- the moment a Scheduled Translation appears: the first request after it recomputes the next such moment and makes a new version, so a scheduled article appears on time on every page that lists it.
+- the moment a Scheduled Translation appears: the first request after it recomputes the next such moment and makes a new version, so a scheduled article appears on time on every page and Feed that lists it, with no Tick.
 
 Each page also expires one hour after it was stored, as a net for what Kami cannot see, such as a page showing the date. Invalidation is deliberately coarse: a write on a small site is rare next to its reads, and a type's `render()` may show anything.
 

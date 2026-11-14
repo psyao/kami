@@ -12,6 +12,9 @@
 @foreach ($seo->alternates as $locale => $url)
 <link rel="alternate" hreflang="{{ $locale }}" href="{{ $url }}">
 @endforeach
+@foreach ($seo->feeds as $url => $feedTitle)
+<link rel="alternate" type="application/rss+xml" title="{{ $feedTitle }}" href="{{ $url }}">
+@endforeach
 @if ($seo->robots !== null)
 <meta name="robots" content="{{ $seo->robots }}">
 @endif

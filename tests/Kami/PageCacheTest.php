@@ -159,6 +159,30 @@ it('serves an Archive\'s first page rendered once until a core write, and never 
     $this->get('/articles')->assertOk()->assertSee('Unseen');
 });
 
+it('serves a Feed rendered once until a core write, with its content type', function () {
+    cachedArticle();
+    $this->get('/articles/feed')->assertOk()->assertSee('Hello world');
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/articles/feed')->assertOk()->assertHeader('ETag')->assertHeader('Content-Type', 'application/rss+xml; charset=UTF-8')->assertDontSee('Unseen');
+    $this->get('/feed')->assertOk()->assertSee('Unseen');
+    cachedArticle(['title' => 'Another']);
+    $this->get('/articles/feed')->assertOk()->assertSee('Unseen');
+});
+
+it('adds a Scheduled Entry to a cached Feed at its moment, with no Tick', function () {
+    $this->freezeSecond();
+    cachedArticle();
+    cachedArticle(['title' => 'Scheduled', 'published_at' => now()->addMinutes(30)]);
+    $this->get('/articles/feed')->assertOk()->assertDontSee('Scheduled');
+    $this->get('/articles/feed')->assertHeader('ETag');
+
+    $this->travel(30)->minutes();
+
+    $this->get('/articles/feed')->assertOk()->assertSee('Scheduled');
+});
+
 it('serves a cached page on a Site URL whose host has capitals', function () {
     config(['kami.sites.default.url' => 'http://Kami.Test']);
     cachedArticle();

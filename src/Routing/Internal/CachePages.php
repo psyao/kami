@@ -55,7 +55,7 @@ final class CachePages
             // An Inertia request for part of the page, or otherwise changing its answer: only `X-Inertia` and `X-Inertia-Version` name a whole page.
             && preg_grep('/^x-inertia-(?!version$)/', array_keys($request->headers->all())) === []
             && $request->getHost() === parse_url(Site::current()->url, PHP_URL_HOST)
-            && $request->route()?->getControllerClass() === RenderEntry::class;
+            && in_array($request->route()?->getControllerClass(), [RenderEntry::class, RenderFeed::class], true);
     }
 
     private function storable(Request $request, Response $response): bool

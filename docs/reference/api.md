@@ -146,6 +146,7 @@ Moves an Entry to the Trash in all its Locales: it reads as absent everywhere an
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
 - `protected bool $archive = false`: `true` lists its visible Entries at its Prefix, under every Locale segment, through `renderArchive()`: a routable type with a Prefix of its own (ADR 0009).
+- `protected bool $feed = false`: `true` lists its 20 latest visible Entries as RSS 2.0 at `{prefix}/feed`, and in the Site's `/feed`, under every Locale segment: a routable type with a Prefix of its own (ADR 0009).
 - `protected bool $hierarchical = false`: `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand.
 - `protected ?string $model = NULL`: The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
 - `protected string $ogType = 'website'`: Its pages' `og:type`; `article` adds `article:published_time` and `article:modified_time`.
@@ -534,7 +535,7 @@ What a site calls on Kami through the `Kami` facade.
 - `public function flushCache(): void`: Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data.
 - `public function form(string $handle): Psyao\Kami\Forms\Form`: A Form listed under `kami.forms`, by handle, for its view: `Kami::form('contact')->sent()`.
 - `public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed`: Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
-- `public function routes(bool $session = false, array $middleware = []): void`: Registers Kami's front: a fallback route for Entries and Archives, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone: Entries, Archives and Term Archives.
+- `public function routes(bool $session = false, array $middleware = []): void`: Registers Kami's front: a fallback route for Entries and Archives, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/feed` and `/{prefix}/feed` for Feeds under every Locale segment, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone: Entries, Archives and Term Archives.
 - `public function schedule(): void`: Declares Kami's Scheduled tasks on Laravel's `Schedule`, for `routes/console.php`. A Tick runs them in-process, or `schedule:run` from a server's cron (ADR 0020).
 - `public function seo(): Psyao\Kami\Seo\PageMeta`: The current page's head values: a Kami page's own, or the Site's on a site route or an error page.
 - `public function sitemapUrls(): array`: The absolute URLs of Kami's per-Locale sitemap files, built first when missing, for an application that answers `/sitemap.xml` itself to list in its own index.
@@ -617,6 +618,7 @@ What the page's head says to search engines and networks, as `<x-kami::seo />` p
 - `public protected(set) readonly array $alternates`
 - `public protected(set) readonly ?string $canonical`
 - `public protected(set) readonly ?string $description`
+- `public protected(set) readonly array $feeds`
 - `public protected(set) readonly ?string $image`
 - `public protected(set) readonly ?string $imageAlt`
 - `public protected(set) readonly ?int $imageHeight`
@@ -629,7 +631,7 @@ What the page's head says to search engines and networks, as `<x-kami::seo />` p
 - `public protected(set) readonly ?string $robots`
 - `public protected(set) readonly string $siteName`
 - `public protected(set) readonly string $title`
-- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL, array $alternates = [], ?string $ogLocale = NULL, array $ogLocaleAlternates = [])`
+- `public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL, array $alternates = [], ?string $ogLocale = NULL, array $ogLocaleAlternates = [], array $feeds = [])`
 
 ## `Psyao\Kami\Support\SecurityHeaders`
 

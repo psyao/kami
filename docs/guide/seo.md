@@ -23,6 +23,8 @@ On a page Kami renders, it prints:
 <link rel="alternate" hreflang="fr" href="https://example.com/articles/bonjour">
 <link rel="alternate" hreflang="en" href="https://example.com/en/articles/hello">
 <link rel="alternate" hreflang="x-default" href="https://example.com/articles/bonjour">
+<link rel="alternate" type="application/rss+xml" title="Kami" href="https://example.com/en/feed">
+<link rel="alternate" type="application/rss+xml" title="Articles – Kami" href="https://example.com/en/articles/feed">
 <meta property="og:title" content="Hello – Kami">
 <meta property="og:description" content="The start of the article…">
 <meta property="og:site_name" content="Kami">
@@ -85,6 +87,10 @@ On a Site with several Locales, a page links to its Translations with `hreflang`
 ```
 
 This gives `og:locale` `fr_CH` on French pages and `en_GB` on English ones. A region in the code, `fr-ch`, gives the same, with `fr-ch` as hreflang and URL segment. Without a region, a Locale's pages have no `og:locale`. `og:locale:alternate` lists the other Locales of the page's language links that have a region.
+
+### Feeds
+
+Once a type offers a [Feed](routing-and-rendering.md#feeds), every page names the Site's, `/feed` in the page's Locale, titled with the Site name, so a reader finds it from any address. An Entry's page and its type's Archive also name the type's own Feed, titled like the page of an Archive, with the type's plural label and the Site name. Your own routes and error pages name the Site's Feed through the same component.
 
 ### Robots
 
@@ -160,7 +166,7 @@ The title becomes `Contact – Kami` through the same `kami::seo.title` string; 
 
 ### Reading the values
 
-`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots`, `siteName`, `image`, `imageWidth`, `imageHeight`, `imageAlt`, `ogType`, `publishedTime`, `modifiedTime` and `ogLocale`, each `null` when it has no value but `title`, `siteName` and `ogType`; `alternates`, the language links' URLs by Locale code then `x-default`, and `ogLocaleAlternates`, empty without any. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
+`Kami::seo()` returns the request's `Psyao\Kami\Seo\PageMeta`: `title`, `description`, `canonical`, `robots`, `siteName`, `image`, `imageWidth`, `imageHeight`, `imageAlt`, `ogType`, `publishedTime`, `modifiedTime` and `ogLocale`, each `null` when it has no value but `title`, `siteName` and `ogType`; `alternates`, the language links' URLs by Locale code then `x-default`, `ogLocaleAlternates`, and `feeds`, the Feeds' URLs with their titles, empty without any. Kami resolves it before it calls your type's `render()`, so an override can pass it on, as an Inertia page does in its props. Outside a page Kami renders, it holds the Site's values: the Site name as title, and the robots value of the switch.
 
 In a Preview, the head is that of the unsaved form, with the saved URL as canonical: none while the saved Translation is not visible, a Draft for instance.
 

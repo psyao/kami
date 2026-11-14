@@ -92,6 +92,23 @@ final class ContentTypes
     }
 
     /**
+     * The types each Feed address lists, by that address without its Locale segment: `feed` every type with a Feed, `{prefix}/feed` its own type; none without one.
+     *
+     * @return array<string, non-empty-list<ContentType>>
+     */
+    public function feeds(): array
+    {
+        $types = array_values(array_filter($this->all(), fn (ContentType $type): bool => $type->hasFeed()));
+        $feeds = $types === [] ? [] : ['feed' => $types];
+
+        foreach ($types as $type) {
+            $feeds[Path::normalise($type->prefix()) . '/feed'] = [$type];
+        }
+
+        return $feeds;
+    }
+
+    /**
      * Unvalidated, for the panel: it registers one Resource per type while the application boots.
      *
      * @return array<string, ContentType>
@@ -139,6 +156,10 @@ final class ContentTypes
             }
             if ($type->hasArchive() && (! $type->hasSlug() || $type->prefix() === '')) {
                 throw new InvalidArgumentException("{$class}: an Archive answers at its type's Prefix, which an Entry's Path must not take: it needs a routable type with slugs and a non-empty \$prefix; remove \$archive.");
+            }
+
+            if ($type->hasFeed() && (! $type->hasSlug() || $type->prefix() === '')) {
+                throw new InvalidArgumentException("{$class}: a Feed answers at its type's Prefix followed by /feed: it needs a routable type with slugs and a non-empty \$prefix; remove \$feed.");
             }
 
             if ($type->perPage() < 1) {

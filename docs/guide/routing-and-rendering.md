@@ -1,6 +1,6 @@
 # Routing and rendering
 
-How a visitor reaches an Entry: Kami answers each Entry's Path with one route, and its Content Type turns the Entry into a page. The same route answers a type's [Archive](#archives), the list of its Entries. Declaring types and writing Entries is in [Content types](content-types.md).
+How a visitor reaches an Entry: Kami answers each Entry's Path with one route, and its Content Type turns the Entry into a page. The same route answers a type's [Archive](#archives), the list of its Entries; its [Feed](#feeds) has a route of its own. Declaring types and writing Entries is in [Content types](content-types.md).
 
 ## Kami's route
 
@@ -26,7 +26,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 Kami::routes(middleware: [HandleInertiaRequests::class]);
 ```
 
-It runs on every answer of Kami's fallback route, after the `kami` group, on either mount and from a cached route table: an Entry's page, an [Archive](#archives)'s and a Term Archive's, but also the 404 of an address no Entry holds and the 301 or 410 of a former one. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap and the form route never get it. Without `session: true` there is no session to read: shared props must not read one, and Inertia's `errors` prop stays empty.
+It runs on every answer of Kami's fallback route, after the `kami` group, on either mount and from a cached route table: an Entry's page, an [Archive](#archives)'s and a Term Archive's, but also the 404 of an address no Entry holds and the 301 or 410 of a former one. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap, [Feeds](#feeds) and the form route never get it. Without `session: true` there is no session to read: shared props must not read one, and Inertia's `errors` prop stays empty.
 
 Beside Entries, `Kami::routes()` answers `/kami/tick/{token}`, named `kami.tick`, for a host's planner, with no session either. It answers 404 until `KAMI_TICK_TOKEN` is set ([Scheduler](scheduler.md#on-shared-hosting)).
 
@@ -50,9 +50,9 @@ A Redirect lasts until another Entry takes its address, which replaces it. A Dra
 
 ### Reserved paths
 
-Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, `sitemap.xml` and `robots.txt` whole, and the Prefix of each type with an [Archive](#archives), as `articles`. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, saying why: "This address is used by the site itself.", or "This address belongs to the EN version." for another Locale's code. A type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
+Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, `sitemap.xml` and `robots.txt` whole, the Prefix of each type with an [Archive](#archives), as `articles`, and the address of each [Feed](#feeds): `feed` whole once a type offers one, and its Prefix followed by `feed`, as `articles/feed`. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, saying why: "This address is used by the site itself.", or "This address belongs to the EN version." for another Locale's code. A type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
 
-Adding a Locale later can hide a Path saved before: a page at `/de/about` stops answering once `de` is a Locale, and a page at `/articles` once a type with that Prefix has an Archive. `kami:doctor` lists those Paths; change their slug. The check covers a Path built from a slug: a nested Entry's Path, built from its ancestors' slugs, that lands on an Archive's Prefix is only reported by `kami:doctor`.
+Adding a Locale later can hide a Path saved before: a page at `/de/about` stops answering once `de` is a Locale, a page at `/articles` once a type with that Prefix has an Archive, and one at `/feed` or `/articles/feed` once a type offers a Feed. `kami:doctor` lists those Paths; change their slug. The check covers a Path built from a slug: a nested Entry's Path, built from its ancestors' slugs, that lands on an Archive's Prefix or a Feed's address is only reported by `kami:doctor`.
 
 ## After a deploy
 
@@ -182,6 +182,20 @@ An override takes the same parameters, each extra one with a default: `render(En
 
 `<x-kami::pagination :paginator="$entries" />` renders a `<nav class="kami-pagination">` labelled "Pagination", with a "Previous" link (`rel="prev"`) and a "Next" link (`rel="next"`), each only when there is a page that way. It renders nothing on a single page. Its links carry the Site URL.
 
+## Feeds
+
+A type with `protected bool $feed = true` offers an RSS 2.0 Feed of its Entries at its Prefix followed by `/feed`, and joins the Site's Feed at `/feed`, which mixes every type that offers one; both answer under every Locale segment: `/articles/feed`, `/en/feed` ([Content types](content-types.md#feeds)). A Feed holds the 20 latest visible Entries in its Locale, newest first by publication date, each with:
+
+- `title`: its title;
+- `link`: its `url()`;
+- `guid`: its ULID, with `isPermaLink="false"`, so a changed slug never shows it again in a reader;
+- `pubDate`: the publication date of its Translation;
+- `description`: its type's [`summary()`](seo.md#description), left out when there is none. A Feed carries no full content.
+
+The channel is titled with the Site name, or the type's plural label and the Site name, as its autodiscovery link in the [head](seo.md#feeds); it links to the type's Archive when it has one, else to the home page, and is described by the Site's default description, else its title. It answers `application/rss+xml; charset=UTF-8`. An Entry under an ancestor that is not visible is left out, so a Feed may hold fewer than 20; a type with no Entry yet answers an empty Feed.
+
+A Feed has its own route, which `Kami::routes()` registers for the addresses the declarations give when it runs: a route of your application at `/feed`, registered before, keeps it. It runs in the `kami` group, never with the session, even under `session: true`, nor with the middleware passed to `Kami::routes()`. A cached route table holds the addresses: `php artisan optimize`, run at each deploy, picks up a new `$feed` or Locale. Feeds behave the same on shared hosting and on a server: one indexed query in the request, [cached](page-cache.md#what-is-cached) like a page and served before Laravel boots, and a Scheduled Entry joins the Feed at its time.
+
 ## Error pages
 
 Kami ships no error views: Laravel renders `resources/views/errors/{code}.blade.php`, yours, as for any application. The starter kit ships them. To render them in the visitor's Locale, call `Kami::exceptions()` in `bootstrap/app.php`, before your own callbacks:
@@ -206,4 +220,4 @@ An error raised on a route keeps that route's security headers: Kami's route sen
 
 ## Query count
 
-An Entry page costs four queries before your view runs: its Path with its ancestors', the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. A nested Entry's `url()` adds two, once for every Locale, whatever its depth. An Archive's page costs three, the page, its Translations and its Field values, with two more for ancestors on a hierarchical type; a Term Archive adds its page's to the Term's. Neither grows with the number of Entries. Kami's tests assert that number, so it does not grow unnoticed.
+An Entry page costs four queries before your view runs: its Path with its ancestors', the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. A nested Entry's `url()` adds two, once for every Locale, whatever its depth. An Archive's page costs three, the page, its Translations and its Field values, with two more for ancestors on a hierarchical type; a Term Archive adds its page's to the Term's. A Feed costs three: the Site settings, its Entries and their Translations. Neither grows with the number of Entries. Kami's tests assert that number, so it does not grow unnoticed.

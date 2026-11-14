@@ -183,7 +183,7 @@ it('links a page to its visible Translations not Hidden from search engines, in 
     $this->get('/articles/bonjour')->assertSeeInOrder($links, escape: false)->assertDontSee('rel="alternate" hreflang="de"', escape: false);
     $this->get('/en/articles/hello')->assertSeeInOrder($links, escape: false)->assertDontSee('rel="alternate" hreflang="de"', escape: false);
     // A hidden page leaves hreflang in both directions.
-    $this->get('/de/articles/hallo')->assertOk()->assertDontSee('rel="alternate"', escape: false);
+    $this->get('/de/articles/hallo')->assertOk()->assertDontSee('rel="alternate" hreflang', escape: false);
     // A page that is not indexable as a whole keeps them.
     config(['kami.indexable' => false]);
     $this->get('/articles/bonjour')->assertSeeInOrder($links, escape: false);
@@ -201,7 +201,7 @@ it('links no x-default when the default Locale\'s Translation is hidden or not v
     ], escape: false)->assertDontSee('x-default', escape: false)->assertDontSee('rel="alternate" hreflang="fr"', escape: false);
 
     seoArticle(['title' => 'Hallo', 'noindex' => true], 'de', $entry);
-    $this->get('/en/articles/hello')->assertDontSee('rel="alternate"', escape: false);
+    $this->get('/en/articles/hello')->assertDontSee('rel="alternate" hreflang', escape: false);
     expect(Kami::seo()->alternates)->toBe([]);
 });
 
@@ -215,7 +215,21 @@ it('links no Translation on a monolingual Site, and the Paths of an untranslatab
     ], escape: false);
 
     config(['kami.sites.default.locales' => ['fr']]);
-    $this->get('/label/urgent')->assertOk()->assertDontSee('rel="alternate"', escape: false);
+    $this->get('/label/urgent')->assertOk()->assertDontSee('rel="alternate" hreflang', escape: false);
+});
+
+it('names the Site\'s Feed on every page, and a type\'s own on its Archive and Entries, in the page\'s Locale', function () {
+    $entry = seoArticle(['title' => 'Bonjour']);
+    seoArticle(['title' => 'Hello'], 'en', $entry);
+    resolve(SaveEntry::class)->handle(Home::class, ['title' => 'Accueil', 'status' => 'published'], locale: 'fr');
+    $site = '<link rel="alternate" type="application/rss+xml" title="Kami Site" href="http://localhost/feed">';
+    $articles = '<link rel="alternate" type="application/rss+xml" title="Articles – Kami Site" href="http://localhost/articles/feed">';
+
+    $this->get('/articles/bonjour')->assertSeeInOrder([$site, $articles], escape: false);
+    $this->get('/articles')->assertSeeInOrder([$site, $articles], escape: false);
+    $this->get('/')->assertSee($site, escape: false)->assertDontSee('/articles/feed', escape: false);
+    $this->get('/en/articles/hello')->assertSee('href="http://localhost/en/feed"', escape: false)->assertSee('href="http://localhost/en/articles/feed"', escape: false);
+    expect(Kami::seo()->feeds)->toBe(['http://localhost/en/feed' => 'Kami Site', 'http://localhost/en/articles/feed' => 'Articles – Kami Site']);
 });
 
 it('adds no query with the number of a page\'s language links', function () {
@@ -241,7 +255,7 @@ it('leaves hreflang out of a Preview', function () {
     $entry = seoArticle(['title' => 'Bonjour']);
     seoArticle(['title' => 'Hello'], 'en', $entry);
 
-    $this->get(PreviewLink::issue($entry, 'fr', 7, $user))->assertOk()->assertDontSee('rel="alternate"', escape: false);
+    $this->get(PreviewLink::issue($entry, 'fr', 7, $user))->assertOk()->assertDontSee('rel="alternate" hreflang', escape: false);
 });
 
 it('gives og:locale and its alternates from a Locale\'s region, in its options or its code, and nothing without one', function () {
@@ -288,6 +302,7 @@ it('takes a title and a description on a page Kami does not render, and ignores 
     expect($this->get('/contact')->assertOk()->getContent())->toBe(implode("\n", [
         '<title>Contact &lt;us&gt; – Kami Site</title>',
         '<meta name="description" content="Écrivez-nous.">',
+        '<link rel="alternate" type="application/rss+xml" title="Kami Site" href="http://localhost/feed">',
         '<meta property="og:title" content="Contact &lt;us&gt; – Kami Site">',
         '<meta property="og:description" content="Écrivez-nous.">',
         '<meta property="og:site_name" content="Kami Site">',

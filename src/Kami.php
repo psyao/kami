@@ -11,6 +11,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use InvalidArgumentException;
+use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Forms\Form;
 use Psyao\Kami\Forms\Internal\Forms;
@@ -19,24 +20,27 @@ use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Internal\RenderConversion;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\RenderEntry;
+use Psyao\Kami\Routing\Internal\RenderFeed;
 use Psyao\Kami\Routing\Internal\RenderPreviewLink;
 use Psyao\Kami\Scheduling\Internal\RunTick;
 use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Seo\Internal\ServeSitemap;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Seo\PageMeta;
+use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\FrontSecurityHeaders;
 
 /** What a site calls on Kami through the `Kami` facade. */
 final class Kami
 {
     /**
-     * Registers Kami's front: a fallback route for Entries and Archives, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone: Entries, Archives and Term Archives.
+     * Registers Kami's front: a fallback route for Entries and Archives, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/feed` and `/{prefix}/feed` for Feeds under every Locale segment, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone: Entries, Archives and Term Archives.
      *
      * The fallback lets the site's own routes always win, in the `kami` middleware group. All run without the `web` group's session, cookies and CSRF, even when called inside it,
      * but the fallback and the form route under `$session`: they then join the `web` group, its CSRF check included, so the application's signed-in members stay signed in on Kami's pages, which the page cache never stores (ADR 0038).
      *
-     * `$middleware` runs on the fallback only, after the `kami` group: never on the Tick, media, Preview links, the sitemap or the form route (ADRs 0038, 0040).
+     * `$middleware` runs on the fallback only, after the `kami` group: never on the Tick, media, Preview links, the sitemap, Feeds or the form route (ADRs 0038, 0040).
+     * Feeds answer at the addresses the declarations give when this runs: `php artisan optimize` caches them with the routes.
      *
      * @param  list<string>  $middleware
      */
@@ -57,6 +61,14 @@ final class Kami
             Route::get('sitemap.xml', ServeSitemap::class)->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         }
 
+        // Its addresses alone, so a Path ending in `feed` elsewhere stays the fallback's; declarations read inside `rescue()`, as this runs at every boot,
+        // and an invalid one must not break Artisan: the requests reading types report it.
+        $feed = rescue(fn (): ?string => $this->feedPattern(), null, false);
+
+        if ($feed !== null) {
+            Route::get('{feed}', RenderFeed::class)->where('feed', $feed)->middleware('kami')->withoutMiddleware('web');
+        }
+
         // The host's planner calls it with no session or cookie (ADR 0020).
         Route::match(['GET', 'POST'], 'kami/tick/{token}', RunTick::class)->name('kami.tick')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
         Route::get('sitemaps/{file}', ServeSitemap::class)->where('file', '[A-Za-z0-9_-]+-[1-9][0-9]*\.xml')->middleware(FrontSecurityHeaders::class)->withoutMiddleware('web');
@@ -72,6 +84,15 @@ final class Kami
         }
 
         $fallback->middleware($middleware);
+    }
+
+    /** The Feed addresses, under every Locale segment, as a route pattern; null with no Feed. */
+    private function feedPattern(): ?string
+    {
+        $feeds = array_keys(resolve(ContentTypes::class)->feeds());
+        $locales = array_map(fn (string $locale): string => preg_quote($locale) . '/', array_slice(Site::current()->locales, 1));
+
+        return $feeds === [] ? null : ($locales === [] ? '' : '(?:' . implode('|', $locales) . ')?') . '(?:' . implode('|', array_map(preg_quote(...), $feeds)) . ')';
     }
 
     /** The current page's head values: a Kami page's own, or the Site's on a site route or an error page. */
