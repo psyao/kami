@@ -143,6 +143,22 @@ it('never stores what is not a 200 of an Entry, without query string or credenti
     'a 404' => [fn ($test) => $test->get('/articles/old')],
 ]);
 
+it('serves an Archive\'s first page rendered once until a core write, and never stores a cursor page', function () {
+    $this->freezeTime();
+    foreach (range(1, 11) as $number) {
+        cachedArticle(['title' => "Article {$number}", 'published_at' => now()->subDays($number)]);
+    }
+    $next = (string) str((string) $this->get('/articles')->assertOk()->getContent())->match('/href="([^"]+)" rel="next"/');
+    $this->get(html_entity_decode($next))->assertOk()->assertSee('Article 11');
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/articles')->assertOk()->assertHeader('ETag')->assertSee('Article 1')->assertDontSee('Unseen');
+    $this->get(html_entity_decode($next))->assertOk()->assertHeaderMissing('ETag')->assertSee('Unseen');
+    cachedArticle(['title' => 'Article 12']);
+    $this->get('/articles')->assertOk()->assertSee('Unseen');
+});
+
 it('serves a cached page on a Site URL whose host has capitals', function () {
     config(['kami.sites.default.url' => 'http://Kami.Test']);
     cachedArticle();
@@ -430,6 +446,16 @@ it('keeps Inertia\'s JSON answer as a copy of its own beside the HTML, each serv
         ->assertHeader('Content-Type', 'application/json')->assertContent($json->getContent());
     $this->get('/inertia_page/hello-world')->assertOk()->assertHeader('ETag')->assertContent($html->getContent());
     expect(File::allFiles(storage_path('framework/kami/pages/' . PageCache::version())))->toHaveCount(2);
+});
+
+it('keeps Inertia\'s JSON answer of an Archive beside its HTML', function () {
+    inertiaPage();
+    $json = $this->get('/inertia_page', inertiaVisit())->assertOk()->assertHeader('X-Inertia', 'true');
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/inertia_page', inertiaVisit())->assertOk()->assertHeader('ETag')->assertContent($json->getContent());
+    expect($json->json('props.titles'))->toBe(['Hello world']);
 });
 
 // Without Inertia's middleware, no 409 refuses a forged version: each would fill the disk with a copy of its own.

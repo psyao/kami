@@ -1,6 +1,6 @@
 # Routing and rendering
 
-How a visitor reaches an Entry: Kami answers each Entry's Path with one route, and its Content Type turns the Entry into a page. Declaring types and writing Entries is in [Content types](content-types.md).
+How a visitor reaches an Entry: Kami answers each Entry's Path with one route, and its Content Type turns the Entry into a page. The same route answers a type's [Archive](#archives), the list of its Entries. Declaring types and writing Entries is in [Content types](content-types.md).
 
 ## Kami's route
 
@@ -26,7 +26,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 Kami::routes(middleware: [HandleInertiaRequests::class]);
 ```
 
-It runs on every answer of Kami's fallback route, after the `kami` group, on either mount and from a cached route table: an Entry's page, but also the 404 of an address no Entry holds and the 301 or 410 of a former one. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap and the form route never get it. Without `session: true` there is no session to read: shared props must not read one, and Inertia's `errors` prop stays empty.
+It runs on every answer of Kami's fallback route, after the `kami` group, on either mount and from a cached route table: an Entry's page, an [Archive](#archives)'s and a Term Archive's, but also the 404 of an address no Entry holds and the 301 or 410 of a former one. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap and the form route never get it. Without `session: true` there is no session to read: shared props must not read one, and Inertia's `errors` prop stays empty.
 
 Beside Entries, `Kami::routes()` answers `/kami/tick/{token}`, named `kami.tick`, for a host's planner, with no session either. It answers 404 until `KAMI_TICK_TOKEN` is set ([Scheduler](scheduler.md#on-shared-hosting)).
 
@@ -50,9 +50,9 @@ A Redirect lasts until another Entry takes its address, which replaces it. A Dra
 
 ### Reserved paths
 
-Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, and `sitemap.xml` and `robots.txt` whole. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, saying why: "This address is used by the site itself.", or "This address belongs to the EN version." for another Locale's code. A type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
+Kami answers some addresses itself, so no Path may take them, in any Locale: `media`, `sitemaps` and `kami` as first segment, `sitemap.xml` and `robots.txt` whole, and the Prefix of each type with an [Archive](#archives), as `articles`. In the default Locale, no Path may start with another Locale's code either, as `/en/…` belongs to English. Saving such a slug fails on the slug field, saying why: "This address is used by the site itself.", or "This address belongs to the EN version." for another Locale's code. A type whose Prefix takes one, a [Singleton](content-types.md#singletons)'s Prefix as a whole Path included, fails at boot.
 
-Adding a Locale later can hide a Path saved before: a page at `/de/about` stops answering once `de` is a Locale. `kami:doctor` lists those Paths; change their slug.
+Adding a Locale later can hide a Path saved before: a page at `/de/about` stops answering once `de` is a Locale, and a page at `/articles` once a type with that Prefix has an Archive. `kami:doctor` lists those Paths; change their slug. The check covers a Path built from a slug: a nested Entry's Path, built from its ancestors' slugs, that lands on an Archive's Prefix is only reported by `kami:doctor`.
 
 ## After a deploy
 
@@ -142,6 +142,46 @@ The admin's Preview calls the same `render()` with an Entry that was never saved
 
 It renders nothing on a public page. In a Preview it renders an `<aside class="kami-preview-banner">` landmark saying the page holds unsaved changes visitors do not see, in the Preview's Locale; through a Preview link, that visitors may not see this saved version, and when the link expires, in the Site's time zone. It carries no CSS: style `.kami-preview-banner` as you wish. Kami does not change your HTML, so a layout without the component shows no banner.
 
+## Archives
+
+A type with `protected bool $archive = true` lists its visible Entries at its Prefix, under every Locale segment: `/articles`, `/en/articles` ([Content types](content-types.md#archives)). Its type's `renderArchive()` renders the list. By default, it returns the view `kami.{handle}-archive`, with the page as `$entries`, a Laravel `CursorPaginator`. For an `Article`, that is `resources/views/kami/article-archive.blade.php`:
+
+```blade
+<ul>
+    @foreach ($entries as $article)
+        <li><a href="{{ $article->url() }}">{{ $article->title }}</a></li>
+    @endforeach
+</ul>
+
+<x-kami::pagination :paginator="$entries" />
+```
+
+A page holds `$perPage` Entries, 10 by default, newest first: by publication date, then by creation, each in the page's Locale. A type [ordered by hand](content-types.md#types-ordered-by-hand) lists them in Position order instead; on a hierarchical one, Positions count among siblings, so the list runs through the first child of every Parent, then the second, and so on: list a tree yourself, with your own query in `renderArchive()`. An Entry under an ancestor that is not visible is left out of its page, which then holds fewer. An Archive with no Entry yet answers its first page, empty. `kami:doctor` reports a type with an Archive and no view, unless it overrides `renderArchive()`, which Kami calls through the container, as `render()`.
+
+A cursor in `?cursor=` reaches the next pages: an address for a moment of the list rather than a page number, so a page never repeats or skips an Entry as Entries are added. A malformed cursor, or one past the end, answers 404. Search engines index the first page only ([SEO](seo.md#robots)), and only the first page is [cached](page-cache.md#what-is-cached). Archives behave the same on shared hosting and on a server: a page is one indexed query in the request, with no task to run, and a Scheduled Entry joins the list at its time.
+
+### Term Archives
+
+A Term's page is its Term Archive: its Taxonomy's `render()` receives the Term, also as `$term`, and `$entries`, the visible Entries of routable types that link it through any Field, in the page's Locale or a Shared one. They come newest first, `$perPage` of the Taxonomy at a time, with the same cursor. The default view, `kami.{handle}`, receives all three:
+
+```blade
+<h1>{{ $term->title }}</h1>
+
+<ul>
+    @foreach ($entries as $post)
+        <li><a href="{{ $post->url() }}">{{ $post->title }}</a></li>
+    @endforeach
+</ul>
+
+<x-kami::pagination :paginator="$entries" />
+```
+
+An override takes the same parameters, each extra one with a default: `render(Entry $term, ?CursorPaginator $entries = null)`. A Term's [Preview](publishing.md#preview) gets the first page, as visitors see it.
+
+### Pagination
+
+`<x-kami::pagination :paginator="$entries" />` renders a `<nav class="kami-pagination">` labelled "Pagination", with a "Previous" link (`rel="prev"`) and a "Next" link (`rel="next"`), each only when there is a page that way. It renders nothing on a single page. Its links carry the Site URL.
+
 ## Error pages
 
 Kami ships no error views: Laravel renders `resources/views/errors/{code}.blade.php`, yours, as for any application. The starter kit ships them. To render them in the visitor's Locale, call `Kami::exceptions()` in `bootstrap/app.php`, before your own callbacks:
@@ -166,4 +206,4 @@ An error raised on a route keeps that route's security headers: Kami's route sen
 
 ## Query count
 
-An Entry page costs four queries before your view runs: its Path with its ancestors', the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. A nested Entry's `url()` adds two, once for every Locale, whatever its depth. Kami's tests assert that number, so it does not grow unnoticed.
+An Entry page costs four queries before your view runs: its Path with its ancestors', the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. A nested Entry's `url()` adds two, once for every Locale, whatever its depth. An Archive's page costs three, the page, its Translations and its Field values, with two more for ancestors on a hierarchical type; a Term Archive adds its page's to the Term's. Neither grows with the number of Entries. Kami's tests assert that number, so it does not grow unnoticed.

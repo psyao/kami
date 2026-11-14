@@ -230,7 +230,8 @@ it('marks the sitemap stale once something was announced, writing no row and kee
     scheduledArticle('Seconde', '2026-11-10 10:30:00');
     // Past the page cache manifest's next change, which the sitemap reads on its own.
     $this->travelTo('2026-11-10 09:40:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+    // The Article and Workbench's Article Archive in both Locales.
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 3 URLs.')->assertSuccessful();
     announce($this, '2026-11-10 09:40:00');
     $this->travelTo('2026-11-10 10:40:00');
     $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
@@ -240,7 +241,7 @@ it('marks the sitemap stale once something was announced, writing no row and kee
         ->and([PageCache::version(), DB::table('kami_task_runs')->count()])->toBe([$version, $runs]);
     // A build in the second of a write rebuilds once more, to be safe: the steps stay a minute apart.
     $this->travelTo('2026-11-10 10:41:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 4 URLs.')->assertSuccessful();
 
     announce($this, '2026-11-10 10:50:00');
     $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();

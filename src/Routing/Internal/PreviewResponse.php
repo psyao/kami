@@ -30,7 +30,7 @@ final class PreviewResponse
         $request->attributes->set('kami.entry', $entry);
         $request->attributes->set(ResolvePageMeta::ATTRIBUTE, ResolvePageMeta::forEntry($type, $entry, preview: true));
 
-        $response = Route::toResponse($request, app()->call($type->render(...), ['entry' => $entry]));
+        $response = Route::toResponse($request, RenderEntry::call($type, $entry));
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
         $response->headers->set('Cache-Control', 'no-store');
 

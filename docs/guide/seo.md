@@ -42,7 +42,7 @@ Every value is escaped, and a tag with no value is left out.
 
 ### Title
 
-The Translation's Meta title, else the page's title and the Site name through the translation string `kami::seo.title`, `:title – :site`. Change the separator in `lang/vendor/kami/{locale}/seo.php`. The page at the Site's root Path, a home Singleton for instance, shows the Site name alone.
+The Translation's Meta title, else the page's title and the Site name through the translation string `kami::seo.title`, `:title – :site`. Change the separator in `lang/vendor/kami/{locale}/seo.php`. The page at the Site's root Path, a home Singleton for instance, shows the Site name alone. An [Archive](routing-and-rendering.md#archives) takes its type's plural label as the page's title, `kami-types.{handle}.plural` ([Labels](content-types.md#labels)), and has no description; a Term Archive takes the Term's own title and SEO fields.
 
 The Site name is `site_name` in the Site settings, in the page's Locale. Left blank, it reads the default Locale's, then the application's name (`APP_NAME`).
 
@@ -65,7 +65,7 @@ None of these values falls back to another Locale: a page described in another l
 
 ### Canonical URL
 
-The page's absolute URL, built from the Site's declared `url`, its Locale segment and its Path. It never uses the request's host, so a forged `Host` header cannot change it, and it drops the query string, `utm_*` parameters included. `og:url` takes the same value.
+The page's absolute URL, built from the Site's declared `url`, its Locale segment and its Path. It never uses the request's host, so a forged `Host` header cannot change it, and it drops the query string, `utm_*` parameters included. `og:url` takes the same value. An [Archive](routing-and-rendering.md#archives)'s first page, and a Term Archive's, are canonical at their own address; a page reached through a cursor names no canonical URL.
 
 ### Languages
 
@@ -91,6 +91,7 @@ This gives `og:locale` `fr_CH` on French pages and `en_GB` on English ones. A re
 - `noindex, nofollow` while the Site is not [indexable](#indexable-switch);
 - `noindex` for a Translation Hidden from search engines (`noindex`);
 - `noindex` in a Preview, always;
+- `noindex, follow` on a page of an [Archive](routing-and-rendering.md#archives) or a Term Archive reached through a cursor, whose address changes as Entries are added: search engines follow its links to the Entries without indexing it. It has no language links either;
 - no tag otherwise.
 
 ### Social card
@@ -249,7 +250,7 @@ The first line is Kami's marker. `kami:install` rewrites the file while it start
 </url>
 ```
 
-It lists the visible Translations that have a URL and are not [Hidden from search engines](#robots). The home page appears once per Locale, at `/` and `/en`. Global Sets, Entries of a type without URLs, Drafts, Scheduled Entries before their time and the Trash are left out. There is no `priority` and no `changefreq`.
+It lists the visible Translations that have a URL and are not [Hidden from search engines](#robots), each Term's page standing for its Term Archive, then the first page of each [Archive](routing-and-rendering.md#archives) in every Locale, with no `lastmod`. The home page appears once per Locale, at `/` and `/en`. Global Sets, Entries of a type without URLs, Drafts, Scheduled Entries before their time and the Trash are left out. There is no `priority` and no `changefreq`.
 
 ### When it is rebuilt
 

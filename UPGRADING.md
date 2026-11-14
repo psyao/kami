@@ -11,6 +11,7 @@ Every release has a section here, newest first (before 0.9.1, breaking releases 
 ## Unreleased
 
 1. **Nested Entries' Paths hold their ancestors' slugs.** A child Page answers at `/parent/child`, no longer at `/child`, and an Entry under a Draft or Scheduled ancestor answers 404, its `url()` returning `null`. The next `kami:install` rewrites the Paths of nested Entries; a former address once public answers 301 to the new one. Until then, a nested Entry answers 404: run `kami:install` in the same deploy, as usual. A site with no nested Entries has nothing to do ([Paths](docs/guide/routing-and-rendering.md#paths)).
+2. **A Term's page lists the Entries linking it.** A Taxonomy's `render()` now receives `$entries`, its Term Archive, and its default view gets `$term` and `$entries` beside `$entry` ([Term Archives](docs/guide/routing-and-rendering.md#term-archives)). A Taxonomy of yours overriding `render(Entry $entry)` no longer loads: PHP requires the override to take the new optional parameter, so declare `render(Entry $entry, ?CursorPaginator $entries = null)`, with `use Illuminate\Contracts\Pagination\CursorPaginator;`. A type's Archive, the list of its Entries at its Prefix, is opt-in with `protected bool $archive = true` ([Archives](docs/guide/content-types.md#archives)): a site that declares none has nothing else to do.
 
 ## 0.9.1
 

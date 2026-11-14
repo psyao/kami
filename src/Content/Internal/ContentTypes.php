@@ -70,6 +70,28 @@ final class ContentTypes
     }
 
     /**
+     * The handles of the types with a URL: what a Term Archive and the sitemap list.
+     *
+     * @return list<string>
+     */
+    public function routableHandles(): array
+    {
+        return array_values(array_map(fn (ContentType $type): string => $type->handle(), array_filter($this->all(), fn (ContentType $type): bool => $type->isRoutable())));
+    }
+
+    /**
+     * The types with an Archive, by the normalised Prefix it answers at.
+     *
+     * @return array<string, ContentType>
+     */
+    public function archives(): array
+    {
+        $archives = array_filter($this->all(), fn (ContentType $type): bool => $type->hasArchive());
+
+        return array_combine(array_map(fn (ContentType $type): string => Path::normalise($type->prefix()), $archives), $archives);
+    }
+
+    /**
      * Unvalidated, for the panel: it registers one Resource per type while the application boots.
      *
      * @return array<string, ContentType>
@@ -115,6 +137,14 @@ final class ContentTypes
             if (Path::isReserved(Path::of($type, 'slug') ?? '')) {
                 throw new InvalidArgumentException("{$class}: the Prefix \"{$type->prefix()}\" takes a segment Kami answers itself (" . implode(', ', [...Path::RESERVED_SEGMENTS, ...Path::RESERVED_PATHS]) . '); set another $prefix.');
             }
+            if ($type->hasArchive() && (! $type->hasSlug() || $type->prefix() === '')) {
+                throw new InvalidArgumentException("{$class}: an Archive answers at its type's Prefix, which an Entry's Path must not take: it needs a routable type with slugs and a non-empty \$prefix; remove \$archive.");
+            }
+
+            if ($type->perPage() < 1) {
+                throw new InvalidArgumentException("{$class}: \$perPage is {$type->perPage()}; an Archive page holds one Entry at least.");
+            }
+
             $fields = [];
 
             foreach ($type->flatFields() as $field) {

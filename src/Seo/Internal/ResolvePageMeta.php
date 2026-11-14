@@ -64,6 +64,67 @@ final class ResolvePageMeta
         );
     }
 
+    /** An Archive's page in the current Locale, titled by its type's plural label, its address in every Locale as language links; one reached through a cursor is `paged()`. */
+    public static function forArchive(ContentType $type, bool $paged = false): PageMeta
+    {
+        $site = Site::current();
+        $urls = self::archiveUrls($site, $type);
+        $alternates = self::alternates($site, $urls);
+        $meta = self::forSite($type->pluralLabel());
+
+        return self::with($meta, canonical: $paged ? null : $urls[$site->currentLocale()], robots: $paged ? self::pagedRobots($meta) : $meta->robots, alternates: $paged ? [] : $alternates);
+    }
+
+    /**
+     * An Archive's first page in each Locale: what the sitemap lists and the language links name.
+     *
+     * @return array<string, string>
+     */
+    public static function archiveUrls(Site $site, ContentType $type): array
+    {
+        return array_combine($site->locales, array_map(fn (string $locale): string => $site->url($locale, Path::normalise($type->prefix())), $site->locales));
+    }
+
+    /** A listing's page past the first, reached through a cursor: its address changes as Entries are added, so it is followed, never indexed, and names no canonical or language links. */
+    public static function paged(PageMeta $meta): PageMeta
+    {
+        return self::with($meta, canonical: null, robots: self::pagedRobots($meta), alternates: []);
+    }
+
+    /** A site that is not indexable keeps its `noindex, nofollow`. */
+    private static function pagedRobots(PageMeta $meta): ?string
+    {
+        return config()->boolean('kami.indexable') ? 'noindex, follow' : $meta->robots;
+    }
+
+    /**
+     * The same head at another address: its canonical URL, robots and language links, the `og:locale:alternate` that follow from them.
+     *
+     * @param  array<string, string>  $alternates
+     */
+    private static function with(PageMeta $meta, ?string $canonical, ?string $robots, array $alternates): PageMeta
+    {
+        $site = Site::current();
+
+        return new PageMeta(
+            title: $meta->title,
+            description: $meta->description,
+            canonical: $canonical,
+            robots: $robots,
+            siteName: $meta->siteName,
+            image: $meta->image,
+            imageWidth: $meta->imageWidth,
+            imageHeight: $meta->imageHeight,
+            imageAlt: $meta->imageAlt,
+            ogType: $meta->ogType,
+            publishedTime: $meta->publishedTime,
+            modifiedTime: $meta->modifiedTime,
+            alternates: $alternates,
+            ogLocale: $meta->ogLocale,
+            ogLocaleAlternates: array_values(array_filter(array_map($site->ogLocale(...), array_keys(array_diff_key($alternates, [$site->currentLocale() => true, 'x-default' => true]))))),
+        );
+    }
+
     /** A page Kami does not render, a site route's or an error page's: the `title` and `description` its view gives. */
     public static function forSite(?string $title = null, ?string $description = null): PageMeta
     {

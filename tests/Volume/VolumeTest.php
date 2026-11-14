@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Psyao\Kami\Audit\Internal\AuditEvent;
 use Psyao\Kami\Content\Entry;
@@ -18,6 +19,7 @@ use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Tests\Volume\Dataset;
 use Workbench\App\Content\Project;
+use Workbench\App\Content\Tag;
 use Workbench\App\Models\User;
 
 /** The query count of the page at the small size, measured before the dataset grows. */
@@ -50,6 +52,45 @@ function pageQueries(): int
     return $count;
 }
 
+/** The query counts of an Archive's page and a Term Archive's at the small size, measured before the dataset grows. */
+function smallDatasetArchiveQueries(?array $set = null): ?array
+{
+    static $counts = null;
+
+    return $counts = $set ?? $counts;
+}
+
+/**
+ * Workbench's Article Archive, and Tag 1's Term Archive, its Tag given an address for the test: a Term Archive needs a routable Taxonomy.
+ *
+ * @return list<int>
+ */
+function archiveQueries(): array
+{
+    (fn () => $this->routable = true)->call(resolve(ContentTypes::class)->find(Tag::class));
+    View::addLocation(dirname(__DIR__) . '/Fixtures/archive');
+    // Tag 1's address in both Locales, as `SaveEntry` would store it for a routable Tag, gone afterwards: `SyncPaths` would delete it.
+    $tag = DB::table('kami_translations')->where('title', 'Tag 1')->value('entry_id');
+    DB::table('kami_translations')->where('entry_id', $tag)->update(['slug' => 'tag-1']);
+    DB::table('kami_paths')->insert(array_map(fn (string $locale): array => ['id' => (string) Str::ulid(), 'site' => 'default', 'locale' => $locale, 'path' => 'tag/tag-1', 'entry_id' => $tag, 'status' => 200], ['fr', 'en']));
+    $counts = [];
+
+    try {
+        foreach (['/articles' => 'Article', '/tag/tag-1' => 'Project'] as $uri => $listed) {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            measure("GET {$uri}", fn () => test()->get($uri)->assertOk()->assertSee($listed));
+            $counts[] = count(DB::getQueryLog());
+            DB::disableQueryLog();
+        }
+    } finally {
+        DB::table('kami_paths')->where('entry_id', $tag)->delete();
+        DB::table('kami_translations')->where('entry_id', $tag)->update(['slug' => null]);
+    }
+
+    return $counts;
+}
+
 /** The engine's plan of a query, on one line. */
 function plan(Builder $query): string
 {
@@ -67,6 +108,7 @@ beforeEach(function () {
         $dataset = new Dataset;
         $dataset->fill(120);
         smallDatasetPageQueries(pageQueries());
+        smallDatasetArchiveQueries(archiveQueries());
         measure('Generate 30,000 Entries', fn () => $dataset->fill(Dataset::ENTRIES));
 
         // Statistics as a site that has been running has them. PostgreSQL's arrive with autovacuum, some time later. MySQL and
@@ -88,6 +130,11 @@ it('holds Entries in two Locales, with relations', function () {
 
 it('answers a page in the same number of queries as the small dataset', function () {
     expect(measure('Page', fn () => pageQueries()))->toBe(smallDatasetPageQueries());
+});
+
+// 1.8 s for the Term Archive on SQLite while its links were read through a correlated `exists`, 47 ms through an `in`: the times are reported only.
+it('answers an Archive and a Term Archive in the same number of queries as the small dataset', function () {
+    expect(archiveQueries())->toBe(smallDatasetArchiveQueries());
 });
 
 it('walks a listing in its index, sorting nothing, the Trash left out', function () {

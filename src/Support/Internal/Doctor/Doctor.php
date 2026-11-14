@@ -461,23 +461,28 @@ final readonly class Doctor
     }
 
     /**
-     * A routable type that keeps `ContentType::render()` renders the view `kami.{handle}` (ADR 0009).
+     * A routable type that keeps `ContentType::render()` renders the view `kami.{handle}`, and an Archive that keeps `renderArchive()` the view `kami.{handle}-archive` (ADR 0009).
      *
      * @return list<Problem>
      */
     private function missingViews(): array
     {
-        $viewless = array_filter(
-            resolve(ContentTypes::class)->all(),
-            fn (ContentType $type): bool => $type->isRoutable() && new ReflectionMethod($type, 'render')->getDeclaringClass()->getName() === ContentType::class && ! view()->exists("kami.{$type->handle()}"),
-        );
+        $problems = [];
 
-        return array_values(array_map(fn (ContentType $type): Problem => new Problem(
-            Severity::Warning,
-            "The Content Type {$type->handle()} has no view kami.{$type->handle()}: its Entries cannot render.",
-            "create resources/views/kami/{$type->handle()}.blade.php, or override render() in " . $type::class . '.',
-            'routing-and-rendering.md#rendering',
-        ), $viewless));
+        foreach (resolve(ContentTypes::class)->all() as $type) {
+            foreach (['render' => ['', 'Entries', $type->isRoutable(), 'rendering'], 'renderArchive' => ['-archive', 'Archive', $type->hasArchive(), 'archives']] as $method => [$suffix, $what, $applies, $anchor]) {
+                if ($applies && new ReflectionMethod($type, $method)->getDeclaringClass()->getName() === ContentType::class && ! view()->exists("kami.{$type->handle()}{$suffix}")) {
+                    $problems[] = new Problem(
+                        Severity::Warning,
+                        "The Content Type {$type->handle()} has " . ($suffix === '' ? '' : 'an Archive but ') . "no view kami.{$type->handle()}{$suffix}: its {$what} cannot render.",
+                        "create resources/views/kami/{$type->handle()}{$suffix}.blade.php, or override {$method}() in " . $type::class . '.',
+                        "routing-and-rendering.md#{$anchor}",
+                    );
+                }
+            }
+        }
+
+        return $problems;
     }
 
     /**
@@ -582,7 +587,7 @@ final readonly class Doctor
         );
     }
 
-    /** Paths saved before a Locale or a segment Kami answers was declared: `ResolveLocale` or Kami's own route answers their address in the default Locale (ADR 0008). */
+    /** Paths saved before a Locale, a segment Kami answers or an Archive was declared: `ResolveLocale` or Kami's own route answers their address in the default Locale (ADR 0008). */
     private function hiddenPaths(): ?Problem
     {
         // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
@@ -597,11 +602,15 @@ final readonly class Doctor
             })
             ->orderBy('path')->get(['path'])->map(fn (Path $row): string => $row->path)
             // LIKE matches more: `_` in a Locale code reads as any character, and `media` matches `medias`.
-            ->filter(fn (string $path): bool => Path::isReserved($path) || in_array(explode('/', $path)[0], $segments, true))->values();
+            ->filter(fn (string $path): bool => Path::isReserved($path) || in_array(explode('/', $path)[0], $segments, true))
+            // An Archive answers at its Prefix under every Locale segment.
+            ->merge(Path::query()->where(['site' => $site->handle, 'status' => 200])->whereIn('path', array_keys(resolve(ContentTypes::class)->archives()))->get(['locale', 'path'])
+                ->map(fn (Path $row): string => $row->locale === $site->defaultLocale() ? $row->path : "{$row->locale}/{$row->path}"))
+            ->unique()->sort()->values();
 
         return $hidden->isEmpty() ? null : new Problem(
             Severity::Warning,
-            "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' of the default Locale ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code or a segment Kami answers itself: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
+            "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself or an Archive: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
             "change their slug, or their type's Prefix: until then, they answer nowhere.",
             'routing-and-rendering.md#reserved-paths',
         );
