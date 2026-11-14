@@ -217,6 +217,8 @@ return [
         'unavailable_block' => 'Block unavailable: :handle',
         // A Block's Field in an error: "The text in Callout 2 field is required."
         'block_attribute' => ':field in :block :position',
+        'link_entry' => 'Entry',
+        'link_media' => 'Media item',
     ],
 
     'reminders' => [

@@ -36,6 +36,7 @@ use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Routing\Internal\Path;
@@ -292,11 +293,13 @@ final class SaveEntry
         $data = [...$data, ...$values];
 
         // A Block's Entries as a relation's: deleted ones leave a given document, trashed ones are validated as absent and kept (#624).
-        $blockEntries = [];
+        // A link to a deleted Entry or a missing Media item loses its link and keeps its text; one to a trashed Entry stays (#627).
+        $blockEntries = $linkedMedia = [];
 
         foreach ($fields as $handle => $field) {
             if ($field instanceof RichText && is_array($document = $data[$handle] ?? null)) {
                 array_push($blockEntries, ...$field->targets($document)['entries']);
+                array_push($linkedMedia, ...new Document($document)->links()['media']);
             }
         }
 
@@ -304,18 +307,19 @@ final class SaveEntry
         /** @var list<string> $trashedInBlocks */
         $trashedInBlocks = $existing->filter()->keys()->all();
         $deleted = array_values(array_diff($blockEntries, $existing->keys()->all()));
+        $missingMedia = $linkedMedia === [] ? [] : array_values(array_diff($linkedMedia, array_filter(DB::table('kami_media')->whereIn('id', $linkedMedia)->pluck('id')->all(), is_string(...))));
 
-        foreach ($deleted === [] ? [] : $fields as $handle => $field) {
+        foreach ($fields as $handle => $field) {
             if (! $field instanceof RichText) {
                 continue;
             }
 
             if (is_array($document = $data[$handle] ?? null)) {
-                $data[$handle] = $field->withoutEntries($document, $deleted);
+                $data[$handle] = $field->withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
             }
 
             if (is_array($document = $values[$handle] ?? null)) {
-                $values[$handle] = $field->withoutEntries($document, $deleted);
+                $values[$handle] = $field->withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
             }
         }
 

@@ -17,6 +17,7 @@ use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\RichTextHtml;
 use Psyao\Kami\Media\Media;
+use Psyao\Kami\Routing\Internal\VisiblePaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Tiptap\Core\Extension;
 use Tiptap\Core\Node;
@@ -46,8 +47,9 @@ final readonly class Document implements Htmlable
      * @param  array<mixed>|null  $content  What the column holds, decoded.
      * @param  string|null  $lang  The Locale it fell back from.
      * @param  RichText|null  $field  The Field it is read from, which says what its Blocks are; none renders no Block.
+     * @param  string|null  $locale  The Locale its Entry is read in, where its links and its Blocks' Entries are read; the current Locale when null.
      */
-    public function __construct(private ?array $content = null, private ?string $lang = null, private ?RichText $field = null) {}
+    public function __construct(private ?array $content = null, private ?string $lang = null, private ?RichText $field = null, private ?string $locale = null) {}
 
     /**
      * Parses HTML and normalises it against the Field, as `SaveEntry` would: bare text in a list item or a quote is wrapped, anything else not allowed is unwrapped with its text kept.
@@ -74,7 +76,13 @@ final readonly class Document implements Htmlable
     /** @internal */
     public function inLanguage(string $lang): self
     {
-        return new self($this->content, $lang, $this->field);
+        return new self($this->content, $lang, $this->field, $this->locale);
+    }
+
+    /** @internal */
+    public function readIn(string $locale): self
+    {
+        return new self($this->content, $this->lang, $this->field, $locale);
     }
 
     /**
@@ -100,8 +108,9 @@ final readonly class Document implements Htmlable
             return '';
         }
 
-        $html = new Editor(['extensions' => [...self::extensions(new Link(['HTMLAttributes' => ['target' => null, 'rel' => null]])), $this->blockNode()]])
-            ->setContent($this->renderable($this->content ?? []))
+        [$media, $entries] = $this->read();
+        $html = new Editor(['extensions' => [...self::extensions(new Link(['HTMLAttributes' => ['target' => null, 'rel' => null]])), $this->blockNode($media, $entries)]])
+            ->setContent($this->renderable($this->content ?? [], $media, $entries))
             ->getHTML();
 
         return $this->lang === null ? $html : '<div lang="' . e($this->lang) . '">' . $html . '</div>';
@@ -137,6 +146,38 @@ final readonly class Document implements Htmlable
         return $handle === null ? $blocks : array_values(array_filter($blocks, fn (array $block): bool => $block['handle'] === $handle));
     }
 
+    /**
+     * @internal
+     *
+     * The ids its `kami://` links name, in document order, once each.
+     *
+     * @return array{entries: list<string>, media: list<string>}
+     */
+    public function links(): array
+    {
+        $links = ['entries' => [], 'media' => []];
+
+        foreach ($this->hrefsIn($this->content['content'] ?? []) as $href) {
+            if (($target = self::target($href)) !== null) {
+                $links[$target[0]][] = $target[1];
+            }
+        }
+
+        return ['entries' => array_values(array_unique($links['entries'])), 'media' => array_values(array_unique($links['media']))];
+    }
+
+    /**
+     * What a `kami://` href names: `entries` or `media`, and an id; `null` for any other href (ADR 0016).
+     *
+     * @internal
+     *
+     * @return array{0: 'entries'|'media', 1: string}|null
+     */
+    public static function target(string $href): ?array
+    {
+        return preg_match('~^kami://(entry|media)/([0-9A-Za-z]+)$~', $href, $match) === 1 ? [$match[1] === 'entry' ? 'entries' : 'media', $match[2]] : null;
+    }
+
     /** @return list<Extension> */
     private static function extensions(Link $link): array
     {
@@ -148,28 +189,57 @@ final readonly class Document implements Htmlable
     }
 
     /**
-     * ponytail: a `kami://` link renders as its text; #627 renders it at its target's URL.
+     * A `kami://` link at its target's URL: an Entry's in the read Locale, a Media item's own; a target not read, hidden or gone, as its text.
      *
      * @param  array<mixed>  $node
+     * @param  array<string, Media>  $media
+     * @param  array<string, Entry>  $entries
      * @return array<mixed>
      */
-    private function renderable(array $node): array
+    private function renderable(array $node, array $media, array $entries): array
     {
         if (isset($node['marks']) && is_array($node['marks'])) {
-            $node['marks'] = array_values(array_filter($node['marks'], fn (mixed $mark): bool => ! is_string($href = data_get($mark, 'attrs.href')) || ! str_starts_with($href, 'kami://')));
+            $marks = [];
+
+            foreach ($node['marks'] as $mark) {
+                $target = is_string($href = data_get($mark, 'attrs.href')) && str_starts_with($href, 'kami://') ? self::target($href) ?? ['', ''] : null;
+
+                if ($target !== null) {
+                    $url = match ($target[0]) {
+                        'entries' => ($entries[$target[1]] ?? null)?->url($this->readLocale()),
+                        'media' => ($media[$target[1]] ?? null)?->url(),
+                        default => null,
+                    };
+
+                    if ($url === null) {
+                        continue;
+                    }
+
+                    data_set($mark, 'attrs.href', $url);
+                }
+
+                $marks[] = $mark;
+            }
+
+            $node['marks'] = $marks;
         }
 
         if (isset($node['content']) && is_array($node['content'])) {
-            $node['content'] = array_map(fn (mixed $child): mixed => is_array($child) ? $this->renderable($child) : $child, $node['content']);
+            $node['content'] = array_map(fn (mixed $child): mixed => is_array($child) ? $this->renderable($child, $media, $entries) : $child, $node['content']);
         }
 
         return $node;
     }
 
-    /** The `block` node, each rendered through its Block's view; an unavailable one renders nothing (ADR 0016). */
-    private function blockNode(): Node
+    /**
+     * The `block` node, each rendered through its Block's view; an unavailable one renders nothing (ADR 0016).
+     *
+     * @param  array<string, Media>  $media
+     * @param  array<string, Entry>  $entries
+     */
+    private function blockNode(array $media, array $entries): Node
     {
-        return new class($this->blockRenderer()) extends Node
+        return new class($this->blockRenderer($media, $entries)) extends Node
         {
             /** @var string */
             public static $name = 'block';
@@ -197,20 +267,39 @@ final readonly class Document implements Htmlable
     }
 
     /**
-     * What renders a Block, with the Media items and visible Entries its Blocks link read beforehand: one query each, with their Translations, none for no id.
+     * The Media items and visible Entries its Blocks and links name, read in one batch: Media items and their Translations, two queries;
+     * Entries with their Translations and type rows, three, then the Paths of those nested; none for no id.
      *
-     * @return Closure(string, array<mixed>): string
+     * @return array{0: array<string, Media>, 1: array<string, Entry>}
      */
-    private function blockRenderer(): Closure
+    private function read(): array
     {
-        $ids = $this->field?->targets($this->content) ?? ['entries' => [], 'media' => []];
-        $media = References::media($ids['media']);
+        $ids = $this->field?->targets($this->content) ?? $this->links();
         $entries = [];
 
-        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn(Site::current()->currentLocale())->whereIn('id', $ids['entries'])->get() as $entry) {
+        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn($this->readLocale())->whereIn('id', $ids['entries'])->get() as $entry) {
             $entries[$entry->id] = $entry;
         }
 
+        VisiblePaths::preload($entries);
+
+        return [References::media($ids['media']), $entries];
+    }
+
+    private function readLocale(): string
+    {
+        return $this->locale ?? Site::current()->currentLocale();
+    }
+
+    /**
+     * What renders a Block, from the Media items and Entries read beforehand.
+     *
+     * @param  array<string, Media>  $media
+     * @param  array<string, Entry>  $entries
+     * @return Closure(string, array<mixed>): string
+     */
+    private function blockRenderer(array $media, array $entries): Closure
+    {
         return function (string $handle, array $data) use ($media, $entries): string {
             $block = $this->field?->offered($handle);
 
@@ -260,6 +349,24 @@ final readonly class Document implements Htmlable
         }
 
         return $text;
+    }
+
+    /** @return list<string> */
+    private function hrefsIn(mixed $nodes): array
+    {
+        $hrefs = [];
+
+        foreach (is_array($nodes) ? $nodes : [] as $node) {
+            foreach ((array) data_get($node, 'marks', []) as $mark) {
+                if (data_get($mark, 'type') === 'link' && is_string($href = data_get($mark, 'attrs.href'))) {
+                    $hrefs[] = $href;
+                }
+            }
+
+            array_push($hrefs, ...$this->hrefsIn(data_get($node, 'content')));
+        }
+
+        return $hrefs;
     }
 
     /** @return list<array{handle: string, data: array<mixed>}> */

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
@@ -27,6 +28,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Media\Actions\SaveMedia;
 use Workbench\App\Content\Article;
 use Workbench\App\Models\User;
 
@@ -92,6 +94,19 @@ function para(string $text): array
 function linkedPara(string $href, string $text = 'link'): array
 {
     return ['type' => 'paragraph', 'content' => [txt($text, ['type' => 'link', 'attrs' => ['href' => $href]])]];
+}
+
+/** A Draft's id: a link to it is kept on save and renders as its text. */
+function draftLinkTarget(): string
+{
+    return resolve(SaveEntry::class)->handle(Article::class, ['title' => uniqid('Target')], locale: 'fr')->id;
+}
+
+function linkedMediaId(): string
+{
+    Storage::fake('local');
+
+    return resolve(SaveMedia::class)->handle(fixture('media/pixel.png'))->id;
 }
 
 function heading(int $level, string $text): array
@@ -248,7 +263,6 @@ it('imports HTML into a normalised document', function (string $html, ?array $st
     'unknown blocks as paragraphs, their words apart' => ['bare<div>in <span>div</span></div><table><tr><td>a</td><td>b</td></tr></table>', doc(para('bare'), para('in div'), para('a'), para('b'))],
     'a script, a style and an image leave nothing' => ['<p>a</p><script>alert(1)</script><style>p{}</style><img src="x.png" alt="x">', doc(para('a'))],
     'a code block with its language' => ['<pre><code class="language-php">echo 1;' . "\n" . '  exit;</code></pre>', doc(['type' => 'codeBlock', 'attrs' => ['language' => 'php'], 'content' => [txt("echo 1;\n  exit;")]])],
-    'a kami:// link kept' => ['<p><a href="kami://entry/01J">in</a></p>', doc(linkedPara('kami://entry/01J', 'in'))],
     'an unsafe link reduced to its text' => ['<p><a href="javascript:alert(1)">link</a></p>', doc(para('link'))],
     'a Block marker' => [<<<'HTML'
         <p>a</p><kami-block handle="gallery" data='{"items":["01J"]}'></kami-block>
@@ -259,6 +273,10 @@ it('imports HTML into a normalised document', function (string $html, ?array $st
     'a Block marker with no data' => ['<kami-block handle="gallery"></kami-block>', doc(['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => []]])],
     'nothing is null' => ['<p> </p>', null],
 ]);
+
+it('imports a kami:// link', function () {
+    expect(Document::fromHtml('<p><a href="kami://entry/01J">in</a></p>', RichText::make('body'))->content())->toEqual(doc(linkedPara('kami://entry/01J', 'in')));
+});
 
 it('refuses a malformed Block marker, naming it', function (string $marker) {
     expect(fn () => Document::fromHtml($marker, RichText::make('body')))->toThrow(InvalidArgumentException::class, 'kami-block');
@@ -285,8 +303,8 @@ it('keeps a safe link and reduces any other to its text', function (string $href
     ['page.html', true],
     ['#anchor', true],
     ['?q=a:b', true],
-    ['kami://entry/01JABC', true],
-    ['kami://media/01JABC', true],
+    [fn (): string => 'kami://entry/' . draftLinkTarget(), true],
+    [fn (): string => 'kami://media/' . linkedMediaId(), true],
     ['javascript:alert(1)', false],
     ['JavaScript:alert(1)', false],
     [" java\tscript:alert(1)", false],
@@ -298,12 +316,13 @@ it('keeps a safe link and reduces any other to its text', function (string $href
     ['', false],
 ]);
 
-it('stores a kami:// link in one spelling, which renders as text', function (string $href) {
-    $entry = savedArticle(['body' => doc(linkedPara($href))]);
+it('stores a kami:// link in one spelling, a Draft target\'s rendering as text', function (string $scheme) {
+    $target = draftLinkTarget();
+    $entry = savedArticle(['body' => doc(linkedPara($scheme . $target))]);
 
-    expect(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][0]['content'][0]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC')
+    expect(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][0]['content'][0]['marks'][0]['attrs']['href'])->toBe("kami://entry/{$target}")
         ->and($entry->body->toHtml())->toBe('<p>link</p>');
-})->with(['KAMI://entry/01JABC', ' kami://entry/01JABC', "ka\tmi://entry/01JABC"]);
+})->with(['KAMI://entry/', ' kami://entry/', "ka\tmi://entry/"]);
 
 it('reduces a link whose href is no string to its text', function () {
     $given = doc(['type' => 'paragraph', 'content' => [txt('a', ['type' => 'link', 'attrs' => ['href' => ['x']]]), txt('b', ['type' => 'link'])]]);
@@ -487,7 +506,7 @@ it('reloads a saved document unchanged after a save through the form', function 
         ['type' => 'horizontalRule'],
         ['type' => 'codeBlock', 'attrs' => ['language' => 'php'], 'content' => [txt('<?php')]],
     )],
-    'a kami:// link' => [doc(linkedPara('kami://entry/01JABC'))],
+    'a kami:// link' => [fn (): array => doc(linkedPara('kami://entry/' . draftLinkTarget()))],
     'a Block' => [doc(para('a'), aBlock(), para('b'))],
 ]);
 

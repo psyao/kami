@@ -229,7 +229,7 @@ final class MediaResource extends FilamentResource
      */
     public static function picker(MediaField $field): SelectInput
     {
-        $social = $field->handle === 'seo_image' || (EntryResource::type() instanceof SiteSettings && $field->handle === 'default_social_image');
+        $social = $field->handle === 'seo_image' || ($field->handle === 'default_social_image' && EntryResource::type() instanceof SiteSettings);
 
         return SelectInput::make($field->handle)
             ->multiple($field->isMultiple())

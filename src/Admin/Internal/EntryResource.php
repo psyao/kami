@@ -683,6 +683,18 @@ final class EntryResource extends FilamentResource
         return $field->isCreatable() ? self::withQuickCreate($picker, $field->targets()[0]) : $picker;
     }
 
+    /**
+     * What a link picker offers for a search: Entries of every type with pages, Drafts included, of the types the User may view, titled as `pickerTitles()` does.
+     *
+     * @return array<string, string>
+     */
+    public static function linkableTitles(string $search, mixed $livewire): array
+    {
+        $routable = array_values(array_map(fn (ContentType $type): string => $type->handle(), array_filter(resolve(ContentTypes::class)->all(), fn (ContentType $type): bool => $type->isRoutable())));
+
+        return self::pickerTitles(self::matchingIds(Entry::query()->withUnpublished()->where('site', Site::current()->handle)->whereIn('type', $routable), $search), $livewire);
+    }
+
     /** Searched on the server. Moving changes URLs once they follow the tree, so it takes `reorder` (ADR 0014); `save()` holds the rule, this shows it. On a create page, the Parent whose children the list showed. */
     private static function parentInput(): SelectInput
     {
