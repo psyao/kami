@@ -14,6 +14,7 @@ use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Url;
+use Workbench\App\Content\Blocks\Callout;
 use Workbench\App\Content\Fields\Colour;
 
 /** A translatable type under a Prefix, listed there in its Archive and its Feed, as a blog's posts are. */
@@ -35,7 +36,7 @@ final class Article extends ContentType
     {
         return [
             Text::make('summary')->rules(['max:200']),
-            RichText::make('body')->code(),
+            RichText::make('body')->code()->blocks([Callout::class]),
             Text::make('author')->shared()->required(),
             Boolean::make('featured'),
             Colour::make('accent'),

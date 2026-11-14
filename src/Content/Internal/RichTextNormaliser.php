@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Internal;
 
+use Closure;
+use Psyao\Kami\Content\Blocks\Block;
+
 /**
  * Rebuilds a rich text document from what a Field allows, so forged editor state, an import and a site's code end in the same clean document (ADR 0016).
  *
@@ -15,8 +18,11 @@ final readonly class RichTextNormaliser
 {
     private const array LINK_SCHEMES = ['http', 'https', 'mailto', 'tel'];
 
-    /** @param  list<int>  $levels */
-    public function __construct(private bool $code, private array $levels) {}
+    /**
+     * @param  list<int>  $levels
+     * @param  Closure(string): ?Block  $offered  The Block of a handle when the Field offers it.
+     */
+    public function __construct(private bool $code, private array $levels, private Closure $offered) {}
 
     /**
      * @param  array<mixed>  $document
@@ -178,7 +184,7 @@ final readonly class RichTextNormaliser
     }
 
     /**
-     * ponytail: any handle and data pass, kept as they are (ADR 0016); M10 validates a Block's Fields.
+     * An offered Block keeps its declared Fields only, each normalised; an unavailable one stays as it is, never lost (ADR 0016).
      *
      * @param  array<mixed>  $node
      * @return list<array<mixed>>
@@ -188,7 +194,13 @@ final readonly class RichTextNormaliser
         $handle = data_get($node, 'attrs.handle');
         $data = data_get($node, 'attrs.data', []);
 
-        return is_string($handle) && $handle !== '' && is_array($data) ? [['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => $data]]] : [];
+        if (! is_string($handle) || $handle === '' || ! is_array($data)) {
+            return [];
+        }
+
+        $block = ($this->offered)($handle);
+
+        return [['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => $block instanceof Block ? $block->normalise($data) : $data]]];
     }
 
     /** @return list<array{type: string, text?: string, marks?: list<array<mixed>>}> */

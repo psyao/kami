@@ -13,6 +13,7 @@ use LogicException;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryDuplicated;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Internal\EntrySnapshot;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\ReorderEntries;
@@ -88,6 +89,13 @@ final class DuplicateEntry
 
             foreach ($snapshot['rows'] as $row) {
                 DB::table("kami_type_{$type->handle()}")->insert([...$row, 'entry_id' => $copy->id]);
+
+                // The copy's documents link what the source's do (#624).
+                foreach ($type->flatFields() as $field) {
+                    if ($field instanceof RichText && ($row[$field->handle] ?? null) !== null) {
+                        References::replaceTargets($copy->id, $field->handle, is_string($row['locale']) && $row['locale'] !== '*' ? $row['locale'] : null, $field->targets($field->decoded($row[$field->handle])));
+                    }
+                }
             }
 
             // Links to trashed targets too, as `SaveEntry` keeps them: restoring a target brings them back on both.

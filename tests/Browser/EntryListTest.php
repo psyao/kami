@@ -82,10 +82,11 @@ it('names each selection checkbox with its row\'s title, whichever Locale holds 
         ->assertNoJavaScriptErrors();
 });
 
-it('writes in the rich text editor, and keeps a document holding a Block whole', function () {
+it('writes in the rich text editor, shows a Block with its label and summary, and keeps an unavailable one whole', function () {
     $body = ['type' => 'doc', 'content' => [
         ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Avant']]],
         ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => ['items' => ['01J']]]],
+        ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un <b>encadré</b>', 'tone' => 'info', 'image' => null]]],
         ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Voir la '], ['type' => 'text', 'text' => 'target', 'marks' => [['type' => 'link', 'attrs' => ['href' => 'kami://entry/01JABC']]]]]],
     ]];
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'body' => $body], locale: 'fr');
@@ -93,7 +94,10 @@ it('writes in the rich text editor, and keeps a document holding a Block whole',
     $page = assertAxeClean(signIn()
         ->navigate("/admin/articles/{$entry->id}/edit")
         ->assertSee('Avant')
-        ->assertSee('Block unavailable for now: gallery'), admin: true)
+        ->assertSee('Block unavailable: gallery')
+        // Its label from kami-blocks.php, its summary escaped.
+        ->assertSee('Callout')
+        ->assertSee('Un <b>encadré</b>'), admin: true)
         ->assertNoJavaScriptErrors();
 
     assertAxeClean(visit("/admin/articles/{$entry->id}/edit")->inDarkMode()->assertSee('Avant'), admin: true)->assertNoJavaScriptErrors();
@@ -109,11 +113,11 @@ it('writes in the rich text editor, and keeps a document holding a Block whole',
     $page->click('internal:role=button[name="Save changes"i]');
     $page->wait(2);
 
-    $page->assertSee('AvantEncore')->assertSee('Block unavailable for now: gallery')->assertNoJavaScriptErrors();
+    $page->assertSee('AvantEncore')->assertSee('Block unavailable: gallery')->assertNoJavaScriptErrors();
 
     $saved = Entry::query()->withUnpublished()->findOrFail($entry->id)->body;
 
-    expect($saved->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]]])
+    expect($saved->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]], ['handle' => 'callout', 'data' => ['text' => 'Un <b>encadré</b>', 'tone' => 'info', 'image' => null]]])
         ->and($saved->text())->toContain('Encore')->toContain('Avant')->toContain('target')
-        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][2]['content'][1]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC');
+        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][3]['content'][1]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC');
 });

@@ -68,7 +68,7 @@ final class ContentMigrator
         self::migrated('renameType', ['from' => $from, 'to' => $to]);
     }
 
-    /** Renames a Field: its column and that column's index when it has one, else a relation Field's rows in `kami_references`. */
+    /** Renames a Field: its column and that column's index when it has one, with a RichText's rows in `kami_references`; else a relation Field's rows there. */
     public static function renameField(string $type, string $from, string $to): void
     {
         resolve(ContentTypes::class)->validateHandle(self::class, 'the Field handle', $to);
@@ -107,6 +107,9 @@ final class ContentMigrator
         if ($indexed) {
             Schema::table($table, fn (Blueprint $blueprint) => $blueprint->renameIndex($index, MakeMigrationCommand::indexName($table, $to)));
         }
+
+        // A RichText's Blocks link under its handle (#624).
+        self::eachBatch($type, fn (array $ids) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $ids)->where('field', $from)->update(['field' => $to]));
 
         self::migrated('renameField', ['type' => $type, 'from' => $from, 'to' => $to]);
     }

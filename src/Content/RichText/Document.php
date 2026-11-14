@@ -4,12 +4,22 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\RichText;
 
+use Closure;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Psyao\Kami\Content\Blocks\Block;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Fields\RichText;
+use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\RichTextHtml;
+use Psyao\Kami\Media\Media;
+use Psyao\Kami\Sites\Internal\Site;
 use Tiptap\Core\Extension;
+use Tiptap\Core\Node;
 use Tiptap\Editor;
 use Tiptap\Marks\Bold;
 use Tiptap\Marks\Code;
@@ -35,8 +45,9 @@ final readonly class Document implements Htmlable
      *
      * @param  array<mixed>|null  $content  What the column holds, decoded.
      * @param  string|null  $lang  The Locale it fell back from.
+     * @param  RichText|null  $field  The Field it is read from, which says what its Blocks are; none renders no Block.
      */
-    public function __construct(private ?array $content = null, private ?string $lang = null) {}
+    public function __construct(private ?array $content = null, private ?string $lang = null, private ?RichText $field = null) {}
 
     /**
      * Parses HTML and normalises it against the Field, as `SaveEntry` would: bare text in a list item or a quote is wrapped, anything else not allowed is unwrapped with its text kept.
@@ -57,13 +68,13 @@ final readonly class Document implements Htmlable
             ->getDocument();
         $normalised = $field->normalise($parsed);
 
-        return new self(is_array($normalised) ? $normalised : null);
+        return new self(is_array($normalised) ? $normalised : null, field: $field);
     }
 
     /** @internal */
     public function inLanguage(string $lang): self
     {
-        return new self($this->content, $lang);
+        return new self($this->content, $lang, $this->field);
     }
 
     /**
@@ -76,6 +87,12 @@ final readonly class Document implements Htmlable
         return $this->content;
     }
 
+    /** @internal */
+    public function field(): ?RichText
+    {
+        return $this->field;
+    }
+
     /** The HTML, in an element carrying `lang` when the value fell back from another Locale. */
     public function toHtml(): string
     {
@@ -83,7 +100,9 @@ final readonly class Document implements Htmlable
             return '';
         }
 
-        $html = new Editor(['extensions' => self::extensions(new Link(['HTMLAttributes' => ['target' => null, 'rel' => null]]))])->setContent($this->renderable($this->content ?? []))->getHTML();
+        $html = new Editor(['extensions' => [...self::extensions(new Link(['HTMLAttributes' => ['target' => null, 'rel' => null]])), $this->blockNode()]])
+            ->setContent($this->renderable($this->content ?? []))
+            ->getHTML();
 
         return $this->lang === null ? $html : '<div lang="' . e($this->lang) . '">' . $html . '</div>';
     }
@@ -129,7 +148,7 @@ final readonly class Document implements Htmlable
     }
 
     /**
-     * ponytail: a `kami://` link renders as its text and a Block as nothing; M10 renders both.
+     * ponytail: a `kami://` link renders as its text; #627 renders it at its target's URL.
      *
      * @param  array<mixed>  $node
      * @return array<mixed>
@@ -141,10 +160,101 @@ final readonly class Document implements Htmlable
         }
 
         if (isset($node['content']) && is_array($node['content'])) {
-            $node['content'] = array_map(fn (mixed $child): mixed => is_array($child) ? $this->renderable($child) : $child, array_values(array_filter($node['content'], fn (mixed $child): bool => data_get($child, 'type') !== 'block')));
+            $node['content'] = array_map(fn (mixed $child): mixed => is_array($child) ? $this->renderable($child) : $child, $node['content']);
         }
 
         return $node;
+    }
+
+    /** The `block` node, each rendered through its Block's view; an unavailable one renders nothing (ADR 0016). */
+    private function blockNode(): Node
+    {
+        return new class($this->blockRenderer()) extends Node
+        {
+            /** @var string */
+            public static $name = 'block';
+
+            /** @param  Closure(string, array<mixed>): string  $render */
+            public function __construct(private readonly Closure $render)
+            {
+                parent::__construct();
+            }
+
+            /**
+             * @param  object  $node
+             * @return array{content: string}
+             */
+            #[\Override]
+            public function renderHTML($node): array
+            {
+                $handle = data_get($node, 'attrs.handle');
+                // tiptap-php hands its nodes over as objects.
+                $data = json_decode(json_encode(data_get($node, 'attrs.data', []), JSON_THROW_ON_ERROR), true);
+
+                return ['content' => ($this->render)(is_string($handle) ? $handle : '', is_array($data) ? $data : [])];
+            }
+        };
+    }
+
+    /**
+     * What renders a Block, with the Media items and visible Entries its Blocks link read beforehand: one query each, with their Translations, none for no id.
+     *
+     * @return Closure(string, array<mixed>): string
+     */
+    private function blockRenderer(): Closure
+    {
+        $ids = ['entries' => [], 'media' => []];
+
+        foreach ($this->blocks() as $stored) {
+            foreach ($this->field?->offered($stored['handle'])?->fields() ?? [] as $field) {
+                $linked = $stored['data'][$field->handle] ?? null;
+
+                if ($field->isReference() && is_array($linked)) {
+                    array_push($ids[$field instanceof MediaField ? 'media' : 'entries'], ...array_filter($linked, is_string(...)));
+                }
+            }
+        }
+
+        $media = References::media($ids['media']);
+        $entries = [];
+
+        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn(Site::current()->currentLocale())->whereIn('id', array_values(array_unique($ids['entries'])))->get() as $entry) {
+            $entries[$entry->id] = $entry;
+        }
+
+        return function (string $handle, array $data) use ($media, $entries): string {
+            $block = $this->field?->offered($handle);
+
+            if (! $block instanceof Block) {
+                return '';
+            }
+
+            $typed = [];
+
+            foreach ($block->fields() as $field) {
+                $typed[$field->handle] = $this->typed($field, $data[$field->handle] ?? null, $media, $entries);
+            }
+
+            return view()->make($block->view(), $typed)->render();
+        };
+    }
+
+    /**
+     * A Block's value as an Entry reads its Field's: Media items and Entries from those read beforehand, in pick order, a missing one left out.
+     *
+     * @param  array<string, Media>  $media
+     * @param  array<string, Entry>  $entries
+     */
+    private function typed(Field $field, mixed $value, array $media, array $entries): mixed
+    {
+        if (! $field->isReference()) {
+            return $field->read($value);
+        }
+
+        $read = $field instanceof MediaField ? $media : $entries;
+        $found = new Collection(array_values(array_filter(array_map(fn (mixed $id): mixed => is_string($id) ? $read[$id] ?? null : null, is_array($value) ? $value : []))));
+
+        return $field instanceof MediaField && ! $field->isMultiple() ? $found->first() : $found;
     }
 
     private function textOf(mixed $nodes): string

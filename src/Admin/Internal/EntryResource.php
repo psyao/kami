@@ -72,6 +72,7 @@ use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
+use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
@@ -914,7 +915,11 @@ final class EntryResource extends FilamentResource
             $errors = [];
 
             foreach ($exception->errors() as $key => $messages) {
-                $errors['data.' . self::statePath($key, $state)] = $messages;
+                // A Block's errors show on its editor, which has no input of its own for them (#624).
+                $path = preg_match('/^([^.]+)\.blocks\.\d+\./', $key, $block) === 1 ? $block[1] : self::statePath($key, $state);
+                foreach (is_array($messages) ? $messages : [] as $message) {
+                    $errors["data.{$path}"][] = $message;
+                }
             }
 
             throw ValidationException::withMessages($errors);
@@ -1263,6 +1268,12 @@ final class EntryResource extends FilamentResource
         return $component->disabled(fn (?Entry $record): bool => self::sharedFieldsLocked($record));
     }
 
+    /** A Block's Field in the editor's modal, as the Entry form maps a type's (ADR 0024). */
+    public static function blockInput(Block $block, Field $field): Component
+    {
+        return self::input($field, $field->handle, [], block: $block);
+    }
+
     /**
      * A Field's input, its sub-Fields' inside it; a Group is a heading over its values, under its own state path.
      *
@@ -1270,16 +1281,18 @@ final class EntryResource extends FilamentResource
      * @param  array<string, string>  $lang
      * @param  mixed  $default  A Group's goes to its sub-Fields: a heading holds no state of its own.
      */
-    private static function input(Field $field, string $key, array $lang, mixed $default = null): Component
+    private static function input(Field $field, string $key, array $lang, mixed $default = null, ?Block $block = null): Component
     {
-        $label = self::type()->fieldLabel($key);
-        $help = self::type()->fieldHelp($key);
+        // A Block's Fields take their labels from `kami-blocks`, a type's from `kami-types`.
+        $labels = $block ?? self::type();
+        $label = $labels->fieldLabel($key);
+        $help = $labels->fieldHelp($key);
 
         if ($field instanceof StructuredField) {
             $children = [];
 
             foreach ($field->fields() as $handle => $sub) {
-                $children[] = self::input($sub, "{$key}.fields.{$handle}", $lang, $field instanceof Group && is_array($default) ? $default[$handle] ?? null : null);
+                $children[] = self::input($sub, "{$key}.fields.{$handle}", $lang, $field instanceof Group && is_array($default) ? $default[$handle] ?? null : null, $block);
             }
 
             return $field instanceof Group
@@ -1291,11 +1304,11 @@ final class EntryResource extends FilamentResource
         $component = self::plugin()->component($field);
         $component->label($label)->helperText($help);
 
-        $component->default($field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default) : $default);
+        $component->default($field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default, $field) : $default);
 
-        // A registered Select names its labels by handle alone.
-        if ($field instanceof Select && $component instanceof SelectInput && $key !== $field->handle) {
-            $component->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => self::type()->optionLabel($key, $option), $field->optionKeys())));
+        // A registered Select names its labels by handle alone, from the type.
+        if ($field instanceof Select && $component instanceof SelectInput && ($key !== $field->handle || $block instanceof Block)) {
+            $component->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => $labels->optionLabel($key, $option), $field->optionKeys())));
         }
 
         // A toggle or a site's component may type no text, so may have no input to mark.

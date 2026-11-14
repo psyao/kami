@@ -7,6 +7,7 @@ namespace Psyao\Kami\Tests\Install;
 use Illuminate\Support\Facades\File;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Psyao\Kami\Content\ContentType;
+use Workbench\App\Content\Blocks\Callout;
 use Workbench\App\Models\User;
 use Workbench\App\Providers\AdminPanelProvider;
 
@@ -43,7 +44,8 @@ abstract class InstallTestCase extends Orchestra
     public function bootWithTypes(array $types): void
     {
         $this->bootWithKamiOnAPanel();
-        config(['kami.types' => $types]);
+        // The Workbench's Block, which its Article offers.
+        config(['kami.types' => $types, 'kami.blocks' => [Callout::class]]);
 
         foreach ($types as $type) {
             foreach (File::glob(workbench_path("database/migrations/*_create_kami_type_{$this->app->make($type)->handle()}_table.php")) as $migration) {

@@ -163,7 +163,7 @@ final class EditEntry extends EditRecord
                 $default = $field->defaultValue();
 
                 if (EntryResource::type()->isTranslatable($field) && $default !== null) {
-                    $values[$field->handle] = $field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default) : $default;
+                    $values[$field->handle] = $field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default, $field) : $default;
                 }
             }
         }

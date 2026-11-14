@@ -139,6 +139,21 @@ Moves an Entry to the Trash in all its Locales: it reads as absent everywhere an
 
 - `public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
 
+## `Psyao\Kami\Content\Blocks\Block`
+
+`abstract class`
+
+Something other than text inside a `RichText` document, listed in `kami.blocks` and offered with `RichText::make(...)->blocks([...])` (ADR 0016).
+
+- `final public function fieldHelp(string $field): ?string`: `kami-blocks.{handle}.fields.{field}.help`, or none.
+- `final public function fieldLabel(string $field): string`: `kami-blocks.{handle}.fields.{field}.label`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`.
+- `abstract public function fields(): array`: Its Kami Fields, edited in the editor's modal and validated by `SaveEntry`: `->required()` at publication, other rules on every save.
+- `abstract public function handle(): string`: Stored in every document holding it: renaming it takes `ContentMigrator`.
+- `final public function label(): string`: Its name in the editor: `kami-blocks.{handle}.label`, or the humanised handle.
+- `final public function optionLabel(string $field, string $option): string`: `kami-blocks.{handle}.fields.{field}.options.{option}`, or the humanised option key.
+- `public function summary(array $data): ?string`: One line telling it apart in the editor, beside its label, from its data as stored: a Media or Entries Field holds a list of ids. Kami escapes it.
+- `abstract public function view(): string`: The Blade view rendering it, given its data by Field handle, typed as an Entry's values are: a Media Field's as `Media` (a Collection with `->multiple()`), an Entries or Terms Field's as a Collection of the visible ones, a RichText's as `Document`.
+
 ## `Psyao\Kami\Content\ContentType`
 
 `abstract class`
@@ -295,6 +310,7 @@ A variable list of rows of sub-Fields, read as a list of arrays, `null` with no 
 
 Formatted text and links, in one `json` column, read as a `Document` even when blank. `SaveEntry` normalises it against what this Field allows (ADR 0016).
 
+- `public function blocks(array $blocks): static`: Offers these Blocks in the editor, each listed in `kami.blocks`. A Block it stops offering stays in its documents, unavailable: read-only in the editor, rendering nothing (ADR 0016).
 - `public function code(): static`: Adds inline code and a code block with an optional `language`, with no server highlighting.
 - `public function headings(array $levels): static`: Narrows the heading levels, among 2, 3 and 4: the title is the page's H1.
 
@@ -606,7 +622,7 @@ What a migration calls to move data a schema change cannot express (ADR 0006). E
 - `public static function makeTranslatable(string $type, string $field): void`: Makes a Shared Field translatable: its value, or a relation Field's links, moves to the declared Locales where the Entry has a translation, to the default Locale when it has none.
 - `public static function makeTypeShared(string $type, string $keep, bool $discardOthers = false): void`: Keeps one Locale's translation as the shared one, for a type whose `$translatable` turned false. Field rows stay: `makeShared()` moves them, Field by Field.
 - `public static function makeTypeTranslatable(string $type, string $locale): void`: Moves each shared translation to a Locale, for a type whose `$translatable` turned true. Field rows stay: `makeTranslatable()` moves them, Field by Field.
-- `public static function renameField(string $type, string $from, string $to): void`: Renames a Field: its column and that column's index when it has one, else a relation Field's rows in `kami_references`.
+- `public static function renameField(string $type, string $from, string $to): void`: Renames a Field: its column and that column's index when it has one, with a RichText's rows in `kami_references`; else a relation Field's rows there.
 - `public static function renameType(string $from, string $to): void`: Moves a type's Entries and its table to a new handle, with the index and foreign key names that follow the old one.
 
 ## `Psyao\Kami\Seo\PageMeta`

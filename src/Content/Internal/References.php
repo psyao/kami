@@ -49,16 +49,31 @@ final class References
      */
     public static function replace(string $entry, Field $field, ?string $locale, array $targets): void
     {
-        DB::table(self::TABLE)->where(['source_entry_id' => $entry, 'field' => $field->handle, 'locale' => $locale])->delete();
+        self::replaceTargets($entry, $field->handle, $locale, $field instanceof MediaField ? ['entries' => [], 'media' => $targets] : ['entries' => $targets, 'media' => []]);
+    }
 
-        DB::table(self::TABLE)->insert(array_map(fn (string $target, int $position): array => [
+    /**
+     * Rebuilds the rows under a handle in one Locale, Entries and Media items alike: a relation or Media Field's, or a document's (#624).
+     *
+     * @param  array{entries: list<string>, media: list<string>}  $targets
+     */
+    public static function replaceTargets(string $entry, string $handle, ?string $locale, array $targets): void
+    {
+        DB::table(self::TABLE)->where(['source_entry_id' => $entry, 'field' => $handle, 'locale' => $locale])->delete();
+
+        $rows = [
+            ...array_map(fn (string $target): array => ['target_entry_id' => $target, 'target_media_id' => null], $targets['entries']),
+            ...array_map(fn (string $target): array => ['target_entry_id' => null, 'target_media_id' => $target], $targets['media']),
+        ];
+
+        DB::table(self::TABLE)->insert(array_map(fn (array $target, int $position): array => [
             'id' => (string) Str::ulid(),
             'source_entry_id' => $entry,
-            'field' => $field->handle,
+            'field' => $handle,
             'locale' => $locale,
-            $field instanceof MediaField ? 'target_media_id' : 'target_entry_id' => $target,
+            ...$target,
             'position' => $position,
-        ], $targets, array_keys($targets)));
+        ], $rows, array_keys($rows)));
     }
 
     /**

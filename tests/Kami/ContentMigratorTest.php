@@ -12,6 +12,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Repeater;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Schema\ContentMigrator;
@@ -318,6 +319,17 @@ describe('renameField', function () {
 
         expect(Schema::hasColumn('kami_type_memo', 'summary'))->toBeTrue()
             ->and(Schema::getIndexes('kami_type_memo'))->toHaveCount(3);
+    });
+
+    it('moves a RichText\'s References with its column', function () {
+        ($this->declare)(RichText::make('body'));
+        memoRow($entry = memo(), 'fr', ['body' => '{"type":"doc","content":[]}']);
+        linked($entry, 'body', 'fr', $target = memo('target'));
+
+        ($this->inMigration)("ContentMigrator::renameField('memo', 'body', 'content');");
+
+        expect(targets($entry, 'content'))->toBe(['fr' => [$target]])
+            ->and(targets($entry, 'body'))->toBe([]);
     });
 
     it('rewrites a relation Field\'s References, for this type alone', function () {

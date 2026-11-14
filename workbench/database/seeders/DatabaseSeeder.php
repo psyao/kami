@@ -108,6 +108,14 @@ class DatabaseSeeder extends Seeder
         // Every page shared without an image of its own shows the photo; a Project shows its cover.
         $save->handle(SiteSettings::class, ['default_social_image' => $photo->id], $settings, 'fr', $admin);
 
+        // Blocks in a body: a Callout with an image from the library, one with none, and a Block no class declares any more, kept read-only.
+        $save->handle(Article::class, [...$published, 'title' => 'Avec des blocs', 'author' => 'Ada', 'body' => ['type' => 'doc', 'content' => [
+            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Un texte entre des blocs.']]],
+            ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un encadré illustré.', 'tone' => 'info', 'image' => [$photo->id]]]],
+            ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un avertissement.', 'tone' => 'warning']]],
+            ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => ['items' => [$pixel->id]]]],
+        ]]], locale: 'fr', actor: $admin);
+
         // Tabs, a section, conditions, a Repeater, a Group, relations, and Media Fields picking from the library: a cover, a gallery in pick order.
         $save->handle(Project::class, [...$published, 'title' => 'Refonte', 'client' => 'Acme', 'featured' => true, 'featured_note' => 'Projet phare.', 'kind' => 'review', 'story' => 'Une histoire visible parce que le client est rempli.', 'launched_on' => '2026-06-01', 'links' => [['label' => 'Site', 'url' => 'https://example.test'], ['label' => 'Dépôt', 'url' => 'https://example.test/code']], 'address' => ['street' => 'Rue du Lac 1', 'city' => 'Vevey'], 'related' => [$about->id, $fallback->id, $both->id], 'tags' => [$filament->id, $laravel->id], 'cover' => $photo->id, 'gallery' => [$pixel->id, $photo->id, $brochure->id]], locale: 'fr', actor: $admin);
         $save->handle(Project::class, ['title' => 'Esquisse'], locale: 'fr', actor: $admin);
