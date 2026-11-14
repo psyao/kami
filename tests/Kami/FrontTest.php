@@ -6,6 +6,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\DeleteEntry;
@@ -27,6 +28,18 @@ final class Bulletin extends ContentType
     public function render(Entry $entry, ?Request $request = null): View | Response
     {
         return response("{$entry->title} at /{$request?->path()}", 202);
+    }
+}
+
+/** A site's rendering middleware, as `Kami::routes(middleware:)` takes one, marking each response it sees. */
+final class MarksRendering
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $response = $next($request);
+        $response->headers->set('X-Rendered-By', 'site');
+
+        return $response;
     }
 }
 
@@ -123,6 +136,43 @@ it('sets no cookie on a front response, even inside the web group', function () 
     $this->get('/articles/hello-world')->assertOk()->assertHeaderMissing('Set-Cookie');
     $this->get('/articles/nowhere')->assertNotFound()->assertHeaderMissing('Set-Cookie');
 });
+
+it('runs the site\'s middleware on an Entry, after the kami group, on either mount', function (bool $session) {
+    saveArticle();
+    Kami::routes(session: $session, middleware: [MarksRendering::class]);
+
+    $this->get('/articles/hello-world')->assertOk()->assertHeader('X-Rendered-By', 'site');
+    $middleware = Route::getRoutes()->match(Request::create('/articles/hello-world'))->gatherMiddleware();
+    expect(array_search(MarksRendering::class, $middleware, true))->toBeGreaterThan(array_search('kami', $middleware, true));
+})->with(['sessionless' => [false], 'with the session' => [true]]);
+
+// `route:cache` keeps the route's own middleware but neither the `kami` group nor its alias, which `KamiServiceProvider` declares at boot.
+it('keeps the site\'s middleware on an Entry read from a cached route table', function (bool $session) {
+    saveArticle();
+    Kami::routes(session: $session, middleware: [MarksRendering::class]);
+    foreach (Route::getRoutes() as $route) {
+        $route->prepareForSerialization();
+    }
+    Route::setCompiledRoutes(Route::getRoutes()->compile());
+
+    $this->get('/articles/hello-world')->assertOk()->assertHeader('X-Rendered-By', 'site');
+})->with(['sessionless' => [false], 'with the session' => [true]]);
+
+it('keeps the site\'s middleware off the Tick, Conversions, the Form route, Preview links and the sitemap', function (bool $session, string $method, string $uri) {
+    // A table of its own: `Kami::routes()` leaves a `/sitemap.xml` already registered, as `beforeEach` did, untouched.
+    Route::setRoutes(new RouteCollection);
+    Kami::routes(session: $session, middleware: [MarksRendering::class]);
+
+    expect(Route::getRoutes()->match(Request::create($uri, $method))->gatherMiddleware())->not->toContain(MarksRendering::class);
+})->with(['sessionless' => [false], 'with the session' => [true]])->with([
+    'the Tick' => ['POST', '/kami/tick/token'],
+    'a Conversion' => ['GET', '/media/1/abc/photo.jpg'],
+    'an SVG' => ['GET', '/media/1/abc/logo.svg'],
+    'the Form route' => ['POST', '/kami/forms/contact'],
+    'a Preview link' => ['GET', '/kami/share/token'],
+    'the sitemap' => ['GET', '/sitemap.xml'],
+    'a sitemap file' => ['GET', '/sitemaps/fr-1.xml'],
+]);
 
 it('tells addresses apart by their bytes on every engine', function () {
     saveArticle(['title' => 'Cafe', 'slug' => 'cafe', 'summary' => 'Plain']);

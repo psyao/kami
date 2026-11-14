@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Filament\Facades\Filament;
 use Filament\Notifications\NotificationMailbox;
 use Illuminate\Console\Scheduling\CallbackEvent;
-use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Contracts\Image\Driver;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Image\Drivers\GdDriver;
@@ -56,17 +55,15 @@ function temporaryPath(): string
     return sys_get_temp_dir() . '/kami-' . bin2hex(random_bytes(8));
 }
 
-/**
- * A published `InertiaPage` at `/inertia_page/hello-world`, behind the site's Inertia middleware unless told otherwise.
- * ponytail: a global middleware until `Kami::routes(middleware:)` lands (#613); the page cache sees the same response either way.
- */
+/** A published `InertiaPage` at `/inertia_page/hello-world`, behind the site's Inertia middleware on Kami's pages unless told otherwise. */
 function inertiaPage(bool $middleware = true): void
 {
     config(['kami.types' => [...config('kami.types'), InertiaPage::class]]);
     View::addNamespace('inertia-fixture', dirname(__DIR__) . '/tests/Fixtures/Inertia');
 
     if ($middleware) {
-        app(HttpKernel::class)->pushMiddleware(HandleInertiaRequests::class);
+        // Replaces the routes the test registered: each one of Kami's takes the place of its earlier self.
+        Kami::routes(middleware: [HandleInertiaRequests::class]);
     }
 
     resolve(SaveEntry::class)->handle(InertiaPage::class, ['title' => 'Hello world', 'status' => 'published']);
