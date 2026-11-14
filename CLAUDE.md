@@ -18,7 +18,7 @@ From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they
   - `Browser` suite: `npm ci`, `npx playwright install chromium`, then `pest --testsuite=Browser`.
   - Shared-hosting smoke: `tests/Smoke/run.sh`; it says "CI only" and stops until the images its Dockerfile names are pulled.
   - `timeout` comes from coreutils: `brew install coreutils`.
-- An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters.
+- An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters and a line the last release tag lacks.
 - Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
 - Never skip the hooks (`--no-verify`): they are the only check before a push.
 - A gate (tests, analysis, push) keeps its exit status redirected, never piped: `<gate> > "$file" 2>&1; rc=$?`, then read the file. `.claude/hooks/no-piped-gates.sh` refuses the pipe, and nothing of the refused command runs.

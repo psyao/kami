@@ -6,12 +6,11 @@ declare(strict_types=1);
  * The public-surface snapshot lines (ADR 0010) that `$after` removes or changes in a way that can break a site.
  *
  * A method only widened is not breaking: same leading parameters and return type, new trailing ones all optional,
- * on a final method or a final class's, which nothing can override. Any other change counts. Given the snapshot at the
- * last release tag, only its lines count (#603): a method added since then can change freely.
+ * on a final method or a final class's, which nothing can override. Any other change counts.
  *
  * @return list<string>
  */
-function breakingSurfaceChanges(string $before, string $after, ?string $released = null): array
+function breakingSurfaceChanges(string $before, string $after): array
 {
     $old = array_filter(explode("\n", $before));
     $new = array_filter(explode("\n", $after));
@@ -48,9 +47,19 @@ function breakingSurfaceChanges(string $before, string $after, ?string $released
         return false;
     };
 
-    $breaking = array_filter(array_diff($old, $new), fn (string $line): bool => ! $widened($line));
+    return array_values(array_filter(array_diff($old, $new), fn (string $line): bool => ! $widened($line)));
+}
 
-    return array_values($released === null ? $breaking : array_intersect($breaking, explode("\n", $released)));
+/**
+ * The released lines (#603) that `$head` breaks and `$base` did not: a line added since the last tag changes freely, and
+ * a break an earlier pull request made is not this one's. Both sides are read against the release, so a released method
+ * widened since the tag and then removed still counts.
+ *
+ * @return list<string>
+ */
+function newlyBrokenLines(string $released, string $base, string $head): array
+{
+    return array_values(array_diff(breakingSurfaceChanges($released, $head), breakingSurfaceChanges($released, $base)));
 }
 
 /**
@@ -66,7 +75,7 @@ function isMarkedBreaking(?string $title, string $log): bool
 }
 
 /** Runs a git command, its output trimmed; any failure stops the script, as a missing tag must not pass the gate. */
-function git(string $arguments): string
+function gitOrExit(string $arguments): string
 {
     exec("git {$arguments}", $output, $status);
     if ($status !== 0) {
@@ -77,19 +86,19 @@ function git(string $arguments): string
     return implode("\n", $output);
 }
 
-// `php tests/breaking-changes.php <base>`: CI passes the pull request's base and its title in `TITLE`, pre-push `origin/main`.
-// Compares the snapshot at the merge base with `HEAD`'s, keeps the lines the last release tag has, and fails unless the
-// break is marked.
+// `php tests/breaking-changes.php <base> [<title>]`: CI passes the pull request's base and title, pre-push `origin/main` alone.
 if (realpath($_SERVER['argv'][0] ?? '') === __FILE__) {
     $snapshot = 'tests/.pest/snapshots/Kami/PublicSurfaceTest/it_snapshots_the_public_surface.snap';
-    $base = git('merge-base ' . escapeshellarg($argv[1] ?? 'origin/main') . ' HEAD');
-    $tag = git("describe --tags --abbrev=0 --match 'v*' HEAD");
-    $breaking = breakingSurfaceChanges(git("show {$base}:{$snapshot}"), git("show HEAD:{$snapshot}"), git("show {$tag}:{$snapshot}"));
-    $title = getenv('TITLE');
+    $base = gitOrExit('merge-base ' . escapeshellarg($argv[1] ?? 'origin/main') . ' HEAD');
+    $tag = gitOrExit("describe --tags --abbrev=0 --match 'v*' HEAD");
+    $title = $argv[2] ?? null;
+    $breaking = newlyBrokenLines(gitOrExit("show {$tag}:{$snapshot}"), gitOrExit("show {$base}:{$snapshot}"), gitOrExit("show HEAD:{$snapshot}"));
 
-    if ($breaking !== [] && ! isMarkedBreaking($title === false ? null : $title, git("log --format=%B {$base}..HEAD"))) {
-        echo "The public surface released in {$tag} lost or changed these lines: mark the title with ! or add a BREAKING CHANGE: footer, then push again\n";
-        echo implode("\n", $breaking) . "\n";
+    if ($breaking !== [] && ! isMarkedBreaking($title, gitOrExit("log --format=%B {$base}..HEAD"))) {
+        echo getenv('GITHUB_ACTIONS') === 'true' ? '::error::' : '';
+        echo "The public surface released in {$tag} lost or changed these lines: ";
+        echo $title === null ? "mark a commit's subject with ! or add a BREAKING CHANGE: footer" : 'mark the title with ! or add a BREAKING CHANGE: footer, then push again';
+        echo "\n" . implode("\n", $breaking) . "\n";
         exit(1);
     }
 }

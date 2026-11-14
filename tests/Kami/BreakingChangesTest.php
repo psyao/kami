@@ -30,16 +30,23 @@ it('reads any other change as breaking', function (string $owner, string $before
     'a removed line' => [$final, "{$method}string \$type): void", ''],
 ]);
 
-// #603: only the released surface needs `!`, so a change to a line the last tag lacks passes.
-it('reads only a released line as breaking', function (string $released, array $breaking) use ($final, $method): void {
-    $before = "{$method}string \$type): void";
-    $after = "{$method}int \$type): void";
+// #603: only the released surface needs `!`, so a line the last tag lacks changes freely, and a break an earlier pull
+// request made is not this one's.
+it('reads as breaking only what the pull request breaks in the released surface', function (string $released, string $base, string $head, array $breaking) use ($final): void {
+    expect(newlyBrokenLines($final . $released, $final . $base, $final . $head))->toBe($breaking);
+})->with(function () use ($method): array {
+    $string = "{$method}string \$type): void";
+    $widened = "{$method}string \$type, int \$limit = 10): void";
+    $int = "{$method}int \$type): void";
 
-    expect(breakingSurfaceChanges($final . $before, $final . $after, $released))->toBe($breaking);
-})->with([
-    'a line added since the last tag' => [$final, []],
-    'a released line' => [$final . "{$method}string \$type): void", ["{$method}string \$type): void"]],
-]);
+    return [
+        'a change to a line added since the last tag' => ['', $string, $int, []],
+        'a change to a released line' => [$string, $string, $int, [$string]],
+        'a released line widened since the last tag, then removed' => [$string, $widened, '', [$string]],
+        'a released line widened again' => [$string, $widened, "{$method}string \$type, int \$limit = 10, int \$offset = 0): void", []],
+        'a break an earlier pull request made' => [$string, $int, $int, []],
+    ];
+});
 
 it('reads a break as marked by the title, a footer, or a subject when there is no title', function (?string $title, string $log, bool $marked): void {
     expect(isMarkedBreaking($title, $log))->toBe($marked);

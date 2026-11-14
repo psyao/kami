@@ -137,7 +137,7 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           TITLE: ${{ github.event.pull_request.title }}
-        run: php tests/breaking-changes.php "$BASE"
+        run: php tests/breaking-changes.php "$BASE" "$TITLE"
 
   # Beside Static, so the checks do not delay it.
   coverage:
