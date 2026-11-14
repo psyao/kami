@@ -192,10 +192,9 @@ final class ContentMigrator
 
                 DB::table($table)->upsert($rows, ['entry_id', 'locale'], [$field]);
                 DB::table($table)->whereIn('entry_id', $ids)->where('locale', self::SHARED)->update([$field => null]);
-
-                return;
             }
 
+            // A relation Field's links, or a RichText's, whose Blocks link under its handle (#624).
             $links = DB::table(self::REFERENCES)->where('field', $field);
             $shared = (clone $links)->whereIn('source_entry_id', $ids)->whereNull('locale');
             $rows = [];
@@ -234,15 +233,16 @@ final class ContentMigrator
 
         self::refuseLoss($type, $field, $keep, $discardOthers, fn (array $ids): array => $column ? self::values($table, $field, $ids) : self::links($field, $ids));
 
+        // A relation Field's links, or a RichText's, whose Blocks link under its handle (#624).
+        self::eachBatch($type, function (array $ids) use ($field, $keep): void {
+            $links = fn (array $entries) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $entries)->where('field', $field);
+
+            $links($links($ids)->where('locale', $keep)->distinct()->pluck('source_entry_id')->all())->whereNull('locale')->delete();
+            $links($ids)->where('locale', $keep)->update(['locale' => null]);
+            $links($ids)->whereNotNull('locale')->delete();
+        });
+
         if (! $column) {
-            self::eachBatch($type, function (array $ids) use ($field, $keep): void {
-                $links = fn (array $entries) => DB::table(self::REFERENCES)->whereIn('source_entry_id', $entries)->where('field', $field);
-
-                $links($links($ids)->where('locale', $keep)->distinct()->pluck('source_entry_id')->all())->whereNull('locale')->delete();
-                $links($ids)->where('locale', $keep)->update(['locale' => null]);
-                $links($ids)->whereNotNull('locale')->delete();
-            });
-
             self::migrated('makeShared', ['type' => $type, 'field' => $field, 'keep' => $keep, 'discard_others' => $discardOthers]);
 
             return;

@@ -470,6 +470,22 @@ describe('makeTranslatable', function () {
     });
 });
 
+it('moves a RichText\'s References with its documents, both ways', function () {
+    ($this->declare)(RichText::make('body'));
+    translated($entry = memo(), 'fr');
+    translated($entry, 'en');
+    memoRow($entry, '*', ['body' => '{"type":"doc","content":[]}']);
+    linked($entry, 'body', null, $target = memo('target'));
+
+    ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'body');");
+
+    expect(targets($entry, 'body'))->toBe(['en' => [$target], 'fr' => [$target]]);
+
+    ($this->inMigration)("ContentMigrator::makeShared('memo', 'body', keep: 'fr');");
+
+    expect(targets($entry, 'body'))->toBe(['*' => [$target]]);
+});
+
 describe('makeShared', function () {
     it('keeps one Locale\'s value and clears the others\' when they agree', function () {
         ($this->declare)(Text::make('summary'), Text::make('other'));

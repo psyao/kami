@@ -150,6 +150,38 @@ final class RichText extends Field
         return ['entries' => array_values(array_unique($targets['entries'])), 'media' => array_values(array_unique($targets['media']))];
     }
 
+    /**
+     * @internal
+     *
+     * The document with these Entry ids gone from its offered Blocks' relation Fields: those trashed, read as absent, or deleted, dropped.
+     *
+     * @param  array<mixed>  $document
+     * @param  list<string>  $ids
+     * @return array<mixed>
+     */
+    public function withoutEntries(array $document, array $ids): array
+    {
+        if ($ids === []) {
+            return $document;
+        }
+
+        if (($document['type'] ?? null) === 'block' && is_string($handle = data_get($document, 'attrs.handle')) && is_array($data = data_get($document, 'attrs.data'))) {
+            foreach ($this->offered($handle)?->fields() ?? [] as $field) {
+                if ($field instanceof RelationField && is_array($data[$field->handle] ?? null)) {
+                    $data[$field->handle] = array_values(array_diff(array_filter($data[$field->handle], is_string(...)), $ids)) ?: null;
+                }
+            }
+
+            return ['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => $data]];
+        }
+
+        if (is_array($document['content'] ?? null)) {
+            $document['content'] = array_map(fn (mixed $node): mixed => is_array($node) ? $this->withoutEntries($node, $ids) : $node, $document['content']);
+        }
+
+        return $document;
+    }
+
     /** @internal */
     public function allowsCode(): bool
     {

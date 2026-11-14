@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -16,8 +18,11 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\EntryResource\EditEntry;
+use Psyao\Kami\Admin\Internal\MediaResource\EditMedia;
+use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
@@ -228,6 +233,43 @@ it('indexes a Block\'s Media and Entries as References of its document, in its L
     expect(DB::table('kami_references')->where('source_entry_id', $entry->id)->count())->toBe(0);
 });
 
+it('keeps a Draft from blanking a required Block Field of a Shared document another Translation publishes', function () {
+    Declaring::$declared = [Text::make('text')->required()];
+    BlockProse::$declared = [RichText::make('body')->shared()->blocks([Declaring::class])];
+    config(['kami.types' => [BlockProse::class], 'kami.blocks' => [Declaring::class]]);
+    $entry = resolve(SaveEntry::class)->handle(BlockProse::class, ['title' => 'Publié', 'status' => 'published', 'body' => bodyOf(callout(['text' => 'Dit'], 'declaring'))], locale: 'fr');
+
+    expect(fn () => resolve(SaveEntry::class)->handle(BlockProse::class, ['title' => 'Draft', 'body' => bodyOf(callout([], 'declaring'))], $entry, 'en'))
+        ->toThrow(ValidationException::class, 'The text in Declaring 1 field is required.');
+});
+
+it('keeps saving an Entry whose Block links an Entry trashed or deleted since: a deleted one leaves the document, a trashed one stays', function () {
+    Declaring::$declared = [Entries::make('related')->of(Page::class)->required()];
+    BlockProse::$declared = [RichText::make('body')->blocks([Declaring::class])];
+    config(['kami.types' => [BlockProse::class, Page::class], 'kami.blocks' => [Declaring::class]]);
+    [$kept, $trashed, $deleted] = array_map(fn (string $title): Entry => resolve(SaveEntry::class)->handle(Page::class, ['title' => $title]), ['Kept', 'Trashed', 'Deleted']);
+    $body = bodyOf(callout(['related' => [$kept->id, $trashed->id, $deleted->id]], 'declaring'));
+    $save = fn (array $values, Entry $entry): Entry => resolve(SaveEntry::class)->handle(BlockProse::class, $values, $entry, 'fr');
+    $entry = resolve(SaveEntry::class)->handle(BlockProse::class, ['title' => 'Source', 'status' => 'published', 'body' => $body], locale: 'fr');
+    resolve(TrashEntry::class)->handle($trashed);
+    resolve(TrashEntry::class)->handle($deleted);
+    resolve(DeleteEntry::class)->handle(Entry::query()->withUnpublished()->withTrashed()->findOrFail($deleted->id));
+
+    $save(['title' => 'Renamed'], $entry);
+    $save(['body' => $body], $entry);
+
+    expect(storedBody($entry)['content'][1]['attrs']['data']['related'])->toBe([$kept->id, $trashed->id])
+        ->and(DB::table('kami_references')->where('source_entry_id', $entry->id)->orderBy('position')->pluck('target_entry_id')->all())->toBe([$kept->id, $trashed->id]);
+});
+
+it('lists an Entry showing a Media item in a Block among the Entries using it', function () {
+    $image = calloutImage();
+    $entry = saveCalloutArticle(['title' => 'Illustrated', 'body' => bodyOf(callout(['text' => 'A', 'image' => [$image->id]]))]);
+    signInToBlocks();
+
+    Livewire::test(EditMedia::class, ['record' => $image->id])->assertSeeHtml('href="' . url("admin/articles/{$entry->id}/edit") . '"');
+});
+
 it('keeps a Media item a Block shows from being deleted, naming the Entry', function () {
     $image = calloutImage();
     saveCalloutArticle(['title' => 'Illustrated', 'body' => bodyOf(callout(['text' => 'A', 'image' => [$image->id]]))]);
@@ -305,13 +347,18 @@ it('gives a Block\'s view its data typed as an Entry reads it, Entries visible i
 /** @param  array<string, mixed>  $parameters */
 function blockEditor(array $parameters): Testable
 {
+    signInToBlocks();
+    Filament::setCurrentResourceConfigurationKey('article');
+
+    return Livewire::test(EditEntry::class, $parameters);
+}
+
+function signInToBlocks(): void
+{
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
     config(['app.env' => 'local']);
     test()->actingAs(tap(User::forceCreate(['name' => 'Ada Lovelace', 'email' => uniqid() . '@example.test', 'password' => 'secret']), fn (User $user) => DB::table('kami_role_user')->insert(['id' => (string) Str::ulid(), 'user_id' => $user->getKey(), 'role' => 'administrator'])));
     Filament::setCurrentPanel('admin');
-    Filament::setCurrentResourceConfigurationKey('article');
-
-    return Livewire::test(EditEntry::class, $parameters);
 }
 
 /** @param  array<mixed>  $config */
@@ -353,6 +400,15 @@ it('saves a Block the editor holds, and reopens it with its data to edit', funct
         ->callAction(TestAction::make('customBlock')->schemaComponent('body'), ['text' => 'Changed'], ['id' => 'callout', 'mode' => 'edit', 'config' => ['text' => 'Mind', 'tone' => 'info'], 'editorSelection' => ['type' => 'node', 'anchor' => 0]])
         ->assertHasNoFormComponentActionErrors()
         ->assertDispatched('run-rich-editor-commands', fn (string $event, array $parameters): bool => $parameters['commands'][0]['arguments'][0]['attrs']['config']['text'] === 'Changed');
+});
+
+it('labels a Block\'s modal inputs from kami-blocks.php, in the page\'s Locale', function () {
+    $entry = saveCalloutArticle(['body' => bodyOf()], 'draft');
+
+    blockEditor(['record' => $entry->id, 'locale' => 'en'])
+        ->mountAction(TestAction::make('customBlock')->schemaComponent('body'), ['id' => 'callout', 'mode' => 'insert'])
+        ->assertSchemaComponentExists('text', 'mountedActionSchema0', fn (TextInput $input): bool => $input->getLabel() === 'Text' && $input->getExtraInputAttributes()['lang'] === 'en')
+        ->assertSchemaComponentExists('tone', 'mountedActionSchema0', fn (Select $select): bool => $select->getOptions() === ['info' => 'Information', 'warning' => 'Warning']);
 });
 
 it('shows a Block\'s errors on its editor when publishing', function () {

@@ -88,11 +88,12 @@ final class RichTextInput
      */
     private static function editorData(Block $block, array $data): array
     {
-        $editor = [];
+        $editor = $block->normalise($data);
 
         foreach ($block->fields() as $field) {
-            $value = $field->normalise($data[$field->handle] ?? null);
-            $editor[$field->handle] = $field instanceof MediaField && ! $field->isMultiple() && is_array($value) ? $value[0] ?? null : $value;
+            if ($field instanceof MediaField && ! $field->isMultiple() && is_array($editor[$field->handle])) {
+                $editor[$field->handle] = $editor[$field->handle][0] ?? null;
+            }
         }
 
         return $editor;

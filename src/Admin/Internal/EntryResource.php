@@ -230,9 +230,8 @@ final class EntryResource extends FilamentResource
     public static function generatedForm(HasSchemas & LivewireComponent $livewire): array
     {
         $timezone = Site::current()->timezone;
-        // The Locale of the values typed, so assistive technology reads them in their language (WCAG 3.1.2).
         $locale = $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale();
-        $lang = self::locales() === [] ? [] : ['lang' => $locale];
+        $lang = self::lang($livewire);
         // Read from the page, not the schema's record: saving replaces it, and the first save stores a slug. No slug stored, no Path can move.
         $hasStoredSlug = fn (): bool => $livewire instanceof EditEntry && filled($livewire->getRecord()->slug);
         $hasSlug = self::type()->hasSlug();
@@ -916,7 +915,7 @@ final class EntryResource extends FilamentResource
 
             foreach ($exception->errors() as $key => $messages) {
                 // A Block's errors show on its editor, which has no input of its own for them (#624).
-                $path = preg_match('/^([^.]+)\.blocks\.\d+\./', $key, $block) === 1 ? $block[1] : self::statePath($key, $state);
+                $path = preg_match('/^([^.]+)\.blocks\.\d+\./', $key, $block) === 1 && self::isRichText($block[1]) ? $block[1] : self::statePath($key, $state);
                 foreach (is_array($messages) ? $messages : [] as $message) {
                     $errors["data.{$path}"][] = $message;
                 }
@@ -1268,10 +1267,25 @@ final class EntryResource extends FilamentResource
         return $component->disabled(fn (?Entry $record): bool => self::sharedFieldsLocked($record));
     }
 
-    /** A Block's Field in the editor's modal, as the Entry form maps a type's (ADR 0024). */
-    public static function blockInput(Block $block, Field $field): Component
+    private static function isRichText(string $handle): bool
     {
-        return self::input($field, $field->handle, [], block: $block);
+        return array_any(self::type()->flatFields(), fn (Field $field): bool => $field instanceof RichText && $field->handle === $handle);
+    }
+
+    /** A Block's Field in the editor's modal, as the Entry form maps a type's (ADR 0024), in the page's Locale. */
+    public static function blockInput(Block $block, Field $field, mixed $livewire): Component
+    {
+        return self::input($field, $field->handle, self::lang($livewire), block: $block);
+    }
+
+    /**
+     * The Locale of the values typed, so assistive technology reads them in their language (WCAG 3.1.2); none on a Site of one Locale.
+     *
+     * @return array<string, string>
+     */
+    private static function lang(mixed $livewire): array
+    {
+        return self::locales() === [] ? [] : ['lang' => $livewire instanceof EditEntry ? $livewire->locale : Site::current()->defaultLocale()];
     }
 
     /**
@@ -1306,7 +1320,7 @@ final class EntryResource extends FilamentResource
 
         $component->default($field instanceof RichText && is_array($default) ? RichTextInput::toEditor($default, $field) : $default);
 
-        // A registered Select names its labels by handle alone, from the type.
+        // A registered Select names its labels by handle alone, from the type: a sub-Field's and a Block's take theirs here.
         if ($field instanceof Select && $component instanceof SelectInput && ($key !== $field->handle || $block instanceof Block)) {
             $component->options(array_combine($field->optionKeys(), array_map(fn (string $option): string => $labels->optionLabel($key, $option), $field->optionKeys())));
         }

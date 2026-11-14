@@ -203,22 +203,11 @@ final readonly class Document implements Htmlable
      */
     private function blockRenderer(): Closure
     {
-        $ids = ['entries' => [], 'media' => []];
-
-        foreach ($this->blocks() as $stored) {
-            foreach ($this->field?->offered($stored['handle'])?->fields() ?? [] as $field) {
-                $linked = $stored['data'][$field->handle] ?? null;
-
-                if ($field->isReference() && is_array($linked)) {
-                    array_push($ids[$field instanceof MediaField ? 'media' : 'entries'], ...array_filter($linked, is_string(...)));
-                }
-            }
-        }
-
+        $ids = $this->field?->targets($this->content) ?? ['entries' => [], 'media' => []];
         $media = References::media($ids['media']);
         $entries = [];
 
-        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn(Site::current()->currentLocale())->whereIn('id', array_values(array_unique($ids['entries'])))->get() as $entry) {
+        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn(Site::current()->currentLocale())->whereIn('id', $ids['entries'])->get() as $entry) {
             $entries[$entry->id] = $entry;
         }
 

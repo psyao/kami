@@ -84,7 +84,7 @@ abstract class BlockSlot extends RichContentCustomBlock
     {
         $block = self::block();
 
-        return $block->fields() === [] ? $action->modalHidden() : $action->schema(array_map(fn (Field $field): Component => EntryResource::blockInput($block, $field), $block->fields()));
+        return $block->fields() === [] ? $action->modalHidden() : $action->schema(array_map(fn (Field $field): Component => EntryResource::blockInput($block, $field, $action->getLivewire()), $block->fields()));
     }
 
     private static function block(): Block

@@ -9,7 +9,7 @@ use InvalidArgumentException;
 use Psyao\Kami\Content\Blocks\Block;
 
 /**
- * The Blocks listed in `config/kami.php`, found by handle and validated when first read, never at boot, as Content Types are (ADR 0007).
+ * The Blocks listed in `config/kami.php`, by handle, validated when first read, never at boot, as Content Types are (ADR 0007).
  *
  * @internal
  */
@@ -20,11 +20,6 @@ final class Blocks
 
     /** @var array<string, Block> By handle. */
     private array $blocks = [];
-
-    public function find(string $handle): ?Block
-    {
-        return $this->all()[$handle] ?? null;
-    }
 
     /** @return array<string, Block> By handle, in declaration order. */
     public function all(): array

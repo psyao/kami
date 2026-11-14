@@ -87,7 +87,17 @@ final class ContentTypes
      */
     public function relationHandles(): array
     {
-        return array_values(array_unique(array_merge([], ...array_values(array_map(fn (ContentType $type): array => array_column(array_filter($type->relationFields(), fn (Field $field): bool => $field instanceof RelationField), 'handle'), $this->all())))));
+        $handles = [];
+
+        foreach ($this->all() as $type) {
+            foreach ($type->relationFields() as $field) {
+                if ($field instanceof RelationField) {
+                    $handles[$field->handle] = $field->handle;
+                }
+            }
+        }
+
+        return array_values($handles);
     }
 
     /**
@@ -347,11 +357,6 @@ final class ContentTypes
         $handles = [];
 
         foreach ($block->fields() as $field) {
-            // @phpstan-ignore instanceof.alwaysTrue (what a declaration promises is what this checks)
-            if (! $field instanceof Field) {
-                throw new InvalidArgumentException("{$class}: fields() lists Kami Fields only.");
-            }
-
             $this->validateHandle($class, 'the Field handle', $field->handle);
 
             if (in_array($field->handle, $handles, true)) {
@@ -362,8 +367,8 @@ final class ContentTypes
                 throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" cannot offer Blocks inside a Block; remove ->blocks().");
             }
 
-            if ($field instanceof RichText && ! $field->hasValidHeadings()) {
-                throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" takes heading levels 2, 3 and 4 only: the title is the page's H1.");
+            if ($field instanceof RichText) {
+                $this->validateRichText($class, $field);
             }
 
             if ($field->conditionTarget() !== null) {
