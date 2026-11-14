@@ -25,7 +25,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | --- | --- | --- |
 | **Install and deploy** | `kami:install` over SSH, under the command line's limits (no time limit on Infomaniak) | The same |
 | **Admin assets** | Precompiled in the package, copied to `public/` by `kami:install` | The same |
-| **Video facade** | Prebuilt in the package, copied to `public/vendor/kami/` by `kami:install` and served by Apache with `nosniff` from its `.htaccess` ([Front script](#front-script)) | nginx serves it once given the header below |
+| **Video facade** | Prebuilt in the package, copied to `public/vendor/kami/` by `kami:install` and served by Apache with `nosniff` from its `.htaccess` ([Front script](#front-script)) | nginx serves it once given the header below, on a site offering the Video Block |
 | **Front assets** | Built by the site in CI or on the developer's machine, then copied with the code | The same |
 | **Cache and sessions** | `file` cache, `database` sessions, as the starter kit sets them | The same; Redis or Memcached possible, never required |
 | **Page cache** | Served by the line in `public/index.php` before Laravel boots: the manifest and one file read, about a hundred lines compiled with OPcache off ([Page cache](page-cache.md#serving-before-laravel-boots)) | The same; behind several web servers, share `storage/` or turn the page cache off |
@@ -67,7 +67,7 @@ Originals keep their metadata, GPS included, so they never sit where the web ser
 
 The [Video Block](blocks.md#video)'s facade, `public/vendor/kami/video.js`, is Kami's only front JavaScript: a static file, prebuilt in the package, with no Node on the server. `kami:install` copies it and writes `public/vendor/kami/.htaccess` at each run, so both follow Kami's version, and edits to either are lost on the next deploy. Apache serves the file with `X-Content-Type-Options: nosniff`, which keeps a browser from reading it as anything but JavaScript. Its name carries no version, so the file keeps Apache's default cache headers.
 
-`kami:doctor` warns when the file is missing, then asks for it at the Site's URL and warns when the answer lacks `nosniff` or is not a 200, as for [Conversions](#conversions). Without the file, a Video Block still links to its provider.
+On a site that lists the `Video` Block in `kami.blocks`, `kami:doctor` warns when the file is missing, then asks for it at the Site's URL and warns when the answer lacks `nosniff` or is not a 200, as for [Conversions](#conversions); with `APP_ENV=local`, each is an information. Without the file, a Video Block still links to its provider.
 
 ## nginx
 

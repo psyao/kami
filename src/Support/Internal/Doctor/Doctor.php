@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Blocks\Video;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
@@ -1206,15 +1207,22 @@ final readonly class Doctor
         }
     }
 
-    /** `kami:install`'s copy of the `Video` facade, then its `nosniff`, checked over HTTP as `public/media`'s headers are. */
+    /** On a site offering the `Video` Block: `kami:install`'s copy of its facade, then its `nosniff`, checked over HTTP as `public/media`'s headers are. */
     private function videoFacade(): ?Problem
     {
-        $fix = 'run php artisan kami:install, which copies it, as every deploy does.';
+        if (! in_array(Video::class, Config::array('kami.blocks', []), true)) {
+            return null;
+        }
 
-        // Without it, a Video Block still links to its provider.
-        return is_file(public_path(VideoFacade::PATH))
-            ? $this->servedHeaders(VideoFacade::PATH, VideoFacade::HEADERS, 'serve the files under public/vendor/kami as they are.')
-            : new Problem(Severity::Warning, 'public/' . VideoFacade::PATH . ' is missing: a Video Block plays nowhere but on its provider\'s site.', $fix, 'hosting.md#front-script');
+        // Without it, a Video Block still links to its provider. On a developer's machine, as for the headers: the deploy's own run decides.
+        return is_file(public_path(Video::SCRIPT))
+            ? $this->servedHeaders(Video::SCRIPT, VideoFacade::HEADERS, 'serve the files under public/vendor/kami as they are.')
+            : new Problem(
+                app()->isLocal() ? Severity::Info : Severity::Warning,
+                'public/' . Video::SCRIPT . ' is missing: a Video Block plays nowhere but on its provider\'s site.',
+                'run php artisan kami:install, which copies it, as every deploy does.',
+                'hosting.md#front-script',
+            );
     }
 
     /**

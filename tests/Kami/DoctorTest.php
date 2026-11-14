@@ -49,6 +49,7 @@ use Psyao\Kami\Users\KamiUser;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Home;
+use Workbench\App\Content\Page;
 use Workbench\App\Content\Testimonial;
 use Workbench\App\Forms\ContactForm;
 use Workbench\App\Models\User;
@@ -1298,6 +1299,21 @@ describe('the Video facade', function () {
         expect($problems)->toBeEmpty()
             ->and(file_get_contents(public_path('vendor/kami/.htaccess')))->toContain('Header always set X-Content-Type-Options "nosniff"');
         Http::assertSent(fn (Request $request) => $request->url() === 'http://localhost/vendor/kami/video.js');
+    });
+
+    it('checks nothing on a site that offers no Video Block', function () {
+        config(['kami.types' => [Page::class], 'kami.blocks' => []]);
+        unlink(public_path('vendor/kami/video.js'));
+
+        expect(facadeProblems())->toBeEmpty();
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/vendor/kami/'));
+    });
+
+    it('only informs about a missing script on a developer\'s machine', function () {
+        app()->detectEnvironment(fn () => 'local');
+        unlink(public_path('vendor/kami/video.js'));
+
+        expect(facadeProblems())->toHaveCount(1)->{0}->{0}->toBe(Severity::Info);
     });
 
     it('warns about a missing script, naming kami:install, without asking the server', function () {

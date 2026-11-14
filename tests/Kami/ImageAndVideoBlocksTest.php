@@ -98,6 +98,10 @@ it('refuses a Video address that is not YouTube\'s or Vimeo\'s, with no network 
     'a lookalike host' => ['https://youtube.com.example.test/watch?v=dQw4w9WgXcQ'],
 ]);
 
+it('gives something that is no address the url rule\'s message alone', function () {
+    expect(blockErrors(kamiBlock('video', ['url' => 'youtube dQw4w9WgXcQ'])))->toBe(['body.blocks.0.url' => ['The address in Video 1 field must be a valid URL.']]);
+});
+
 it('requires an Image Block\'s image, and an image', function () {
     $brochure = resolve(SaveMedia::class)->handle(fixture('media/brochure.pdf'));
 

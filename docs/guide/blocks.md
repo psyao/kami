@@ -124,7 +124,7 @@ Kami ships two Blocks, opt-in like yours: list them in `config/kami.php` and off
 RichText::make('body')->blocks([Image::class, Video::class]),
 ```
 
-Their labels, in English and French, come with Kami; a line of your `lang/<locale>/kami-blocks.php` under `image` or `video` replaces Kami's. Each renders through a view of Kami's, which you override as any package view, by copying it to `resources/views/vendor/kami/blocks/`. Kami ships no CSS: style the classes below.
+Their labels, in English and French, come with Kami; a line of your `lang/<locale>/kami-blocks.php` under `image` or `video` replaces Kami's. Each renders through a view of Kami's, which you override as any package view, by copying it to `resources/views/vendor/kami/blocks/`: `kami::blocks.image` receives `$image` and `$caption`, `kami::blocks.video` `$url` and `$caption`. Kami ships no CSS: style the classes below.
 
 ### Image
 
@@ -156,6 +156,8 @@ A click on the link replaces it with the provider's player, from `youtube-nocook
     border: 0;
 }
 ```
+
+An overridden `kami::blocks.video` reads the address through `Psyao\Kami\Content\Blocks\VideoLink::of($url)`, which gives its `provider`, its `watch` page and its `player`, or `null`, and loads the script from `asset(Video::SCRIPT)`. Keep the `data-kami-video` attribute, holding the player's address, and `data-title`, its title, on the element around the link: the script replaces that element's content.
 
 The script is Kami's only front JavaScript, a static file `kami:install` copies to `public/vendor/kami/` on every deploy ([Hosting](hosting.md#front-script)). The page carries its tag once, however many videos it shows. The front's policy allows it as it stands: `script-src 'self'`, and `frame-src` lists both players ([Security](security.md#kamis-pages)). It listens on the whole document, so a video that a Livewire update brings in later plays too. An Inertia page that inserts the document's HTML with `v-html` runs no script from it: add the tag to your root view.
 

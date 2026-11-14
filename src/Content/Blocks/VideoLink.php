@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Psyao\Kami\Content\Internal;
+namespace Psyao\Kami\Content\Blocks;
 
 /**
- * A `Video` Block's address, read without a network call: YouTube's watch, short and Shorts addresses, and public Vimeo ones,
- * as Velox's `VideoUrl` read them.
+ * A `Video` Block's address, read by its form alone, with no network call: what an overridden `kami::blocks.video` renders.
  *
- * @internal
+ * It reads YouTube's watch, short and Shorts addresses and public Vimeo ones, as Velox's `VideoUrl` did.
  */
 final readonly class VideoLink
 {
@@ -17,11 +16,13 @@ final readonly class VideoLink
     private const string VIMEO = '~^https?://(?:www\.)?vimeo\.com/(\d+)/?(?:[?#].*)?\z~';
 
     /**
+     * @param  string  $provider  `YouTube` or `Vimeo`.
      * @param  string  $watch  The provider's own page, linked without JS.
-     * @param  string  $player  The privacy-preserving player the facade loads on a click.
+     * @param  string  $player  The privacy-preserving player the facade loads on a click: `youtube-nocookie.com`, or `player.vimeo.com` with `dnt=1`.
      */
     private function __construct(public string $provider, public string $watch, public string $player) {}
 
+    /** The video an address names, or null for anything but a YouTube or Vimeo address. */
     public static function of(mixed $url): ?self
     {
         $url = is_string($url) ? trim($url) : '';

@@ -68,10 +68,16 @@ class Psyao\Kami\Content\Blocks\Image::handle() public function handle(): string
 class Psyao\Kami\Content\Blocks\Image::summary() public function summary(array $data): ?string
 class Psyao\Kami\Content\Blocks\Image::view() public function view(): string
 class Psyao\Kami\Content\Blocks\Video final class extends Psyao\Kami\Content\Blocks\Block
+class Psyao\Kami\Content\Blocks\Video::SCRIPT public const string SCRIPT = 'vendor/kami/video.js'
 class Psyao\Kami\Content\Blocks\Video::fields() public function fields(): array
 class Psyao\Kami\Content\Blocks\Video::handle() public function handle(): string
 class Psyao\Kami\Content\Blocks\Video::summary() public function summary(array $data): ?string
 class Psyao\Kami\Content\Blocks\Video::view() public function view(): string
+class Psyao\Kami\Content\Blocks\VideoLink final readonly class
+class Psyao\Kami\Content\Blocks\VideoLink::$player public protected(set) readonly string $player
+class Psyao\Kami\Content\Blocks\VideoLink::$provider public protected(set) readonly string $provider
+class Psyao\Kami\Content\Blocks\VideoLink::$watch public protected(set) readonly string $watch
+class Psyao\Kami\Content\Blocks\VideoLink::of() public static function of(mixed $url): ?Psyao\Kami\Content\Blocks\VideoLink
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$archive protected bool $archive = false
 class Psyao\Kami\Content\ContentType::$feed protected bool $feed = false

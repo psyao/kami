@@ -169,12 +169,24 @@ An image from the Media library with an optional caption, rendered as `<x-kami::
 
 `final class extends Psyao\Kami\Content\Blocks\Block`
 
-A YouTube or Vimeo video from its address, with an optional caption, rendered by `kami::blocks.video` as a link to the provider
+A YouTube or Vimeo video, with an optional caption, that loads nothing from the provider before the visitor clicks (ADR 0016).
 
+- `public const string SCRIPT = 'vendor/kami/video.js'`: The facade script, under `public/`, which `kami:install` copies there: the path a view asks for with `asset()`.
 - `public function fields(): array`
 - `public function handle(): string`
 - `public function summary(array $data): ?string`
 - `public function view(): string`
+
+## `Psyao\Kami\Content\Blocks\VideoLink`
+
+`final readonly class`
+
+A `Video` Block's address, read by its form alone, with no network call: what an overridden `kami::blocks.video` renders.
+
+- `public protected(set) readonly string $player`
+- `public protected(set) readonly string $provider`
+- `public protected(set) readonly string $watch`
+- `public static function of(mixed $url): ?Psyao\Kami\Content\Blocks\VideoLink`: The video an address names, or null for anything but a YouTube or Vimeo address.
 
 ## `Psyao\Kami\Content\ContentType`
 

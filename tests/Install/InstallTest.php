@@ -348,6 +348,16 @@ describe('public/vendor/kami', function () {
         expect(File::get(public_path('vendor/kami/video.js')))->toBe(File::get(dirname(__DIR__, 2) . '/resources/dist/front/video.js'))
             ->and(File::get(public_path('vendor/kami/.htaccess')))->toContain('Header always set X-Content-Type-Options "nosniff"')->not->toContain('Cache-Control');
     });
+
+    it('fails, touching nothing, on a public/vendor/kami that is a file', function () {
+        $this->bootWithKamiOnAPanel();
+        File::ensureDirectoryExists(public_path('vendor'));
+        File::put(public_path('vendor/kami'), 'a file');
+
+        install()->expectsOutputToContain('public/vendor/kami is a file, not a directory')->assertFailed();
+
+        expect(File::get(public_path('vendor/kami')))->toBe('a file');
+    });
 });
 
 describe('public/robots.txt', function () {

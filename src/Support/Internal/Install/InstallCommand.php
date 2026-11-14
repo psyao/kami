@@ -100,7 +100,11 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        VideoFacade::install();
+        if (($refusal = VideoFacade::install()) !== null) {
+            $this->components->error("The Video facade cannot be copied: {$refusal} Then run kami:install again.");
+
+            return self::FAILURE;
+        }
 
         // On every deploy, before the steps that may stop it: a host answering a missing robots.txt itself disallows nothing (ADR 0027).
         if (($robots = RobotsTxt::write()) !== null) {
