@@ -156,9 +156,9 @@ A type with `protected bool $archive = true` lists its visible Entries at its Pr
 <x-kami::pagination :paginator="$entries" />
 ```
 
-A page holds `$perPage` Entries, 10 by default, newest first: by publication date, then by creation, each in the page's Locale. A type [ordered by hand](content-types.md#types-ordered-by-hand) lists them in Position order instead. An Entry under an ancestor that is not visible is left out of its page, which then holds fewer. An Archive with no Entry yet answers its first page, empty. `kami:doctor` reports a type with an Archive and no view, unless it overrides `renderArchive()`, which Kami calls through the container, as `render()`.
+A page holds `$perPage` Entries, 10 by default, newest first: by publication date, then by creation, each in the page's Locale. A type [ordered by hand](content-types.md#types-ordered-by-hand) lists them in Position order instead; on a hierarchical one, Positions count among siblings, so the list runs through the first child of every Parent, then the second, and so on: list a tree yourself, with your own query in `renderArchive()`. An Entry under an ancestor that is not visible is left out of its page, which then holds fewer. An Archive with no Entry yet answers its first page, empty. `kami:doctor` reports a type with an Archive and no view, unless it overrides `renderArchive()`, which Kami calls through the container, as `render()`.
 
-A cursor in `?cursor=` reaches the next pages: an address for a moment of the list rather than a page number, so a page never repeats or skips an Entry as Entries are added. A malformed cursor, or one past the end, answers 404. Search engines index the first page only ([SEO](seo.md#robots)), and only the first page is [cached](page-cache.md#what-is-cached).
+A cursor in `?cursor=` reaches the next pages: an address for a moment of the list rather than a page number, so a page never repeats or skips an Entry as Entries are added. A malformed cursor, or one past the end, answers 404. Search engines index the first page only ([SEO](seo.md#robots)), and only the first page is [cached](page-cache.md#what-is-cached). Archives behave the same on shared hosting and on a server: a page is one indexed query in the request, with no task to run, and a Scheduled Entry joins the list at its time.
 
 ### Term Archives
 

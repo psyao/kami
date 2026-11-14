@@ -7,7 +7,6 @@ namespace Psyao\Kami\Seo\Internal;
 use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\File;
-use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -141,7 +140,7 @@ final class Sitemap
         $total = 0;
 
         try {
-            $routable = array_map(fn (ContentType $type): string => $type->handle(), array_filter(resolve(ContentTypes::class)->all(), fn (ContentType $type): bool => $type->isRoutable()));
+            $routable = resolve(ContentTypes::class)->routableHandles();
 
             $add = function (string $locale, string $url, ?string $lastmod, array $alternates) use ($directory, &$files, &$total): void {
                 if (($files[$locale]['urls'] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
@@ -173,13 +172,11 @@ final class Sitemap
             });
 
             // An Archive's first page in every Locale; its cursor pages are never indexed.
-            foreach (resolve(ContentTypes::class)->all() as $type) {
-                if ($type->hasArchive()) {
-                    $urls = ResolvePageMeta::archiveUrls($site, $type);
+            foreach (resolve(ContentTypes::class)->archives() as $type) {
+                $urls = ResolvePageMeta::archiveUrls($site, $type);
 
-                    foreach ($urls as $locale => $url) {
-                        $add($locale, $url, null, ResolvePageMeta::alternates($site, $urls));
-                    }
+                foreach ($urls as $locale => $url) {
+                    $add($locale, $url, null, ResolvePageMeta::alternates($site, $urls));
                 }
             }
 

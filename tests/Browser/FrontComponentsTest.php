@@ -22,6 +22,7 @@ it('shows the language switcher and a date at axe\'s strictest level, light and 
 });
 
 it('shows an Archive\'s pagination at axe\'s strictest level, light and dark', function (): void {
+    $this->freezeTime();
     foreach (range(1, 11) as $day) {
         resolve(SaveEntry::class)->handle(Article::class, ['title' => "Article {$day}", 'status' => 'published', 'author' => 'Ada Lovelace', 'published_at' => now()->subDays($day)], locale: 'fr');
     }

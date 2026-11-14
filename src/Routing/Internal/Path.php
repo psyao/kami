@@ -65,13 +65,7 @@ final class Path extends Model
     /** The type whose Archive answers at a normalised Path, in every Locale, which hides an Entry's there (ADR 0009). */
     public static function archiveAt(string $path): ?ContentType
     {
-        return collect(resolve(ContentTypes::class)->all())->first(fn (ContentType $type): bool => $type->hasArchive() && self::normalise($type->prefix()) === $path);
-    }
-
-    /** Whether an Archive answers at a normalised Path. */
-    public static function isArchive(string $path): bool
-    {
-        return self::archiveAt($path) instanceof ContentType;
+        return resolve(ContentTypes::class)->archives()[$path] ?? null;
     }
 
     /** The slug a title gives in a Locale, the same in the admin form and on save. */

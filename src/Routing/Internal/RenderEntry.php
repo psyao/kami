@@ -96,13 +96,14 @@ final class RenderEntry
         }
 
         $site = Site::current();
-        $routable = array_values(array_map(fn (ContentType $type): string => $type->handle(), array_filter(resolve(ContentTypes::class)->all(), fn (ContentType $type): bool => $type->isRoutable())));
         $locale = $entry->readLocale();
-        $query = Entry::query()->readIn($locale)->where('site', $site->handle)->whereIn('type', $routable)
-            // A link in the Locale read, or a Shared one; a Term never saved has no id, so no link. An `in` read from the target's index:
+        $id = $entry->getRawOriginal('id');
+        $query = Entry::query()->readIn($locale)->where('site', $site->handle)->whereIn('type', $id === null ? [] : resolve(ContentTypes::class)->routableHandles())
+            // A link in the Locale read, or a Shared one; a Term never saved, a Preview's, has no id, so no link: no type to list, as `where(…, null)` would read
+            // `is null`, every Media link. An `in` read from the target's index:
             // a correlated `exists` made SQLite walk every published Translation by date, 1.8 s at 30,000 Entries.
             ->whereIn('kami_entries.id', fn (Builder $links): Builder => $links->select('source_entry_id')->from('kami_references')
-                ->where('target_entry_id', $entry->getRawOriginal('id'))
+                ->where('target_entry_id', $id)
                 ->where(fn (Builder $inLocale): Builder => $inLocale->where('locale', $locale)->orWhereNull('locale')));
         $entries = Listing::page($query, false, $type->perPage(), $entry->url($locale) ?? '', $cursor);
 

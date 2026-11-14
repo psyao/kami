@@ -70,6 +70,28 @@ final class ContentTypes
     }
 
     /**
+     * The handles of the types with a URL: what a Term Archive and the sitemap list.
+     *
+     * @return list<string>
+     */
+    public function routableHandles(): array
+    {
+        return array_values(array_map(fn (ContentType $type): string => $type->handle(), array_filter($this->all(), fn (ContentType $type): bool => $type->isRoutable())));
+    }
+
+    /**
+     * The types with an Archive, by the normalised Prefix it answers at.
+     *
+     * @return array<string, ContentType>
+     */
+    public function archives(): array
+    {
+        $archives = array_filter($this->all(), fn (ContentType $type): bool => $type->hasArchive());
+
+        return array_combine(array_map(fn (ContentType $type): string => Path::normalise($type->prefix()), $archives), $archives);
+    }
+
+    /**
      * Unvalidated, for the panel: it registers one Resource per type while the application boots.
      *
      * @return array<string, ContentType>

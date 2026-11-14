@@ -26,7 +26,7 @@ final class Listing
 
     /**
      * Answers 404 for a malformed cursor, or an empty page other than the first. An Entry under an ancestor not visible in the Locale is dropped
-     * from its page, which then holds fewer Entries: no query of fixed cost can see ancestors (ADR 0019).
+     * from its page, which then holds fewer Entries, its links kept: no query of fixed cost can see ancestors (ADR 0019).
      *
      * @param  EntryBuilder  $query  The Entries to list, in the Locale they are read in.
      * @param  string  $url  The page's address, which the cursor links append to.
@@ -61,7 +61,14 @@ final class Listing
 
         VisiblePaths::preload($page->items());
 
-        return $page->setCollection($page->getCollection()->filter(fn (Entry $entry): bool => $entry->url() !== null)->values())->withPath($url);
+        return new ListingPage(
+            $page->getCollection()->filter(fn (Entry $entry): bool => $entry->url() !== null)->values(),
+            $perPage,
+            $decoded,
+            ['path' => $url, 'cursorName' => self::CURSOR, 'parameters' => $parameters],
+            $page->previousCursor(),
+            $page->nextCursor(),
+        );
     }
 
     /**

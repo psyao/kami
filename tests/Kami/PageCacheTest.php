@@ -144,6 +144,7 @@ it('never stores what is not a 200 of an Entry, without query string or credenti
 ]);
 
 it('serves an Archive\'s first page rendered once until a core write, and never stores a cursor page', function () {
+    $this->freezeTime();
     foreach (range(1, 11) as $number) {
         cachedArticle(['title' => "Article {$number}", 'published_at' => now()->subDays($number)]);
     }

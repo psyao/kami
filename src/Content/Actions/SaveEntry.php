@@ -444,7 +444,7 @@ final class SaveEntry
 
             if (! Path::isAnswerable($path)) {
                 $fail(__('validation.regex'));
-            } elseif (Path::isReserved($path) || Path::isArchive($path)) {
+            } elseif (Path::isReserved($path) || Path::archiveAt($path) instanceof ContentType) {
                 $fail(__('kami::admin.fields.slug_reserved'));
             } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array($segment = explode('/', $path)[0], array_slice($site->locales, 1), true)) {
                 $fail(__('kami::admin.fields.slug_locale', ['locale' => $segment]));

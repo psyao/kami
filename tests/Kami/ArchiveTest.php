@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Illuminate\Testing\TestResponse;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -12,7 +13,10 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Content\Taxonomy;
+use Psyao\Kami\Content\Term;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Media\Actions\SaveMedia;
+use Psyao\Kami\Routing\Internal\RenderEntry;
 
 uses(RefreshDatabase::class);
 
@@ -70,10 +74,20 @@ final class Chapter extends ContentType
     protected bool $hierarchical = true;
 }
 
+/** A type whose links to Terms differ by Locale. */
+final class Tour extends ContentType
+{
+    public function fields(): array
+    {
+        return [Terms::make('stops')->of(Keyword::class)->translatable()];
+    }
+}
+
 beforeEach(function () {
     config(['kami.types' => [Post::class, Category::class, Keyword::class, Chapter::class]]);
     View::addLocation(dirname(__DIR__) . '/Fixtures/archive');
     Kami::routes();
+    $this->freezeTime();
 });
 
 /** @param array<string, mixed> $values */
@@ -222,4 +236,54 @@ it('gives a Term\'s Preview the first page of its Entries, as visitors see them'
 
     $this->get(PreviewLink::issue($live, 'fr', 7, null) . '?cursor=garbage')
         ->assertOk()->assertSee('<h1>Live</h1>', escape: false)->assertSee('Concert')->assertDontSee('Rehearsal');
+});
+
+// A Term never saved has no id, as the admin Preview's; the Preview's own setup needs the type's Filament routes, registered at boot.
+it('gives a Term never saved an empty page, whatever links Media', function () {
+    Storage::fake('local');
+    savePost('Illustrated', 1, ['seo_image' => resolve(SaveMedia::class)->handle(fixture('media/pixel.png'))->id]);
+
+    $view = RenderEntry::call(new Keyword, (new Term)->forceFill(['type' => 'keyword', 'site' => 'default']));
+
+    expect($view->getData()['entries']->items())->toBe([]);
+});
+
+it('lists a Term\'s Entries by the links of the page\'s Locale, and Shared ones', function () {
+    config(['kami.types' => [Post::class, Category::class, Keyword::class, Chapter::class, Tour::class]]);
+    $live = resolve(SaveEntry::class)->handle(Keyword::class, ['title' => 'Live']);
+    resolve(SaveEntry::class)->handle(Keyword::class, ['title' => 'Live'], $live, locale: 'en');
+    $studio = resolve(SaveEntry::class)->handle(Keyword::class, ['title' => 'Studio']);
+    $tour = resolve(SaveEntry::class)->handle(Tour::class, ['title' => 'Tournée', 'status' => 'published', 'stops' => [$live->id]]);
+    resolve(SaveEntry::class)->handle(Tour::class, ['title' => 'Tour', 'status' => 'published', 'stops' => [$studio->id]], $tour, locale: 'en');
+    $shared = savePost('Partagé', 1, ['keywords' => [$live->id]]);
+    resolve(SaveEntry::class)->handle(Post::class, ['title' => 'Shared', 'status' => 'published'], $shared, locale: 'en');
+
+    $this->get('/tag/live')->assertOk()->assertSee('Tournée')->assertSee('Partagé');
+    $this->get('/en/tag/live')->assertOk()->assertDontSee('Tour<', escape: false)->assertSee('Shared');
+});
+
+it('pages a hand-ordered type both ways', function () {
+    config(['kami.types' => [Post::class, Category::class, Keyword::class, Chapter::class]]);
+    foreach (range(1, 12) as $number) {
+        resolve(SaveEntry::class)->handle(Chapter::class, ['title' => "Chapter {$number}x", 'status' => 'published']);
+    }
+
+    $next = $this->get(pageLink($this->get('/chapter')->assertOk()->assertSeeInOrder(['Chapter 1x', 'Chapter 10x']), 'next'))
+        ->assertOk()->assertSeeInOrder(['Chapter 11x', 'Chapter 12x'])->assertDontSee('Chapter 10x');
+
+    $this->get(pageLink($next, 'prev'))->assertOk()->assertSee('Chapter 10x')->assertDontSee('Chapter 11x');
+});
+
+it('links on from a page whose every Entry sits under a hidden Parent', function () {
+    $save = fn (string $title, array $values = []): Entry => resolve(SaveEntry::class)->handle(Chapter::class, ['title' => $title, 'status' => 'published', ...$values]);
+    $hidden = $save('Hidden', ['status' => 'draft']);
+    // Ten children at Positions 0 to 9 fill the first page, and every one is dropped.
+    foreach (range(1, 10) as $number) {
+        $save("Orphan {$number}", ['parent' => $hidden->id]);
+    }
+    $save('Last', ['position' => 100]);
+
+    $first = $this->get('/chapter')->assertOk()->assertDontSee('Orphan');
+
+    $this->get(pageLink($first, 'next'))->assertOk()->assertSee('Last');
 });
