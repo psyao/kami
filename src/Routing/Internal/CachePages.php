@@ -52,14 +52,18 @@ final class CachePages
             && $request->isMethodCacheable()
             && $request->getQueryString() === null
             && ! $request->headers->has('Authorization')
+            // An Inertia request for part of the page, or otherwise changing its answer: only `X-Inertia` and `X-Inertia-Version` name a whole page.
+            && preg_grep('/^x-inertia-(?!version$)/', array_keys($request->headers->all())) === []
             && $request->getHost() === parse_url(Site::current()->url, PHP_URL_HOST)
             && $request->route()?->getControllerClass() === RenderEntry::class;
     }
 
     private function storable(Request $request, Response $response): bool
     {
-        // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie, ours or the outer middleware's, marks a response for one visitor.
+        // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie, ours or the outer middleware's, marks a response for one visitor;
+        // Inertia's JSON is stored for an Inertia request only, and an Inertia request stores nothing else: a page outside Inertia answers it from Laravel each time.
         return $request->isMethod('GET')
+            && (bool) $request->headers->get('X-Inertia') === ($response->headers->get('X-Inertia') === 'true')
             && $response->getStatusCode() === 200
             && $response->getContent() !== false
             && $response->headers->getCookies() === []

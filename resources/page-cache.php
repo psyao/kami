@@ -14,10 +14,11 @@ return static function (string $storage): void {
     $server = static fn (string $key): string => is_string($_SERVER[$key] ?? null) ? $_SERVER[$key] : '';
     $method = $server('REQUEST_METHOD');
 
-    // What CachePages never stores; a query string is part of the URI, so its page is never found. Laravel's own
-    // maintenance check lets the request through when `php artisan down` prerendered no page: its middleware answers 503.
+    // What CachePages never stores, an Inertia request for part of a page included; a query string is part of the URI, so its page is never found.
+    // Laravel's own maintenance check lets the request through when `php artisan down` prerendered no page: its middleware answers 503.
     if (! in_array($method, ['GET', 'HEAD'], true) || file_exists($storage . '/framework/down')
-        || array_intersect_key($_SERVER, array_flip(['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'PHP_AUTH_USER', 'PHP_AUTH_DIGEST'])) !== []) {
+        || array_intersect_key($_SERVER, array_flip(['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'PHP_AUTH_USER', 'PHP_AUTH_DIGEST'])) !== []
+        || preg_grep('/^HTTP_X_INERTIA_(?!VERSION$)/', array_keys($_SERVER)) !== []) {
         return;
     }
 
@@ -44,7 +45,14 @@ return static function (string $storage): void {
 
     // The host as Laravel's Request::getHost() reads it: lower case, port stripped.
     $host = strtolower((string) preg_replace('/:\d+$/', '', trim($server('HTTP_HOST'))));
-    $path = $directory . $manifest['version'] . '/' . hash('xxh128', $host . $server('REQUEST_URI'));
+    $key = $host . $server('REQUEST_URI');
+
+    // Inertia's JSON, keyed apart by the asset version it was answered to: another version misses, and Laravel answers Inertia's 409.
+    if ((bool) $server('HTTP_X_INERTIA')) {
+        $key = "inertia\n" . $server('HTTP_X_INERTIA_VERSION') . "\n" . $key;
+    }
+
+    $path = $directory . $manifest['version'] . '/' . hash('xxh128', $key);
     // A page expires one hour after it was written.
     $handle = @filemtime($path) > time() - 3600 ? @fopen($path, 'rb') : false;
     $meta = $handle === false ? null : json_decode((string) fgets($handle), true);

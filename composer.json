@@ -34,6 +34,7 @@
         "brianium/paratest": "<7.28.0",
         "driftingly/rector-laravel": "^2.7",
         "evilmartians/lefthook": "^2.2",
+        "inertiajs/inertia-laravel": "^3.0",
         "larastan/larastan": "^3.13",
         "laravel/boost": "^2.10",
         "laravel/pint": "^1.32",

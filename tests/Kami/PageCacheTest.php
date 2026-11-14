@@ -418,3 +418,50 @@ it('answers a moved address with its 301 at once, never the 200 it stored there'
 
     $this->get('/articles/hello-world')->assertMovedPermanently();
 });
+
+it('keeps Inertia\'s JSON answer as a copy of its own beside the HTML, each served to its own request', function () {
+    inertiaPage();
+    $html = $this->get('/inertia_page/hello-world')->assertOk();
+    $json = $this->get('/inertia_page/hello-world', inertiaVisit())->assertOk()->assertHeader('X-Inertia', 'true');
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/inertia_page/hello-world', inertiaVisit())->assertOk()->assertHeader('ETag')
+        ->assertHeader('Content-Type', 'application/json')->assertContent($json->getContent());
+    $this->get('/inertia_page/hello-world')->assertOk()->assertHeader('ETag')->assertContent($html->getContent());
+    expect(File::allFiles(storage_path('framework/kami/pages/' . PageCache::version())))->toHaveCount(2);
+});
+
+it('lets Laravel answer Inertia\'s 409 to another asset version, never the stored copy', function () {
+    inertiaPage();
+    $this->get('/inertia_page/hello-world', inertiaVisit())->assertOk();
+
+    $this->get('/inertia_page/hello-world', inertiaVisit('v0'))->assertStatus(409)->assertHeader('X-Inertia-Location');
+});
+
+it('never stores or serves an Inertia request that asks for part of the page', function (string $header, string $value) {
+    inertiaPage();
+    $partial = [...inertiaVisit(), $header => $value, 'X-Inertia-Partial-Component' => 'Page'];
+    $this->get('/inertia_page/hello-world', $partial)->assertOk();
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/inertia_page/hello-world', inertiaVisit())->assertSee('Unseen');
+
+    retitleBehindKamisBack('Unserved');
+
+    $this->get('/inertia_page/hello-world', $partial)->assertSee('Unserved');
+})->with([
+    'only some props' => ['X-Inertia-Partial-Data', 'title'],
+    'all props but some' => ['X-Inertia-Partial-Except', 'errors'],
+    'props reset' => ['X-Inertia-Reset', 'title'],
+]);
+
+it('never answers an Inertia request with the HTML of a page that is not Inertia\'s', function () {
+    inertiaPage();
+    cachedArticle();
+    $this->get('/articles/hello-world')->assertOk();
+    $this->get('/articles/hello-world', inertiaVisit())->assertOk();
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/articles/hello-world', inertiaVisit())->assertSee('Unseen')->assertHeaderMissing('ETag');
+});
