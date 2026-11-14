@@ -71,8 +71,9 @@ it('renders an Image Block as its picture in a figure, and Video Blocks as provi
         ->toContain('<div class="kami-video-facade" data-kami-video="https://player.vimeo.com/video/76979871?dnt=1&amp;autoplay=1" data-title="Vidéo Vimeo">')
         ->toContain('<a href="https://vimeo.com/76979871">Regarder la vidéo sur Vimeo</a>')
         ->not->toContain('<iframe')
-        ->and(substr_count($html, '<script type="module" src="http://localhost/vendor/kami/video.js"></script>'))->toBe(1)
-        ->and(substr_count($html, '<script'))->toBe(1)
+        ->toContain('<script type="module" src="http://localhost/vendor/kami/video.js"></script>')
+        // One facade tag for both videos; other scripts, such as Livewire's under its lowest version, are not Kami's to count.
+        ->and(substr_count($html, 'vendor/kami/video.js'))->toBe(1)
         // The page's six, then the Image's Media item and its Translations.
         ->and(DB::getQueryLog())->toHaveCount(8);
 });
