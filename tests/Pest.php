@@ -37,7 +37,9 @@ use Symfony\Component\Finder\SplFileInfo;
 use Workbench\App\Models\User;
 
 // One directory per suite: `Install/` boots without the Workbench.
-pest()->extend(TestCase::class)->in('Kami', 'Volume');
+// Livewire keeps static state between tests of a process: a component booted by one test leaves `disableBackButtonCache` set,
+// and the next test's first response, a Conversion's for one, goes out with Livewire's `no-store` instead of its own Cache-Control.
+pest()->extend(TestCase::class)->beforeEach(fn () => Livewire::flushState())->in('Kami', 'Volume');
 // The browser loads Filament's scripts and Kami's stylesheet from the skeleton's public directory, as on a Site after `kami:install`.
 // For every test of the suite, whichever runs first: the browser's server may keep the first test's application.
 pest()->extend(TestCase::class)->beforeEach(function (): void {
