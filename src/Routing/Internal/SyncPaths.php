@@ -87,10 +87,17 @@ final readonly class SyncPaths
      * @param  array<string, bool>  $wasPublic  By Locale, the written Translation's `wasPublic()` read before the write: after it, a first publication would read as public.
      *
      * @throws UniqueConstraintViolationException
+     * @throws PathTooLong
      */
     public function sync(Site $site, ContentType $type, array $ids, array $locales, array $wasPublic = []): void
     {
         ['gone' => $gone, 'changed' => $changed] = $this->diff($site, $type, $ids, $locales);
+
+        foreach ($changed as ['row' => $row]) {
+            if (mb_strlen($row['path']) > Path::MAX_LENGTH) {
+                throw new PathTooLong($row['path']);
+            }
+        }
 
         Path::query()->whereKey($gone->modelKeys())->delete();
 
@@ -101,6 +108,24 @@ final readonly class SyncPaths
 
             $this->move($site, $row, $current);
         }
+    }
+
+    /**
+     * The Entry and its descendants, one query per level: their Paths hold its slug.
+     *
+     * @return non-empty-list<string>
+     */
+    public static function subtree(string $id): array
+    {
+        $ids = [$id];
+
+        for ($level = $ids; $level !== [];) {
+            /** @var list<string> $level */
+            $level = DB::table('kami_entries')->whereIn('parent_id', $level)->whereNotIn('id', $ids)->pluck('id')->all();
+            $ids = [...$ids, ...$level];
+        }
+
+        return $ids;
     }
 
     /**
@@ -137,11 +162,12 @@ final readonly class SyncPaths
      */
     private function expected(Site $site, ContentType $type, array $ids): Collection
     {
-        $tree = $type->isHierarchical() ? $this->tree($ids) : [];
+        $nested = $type->isHierarchical() && $type->isRoutable();
+        $tree = $nested ? $this->tree($ids) : [];
         $rows = [];
 
         foreach (Translation::query()->whereIn('entry_id', $ids)->get() as $translation) {
-            $slug = $type->isHierarchical() ? $this->slugs($tree, $translation->entry_id, $translation->locale) : $translation->slug;
+            $slug = $nested ? $this->slugs($tree, $translation->entry_id, $translation->locale) : $translation->slug;
             $path = Path::of($type, $slug);
 
             if ($path === null) {

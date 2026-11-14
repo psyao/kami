@@ -14,6 +14,8 @@ return [
         'untitled' => 'Untitled',
         'encoding' => 'The :attribute field must be valid UTF-8 text.',
         'path_taken' => "Another Entry already answers at this type's Prefix: change the Prefix.",
+        'parent_path_taken' => 'Under this Parent, an address this Entry or one of its children would take is already used.',
+        'path_too_long' => "This address, its Parents' slugs included, is longer than :max characters: shorten a slug.",
         'slug_moves' => 'Changing it moves the address: once the page has been published, the old one redirects to the new one.',
         'slug_reserved' => 'This address is used by the site itself.',
         'slug_locale' => 'This address belongs to the :LOCALE version.',
@@ -51,6 +53,7 @@ return [
     'unpublish' => [
         'children' => 'Unpublishing :title also makes its visible children unreachable: :children.',
     ],
+
     'bulk' => [
         'partial' => ':count of :total done',
         'reason' => ':reason (:count)',

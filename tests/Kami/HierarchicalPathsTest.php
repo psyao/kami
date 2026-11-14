@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Content\Actions\DeleteTranslation;
+use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Taxonomy;
@@ -50,6 +52,7 @@ it('answers a child of a published Parent under its Parent\'s Path', function ()
 });
 
 it('hides an Entry under a Draft or Scheduled ancestor, and answers again once it is visible, with no Tick', function (string $state) {
+    $this->travelTo('2026-11-14 10:00:00');
     $top = nested('Top');
     $middle = nested('Middle', $top);
     $bottom = nested('Bottom', $middle);
@@ -128,10 +131,59 @@ it('refuses a move whose subtree lands on a taken address, on the slug', functio
     nested('Child', $parent);
     nested('Taken', values: ['slug' => 'other/child']);
 
+    $child = nested('Child', nested('Elsewhere'));
+
     expect(fn () => resolve(SaveEntry::class)->handle(Page::class, ['slug' => 'other'], $parent, 'fr'))->toThrow(function (ValidationException $exception) {
         expect($exception->errors())->toHaveKey('slug');
+    })->and(fn () => resolve(SaveEntry::class)->handle(Page::class, ['parent' => $parent->id], $child, 'fr'))->toThrow(function (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey('parent');
     });
     $this->get('/parent/child')->assertOk();
+    $this->get('/elsewhere/child')->assertOk();
+});
+
+it('refuses a Path longer than its column, ancestors\' slugs included, and answers 404 past that length with no query', function () {
+    $parent = nested('Parent', values: ['slug' => str_repeat('a', 255)]);
+
+    expect(fn () => nested('Child', $parent, ['slug' => str_repeat('b', 250)]))->toThrow(function (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey('slug');
+    });
+
+    DB::enableQueryLog();
+    $this->get('/' . str_repeat('a/', 300))->assertNotFound();
+    expect(collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'kami_paths')))->toBeEmpty();
+});
+
+it('gives a copy of a nested Entry its Path under the Parent\'s', function () {
+    $parent = nested('Parent');
+    nested('Child', $parent);
+    $copy = resolve(DuplicateEntry::class)->handle(nested('Child copy source', $parent, ['slug' => 'child-copy']));
+
+    expect(Path::query()->where('entry_id', $copy->id)->pluck('path')->all())->toBe(['parent/child-copy-copy']);
+});
+
+it('takes its descendants\' Paths in a Locale with a deleted ancestor Translation', function () {
+    $save = resolve(SaveEntry::class);
+    $parent = nested('Parent');
+    $save->handle(Page::class, ['title' => 'Parent'], $parent, 'en');
+    $child = nested('Enfant', $parent);
+    $save->handle(Page::class, ['title' => 'Child'], $child, 'en');
+
+    expect(Path::query()->where(['entry_id' => $child->id, 'locale' => 'en'])->value('path'))->toBe('parent/child');
+
+    resolve(DeleteTranslation::class)->handle($parent, 'en');
+
+    expect(Path::query()->where(['entry_id' => $child->id, 'locale' => 'en'])->exists())->toBeFalse();
+});
+
+it('reads no descendant on a save that moves no Path', function () {
+    $parent = nested('Parent');
+    nested('Child', $parent);
+
+    DB::enableQueryLog();
+    resolve(SaveEntry::class)->handle(Page::class, ['body' => 'Changed'], $parent, 'fr');
+
+    expect(collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], '"parent_id" in')))->toBeEmpty();
 });
 
 it('builds a hierarchical Taxonomy\'s Paths the same way', function () {

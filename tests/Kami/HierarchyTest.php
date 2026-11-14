@@ -439,5 +439,13 @@ describe('the Unpublish confirmation on a Parent', function () {
             ->assertMountedActionModalSee($this->sentence)
             ->setActionData(['locale' => 'en'])
             ->assertMountedActionModalDontSee($this->sentence);
+
+        // Already a Draft there: nothing more becomes unreachable.
+        resolve(SaveEntry::class)->handle(Page::class, ['status' => 'draft'], $this->parent, 'fr');
+
+        entriesPage(ListEntries::class, type: 'page')
+            ->selectTableRecords([$this->parent->id])
+            ->mountAction(TestAction::make('unpublish')->table()->bulk())
+            ->assertMountedActionModalDontSee($this->sentence);
     });
 });

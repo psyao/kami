@@ -32,6 +32,9 @@ final class Path extends Model
 {
     use HasUlids;
 
+    /** The longest Path `kami_paths.path` holds. */
+    public const int MAX_LENGTH = 500;
+
     /** First segments Kami's own routes answer under: Media Conversions (ADR 0017), the sitemap's files (ADR 0027), Preview links. No Path starts with one. */
     public const array RESERVED_SEGMENTS = ['media', 'sitemaps', 'kami'];
 

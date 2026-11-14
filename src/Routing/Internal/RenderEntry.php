@@ -31,7 +31,8 @@ final class RenderEntry
         $path = Path::normalise($path);
 
         // MySQL's and MariaDB's binary collation ignores trailing spaces, which no stored Path has.
-        $rows = str_ends_with($path, ' ') ? new Collection : VisiblePaths::at($site->handle, [$locale], VisiblePaths::prefixes($path));
+        // No stored Path is longer, and each segment of a longer one would be one more bound prefix.
+        $rows = str_ends_with($path, ' ') || mb_strlen($path) > Path::MAX_LENGTH ? new Collection : VisiblePaths::at($site->handle, [$locale], VisiblePaths::prefixes($path));
         $row = $rows->first(fn (object $row): bool => $row->path === $path);
         $status = $row === null ? null : (int) $row->status;
 
@@ -51,7 +52,7 @@ final class RenderEntry
         $type = $entry?->contentType();
         abort_unless($entry instanceof Entry && $type?->isRoutable() === true, 404);
         // Under an ancestor that is not visible here.
-        abort_unless(! $type->isHierarchical() || VisiblePaths::reachable($rows, $locale, $entry->parent_id), 404);
+        abort_unless(! $type->isHierarchical() || VisiblePaths::reachable(VisiblePaths::index($rows, $locale), $entry->parent_id), 404);
 
         return self::render($request, $entry);
     }

@@ -345,10 +345,16 @@ final class EditEntry extends EditRecord
                 ->visible(fn (): bool => $this->getRecord()->status !== Translation::PUBLISHED),
             $this->statusAction('unpublish', Translation::DRAFT)
                 ->visible(fn (): bool => $this->getRecord()->status === Translation::PUBLISHED)
-                ->requiresConfirmation(fn (): bool => EntryResource::unreachableChildren($this->getRecord(), $this->locale) !== null)
-                ->modalDescription(fn (): ?string => EntryResource::unreachableChildren($this->getRecord(), $this->locale)),
+                ->requiresConfirmation(fn (): bool => $this->unpublishWarning() !== null)
+                ->modalDescription(fn (): ?string => $this->unpublishWarning()),
             $this->getCancelFormAction(),
         ];
+    }
+
+    /** Read once per request: the confirmation and its text ask the same question. */
+    private function unpublishWarning(): ?string
+    {
+        return once(fn (): ?string => EntryResource::unpublishWarning($this->getRecord(), $this->locale));
     }
 
     private function statusAction(string $name, string $status): Action

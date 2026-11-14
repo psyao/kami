@@ -19,6 +19,7 @@ use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -70,7 +71,7 @@ final class DuplicateEntry
                 /** @var array{locale: string, title: string|null, slug: string|null} $translation */
                 $locale = $translation['locale'];
                 $locales = $locale === '*' ? $site->locales : [$locale];
-                $slug = $translation['slug'] === null ? null : $this->freeSlug($type, $site, $locales, $translation['slug']);
+                $slug = $translation['slug'] === null ? null : $this->freeSlug($type, $site, $locales, $translation['slug'], is_string($parent) ? $parent : null);
 
                 Translation::query()->create([
                     'entry_id' => $copy->id,
@@ -80,12 +81,10 @@ final class DuplicateEntry
                     'status' => Translation::DRAFT,
                 ]);
 
-                $path = Path::of($type, $slug);
-
-                foreach ($path === null ? [] : $locales as $pathLocale) {
-                    Path::query()->create(['site' => $site->handle, 'locale' => $pathLocale, 'path' => $path, 'entry_id' => $copy->id, 'status' => 200]);
-                }
             }
+
+            // Under the Parent's Path on a hierarchical type, none where an ancestor has no slug (ADR 0008).
+            resolve(SyncPaths::class)->sync($site, $type, [$copy->id], $site->locales);
 
             foreach ($snapshot['rows'] as $row) {
                 DB::table("kami_type_{$type->handle()}")->insert([...$row, 'entry_id' => $copy->id]);
@@ -119,18 +118,21 @@ final class DuplicateEntry
     }
 
     /**
-     * The first of `-copy`, `-copy-2`… whose Path no row holds in any of the Locales, whatever its status.
+     * The first of `-copy`, `-copy-2`… whose Path no row holds in any of the Locales, whatever its status; under the Parent's Path, which a copy keeps.
      *
      * ponytail: read with no lock, so two concurrent copies can pick the same slug and the second fails on the unique index; V1 adds a retry if a friction shows it.
      *
      * @param  list<string>  $locales
      */
-    private function freeSlug(ContentType $type, Site $site, array $locales, string $slug): string
+    private function freeSlug(ContentType $type, Site $site, array $locales, string $slug, ?string $parent): string
     {
+        // A `'*'` Parent's Path is the same in every Locale, and a translatable copy's Translation has one Locale.
+        $above = $parent === null ? null : Path::query()->where(['site' => $site->handle, 'entry_id' => $parent, 'status' => 200, 'locale' => $locales[0]])->value('path');
+
         for ($n = 1; ; $n++) {
             $suffix = $n === 1 ? '-copy' : "-copy-{$n}";
             $candidate = mb_substr($slug, 0, self::MAX_LENGTH - strlen($suffix)) . $suffix;
-            $path = Path::of($type, $candidate);
+            $path = is_string($above) ? "{$above}/{$candidate}" : Path::of($type, $candidate);
 
             if ($path === null || ! Path::query()->where('site', $site->handle)->whereIn('locale', $locales)->where('path', $path)->exists()) {
                 return $candidate;

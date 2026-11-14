@@ -13,6 +13,8 @@ use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Routing\Internal\SyncPaths;
+use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Deletes a Translation that was never published, with its Field values, References and Preview links in that Locale, and frees its Paths; Shared values stay with the Entry. It does not authorise: the caller checks the actor's `delete` Permission first (ADR 0011).
@@ -49,6 +51,12 @@ final class DeleteTranslation
             PreviewLink::query()->where(['entry_id' => $entry->id, 'locale' => $locale])->delete();
             // Never public, so no address to keep as a Redirect or a 410.
             Path::query()->where(['entry_id' => $entry->id, 'locale' => $locale, 'status' => 200])->delete();
+            $type = $entry->contentType();
+
+            // Its descendants' Paths there held its slug: they have none until it has one again (ADR 0008).
+            if ($type?->isHierarchical() === true && $type->isRoutable()) {
+                resolve(SyncPaths::class)->sync(Site::current(), $type, SyncPaths::subtree($entry->id), [$locale]);
+            }
             $entry->forceFill(['updated_by' => $actor?->getAuthIdentifier(), 'updated_at' => $entry->freshTimestamp()])->save();
         });
 

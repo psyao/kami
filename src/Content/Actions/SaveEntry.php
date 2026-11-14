@@ -39,6 +39,7 @@ use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Routing\Internal\PathTooLong;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\PluginRegistration;
@@ -134,7 +135,9 @@ final class SaveEntry
             }
 
             if ($writesTranslation || $entry->wasChanged('parent_id')) {
-                $this->reservePaths($contentType, $site, $entry, $locale, $writesTranslation ? $wasPublic : null);
+                // A descendant's Path holds this Entry's slug: it moves with a new Parent, a new slug or a first Translation in the Locale.
+                $moves = $entry->wasChanged('parent_id') || ($writesTranslation && ($translation->wasRecentlyCreated || $translation->wasChanged('slug')));
+                $this->reservePaths($contentType, $site, $entry, $locale, $writesTranslation ? $wasPublic : null, $moves);
             }
 
             if ($writesTranslation) {
@@ -473,24 +476,28 @@ final class SaveEntry
      * The Translation's 200 rows, and its descendants' on a hierarchical type, whose Paths hold its slug: the `'*'` Translation answers in every Locale of the Site, one row each,
      * and a new Parent moves the Entry in every Locale. A moved row stays as a 301 to the Entry once public, and is rewritten in place otherwise (ADR 0008).
      */
-    private function reservePaths(ContentType $contentType, Site $site, Entry $entry, string $locale, ?bool $wasPublic): void
+    private function reservePaths(ContentType $contentType, Site $site, Entry $entry, string $locale, ?bool $wasPublic, bool $moves): void
     {
-        $locales = $locale === '*' || $entry->wasChanged('parent_id') ? $site->locales : [$locale];
-        $ids = [$entry->id];
-
-        for ($level = $ids; $contentType->isHierarchical() && $level !== [];) {
-            /** @var list<string> $level */
-            $level = DB::table('kami_entries')->whereIn('parent_id', $level)->whereNotIn('id', $ids)->pluck('id')->all();
-            $ids = [...$ids, ...$level];
-        }
-
-        $written = $wasPublic === null ? [] : array_fill_keys($locale === '*' ? $site->locales : [$locale], $wasPublic);
+        $moved = $entry->wasChanged('parent_id');
+        $written = $locale === '*' ? $site->locales : [$locale];
+        $ids = $moves && $contentType->isHierarchical() && $contentType->isRoutable() ? SyncPaths::subtree($entry->id) : [$entry->id];
+        $field = match (true) {
+            $moved => 'parent',
+            $contentType->hasSlug() => 'slug',
+            default => 'title',
+        };
 
         try {
-            resolve(SyncPaths::class)->sync($site, $contentType, $ids, $locales, $written);
+            resolve(SyncPaths::class)->sync($site, $contentType, $ids, $moved ? $site->locales : $written, $wasPublic === null ? [] : array_fill_keys($written, $wasPublic));
         } catch (UniqueConstraintViolationException) {
             // Caught from the unique index, so two concurrent saves cannot both pass a prior lookup.
-            throw ValidationException::withMessages($contentType->hasSlug() ? ['slug' => __('validation.unique', ['attribute' => 'slug'])] : ['title' => __('kami::admin.fields.path_taken')]);
+            throw ValidationException::withMessages([$field => match ($field) {
+                'parent' => __('kami::admin.fields.parent_path_taken'),
+                'slug' => __('validation.unique', ['attribute' => 'slug']),
+                default => __('kami::admin.fields.path_taken'),
+            }]);
+        } catch (PathTooLong) {
+            throw ValidationException::withMessages([$field => __('kami::admin.fields.path_too_long', ['max' => Path::MAX_LENGTH])]);
         }
     }
 }

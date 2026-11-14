@@ -543,8 +543,9 @@ final class EntryResource extends FilamentResource
             ->deselectRecordsAfterCompletion();
 
         if ($status === Translation::DRAFT) {
-            $action->modalDescription(fn (BulkAction $action, EloquentCollection $records): ?string => $records->whereInstanceOf(Entry::class)
-                ->map(fn (Entry $record): ?string => self::unreachableChildren($record, $locale($action->getRawData()) ?? Site::current()->defaultLocale()))
+            $action->modalDescription(fn (BulkAction $action, EloquentCollection $records): ?string => $records
+                // @phpstan-ignore argument.type (Filament types the selected records as plain Models; this Resource's are Entries)
+                ->map(fn (Entry $record): ?string => self::unpublishWarning($record, $locale($action->getRawData()) ?? Site::current()->defaultLocale()))
                 ->filter()->implode(' ') ?: null);
         }
 
@@ -576,13 +577,14 @@ final class EntryResource extends FilamentResource
     }
 
     /**
-     * What unpublishing a Parent in a Locale costs: the sentence naming its children visible there, which become unreachable with it (ADR 0019); null for none.
+     * What unpublishing a Parent in a Locale costs: the sentence naming its children visible there, which become unreachable with it (ADR 0019); null for none,
+     * or when it is not published there.
      *
      * @internal
      */
-    public static function unreachableChildren(Entry $parent, string $locale): ?string
+    public static function unpublishWarning(Entry $parent, string $locale): ?string
     {
-        if (! self::type()->isHierarchical()) {
+        if (! self::type()->isHierarchical() || $parent->translation($locale)?->status !== Translation::PUBLISHED) {
             return null;
         }
 

@@ -63,14 +63,25 @@ final class VisiblePaths
     }
 
     /**
-     * Whether every ancestor from `$parent` up has a 200 row among `$rows` in the Locale, out of the Trash and visible there. One missing, as before
-     * `kami:install` rewrites a flat Path, reads as not visible; a cycle concurrent moves could close too.
+     * The current rows among these in a Locale, by Entry id: what `reachable()` walks.
      *
      * @param  Collection<int, Row>  $rows
+     * @return Collection<string, Row>
      */
-    public static function reachable(Collection $rows, string $locale, ?string $parent): bool
+    public static function index(Collection $rows, string $locale): Collection
     {
-        $current = $rows->filter(fn (object $row): bool => $row->locale === $locale && (int) $row->status === 200)->keyBy('entry_id');
+        /** @var Collection<string, Row> */
+        return $rows->filter(fn (object $row): bool => $row->locale === $locale && (int) $row->status === 200)->keyBy('entry_id');
+    }
+
+    /**
+     * Whether every ancestor from `$parent` up has a row in `$current`, out of the Trash and visible in its Locale. One missing, as before
+     * `kami:install` rewrites a flat Path, reads as not visible; a cycle concurrent moves could close too.
+     *
+     * @param  Collection<string, Row>  $current  From `index()`.
+     */
+    public static function reachable(Collection $current, ?string $parent): bool
+    {
         $seen = [];
 
         while ($parent !== null) {
@@ -107,11 +118,14 @@ final class VisiblePaths
         /** @var Collection<int, Row> $ancestors */
         $ancestors = $above === [] ? new Collection : self::at($site->handle, $site->locales, $above);
 
+        $current = array_map(fn (string $locale): Collection => self::index($ancestors, $locale), array_combine($site->locales, $site->locales));
+        $own = $own->groupBy('entry_id');
+
         foreach ($entries as $id => $entry) {
             $paths = array_fill_keys($site->locales, null);
 
-            foreach ($own->where('entry_id', $id) as $path) {
-                $paths[$path->locale] = self::reachable($ancestors, $path->locale, $entry->parent_id) ? $path->path : null;
+            foreach ($own->get($id, []) as $path) {
+                $paths[$path->locale] = self::reachable($current[$path->locale], $entry->parent_id) ? $path->path : null;
             }
 
             $entry->setVisiblePaths($paths);

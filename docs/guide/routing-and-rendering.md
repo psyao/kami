@@ -34,7 +34,7 @@ It also answers `POST /kami/forms/{handle}`, named `kami.form`, where each [Form
 
 ## Paths
 
-Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. On a [hierarchical type](content-types.md#hierarchical-types), its ancestors' slugs in the same Locale come between, as `bloc-note/symfony/installation`; a child has no Path in a Locale where one of its ancestors has no slug yet, and gets one once it has. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read, byte for byte on every engine: `/café` and `/cafe` are two addresses.
+Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. On a [hierarchical type](content-types.md#hierarchical-types), its ancestors' slugs in the same Locale come between, as `bloc-note/symfony/installation`; a child has no Path in a Locale where one of its ancestors has no slug yet, and gets one once it has. It is stored lowercase, without leading or trailing slash, and holds at most 500 characters, ancestors' slugs included: a save that would make one longer fails on the slug, or on the Parent for a move. A request is matched to it with one indexed read, byte for byte on every engine: `/café` and `/cafe` are two addresses.
 
 The default Locale's Paths start at the root; another Locale's sit under its code, as `/en/articles/hello-world`. See [Multilingual](multilingual.md).
 
