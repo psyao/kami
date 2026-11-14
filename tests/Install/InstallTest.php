@@ -336,6 +336,20 @@ describe('public/media', function () {
     });
 });
 
+describe('public/vendor/kami', function () {
+    it('copies the Video facade with its nosniff .htaccess for Apache, again at each run, as Kami\'s files', function () {
+        $this->bootWithKamiOnAPanel();
+        install()->assertSuccessful();
+        File::put(public_path('vendor/kami/video.js'), 'edited');
+        File::put(public_path('vendor/kami/.htaccess'), 'edited');
+
+        install()->assertSuccessful();
+
+        expect(File::get(public_path('vendor/kami/video.js')))->toBe(File::get(dirname(__DIR__, 2) . '/resources/dist/front/video.js'))
+            ->and(File::get(public_path('vendor/kami/.htaccess')))->toContain('Header always set X-Content-Type-Options "nosniff"')->not->toContain('Cache-Control');
+    });
+});
+
 describe('public/robots.txt', function () {
     beforeEach(function () {
         $this->bootWithKamiOnAPanel();

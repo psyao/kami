@@ -415,7 +415,7 @@ it('reads text, an excerpt and its Blocks', function () {
         ['type' => 'heading', 'attrs' => ['level' => 2], 'content' => [txt('Un')]],
         ['type' => 'paragraph', 'content' => [txt('de', ['type' => 'bold']), txt('ux'), ['type' => 'hardBreak'], txt('trois')]],
         aBlock(),
-        ['type' => 'block', 'attrs' => ['handle' => 'video', 'data' => []]],
+        ['type' => 'block', 'attrs' => ['handle' => 'map', 'data' => []]],
         para('quatre cinq six'),
     )])->body;
 
@@ -424,8 +424,8 @@ it('reads text, an excerpt and its Blocks', function () {
         ->and($body->excerpt(13))->toBe('Un deux trois…')
         ->and($body->excerpt(15))->toBe('Un deux trois…')
         ->and($body->excerpt())->toBe('Un deux trois quatre cinq six')
-        ->and($body->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]], ['handle' => 'video', 'data' => []]])
-        ->and($body->blocks('video'))->toBe([['handle' => 'video', 'data' => []]]);
+        ->and($body->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]], ['handle' => 'map', 'data' => []]])
+        ->and($body->blocks('map'))->toBe([['handle' => 'map', 'data' => []]]);
 });
 
 it('carries lang on a wrapper when it falls back', function () {

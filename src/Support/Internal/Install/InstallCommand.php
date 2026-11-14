@@ -23,6 +23,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\VideoFacade;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Routing\Internal\PageCache;
@@ -98,6 +99,8 @@ final class InstallCommand extends Command
 
             return self::FAILURE;
         }
+
+        VideoFacade::install();
 
         // On every deploy, before the steps that may stop it: a host answering a missing robots.txt itself disallows nothing (ADR 0027).
         if (($robots = RobotsTxt::write()) !== null) {

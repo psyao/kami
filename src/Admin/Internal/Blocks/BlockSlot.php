@@ -9,9 +9,12 @@ use Filament\Forms\Components\RichEditor\RichContentCustomBlock;
 use Filament\Schemas\Components\Component;
 use LogicException;
 use Psyao\Kami\Admin\Internal\EntryResource;
+use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Content\Blocks\Block;
+use Psyao\Kami\Content\Blocks\Image;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Internal\Blocks;
+use Psyao\Kami\Media\Media;
 
 /**
  * Filament's rich editor takes a custom block as a class whose methods are all static, one class per block: each slot serves the Block `KamiPlugin` gives it (ADR 0024).
@@ -68,14 +71,16 @@ abstract class BlockSlot extends RichContentCustomBlock
         return self::block()->label();
     }
 
-    /** Its summary under its label, escaped here: Filament trusts the preview's HTML (ADR 0016). */
+    /** Its summary under its label, after Kami's `Image`'s thumbnail, escaped here: Filament trusts the preview's HTML (ADR 0016). */
     #[\Override]
     final public static function toPreviewHtml(array $config): ?string
     {
         $block = self::block();
-        $summary = $block->summary($block->normalise($config));
+        $data = $block->normalise($config);
+        $summary = $block->summary($data);
+        $html = ($block instanceof Image ? self::thumbnail($data['image']) : '') . ($summary === null || $summary === '' ? '' : '<p>' . e($summary) . '</p>');
 
-        return $summary === null || $summary === '' ? null : '<p>' . e($summary) . '</p>';
+        return $html === '' ? null : $html;
     }
 
     /** Its modal, built from its Fields as the Entry form builds a type's; none for a Block with no Field. */
@@ -85,6 +90,18 @@ abstract class BlockSlot extends RichContentCustomBlock
         $block = self::block();
 
         return $block->fields() === [] ? $action->modalHidden() : $action->schema(array_map(fn (Field $field): Component => EntryResource::blockInput($block, $field, $action->getLivewire()), $block->fields()));
+    }
+
+    /** A picked image's `admin-thumb`, with its alt text; none once it is gone. */
+    private static function thumbnail(mixed $ids): string
+    {
+        $media = is_array($ids) && is_string($ids[0] ?? null) ? Media::query()->find($ids[0]) : null;
+
+        if (! $media instanceof Media || ($url = MediaResource::preview($media)) === null) {
+            return '';
+        }
+
+        return '<img src="' . e($url) . '" alt="' . e((string) $media->alt()) . '">';
     }
 
     private static function block(): Block

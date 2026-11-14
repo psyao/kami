@@ -154,6 +154,28 @@ Something other than text inside a `RichText` document, listed in `kami.blocks` 
 - `public function summary(array $data): ?string`: One line telling it apart in the editor, beside its label, from its data as stored: a Media or Entries Field holds a list of ids. Kami escapes it.
 - `abstract public function view(): string`: The Blade view rendering it, given its data by Field handle, typed as an Entry's values are: a Media Field's as `Media` (a Collection with `->multiple()`), an Entries or Terms Field's as a Collection of the visible ones, a RichText's as `Document`.
 
+## `Psyao\Kami\Content\Blocks\Image`
+
+`final class extends Psyao\Kami\Content\Blocks\Block`
+
+An image from the Media library with an optional caption, rendered as `<x-kami::image>` in a `<figure>` through `kami::blocks.image`.
+
+- `public function fields(): array`
+- `public function handle(): string`
+- `public function summary(array $data): ?string`
+- `public function view(): string`
+
+## `Psyao\Kami\Content\Blocks\Video`
+
+`final class extends Psyao\Kami\Content\Blocks\Block`
+
+A YouTube or Vimeo video from its address, with an optional caption, rendered by `kami::blocks.video` as a link to the provider
+
+- `public function fields(): array`
+- `public function handle(): string`
+- `public function summary(array $data): ?string`
+- `public function view(): string`
+
 ## `Psyao\Kami\Content\ContentType`
 
 `abstract class`

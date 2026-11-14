@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Psyao\Kami\Content\Blocks\Image;
+use Psyao\Kami\Content\Blocks\Video;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Blocks\Callout;
 use Workbench\App\Content\Footer;
@@ -33,6 +35,8 @@ return [
 
     'blocks' => [
         Callout::class,
+        Image::class,
+        Video::class,
     ],
 
     'roles' => [

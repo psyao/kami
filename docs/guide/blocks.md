@@ -109,10 +109,60 @@ A Block's Media items and Entries are recorded in `kami_references` under the `R
 
 A document's Blocks read their Media items and Entries in one batch, one query each with their Translations, whatever the number of Blocks.
 
+## Kami's Blocks
+
+Kami ships two Blocks, opt-in like yours: list them in `config/kami.php` and offer them on a `RichText` Field.
+
+```php
+'blocks' => [
+    Psyao\Kami\Content\Blocks\Image::class,
+    Psyao\Kami\Content\Blocks\Video::class,
+],
+```
+
+```php
+RichText::make('body')->blocks([Image::class, Video::class]),
+```
+
+Their labels, in English and French, come with Kami; a line of your `lang/<locale>/kami-blocks.php` under `image` or `video` replaces Kami's. Each renders through a view of Kami's, which you override as any package view, by copying it to `resources/views/vendor/kami/blocks/`. Kami ships no CSS: style the classes below.
+
+### Image
+
+An image from the Media library, required and images only, and an optional caption. Its alt text is the Media item's ([Media](media.md#alt-text-caption-and-credit)). `kami::blocks.image` renders it through [`<x-kami::image>`](media.md#showing-an-image) with the `kami-block` preset, 640, 1280 and 1920 pixels wide, in a `<figure class="kami-figure">` whose `<figcaption>` holds the caption. A Media item deleted since renders nothing. The editor shows the image's thumbnail and its caption.
+
+### Video
+
+A YouTube or Vimeo address, required, and an optional caption. The address is checked by its form alone, with no network call: `youtube.com/watch?v=…`, `m.youtube.com`, `youtu.be/…` and `youtube.com/shorts/…`, or a public `vimeo.com/…`. Anything else is refused: "The address in Video 1 is not a YouTube or Vimeo address." The editor shows the address.
+
+No request reaches the provider before the visitor clicks. `kami::blocks.video` renders a link to the video on the provider's site:
+
+```html
+<figure class="kami-video">
+    <div class="kami-video-facade" data-kami-video="https://www.youtube-nocookie.com/embed/…?autoplay=1" data-title="The caption">
+        <a href="https://www.youtube.com/watch?v=…">Watch “The caption” on YouTube</a>
+    </div>
+    <figcaption>The caption</figcaption>
+</figure>
+<script type="module" src="https://example.com/vendor/kami/video.js"></script>
+```
+
+A click on the link replaces it with the provider's player, from `youtube-nocookie.com` or from `player.vimeo.com` with `dnt=1`, and moves the focus to it. A click with a modifier key, or a visitor without JavaScript, follows the link. Without a caption, the link reads "Watch the video on YouTube" and the player is titled "YouTube video". Give the player its size, for instance:
+
+```css
+.kami-video iframe {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border: 0;
+}
+```
+
+The script is Kami's only front JavaScript, a static file `kami:install` copies to `public/vendor/kami/` on every deploy ([Hosting](hosting.md#front-script)). The page carries its tag once, however many videos it shows. The front's policy allows it as it stands: `script-src 'self'`, and `frame-src` lists both players ([Security](security.md#kamis-pages)). It listens on the whole document, so a video that a Livewire update brings in later plays too. An Inertia page that inserts the document's HTML with `v-html` runs no script from it: add the tag to your root view.
+
 ## An unavailable Block
 
 A Block whose class is gone from `kami.blocks`, or that its Field no longer offers, stays in its document as it is: Kami never drops it. `SaveEntry` keeps it untouched, neither validated nor recorded. It renders nothing. The editor shows it as unavailable, under its handle: an editor can only delete it. Declaring or offering it again brings it back.
 
 ## Shared hosting and a server
 
-No difference: validation and rendering are plain PHP in the request, with a few indexed queries and no process, network or queue.
+No difference: validation and rendering are plain PHP in the request, with a few indexed queries and no process, network or queue. The Video facade is a static file, served by Apache with the `.htaccess` `kami:install` writes beside it, or by nginx with the [documented block](hosting.md#nginx).

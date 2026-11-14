@@ -108,11 +108,13 @@ class DatabaseSeeder extends Seeder
         // Every page shared without an image of its own shows the photo; a Project shows its cover.
         $save->handle(SiteSettings::class, ['default_social_image' => $photo->id], $settings, 'fr', $admin);
 
-        // Blocks in a body: a Callout with an image from the library, one with none, and a Block no class declares any more, kept read-only.
+        // Blocks in a body: a Callout with an image from the library, one with none, Kami's Image and Video, and a Block no class declares any more, kept read-only.
         $save->handle(Article::class, [...$published, 'title' => 'Avec des blocs', 'author' => 'Ada', 'body' => ['type' => 'doc', 'content' => [
             ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Un texte entre des blocs.']]],
             ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un encadré illustré.', 'tone' => 'info', 'image' => [$photo->id]]]],
             ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un avertissement.', 'tone' => 'warning']]],
+            ['type' => 'block', 'attrs' => ['handle' => 'image', 'data' => ['image' => [$photo->id], 'caption' => 'Une photo de vacances.']]],
+            ['type' => 'block', 'attrs' => ['handle' => 'video', 'data' => ['url' => 'https://vimeo.com/76979871', 'caption' => 'Une vidéo qui ne se charge qu’au clic.']]],
             ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => ['items' => [$pixel->id]]]],
         ]]], locale: 'fr', actor: $admin);
 
