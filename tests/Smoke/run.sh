@@ -324,11 +324,24 @@ fi
 
 # The page cache (psyao/kami#408): a page stored by one request is served again with the database stopped, after a recent Tick:
 # with none for five minutes, the pre-boot reader lets Laravel answer, to start one.
+# An Archive's first page and a Feed (psyao/kami#623) too, the Feed with its content type, of the Post type install.sh declares.
+site_php '$app->make(Psyao\Kami\Content\Actions\SaveEntry::class)->handle(App\Content\Post::class, ["title" => "Premier article", "status" => "published"]);' >/dev/null
 docker compose run -T --rm cli php artisan kami:tick >/dev/null
 # `php artisan down` answers 503 before any cached page, as public/index.php checks maintenance before it requires Kami's reader.
 expect_page /smoke Bonjour
+expect_page /articles 'Premier article'
+expect_page /articles/feed 'Premier article'
 docker compose stop mariadb >/dev/null 2>&1
 expect_page /smoke Bonjour
+expect_page /articles 'Premier article'
+expect_page /articles/feed 'Premier article'
+feed_type=$(curl --silent --show-error --output /dev/null --write-out '%{content_type}' --header 'X-Forwarded-Proto: https' "$base_url/articles/feed" || true)
+if [ "$feed_type" = 'application/rss+xml; charset=UTF-8' ]; then
+    echo "GET /articles/feed from the cache: $feed_type"
+else
+    echo "GET /articles/feed from the cache: content type \"$feed_type\""
+    failed=1
+fi
 docker compose up --detach --wait mariadb >/dev/null 2>&1
 docker compose run -T --rm cli php artisan down >/dev/null
 expect 503 /smoke

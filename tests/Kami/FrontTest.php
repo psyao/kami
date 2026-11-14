@@ -161,7 +161,7 @@ it('keeps the site\'s middleware on an Entry and an Archive read from a cached r
     $this->get('/articles')->assertOk()->assertHeader('X-Rendered-By', 'site');
 })->with(['sessionless' => [false], 'with the session' => [true]]);
 
-it('keeps the site\'s middleware off the Tick, Conversions, the Form route, Preview links and the sitemap', function (bool $session, string $method, string $uri) {
+it('keeps the site\'s middleware off the Tick, Conversions, the Form route, Preview links, the sitemap and Feeds', function (bool $session, string $method, string $uri) {
     // A table of its own: `Kami::routes()` leaves a `/sitemap.xml` already registered, as `beforeEach` did, untouched.
     Route::setRoutes(new RouteCollection);
     Kami::routes(session: $session, middleware: [MarksRendering::class]);
@@ -175,7 +175,16 @@ it('keeps the site\'s middleware off the Tick, Conversions, the Form route, Prev
     'a Preview link' => ['GET', '/kami/share/token'],
     'the sitemap' => ['GET', '/sitemap.xml'],
     'a sitemap file' => ['GET', '/sitemaps/fr-1.xml'],
+    'the Site\'s Feed' => ['GET', '/feed'],
+    'a type\'s Feed in a Locale' => ['GET', '/en/articles/feed'],
 ]);
+
+it('serves a Feed without the session, and without the site\'s middleware, on either mount', function (bool $session) {
+    saveArticle();
+    Kami::routes(session: $session, middleware: [MarksRendering::class]);
+
+    $this->get('/articles/feed')->assertOk()->assertSee('Hello world')->assertHeaderMissing('Set-Cookie')->assertHeaderMissing('X-Rendered-By');
+})->with(['sessionless' => [false], 'with the session' => [true]]);
 
 it('tells addresses apart by their bytes on every engine', function () {
     saveArticle(['title' => 'Cafe', 'slug' => 'cafe', 'summary' => 'Plain']);

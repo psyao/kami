@@ -61,7 +61,7 @@ function smallDatasetArchiveQueries(?array $set = null): ?array
 }
 
 /**
- * Workbench's Article Archive, and Tag 1's Term Archive, its Tag given an address for the test: a Term Archive needs a routable Taxonomy.
+ * Workbench's Article Archive, Tag 1's Term Archive, its Tag given an address for the test (a Term Archive needs a routable Taxonomy), then the Site's Feed and Article's in English.
  *
  * @return list<int>
  */
@@ -76,7 +76,7 @@ function archiveQueries(): array
     $counts = [];
 
     try {
-        foreach (['/articles' => 'Article', '/tag/tag-1' => 'Project'] as $uri => $listed) {
+        foreach (['/articles' => 'Article', '/tag/tag-1' => 'Project', '/feed' => 'Article', '/en/articles/feed' => 'Article'] as $uri => $listed) {
             DB::flushQueryLog();
             DB::enableQueryLog();
             measure("GET {$uri}", fn () => test()->get($uri)->assertOk()->assertSee($listed));
@@ -133,7 +133,7 @@ it('answers a page in the same number of queries as the small dataset', function
 });
 
 // 1.8 s for the Term Archive on SQLite while its links were read through a correlated `exists`, 47 ms through an `in`: the times are reported only.
-it('answers an Archive and a Term Archive in the same number of queries as the small dataset', function () {
+it('answers an Archive, a Term Archive and Feeds in the same number of queries as the small dataset', function () {
     expect(archiveQueries())->toBe(smallDatasetArchiveQueries());
 });
 

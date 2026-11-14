@@ -188,3 +188,29 @@ it('fails on an Archive with no Prefix of its own, or no page size', function (s
     'on a Singleton' => [SingletonArchive::class, 'SingletonArchive: an Archive answers at its type\'s Prefix'],
     'with no Entry a page' => [EmptyPages::class, 'EmptyPages: $perPage is 0'],
 ]);
+
+/** A Feed at the root, whose address would be the Site's own `/feed`. */
+final class RootFeed extends ContentType
+{
+    protected ?string $prefix = '';
+
+    protected bool $feed = true;
+}
+
+/** A Feed on a type with no URL, whose items would link nowhere. */
+final class UnroutedFeed extends ContentType
+{
+    protected bool $routable = false;
+
+    protected bool $feed = true;
+}
+
+/** A Feed on a Singleton, a single Entry. */
+final class SingletonFeed extends Singleton
+{
+    protected bool $feed = true;
+}
+
+it('fails on a Feed with no Prefix of its own', function (string $type) {
+    expect(fn () => runWithTypes($type))->toThrow(InvalidArgumentException::class, class_basename($type) . ': a Feed answers at its type\'s Prefix followed by /feed');
+})->with([RootFeed::class, UnroutedFeed::class, SingletonFeed::class]);

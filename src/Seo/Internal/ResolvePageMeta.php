@@ -7,6 +7,7 @@ namespace Psyao\Kami\Seo\Internal;
 use Closure;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Media\Internal\Conversion;
 use Psyao\Kami\Media\Internal\ImagePresets;
@@ -61,6 +62,7 @@ final class ResolvePageMeta
             alternates: $alternates,
             ogLocale: $site->ogLocale($locale),
             ogLocaleAlternates: array_values(array_filter(array_map($site->ogLocale(...), array_keys(array_diff_key($alternates, [$locale => true, 'x-default' => true]))))),
+            feeds: self::feeds($siteName, $type),
         );
     }
 
@@ -72,7 +74,7 @@ final class ResolvePageMeta
         $alternates = self::alternates($site, $urls);
         $meta = self::forSite($type->pluralLabel());
 
-        return self::with($meta, canonical: $paged ? null : $urls[$site->currentLocale()], robots: $paged ? self::pagedRobots($meta) : $meta->robots, alternates: $paged ? [] : $alternates);
+        return self::with($meta, canonical: $paged ? null : $urls[$site->currentLocale()], robots: $paged ? self::pagedRobots($meta) : $meta->robots, alternates: $paged ? [] : $alternates, feeds: self::feeds($meta->siteName, $type));
     }
 
     /**
@@ -101,8 +103,9 @@ final class ResolvePageMeta
      * The same head at another address: its canonical URL, robots and language links, the `og:locale:alternate` that follow from them.
      *
      * @param  array<string, string>  $alternates
+     * @param  array<string, string>|null  $feeds  Null keeps the page's.
      */
-    private static function with(PageMeta $meta, ?string $canonical, ?string $robots, array $alternates): PageMeta
+    private static function with(PageMeta $meta, ?string $canonical, ?string $robots, array $alternates, ?array $feeds = null): PageMeta
     {
         $site = Site::current();
 
@@ -122,6 +125,7 @@ final class ResolvePageMeta
             alternates: $alternates,
             ogLocale: $meta->ogLocale,
             ogLocaleAlternates: array_values(array_filter(array_map($site->ogLocale(...), array_keys(array_diff_key($alternates, [$site->currentLocale() => true, 'x-default' => true]))))),
+            feeds: $feeds ?? $meta->feeds,
         );
     }
 
@@ -145,7 +149,33 @@ final class ResolvePageMeta
             imageHeight: $image?->height,
             imageAlt: self::filled($image?->alt),
             ogLocale: $site->ogLocale($site->currentLocale()),
+            feeds: self::feeds($siteName),
         );
+    }
+
+    /**
+     * The Feeds a page in the current Locale names: the Site's, then its type's, titled as their channels are.
+     *
+     * @return array<string, string>
+     */
+    public static function feeds(string $siteName, ?ContentType $type = null): array
+    {
+        $site = Site::current();
+        $locale = $site->currentLocale();
+        $addresses = resolve(ContentTypes::class)->feeds();
+        $feeds = isset($addresses['feed']) ? [$site->url($locale, 'feed') => self::feedTitle($siteName)] : [];
+
+        if ($type?->hasFeed() === true) {
+            $feeds[$site->url($locale, Path::feedOf($type))] = self::feedTitle($siteName, $type);
+        }
+
+        return $feeds;
+    }
+
+    /** A Feed's title: the Site name for the Site's, `kami::seo.title` with the type's plural label for a type's, as its Archive's page is titled. */
+    public static function feedTitle(string $siteName, ?ContentType $type = null): string
+    {
+        return $type instanceof ContentType ? self::title($type->pluralLabel(), $siteName) : $siteName;
     }
 
     /**
@@ -239,13 +269,13 @@ final class ResolvePageMeta
     }
 
     /** Blank in the page's Locale reads as the default Locale's, then as the application's name. */
-    private static function siteName(?Entry $settings): string
+    public static function siteName(?Entry $settings): string
     {
         return self::filled($settings?->getAttribute('site_name')) ?? config()->string('app.name');
     }
 
     /** A Translatable value of the page's Locale only, never one fallen back from the default Locale. */
-    private static function ownValue(?Entry $settings, string $field): ?string
+    public static function ownValue(?Entry $settings, string $field): ?string
     {
         return ! $settings instanceof Entry || $settings->fallbackLocale($field) !== null ? null : self::filled($settings->getAttribute($field));
     }

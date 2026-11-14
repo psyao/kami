@@ -90,6 +90,21 @@ final class Post extends ContentType
 
 A Prefix publishes no list by itself: a type has an Archive only when it says so. An Archive needs a routable type with slugs and a Prefix of its own: on a [type with no URL](#types-with-no-url), a [Singleton](#singletons), a Prefix of `''` or a `$perPage` below 1, the first read of the declarations fails, naming the class. No Path may then take the Prefix ([Reserved paths](routing-and-rendering.md#reserved-paths)). Its view and the cursor that pages it are in [Routing and rendering](routing-and-rendering.md#archives).
 
+### Feeds
+
+`protected bool $feed = true` offers the type's 20 latest visible Entries as an RSS 2.0 Feed at its Prefix followed by `/feed`, and adds them to the Site's Feed at `/feed`:
+
+```php
+final class Post extends ContentType
+{
+    protected ?string $prefix = 'articles';
+
+    protected bool $feed = true;
+}
+```
+
+Each item is described by the type's `summary()` ([SEO](seo.md#description)). Like an Archive, a Feed needs a routable type with slugs and a Prefix of its own, or the first read of the declarations fails, naming the class; no Path may then take its address ([Reserved paths](routing-and-rendering.md#reserved-paths)). What a Feed holds and where it answers are in [Routing and rendering](routing-and-rendering.md#feeds).
+
 ### Types with no URL
 
 A collection listed on other pages, with no page of its own, declares `$routable = false`:

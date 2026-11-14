@@ -16,7 +16,7 @@ use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Url;
 use Workbench\App\Content\Fields\Colour;
 
-/** A translatable type under a Prefix, listed there in its Archive, as a blog's posts are. */
+/** A translatable type under a Prefix, listed there in its Archive and its Feed, as a blog's posts are. */
 final class Article extends ContentType
 {
     #[\Override]
@@ -24,6 +24,9 @@ final class Article extends ContentType
 
     #[\Override]
     protected bool $archive = true;
+
+    #[\Override]
+    protected bool $feed = true;
 
     #[\Override]
     protected string $ogType = 'article';

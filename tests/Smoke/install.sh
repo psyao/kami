@@ -41,5 +41,39 @@ if grep -q '^KAMI_TICK_TOKEN=' .env; then sed -i "s|^KAMI_TICK_TOKEN=.*|KAMI_TIC
 # The queue the Tick works through, as the starter kit's `next` sets it.
 if grep -q '^QUEUE_CONNECTION=' .env; then sed -i 's|^QUEUE_CONNECTION=.*|QUEUE_CONNECTION=database|' .env; else echo 'QUEUE_CONNECTION=database' >> .env; fi
 grep -q 'Kami::schedule()' routes/console.php || echo '\Psyao\Kami\Facades\Kami::schedule();' >> routes/console.php
+# A type with an Archive and a Feed (psyao/kami#623), which the starter kit does not declare yet: psyao/kami#634 may replace it with its own.
+mkdir -p app/Content resources/views/kami
+cat > app/Content/Post.php <<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace App\Content;
+
+use Psyao\Kami\Content\ContentType;
+
+final class Post extends ContentType
+{
+    protected ?string $prefix = 'articles';
+
+    protected bool $archive = true;
+
+    protected bool $feed = true;
+}
+PHP
+for view in post post-archive; do
+    cat > "resources/views/kami/$view.blade.php" <<'BLADE'
+<!DOCTYPE html>
+<html lang="{{ app()->getLocale() }}">
+<head><x-kami::seo /></head>
+<body>
+@isset($entry)<h1>{{ $entry->title }}</h1>@endisset
+@isset($entries)<ul>@foreach ($entries as $item)<li><a href="{{ $item->url() }}">{{ $item->title }}</a></li>@endforeach</ul>@endisset
+</body>
+</html>
+BLADE
+done
+sed -i 's|^\(\s*\)Tag::class,|&\n\1App\\Content\\Post::class,|' config/kami.php
+grep -q 'App\\Content\\Post::class' config/kami.php || { echo "config/kami.php lists no Tag::class to add the Post type after" >&2; exit 1; }
 KAMI_ADMIN_PASSWORD=smoke-password php artisan kami:install --no-interaction --email=admin@example.test --name=Admin
 php artisan optimize

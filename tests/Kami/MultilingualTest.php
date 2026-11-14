@@ -174,7 +174,7 @@ it('warns that Paths lag behind the declarations until the next kami:install', f
     expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('after-a-deploy');
 });
 
-it('warns about stored Paths that a Locale, a segment Kami answers or an Archive declared later hides', function () {
+it('warns about stored Paths that a Locale, a segment Kami answers, an Archive or a Feed declared later hides', function () {
     withConversionsServed();
     withRunningSite();
     translate('fr', ['title' => 'About', 'slug' => 'de/about'], type: Page::class);
@@ -187,12 +187,17 @@ it('warns about stored Paths that a Locale, a segment Kami answers or an Archive
     // Workbench's Article lists its Entries at `articles` in every Locale.
     $list = translate('en', ['title' => 'List', 'slug' => 'list'], type: Page::class);
     DB::table('kami_paths')->where('entry_id', $list->id)->update(['path' => 'articles']);
+    // Its Feed answers at `articles/feed` in every Locale, and the Site's at `feed`.
+    $feeds = translate('fr', ['title' => 'Feeds', 'slug' => 'feeds'], type: Page::class);
+    translate('en', ['title' => 'Feeds', 'slug' => 'feeds'], $feeds, Page::class);
+    DB::table('kami_paths')->where(['entry_id' => $feeds->id, 'locale' => 'fr'])->update(['path' => 'feed']);
+    DB::table('kami_paths')->where(['entry_id' => $feeds->id, 'locale' => 'en'])->update(['path' => 'articles/feed']);
     // A Redirect has no slug to change: left out.
     DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'fr', 'path' => 'kami', 'entry_id' => null, 'status' => 410]);
     config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
 
     $this->artisan('kami:doctor', ['--strict' => true])
-        ->expectsOutputToContain('4 Paths are hidden by a Locale code, a segment Kami answers itself or an Archive: /de/about, /en/articles, /media, /robots.txt.')
+        ->expectsOutputToContain('6 Paths are hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: /de/about, /en/articles, /en/articles/feed, /feed, /media, ….')
         ->expectsOutputToContain('Fix: change their slug, or their type\'s Prefix')
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#reserved-paths')
         ->assertFailed();

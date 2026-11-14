@@ -40,6 +40,9 @@ abstract class ContentType
     /** The Entries on each page of its Archive. */
     protected int $perPage = 10;
 
+    /** `true` lists its 20 latest visible Entries as RSS 2.0 at `{prefix}/feed`, and in the Site's `/feed`, under every Locale segment: a routable type with a Prefix of its own (ADR 0009). */
+    protected bool $feed = false;
+
     /** Its pages' `og:type`; `article` adds `article:published_time` and `article:modified_time`. */
     protected string $ogType = 'website';
 
@@ -255,6 +258,12 @@ abstract class ContentType
     public function hasArchive(): bool
     {
         return $this->archive;
+    }
+
+    /** @internal */
+    public function hasFeed(): bool
+    {
+        return $this->feed;
     }
 
     /** @internal */

@@ -587,7 +587,7 @@ final readonly class Doctor
         );
     }
 
-    /** Paths saved before a Locale, a segment Kami answers or an Archive was declared: `ResolveLocale` or Kami's own route answers their address in the default Locale (ADR 0008). */
+    /** Paths saved before a Locale, a segment Kami answers, an Archive or a Feed was declared: `ResolveLocale` or Kami's own route answers their address in the default Locale (ADR 0008). */
     private function hiddenPaths(): ?Problem
     {
         // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
@@ -603,14 +603,14 @@ final readonly class Doctor
             ->orderBy('path')->get(['path'])->map(fn (Path $row): string => $row->path)
             // LIKE matches more: `_` in a Locale code reads as any character, and `media` matches `medias`.
             ->filter(fn (string $path): bool => Path::isReserved($path) || in_array(explode('/', $path)[0], $segments, true))
-            // An Archive answers at its Prefix under every Locale segment.
-            ->merge(Path::query()->where(['site' => $site->handle, 'status' => 200])->whereIn('path', array_keys(resolve(ContentTypes::class)->archives()))->get(['locale', 'path'])
+            // An Archive answers at its Prefix under every Locale segment, a Feed at its address.
+            ->merge(Path::query()->where(['site' => $site->handle, 'status' => 200])->whereIn('path', [...array_keys(resolve(ContentTypes::class)->archives()), ...array_keys(resolve(ContentTypes::class)->feeds())])->get(['locale', 'path'])
                 ->map(fn (Path $row): string => $row->locale === $site->defaultLocale() ? $row->path : "{$row->locale}/{$row->path}"))
             ->unique()->sort()->values();
 
         return $hidden->isEmpty() ? null : new Problem(
             Severity::Warning,
-            "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself or an Archive: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
+            "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
             "change their slug, or their type's Prefix: until then, they answer nowhere.",
             'routing-and-rendering.md#reserved-paths',
         );

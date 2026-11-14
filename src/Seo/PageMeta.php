@@ -24,6 +24,7 @@ final readonly class PageMeta
      * @param  array<string, string>  $alternates  hreflang: the URL of each Locale the page is visible in and not Hidden from search engines, by Locale code, then `x-default` to the default Locale's; empty below two Locales, on a hidden page and on a cursor page.
      * @param  string|null  $ogLocale  The page's Locale with its region (`fr_CH`), `null` without one.
      * @param  list<string>  $ogLocaleAlternates  The other Locales of `alternates` that have a region.
+     * @param  array<string, string>  $feeds  The Feeds readers discover, by absolute URL in the page's Locale, with their title: the Site's `/feed` on every page once a type offers one, then the type's own on its Archive and Entries.
      */
     public function __construct(
         public string $title,
@@ -41,5 +42,6 @@ final readonly class PageMeta
         public array $alternates = [],
         public ?string $ogLocale = null,
         public array $ogLocaleAlternates = [],
+        public array $feeds = [],
     ) {}
 }

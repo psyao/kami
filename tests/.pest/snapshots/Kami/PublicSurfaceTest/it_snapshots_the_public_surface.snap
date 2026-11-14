@@ -55,6 +55,7 @@ class Psyao\Kami\Content\Actions\TrashEntry final class
 class Psyao\Kami\Content\Actions\TrashEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$archive protected bool $archive = false
+class Psyao\Kami\Content\ContentType::$feed protected bool $feed = false
 class Psyao\Kami\Content\ContentType::$hierarchical protected bool $hierarchical = false
 class Psyao\Kami\Content\ContentType::$model protected ?string $model = NULL
 class Psyao\Kami\Content\ContentType::$ogType protected string $ogType = 'website'
@@ -317,6 +318,7 @@ class Psyao\Kami\Seo\PageMeta final readonly class
 class Psyao\Kami\Seo\PageMeta::$alternates public protected(set) readonly array $alternates
 class Psyao\Kami\Seo\PageMeta::$canonical public protected(set) readonly ?string $canonical
 class Psyao\Kami\Seo\PageMeta::$description public protected(set) readonly ?string $description
+class Psyao\Kami\Seo\PageMeta::$feeds public protected(set) readonly array $feeds
 class Psyao\Kami\Seo\PageMeta::$image public protected(set) readonly ?string $image
 class Psyao\Kami\Seo\PageMeta::$imageAlt public protected(set) readonly ?string $imageAlt
 class Psyao\Kami\Seo\PageMeta::$imageHeight public protected(set) readonly ?int $imageHeight
@@ -329,7 +331,7 @@ class Psyao\Kami\Seo\PageMeta::$publishedTime public protected(set) readonly ?Ca
 class Psyao\Kami\Seo\PageMeta::$robots public protected(set) readonly ?string $robots
 class Psyao\Kami\Seo\PageMeta::$siteName public protected(set) readonly string $siteName
 class Psyao\Kami\Seo\PageMeta::$title public protected(set) readonly string $title
-class Psyao\Kami\Seo\PageMeta::__construct() public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL, array $alternates = [], ?string $ogLocale = NULL, array $ogLocaleAlternates = [])
+class Psyao\Kami\Seo\PageMeta::__construct() public function __construct(string $title, ?string $description, ?string $canonical, ?string $robots, string $siteName, ?string $image = NULL, ?int $imageWidth = NULL, ?int $imageHeight = NULL, ?string $imageAlt = NULL, string $ogType = 'website', ?Carbon\CarbonImmutable $publishedTime = NULL, ?Carbon\CarbonImmutable $modifiedTime = NULL, array $alternates = [], ?string $ogLocale = NULL, array $ogLocaleAlternates = [], array $feeds = [])
 class Psyao\Kami\Support\SecurityHeaders final class
 class Psyao\Kami\Support\SecurityHeaders::handle() public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Users\Actions\AssignRoles final class

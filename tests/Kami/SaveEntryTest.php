@@ -488,14 +488,14 @@ it('refuses a root type\'s slug where Kami answers itself, in every Locale', fun
         ->toThrow(fn (ValidationException $exception) => expect($exception->errors())->toBe(['slug' => ['This address is used by the site itself.']]));
 })->with(['media', 'Media/photos', 'sitemaps', 'sitemaps/fr-1.xml', 'kami', 'kami/share', 'sitemap.xml', 'robots.txt'])->with(['fr', 'en']);
 
-it('refuses a root type\'s slug where an Archive answers, in every Locale', function (string $locale) {
-    expect(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => 'Articles'], locale: $locale))
+it('refuses a root type\'s slug where an Archive or a Feed answers, in every Locale', function (string $slug, string $locale) {
+    expect(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug], locale: $locale))
         ->toThrow(fn (ValidationException $exception) => expect($exception->errors())->toBe(['slug' => ['This address is used by the site itself.']]));
-})->with(['fr', 'en']);
+})->with(['Articles', 'feed', 'articles/Feed'])->with(['fr', 'en']);
 
 it('accepts a slug that only starts like a reserved one', function (string $slug) {
     expect(resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'slug' => $slug])->slug)->toBe($slug);
-})->with(['medias', 'kamis', 'sitemap', 'robots.txt/more', 'sitemap.xml.bak', 'articles-old']);
+})->with(['medias', 'kamis', 'sitemap', 'robots.txt/more', 'sitemap.xml.bak', 'articles-old', 'feeds', 'feed/more', 'project/feed']);
 
 it('accepts accents, dots and nested segments in a slug', function (string $slug) {
     expect(save(['title' => 'Hello', 'slug' => $slug])->slug)->toBe($slug);
