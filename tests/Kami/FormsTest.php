@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Livewire;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -74,6 +75,7 @@ final class ContactComponent extends Component
 {
     public Entry $entry;
 
+    #[Locked]
     public string $locale = 'fr';
 
     public string $name = '';
@@ -256,6 +258,7 @@ it('answers a filled honeypot with the normal success even when the page is unkn
 })->with([
     'forged' => ['forged', 'https://spam.test'],
     'neither a string' => [['forged'], ['https://spam.test']],
+    'an empty array' => ['forged', []],
 ]);
 
 it('refuses a missing or invalid origin page with a 422 error page, storing nothing', function (Closure $origin) {

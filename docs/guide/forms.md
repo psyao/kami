@@ -258,6 +258,7 @@ Give the form the texts the script shows, and add an empty status element after 
 A Livewire component of your own, on a page Kami renders, stores its Submissions through `Psyao\Kami\Forms\Actions\SubmitForm`, with the route's protection: the honeypot, the page, the throttle and validation, in the [same order](#protection). Its snapshot sits in a cached page that anyone can read, and a bot can post it back with forged headers, so a component that called `StoreSubmission` itself would skip the honeypot and the throttle.
 
 ```php
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Forms\Actions\SubmitForm;
@@ -266,6 +267,7 @@ final class Contact extends Component
 {
     public Entry $entry;
 
+    #[Locked]
     public string $locale = 'fr';
 
     public string $name = '';
@@ -289,7 +291,7 @@ final class Contact extends Component
 }
 ```
 
-Mount it from the page's view with `<livewire:contact :entry="$entry" :locale="app()->getLocale()" />`, and give it a field `wire:model="kami_website"`, hidden as `<x-kami::form>` hides its own.
+Mount it from the page's view with `<livewire:contact :entry="$entry" :locale="app()->getLocale()" />`, and give it a field `wire:model="kami_website"`, hidden as `<x-kami::form>` hides its own. `#[Locked]` keeps an update from changing the Locale; Livewire locks a model property such as `$entry` on its own.
 
 `handle($form, $input, $entry, $locale)` takes the Form or its handle, the visitor's values with the honeypot's, the page and its Locale:
 

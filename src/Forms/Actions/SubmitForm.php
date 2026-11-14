@@ -15,9 +15,9 @@ use Psyao\Kami\Sites\Internal\Site;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * A visitor's Submission, checked as the Form route checks it, in this order: the honeypot, the page, the per-IP throttle, then the
- * Form's `rules()`; it stores through `StoreSubmission`. For a site's own Livewire action or controller: the visitor's origin
- * (`Sec-Fetch-Site`) stays the caller's to check, as Livewire's update route and Laravel's CSRF check already do (ADR 0040).
+ * Checks a visitor's Submission as the Form route does, then stores it through `StoreSubmission`.
+ * In this order: the honeypot, the page, the per-IP throttle, then the Form's `rules()`. For a site's own Livewire action or controller:
+ * the visitor's origin (`Sec-Fetch-Site`) stays the caller's to check, as Livewire's update route and Laravel's CSRF check already do (ADR 0040).
  */
 final class SubmitForm
 {
@@ -31,7 +31,7 @@ final class SubmitForm
     /**
      * @param  Form|string  $form  The declared Form, or its handle.
      * @param  array<mixed>  $input  The visitor's values, the honeypot's included; any key `rules()` does not name is not stored.
-     * @param  Entry|null  $entry  The page it was sent from.
+     * @param  Entry|null  $entry  The page it was sent from; null is refused as a page no longer visible.
      * @param  string  $locale  A Locale the page is visible in, which the request then uses.
      * @return Submission|null The stored Submission, or null when the honeypot caught a bot: answer it the normal success.
      *
@@ -43,14 +43,16 @@ final class SubmitForm
         $form = is_string($form) ? resolve(Kami::class)->form($form) : $form;
 
         // The normal success before the page and the throttle are checked, nothing stored and nothing counted: a bot learns nothing, and a person behind its IP keeps their quota.
-        if (filled($input[self::HONEYPOT] ?? null)) {
+        // Any array counts as filled, as `Request::filled()` counts it on the Form route.
+        $honeypot = $input[self::HONEYPOT] ?? null;
+        if (is_array($honeypot) || filled($honeypot)) {
             return null;
         }
 
-        abort_unless(in_array($locale, Site::current()->locales, true), 422);
+        // `url()` is null for a Locale the Site lacks too.
+        abort_if($entry?->url($locale) === null, 422);
         Site::useLocale($locale);
         app()->setLocale($locale);
-        abort_if($entry?->url($locale) === null, 422);
 
         $key = $this->throttleKey((string) request()->ip(), $form);
 
