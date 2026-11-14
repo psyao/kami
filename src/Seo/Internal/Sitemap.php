@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Psyao\Kami\Seo\Internal;
 
 use Closure;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Routing\Internal\PageCache;
+use Psyao\Kami\Routing\Internal\VisiblePaths;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Install\RobotsTxt;
 use RuntimeException;
@@ -142,25 +144,29 @@ final class Sitemap
         try {
             $routable = array_map(fn (ContentType $type): string => $type->handle(), array_filter(resolve(ContentTypes::class)->all(), fn (ContentType $type): bool => $type->isRoutable()));
 
-            // Every Translation's visibility is read in PHP, as `url()` does, rather than once per Locale in SQL.
-            foreach (Entry::query()->withUnpublished()->where('site', $site->handle)->whereIn('type', $routable)->lazyById(self::BATCH) as $entry) {
-                $urls = ResolvePageMeta::indexableUrls($site, $entry);
-                $alternates = ResolvePageMeta::alternates($site, $urls);
+            // Every Translation's visibility is read in PHP, as `url()` does, rather than once per Locale in SQL; ancestors' once per batch.
+            Entry::query()->withUnpublished()->where('site', $site->handle)->whereIn('type', $routable)->chunkById(self::BATCH, function (Collection $entries) use ($site, $directory, &$files, &$total): void {
+                VisiblePaths::preload($entries);
 
-                foreach ($urls as $locale => $url) {
-                    if (($files[$locale]['urls'] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
-                        if (isset($files[$locale])) {
-                            self::close($files[$locale]['writer']);
+                foreach ($entries as $entry) {
+                    $urls = ResolvePageMeta::indexableUrls($site, $entry);
+                    $alternates = ResolvePageMeta::alternates($site, $urls);
+
+                    foreach ($urls as $locale => $url) {
+                        if (($files[$locale]['urls'] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
+                            if (isset($files[$locale])) {
+                                self::close($files[$locale]['writer']);
+                            }
+                            $number = ($files[$locale]['number'] ?? 0) + 1;
+                            $files[$locale] = ['writer' => self::open("{$directory}/{$locale}-{$number}.xml"), 'number' => $number, 'urls' => 0];
                         }
-                        $number = ($files[$locale]['number'] ?? 0) + 1;
-                        $files[$locale] = ['writer' => self::open("{$directory}/{$locale}-{$number}.xml"), 'number' => $number, 'urls' => 0];
-                    }
 
-                    self::url($files[$locale]['writer'], $url, $entry->translation($locale)?->updated_at?->toAtomString(), $alternates);
-                    $files[$locale]['urls']++;
-                    $total++;
+                        self::url($files[$locale]['writer'], $url, $entry->translation($locale)?->updated_at?->toAtomString(), $alternates);
+                        $files[$locale]['urls']++;
+                        $total++;
+                    }
                 }
-            }
+            });
 
             foreach ($files as $file) {
                 self::close($file['writer']);

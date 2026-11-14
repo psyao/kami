@@ -26,6 +26,7 @@ use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Routing\Internal\Path;
+use Psyao\Kami\Routing\Internal\VisiblePaths;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -70,6 +71,9 @@ class Entry extends Model
 
     /** Queried through `withUnpublished()`: what it links to is read the same way. */
     private bool $unpublished = false;
+
+    /** @var array<string, string|null>|null A nested Entry's Paths by Locale, null under a non-visible ancestor; read once, by `VisiblePaths`. */
+    private ?array $visiblePaths = null;
 
     /**
      * @internal
@@ -257,7 +261,7 @@ class Entry extends Model
         return $this->contentType()?->summary($this);
     }
 
-    /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it is not visible there or its type has no URL. */
+    /** The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it or one of its ancestors is not visible there, or its type has no URL. */
     public function url(?string $locale = null): ?string
     {
         $site = Site::current();
@@ -269,9 +273,28 @@ class Entry extends Model
             return null;
         }
 
-        $path = Path::of($type, $translation->slug);
+        if ($type->isHierarchical() && $this->parent_id !== null) {
+            // ponytail: read on first call, two queries per Entry in a list; #620's preloading lifts it.
+            if ($this->visiblePaths === null) {
+                VisiblePaths::preload([$this]);
+            }
+
+            $path = $this->visiblePaths[$locale] ?? null;
+        } else {
+            $path = Path::of($type, $translation->slug);
+        }
 
         return $path === null ? null : $site->url($locale, $path);
+    }
+
+    /**
+     * @internal
+     *
+     * @param  array<string, string|null>  $paths
+     */
+    public function setVisiblePaths(array $paths): void
+    {
+        $this->visiblePaths = $paths;
     }
 
     private function field(string $handle): ?Field

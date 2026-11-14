@@ -17,7 +17,6 @@ use Psyao\Kami\Admin\Internal\EntryResource\ListEntries;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\ReorderEntries;
-use Psyao\Kami\Routing\Internal\Path;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Label;
 use Workbench\App\Content\Page;
@@ -134,20 +133,6 @@ it('keeps hierarchy and order apart: a hierarchical type alone has Parents and n
     expect($save->handle(Tag::class, ['title' => 'Child', 'parent' => $parent->id])->parent_id)->toBe($parent->id)
         ->and(fn () => $save->handle(Tag::class, ['title' => 'Other', 'position' => 1]))->toThrow(ValidationException::class)
         ->and(fn () => $save->handle(Label::class, ['title' => 'Flat', 'parent' => $parent->id]))->toThrow(ValidationException::class);
-});
-
-it('leaves Paths out of it: no ancestor in a Path, and a Parent change moves none', function () {
-    $save = resolve(SaveEntry::class);
-    $one = page('One');
-    $two = page('Two');
-    $child = page('Child', ['parent' => $one->id]);
-    $path = fn (): array => Path::query()->where('entry_id', $child->id)->pluck('path')->all();
-
-    expect($path())->toBe(['child']);
-
-    $save->handle(Page::class, ['parent' => $two->id], $child, 'fr');
-
-    expect($path())->toBe(['child']);
 });
 
 it('reads a Term\'s visible ancestors, nearest first', function () {
