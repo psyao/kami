@@ -120,6 +120,30 @@ it('lets Laravel boot for what Kami never stores', function (Closure $send) {
     'a page never stored' => [fn () => preBootRequest()->get('/articles/unknown')],
 ]);
 
+it('serves Inertia\'s JSON before Laravel boots to its asset version only, and its HTML to a plain request only', function () {
+    inertiaPage();
+    $this->get('/inertia_page/hello-world');
+    $html = $this->get('/inertia_page/hello-world')->assertHeader('ETag');
+    $this->get('/inertia_page/hello-world', inertiaVisit());
+    $json = $this->get('/inertia_page/hello-world', inertiaVisit())->assertHeader('ETag');
+
+    $hit = preBootRequest(inertiaVisit())->get('/inertia_page/hello-world');
+
+    expect($hit->body())->toBe($json->getContent())
+        ->and($hit->header('Content-Type'))->toBe('application/json')
+        ->and($hit->header('X-Inertia'))->toBe('true')
+        ->and($hit->header('ETag'))->toBe($json->headers->get('ETag'))
+        ->and(preBootRequest()->get('/inertia_page/hello-world')->body())->toBe($html->getContent())
+        ->and(preBootRequest(inertiaVisit('v0'))->get('/inertia_page/hello-world')->body())->toBe('Laravel booted')
+        ->and(preBootRequest([...inertiaVisit(), 'X-Inertia-Partial-Data' => 'title', 'X-Inertia-Partial-Component' => 'Page'])->get('/inertia_page/hello-world')->body())->toBe('Laravel booted')
+        ->and(preBootRequest([...inertiaVisit(), 'X-Inertia-Partial-Except' => 'errors'])->get('/inertia_page/hello-world')->body())->toBe('Laravel booted')
+        ->and(preBootRequest([...inertiaVisit(), 'X-Inertia-Reset' => 'title'])->get('/inertia_page/hello-world')->body())->toBe('Laravel booted');
+});
+
+it('lets Laravel boot for an Inertia request to a page stored as HTML alone', function () {
+    expect(preBootRequest(inertiaVisit())->get('/articles/hello-world')->body())->toBe('Laravel booted');
+});
+
 it('lets Laravel boot once the page is an hour old', function () {
     touch(storedPage(), time() - 3601);
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Filament\Facades\Filament;
 use Filament\Notifications\NotificationMailbox;
 use Illuminate\Console\Scheduling\CallbackEvent;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Contracts\Image\Driver;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Image\Drivers\GdDriver;
@@ -18,14 +19,18 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Image;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use PragmaRX\Google2FAQRCode\Google2FA;
+use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Support\Internal\WebEnvironment;
+use Psyao\Kami\Tests\Fixtures\Inertia\HandleInertiaRequests;
+use Psyao\Kami\Tests\Fixtures\Inertia\InertiaPage;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -49,6 +54,28 @@ pest()->extend(InstallTestCase::class)->in('Install');
 function temporaryPath(): string
 {
     return sys_get_temp_dir() . '/kami-' . bin2hex(random_bytes(8));
+}
+
+/**
+ * A published `InertiaPage` at `/inertia_page/hello-world`, behind the site's Inertia middleware unless told otherwise.
+ * ponytail: a global middleware until `Kami::routes(middleware:)` lands (#613); the page cache sees the same response either way.
+ */
+function inertiaPage(bool $middleware = true): void
+{
+    config(['kami.types' => [...config('kami.types'), InertiaPage::class]]);
+    View::addNamespace('inertia-fixture', dirname(__DIR__) . '/tests/Fixtures/Inertia');
+
+    if ($middleware) {
+        app(HttpKernel::class)->pushMiddleware(HandleInertiaRequests::class);
+    }
+
+    resolve(SaveEntry::class)->handle(InertiaPage::class, ['title' => 'Hello world', 'status' => 'published']);
+}
+
+/** The headers of an Inertia visit, at the asset version given. */
+function inertiaVisit(string $version = HandleInertiaRequests::VERSION): array
+{
+    return ['X-Inertia' => 'true', 'X-Inertia-Version' => $version];
 }
 
 /** An hourly callback task on `$test->schedule` that notes each run in `$test->runs`. */

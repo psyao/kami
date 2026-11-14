@@ -52,17 +52,36 @@ final class CachePages
             && $request->isMethodCacheable()
             && $request->getQueryString() === null
             && ! $request->headers->has('Authorization')
+            // An Inertia request for part of the page, or otherwise changing its answer: only `X-Inertia` and `X-Inertia-Version` name a whole page.
+            && preg_grep('/^x-inertia-(?!version$)/', array_keys($request->headers->all())) === []
             && $request->getHost() === parse_url(Site::current()->url, PHP_URL_HOST)
             && $request->route()?->getControllerClass() === RenderEntry::class;
     }
 
     private function storable(Request $request, Response $response): bool
     {
-        // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie, ours or the outer middleware's, marks a response for one visitor.
+        $inertiaRequest = (bool) $request->headers->get('X-Inertia');
+        $inertiaAnswer = $response->headers->get('X-Inertia') === 'true';
+
+        // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie, ours or the outer middleware's, marks a response for one visitor;
+        // Inertia's JSON is stored for an Inertia request only, and an Inertia request stores nothing else: a page outside Inertia answers it from Laravel each time.
         return $request->isMethod('GET')
+            && $inertiaRequest === $inertiaAnswer
+            && (! $inertiaRequest || $this->answersItsVersion($request, $response))
             && $response->getStatusCode() === 200
             && $response->getContent() !== false
             && $response->headers->getCookies() === []
             && $request->attributes->get(PageCache::SKIP) !== true;
+    }
+
+    /**
+     * Whether Inertia answered the asset version the request names, under which its JSON is keyed: a route without Inertia's middleware answers any version,
+     * and a forged one must not fill the disk.
+     */
+    private function answersItsVersion(Request $request, Response $response): bool
+    {
+        $page = json_decode((string) $response->getContent(), true);
+
+        return is_array($page) && ($page['version'] ?? null) === $request->headers->get('X-Inertia-Version', '');
     }
 }

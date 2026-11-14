@@ -15,7 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
  * The page cache's files under `storage/framework/kami/pages/` (ADR 0021), kept readable by plain PHP for the pre-boot reader, `resources/page-cache.php`, which repeats this format, the hash and the expiry:
  *
  * - `manifest.json`: `{"version": "<16 hex>", "next_change_at": <Unix timestamp>|null}`; null means nothing is Scheduled, and a missing, unreadable or malformed manifest is unknown, never "nothing Scheduled" (#268);
- * - `{version}/{xxh128(host . request URI)}`: a first line of JSON, `{"headers": {...}, "etag": "\"...\""}`, then the body; a page expires one hour after its file was written.
+ * - `{version}/{xxh128(host . request URI)}`: a first line of JSON, `{"headers": {...}, "etag": "\"...\""}`, then the body; a page expires one hour after its file was written;
+ * - `{version}/{xxh128("inertia\n" . X-Inertia-Version . "\n" . host . request URI)}`: the same for Inertia's JSON answer to an `X-Inertia` request (ADR 0021).
  *
  * @internal
  */
@@ -210,7 +211,14 @@ final class PageCache
 
     private static function pagePath(Request $request, string $version): string
     {
-        return self::directory($version . '/' . hash('xxh128', $request->getHost() . $request->getRequestUri()));
+        $key = $request->getHost() . $request->getRequestUri();
+
+        // Inertia's JSON answer to the same URL, keyed apart by the asset version it was answered to: another version misses, and Laravel answers Inertia's 409.
+        if ((bool) $request->headers->get('X-Inertia')) {
+            $key = "inertia\n" . $request->headers->get('X-Inertia-Version', '') . "\n" . $key;
+        }
+
+        return self::directory($version . '/' . hash('xxh128', $key));
     }
 
     private static function directory(string $file = ''): string
