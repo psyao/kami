@@ -102,7 +102,7 @@ final class ContentTypes
         $feeds = $types === [] ? [] : ['feed' => $types];
 
         foreach ($types as $type) {
-            $feeds[Path::normalise($type->prefix()) . '/feed'] = [$type];
+            $feeds[Path::feedOf($type)] = [$type];
         }
 
         return $feeds;

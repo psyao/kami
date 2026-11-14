@@ -163,13 +163,19 @@ final class ResolvePageMeta
         $site = Site::current();
         $locale = $site->currentLocale();
         $addresses = resolve(ContentTypes::class)->feeds();
-        $feeds = isset($addresses['feed']) ? [$site->url($locale, 'feed') => $siteName] : [];
+        $feeds = isset($addresses['feed']) ? [$site->url($locale, 'feed') => self::feedTitle($siteName)] : [];
 
         if ($type?->hasFeed() === true) {
-            $feeds[$site->url($locale, Path::normalise($type->prefix()) . '/feed')] = self::title($type->pluralLabel(), $siteName);
+            $feeds[$site->url($locale, Path::feedOf($type))] = self::feedTitle($siteName, $type);
         }
 
         return $feeds;
+    }
+
+    /** A Feed's title: the Site name for the Site's, `kami::seo.title` with the type's plural label for a type's, as its Archive's page is titled. */
+    public static function feedTitle(string $siteName, ?ContentType $type = null): string
+    {
+        return $type instanceof ContentType ? self::title($type->pluralLabel(), $siteName) : $siteName;
     }
 
     /**
@@ -269,7 +275,7 @@ final class ResolvePageMeta
     }
 
     /** A Translatable value of the page's Locale only, never one fallen back from the default Locale. */
-    private static function ownValue(?Entry $settings, string $field): ?string
+    public static function ownValue(?Entry $settings, string $field): ?string
     {
         return ! $settings instanceof Entry || $settings->fallbackLocale($field) !== null ? null : self::filled($settings->getAttribute($field));
     }

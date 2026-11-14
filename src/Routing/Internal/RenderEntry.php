@@ -29,10 +29,7 @@ final class RenderEntry
     {
         $site = Site::current();
         $locale = $site->currentLocale();
-        // `ResolveLocale` found the Locale in the first segment, which no stored Path holds.
-        $path = $locale === $site->defaultLocale() ? $request->path() : substr($request->path(), strlen($locale) + 1);
-
-        $path = Path::normalise($path);
+        $path = Path::requested($request);
         $archive = Path::archiveAt($path);
 
         // Before any query: an Archive hides a stored Path at its Prefix, which `SaveEntry` refuses and `kami:doctor` reports.

@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Content\SiteSettings;
 use Psyao\Kami\Facades\Kami;
+use Workbench\App\Content\Article;
 
 uses(RefreshDatabase::class);
 
@@ -152,21 +154,31 @@ it('leaves a Path ending in feed to its Entry when its type offers no Feed', fun
 });
 
 it('serves a Feed in an exact number of queries, whatever the volume', function () {
+    config(['kami.types' => [Article::class]]);
+    Kami::routes();
+    $save = fn (int $day) => resolve(SaveEntry::class)->handle(Article::class, ['title' => "Article {$day}", 'status' => 'published', 'author' => 'Ada', 'published_at' => now()->subDays($day)]);
     $count = function (): int {
         DB::flushQueryLog();
         DB::enableQueryLog();
-        feed('/feed');
+        feed('/articles/feed');
         DB::disableQueryLog();
 
         return count(DB::getQueryLog());
     };
-    saveDispatch('Un', 1);
+    $save(1);
     $small = $count();
 
     foreach (range(2, 25) as $day) {
-        saveDispatch("Billet {$day}", $day);
+        $save($day);
     }
 
-    // The Site settings, the page, its Translations.
-    expect($count())->toBe($small)->toBe(3);
+    // The Site settings, the page, its Translations, Article's Field values.
+    expect($count())->toBe($small)->toBe(4);
+});
+
+it('describes a channel by the Site\'s default description in its Locale only, else its title', function () {
+    resolve(SaveEntry::class)->handle('site_settings', ['default_description' => 'Le blog de Kami.'], SiteSettings::entry(), 'fr');
+
+    expect((string) feed('/feed')->channel->description)->toBe('Le blog de Kami.')
+        ->and((string) feed('/en/articles/feed')->channel->description)->toBe((string) feed('/en/articles/feed')->channel->title);
 });

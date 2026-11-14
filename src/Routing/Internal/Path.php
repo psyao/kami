@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Attributes\Unguarded;
 use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Normalizer;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * An address Kami answers in a Site and Locale: the current Path of a Translation (status 200), a 301 to the Entry replacing a deleted one, or a 410 (ADR 0008).
@@ -66,6 +68,31 @@ final class Path extends Model
     public static function archiveAt(string $path): ?ContentType
     {
         return resolve(ContentTypes::class)->archives()[$path] ?? null;
+    }
+
+    /**
+     * The types whose Feed answers at a normalised Path, in every Locale, which hides an Entry's there: every type with a Feed at `feed`.
+     *
+     * @return non-empty-list<ContentType>|null
+     */
+    public static function feedAt(string $path): ?array
+    {
+        return resolve(ContentTypes::class)->feeds()[$path] ?? null;
+    }
+
+    /** The normalised Path a type's own Feed answers at. */
+    public static function feedOf(ContentType $type): string
+    {
+        return self::normalise($type->prefix()) . '/feed';
+    }
+
+    /** The request's normalised path without its Locale segment, which `ResolveLocale` read and no stored Path holds. */
+    public static function requested(Request $request): string
+    {
+        $site = Site::current();
+        $locale = $site->currentLocale();
+
+        return self::normalise($locale === $site->defaultLocale() ? $request->path() : substr($request->path(), strlen($locale) + 1));
     }
 
     /** The slug a title gives in a Locale, the same in the admin form and on save. */
