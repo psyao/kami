@@ -3,15 +3,19 @@
 declare(strict_types=1);
 
 use Illuminate\Cache\Events\KeyWritten;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Component;
+use Livewire\Livewire;
 use Psyao\Kami\Content\Actions\DuplicateEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
@@ -21,6 +25,7 @@ use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Routing\Internal\PageCache;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Project;
@@ -36,6 +41,27 @@ final class Notice extends ContentType
     public function render(Entry $entry): Response
     {
         return (self::$render)($entry);
+    }
+}
+
+/** A Livewire component as a site renders one on its front. */
+final class Clicker extends Component
+{
+    public function render(): string
+    {
+        return '<button type="button" wire:click="$refresh">Click</button>';
+    }
+}
+
+/** A global middleware of the application, setting its cookie once the `kami` group has returned. */
+final class SetsConsentCookie
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $response = $next($request);
+        $response->headers->setCookie(Cookie::create('consent', '1'));
+
+        return $response;
     }
 }
 
@@ -75,10 +101,9 @@ it('serves a page rendered once until a core write', function () {
 
 it('replays the stored headers with an ETag, no-cache and a 304 on a match', function () {
     cachedArticle();
-    $first = $this->get('/articles/hello-world');
-    $etag = $first->headers->get('ETag');
-
-    $hit = $this->get('/articles/hello-world')->assertOk()->assertHeader('ETag', $etag);
+    $first = $this->get('/articles/hello-world')->assertHeaderMissing('ETag');
+    $hit = $this->get('/articles/hello-world')->assertOk();
+    $etag = $hit->headers->get('ETag');
 
     // `kami:bench` tells a hit by this pattern.
     expect($etag)->toMatch(PageCache::ETAG)
@@ -87,6 +112,9 @@ it('replays the stored headers with an ETag, no-cache and a 304 on a match', fun
         ->and($hit->headers->get('Content-Type'))->toBe($first->headers->get('Content-Type'));
 
     $this->get('/articles/hello-world', ['If-None-Match' => $etag])->assertStatus(304)->assertContent('');
+    // Each response gets its own date; the page cache stores none.
+    expect(json_decode((string) strtok((string) file_get_contents(glob("{$this->storage}/framework/kami/pages/*/*")[0]), "\n"), true)['headers'])
+        ->toHaveKey('Content-Type')->not->toHaveKey('Date');
 });
 
 it('stores a page once per Content version on disk, its old versions deleted after the response', function () {
@@ -142,6 +170,29 @@ it('never stores a response that sets a cookie or calls withoutPageCache()', fun
         return response((string) $entry->title);
     }],
 ]);
+
+it('never stores a response a global middleware sets a cookie on', function () {
+    app(HttpKernel::class)->pushMiddleware(SetsConsentCookie::class);
+    cachedArticle();
+    $this->get('/articles/hello-world')->assertOk()->assertCookie('consent', '1', encrypted: false);
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/articles/hello-world')->assertSee('Unseen');
+});
+
+it('stores the page as sent, with the script and style Livewire injects once the pipeline has returned', function () {
+    Livewire::component('clicker', Clicker::class);
+    config(['kami.types' => [Article::class, Notice::class]]);
+    Notice::$render = fn () => response(Blade::render('<html><head></head><body><livewire:clicker /></body></html>'));
+    resolve(SaveEntry::class)->handle(Notice::class, ['title' => 'Hello world', 'status' => 'published']);
+
+    $first = $this->get('/notice/hello-world')->assertOk();
+    $hit = $this->get('/notice/hello-world')->assertOk()->assertHeader('ETag');
+
+    expect($first->getContent())->toContain('<script', '<style')
+        ->and($hit->getContent())->toBe($first->getContent());
+});
 
 it('keeps the host\'s session on Kami::routes(session: true), its pages neither stored nor served from the page cache', function (bool $inWebGroup) {
     cachedArticle();
@@ -314,13 +365,14 @@ it('serves the page with no visibility query and nothing reported when storage/ 
     'a parent, the directory missing' => 'framework/kami',
 ]);
 
-it('sends no ETag with a page it could not store', function () {
+it('renders a page it could not store on every request, never as a hit', function () {
     cachedArticle();
-    $this->get('/articles/hello-world')->assertHeader('ETag');
+    $this->get('/articles/hello-world');
     $stored = File::allFiles(storage_path('framework/kami/pages/' . PageCache::version()));
     File::delete($stored[0]->getPathname());
     chmod($directory = $stored[0]->getPath(), 0555);
 
+    $this->get('/articles/hello-world')->assertOk();
     $response = $this->get('/articles/hello-world');
 
     chmod($directory, 0755);

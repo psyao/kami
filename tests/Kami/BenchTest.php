@@ -18,7 +18,8 @@ beforeEach(function () {
 /**
  * Answers 200 with these server times, in ms, by whether the request carries `?kami-bench=`, as cURL's transfer statistics over plain HTTP:
  * DNS and connect before `pretransfer_time`, no TLS, so `appconnect_time` is 0.
- * Without `?kami-bench=`, the first `$hits` responses carry the page cache's ETag, as the page cache serves them.
+ * Without `?kami-bench=`, the page is cold, as after a deploy: the first request is a 500 ms render with no ETag, the page cache storing it once sent;
+ * the next `$hits` responses carry the page cache's ETag, as the page cache serves them.
  * With a user, a request not signed in as them gets a Digest challenge first, as a staging password answers.
  *
  * @param  list<float>  $cached
@@ -27,17 +28,19 @@ beforeEach(function () {
 function serving(array $cached, array $uncached, ?string $user = null, int $hits = 10): void
 {
     // The fake's own response carries no statistics once it is a promise, so the header is added on the way out.
-    Http::globalMiddleware(function (callable $handler) use (&$hits) {
-        return function ($request, array $options) use ($handler, &$hits) {
-            return $handler($request, $options)->then(function ($response) use ($request, &$hits) {
-                return ! str_contains((string) $request->getUri(), 'kami-bench=') && $response->getStatusCode() === 200 && $hits-- > 0
+    // Requests the fake has answered without `?kami-bench=`: the first is the cold render.
+    $served = 0;
+    Http::globalMiddleware(function (callable $handler) use (&$hits, &$served) {
+        return function ($request, array $options) use ($handler, &$hits, &$served) {
+            return $handler($request, $options)->then(function ($response) use ($request, &$hits, &$served) {
+                return ! str_contains((string) $request->getUri(), 'kami-bench=') && $response->getStatusCode() === 200 && $served > 1 && $hits-- > 0
                     ? $response->withHeader('ETag', '"0123456789abcdef-' . str_repeat('a', 32) . '"')
                     : $response;
             });
         };
     });
 
-    Http::fake(function (Request $request, array $options) use (&$cached, &$uncached, $user) {
+    Http::fake(function (Request $request, array $options) use (&$cached, &$uncached, $user, &$served) {
         // Guzzle 8 answers the challenge in its auth middleware; Guzzle 7 leaves Digest to cURL, as options.
         $signedIn = str_starts_with($request->header('Authorization')[0] ?? '', "Digest username=\"{$user}\"")
             || ($options['curl'][CURLOPT_HTTPAUTH] ?? null) === CURLAUTH_DIGEST && str_starts_with($options['curl'][CURLOPT_USERPWD] ?? '', "{$user}:");
@@ -45,7 +48,11 @@ function serving(array $cached, array $uncached, ?string $user = null, int $hits
         if ($user !== null && ! $signedIn) {
             return Http::response('', 401, ['WWW-Authenticate' => 'Digest realm="staging", nonce="0123456789abcdef", qop="auth"']);
         }
-        $server = str_contains($request->url(), 'kami-bench=') ? array_shift($uncached) : array_shift($cached);
+        $server = match (true) {
+            str_contains($request->url(), 'kami-bench=') => array_shift($uncached),
+            ++$served === 1 => 500.0,
+            default => array_shift($cached),
+        };
         $options['on_stats'](new TransferStats($request->toPsrRequest(), null, null, null, ['appconnect_time' => 0.0, 'pretransfer_time' => 0.04, 'starttransfer_time' => 0.04 + $server / 1000]));
 
         // An array, not a promise: the fake would call `on_stats` again, with no statistics.
@@ -62,7 +69,8 @@ it('prints the median server time of a cached and an uncached page, and keeps it
         ->doesntExpectOutputToContain('budget')
         ->assertSuccessful();
 
-    Http::assertSentCount(20);
+    // One more, the page warmed up.
+    Http::assertSentCount(21);
     Http::assertSent(fn (Request $request) => $request->url() === 'http://localhost/about');
     Http::assertSent(fn (Request $request) => $request->url() === 'http://localhost/about?kami-bench=10');
     expect(json_decode((string) file_get_contents(BenchCommand::resultPath()), true))
@@ -75,7 +83,7 @@ it('records no Cached median for a page the page cache does not serve, and says 
     // One write can carry several lines, which the command's output expectations would each claim.
     expect(Artisan::call('kami:bench'))->toBe(0)
         ->and(Artisan::output())->toMatch('/Cached\W+not served from the page cache/')
-        ->toContain('a route of the site', 'Kami::withoutPageCache()', 'Authorization header')
+        ->toContain('a route of the site', 'Kami::withoutPageCache()', 'Authorization header', 'global middleware')
         ->toMatch('/Uncached\W+150\.0 ms/')
         ->not->toContain('60.0 ms', '30 ms budget');
 

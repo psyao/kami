@@ -46,6 +46,8 @@ final class BenchCommand extends Command
         }
 
         try {
+            // A page cold after a deploy is rendered, then stored once sent: the warm-up keeps that render out of the cached run.
+            $this->median($client, [$url]);
             // A query string bypasses the page cache, in the reader and in the middleware alike.
             $medians = [
                 'cached' => $this->median($client, array_fill(0, self::RUNS, $url), fromPageCache: true),
@@ -71,6 +73,7 @@ final class BenchCommand extends Command
                 'is a Kami page, not a route of the site',
                 'does not call Kami::withoutPageCache()',
                 'receives no Authorization header, as a staging password sends',
+                'gets no cookie, even from a global middleware of the application',
             ]);
         }
 

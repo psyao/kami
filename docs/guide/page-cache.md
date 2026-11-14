@@ -12,7 +12,7 @@ Kami stores a response of its Entry route only when all of these hold:
 - the response is a 200 and sets no cookie;
 - the response did not call [`Kami::withoutPageCache()`](#keeping-a-page-out).
 
-Redirects, 404 and 410 pages, Previews, Preview links, Conversions and your own routes are never stored. A stored page is replayed with its headers, the Content Security Policy included, but `Set-Cookie` and `Date`. It carries an `ETag` and `Cache-Control: no-cache`: browsers ask again each time, and a page that has not changed answers `304 Not Modified` with no body.
+Redirects, 404 and 410 pages, Previews, Preview links, Conversions and your own routes are never stored. A stored page is replayed with its headers, the Content Security Policy included, but `Set-Cookie` and `Date`. What is stored is the response as it was sent, once everything after your route has changed it: the script and style Livewire injects into a page with a component are replayed too. It carries an `ETag` and `Cache-Control: no-cache`: browsers ask again each time, and a page that has not changed answers `304 Not Modified` with no body. The response that stored the page went out before it was stored, so it carries no `ETag`; the next one does.
 
 ## Serving before Laravel boots
 
