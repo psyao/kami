@@ -29,7 +29,7 @@ beforeEach(function () {
     $this->get('/articles/hello-world')->assertOk();
     // The page as the middleware serves it once stored: the reader repeats it.
     $this->stored = $this->get('/articles/hello-world')->assertOk()->assertHeader('ETag');
-    // A Tick in the last five minutes, which that request's visit Tick wrote as well.
+    // A Tick in the last five minutes, which the first request's visit Tick wrote as well.
     touch("{$this->storage}/framework/kami/tick-cli");
 
     $socket = stream_socket_server('tcp://127.0.0.1:0');

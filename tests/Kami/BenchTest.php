@@ -28,29 +28,19 @@ beforeEach(function () {
 function serving(array $cached, array $uncached, ?string $user = null, int $hits = 10): void
 {
     // The fake's own response carries no statistics once it is a promise, so the header is added on the way out.
-    $cold = true;
-    Http::globalMiddleware(function (callable $handler) use (&$hits, &$cold) {
-        return function ($request, array $options) use ($handler, &$hits, &$cold) {
-            return $handler($request, $options)->then(function ($response) use ($request, &$hits, &$cold) {
-                if (str_contains((string) $request->getUri(), 'kami-bench=') || $response->getStatusCode() !== 200) {
-                    return $response;
-                }
-
-                if ($cold) {
-                    $cold = false;
-
-                    return $response;
-                }
-
-                return $hits-- > 0
+    // Requests the fake has answered without `?kami-bench=`: the first is the cold render.
+    $served = 0;
+    Http::globalMiddleware(function (callable $handler) use (&$hits, &$served) {
+        return function ($request, array $options) use ($handler, &$hits, &$served) {
+            return $handler($request, $options)->then(function ($response) use ($request, &$hits, &$served) {
+                return ! str_contains((string) $request->getUri(), 'kami-bench=') && $response->getStatusCode() === 200 && $served > 1 && $hits-- > 0
                     ? $response->withHeader('ETag', '"0123456789abcdef-' . str_repeat('a', 32) . '"')
                     : $response;
             });
         };
     });
 
-    $render = true;
-    Http::fake(function (Request $request, array $options) use (&$cached, &$uncached, $user, &$render) {
+    Http::fake(function (Request $request, array $options) use (&$cached, &$uncached, $user, &$served) {
         // Guzzle 8 answers the challenge in its auth middleware; Guzzle 7 leaves Digest to cURL, as options.
         $signedIn = str_starts_with($request->header('Authorization')[0] ?? '', "Digest username=\"{$user}\"")
             || ($options['curl'][CURLOPT_HTTPAUTH] ?? null) === CURLAUTH_DIGEST && str_starts_with($options['curl'][CURLOPT_USERPWD] ?? '', "{$user}:");
@@ -60,10 +50,9 @@ function serving(array $cached, array $uncached, ?string $user = null, int $hits
         }
         $server = match (true) {
             str_contains($request->url(), 'kami-bench=') => array_shift($uncached),
-            $render => 500.0,
+            ++$served === 1 => 500.0,
             default => array_shift($cached),
         };
-        $render = $render && str_contains($request->url(), 'kami-bench=');
         $options['on_stats'](new TransferStats($request->toPsrRequest(), null, null, null, ['appconnect_time' => 0.0, 'pretransfer_time' => 0.04, 'starttransfer_time' => 0.04 + $server / 1000]));
 
         // An array, not a promise: the fake would call `on_stats` again, with no statistics.
@@ -94,7 +83,7 @@ it('records no Cached median for a page the page cache does not serve, and says 
     // One write can carry several lines, which the command's output expectations would each claim.
     expect(Artisan::call('kami:bench'))->toBe(0)
         ->and(Artisan::output())->toMatch('/Cached\W+not served from the page cache/')
-        ->toContain('a route of the site', 'Kami::withoutPageCache()', 'Authorization header')
+        ->toContain('a route of the site', 'Kami::withoutPageCache()', 'Authorization header', 'global middleware')
         ->toMatch('/Uncached\W+150\.0 ms/')
         ->not->toContain('60.0 ms', '30 ms budget');
 

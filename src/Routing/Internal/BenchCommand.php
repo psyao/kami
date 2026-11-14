@@ -73,6 +73,7 @@ final class BenchCommand extends Command
                 'is a Kami page, not a route of the site',
                 'does not call Kami::withoutPageCache()',
                 'receives no Authorization header, as a staging password sends',
+                'gets no cookie, even from a global middleware of the application',
             ]);
         }
 

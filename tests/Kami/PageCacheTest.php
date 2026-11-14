@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Cache\Events\KeyWritten;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -24,6 +25,7 @@ use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Routing\Internal\PageCache;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Project;
@@ -48,6 +50,18 @@ final class Clicker extends Component
     public function render(): string
     {
         return '<button type="button" wire:click="$refresh">Click</button>';
+    }
+}
+
+/** A global middleware of the application, setting its cookie once the `kami` group has returned. */
+final class SetsConsentCookie
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        $response = $next($request);
+        $response->headers->setCookie(Cookie::create('consent', '1'));
+
+        return $response;
     }
 }
 
@@ -98,6 +112,9 @@ it('replays the stored headers with an ETag, no-cache and a 304 on a match', fun
         ->and($hit->headers->get('Content-Type'))->toBe($first->headers->get('Content-Type'));
 
     $this->get('/articles/hello-world', ['If-None-Match' => $etag])->assertStatus(304)->assertContent('');
+    // Each response gets its own date; the page cache stores none.
+    expect(json_decode((string) strtok((string) file_get_contents(glob("{$this->storage}/framework/kami/pages/*/*")[0]), "\n"), true)['headers'])
+        ->toHaveKey('Content-Type')->not->toHaveKey('Date');
 });
 
 it('stores a page once per Content version on disk, its old versions deleted after the response', function () {
@@ -153,6 +170,16 @@ it('never stores a response that sets a cookie or calls withoutPageCache()', fun
         return response((string) $entry->title);
     }],
 ]);
+
+it('never stores a response a global middleware sets a cookie on', function () {
+    app(HttpKernel::class)->pushMiddleware(SetsConsentCookie::class);
+    cachedArticle();
+    $this->get('/articles/hello-world')->assertOk()->assertCookie('consent', '1', encrypted: false);
+
+    retitleBehindKamisBack('Unseen');
+
+    $this->get('/articles/hello-world')->assertSee('Unseen');
+});
 
 it('stores the page as sent, with the script and style Livewire injects once the pipeline has returned', function () {
     Livewire::component('clicker', Clicker::class);
