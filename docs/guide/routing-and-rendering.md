@@ -18,6 +18,16 @@ It registers a single fallback route, so your routes always win: `/contact` stay
 
 Kami's route runs in its own `kami` middleware group, without the `web` group's session, cookies and CSRF protection, even when it is called inside that group. A page then sets no cookie. An application whose members sign in keeps its session on Kami's pages with `Kami::routes(session: true)` ([Existing application](existing-application.md#keep-your-members-signed-in)). The group also sends Kami's Content Security Policy and security headers ([Security](security.md)). After a page it sends, once no Tick ran for five minutes, it starts one, as the admin does ([Scheduler](scheduler.md#on-shared-hosting)).
 
+A middleware your pages render through, such as an Inertia site's `HandleInertiaRequests`, goes to `Kami::routes()` rather than to the `kami` group, which Kami declares itself:
+
+```php
+use App\Http\Middleware\HandleInertiaRequests;
+
+Kami::routes(middleware: [HandleInertiaRequests::class]);
+```
+
+It runs on every Entry's page, after the `kami` group, on either mount and from a cached route table. A page the [page cache](page-cache.md) serves answers before it runs. The Tick, media, Preview links, the sitemap and the form route never get it.
+
 Beside Entries, `Kami::routes()` answers `/kami/tick/{token}`, named `kami.tick`, for a host's planner, with no session either. It answers 404 until `KAMI_TICK_TOKEN` is set ([Scheduler](scheduler.md#on-shared-hosting)).
 
 It also answers `POST /kami/forms/{handle}`, named `kami.form`, where each [Form](forms.md#after-a-submission) posts, in the `kami` group.

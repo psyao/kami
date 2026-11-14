@@ -261,7 +261,7 @@ class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::form() public function form(string $handle): Psyao\Kami\Forms\Form
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed
-class Psyao\Kami\Kami::routes() public function routes(bool $session = false): void
+class Psyao\Kami\Kami::routes() public function routes(bool $session = false, array $middleware = []): void
 class Psyao\Kami\Kami::schedule() public function schedule(): void
 class Psyao\Kami\Kami::seo() public function seo(): Psyao\Kami\Seo\PageMeta
 class Psyao\Kami\Kami::sitemapUrls() public function sitemapUrls(): array

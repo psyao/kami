@@ -14,7 +14,7 @@ use Throwable;
 /**
  * Kami's entry point for sites.
  *
- * @method static void routes(bool $session = false)
+ * @method static void routes(bool $session = false, list<string> $middleware = [])
  * @method static mixed remember(string $key, \DateTimeInterface|\DateInterval|int $ttl, \Closure $callback)
  * @method static Form form(string $handle)
  * @method static void withoutPageCache()
