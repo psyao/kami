@@ -39,6 +39,7 @@ use Psyao\Kami\Content\Internal\Visibility;
 use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
+use Psyao\Kami\Media\Media;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\PathTooLong;
 use Psyao\Kami\Routing\Internal\SyncPaths;
@@ -294,20 +295,22 @@ final class SaveEntry
 
         // A Block's Entries as a relation's: deleted ones leave a given document, trashed ones are validated as absent and kept (#624).
         // A link to a deleted Entry or a missing Media item loses its link and keeps its text; one to a trashed Entry stays (#627).
+        // Another Site's target, which no picker offers, reads as gone.
         $blockEntries = $linkedMedia = [];
 
         foreach ($fields as $handle => $field) {
             if ($field instanceof RichText && is_array($document = $data[$handle] ?? null)) {
-                array_push($blockEntries, ...$field->targets($document)['entries']);
-                array_push($linkedMedia, ...new Document($document)->links()['media']);
+                ['entries' => $targetEntries, 'media' => $targetMedia] = $field->targets($document);
+                array_push($blockEntries, ...$targetEntries);
+                array_push($linkedMedia, ...$targetMedia);
             }
         }
 
-        $existing = $blockEntries === [] ? collect() : DB::table('kami_entries')->whereIn('id', $blockEntries)->pluck('deleted_at', 'id');
+        $existing = $blockEntries === [] ? collect() : DB::table('kami_entries')->where('site', $site->handle)->whereIn('id', $blockEntries)->pluck('deleted_at', 'id');
         /** @var list<string> $trashedInBlocks */
         $trashedInBlocks = $existing->filter()->keys()->all();
         $deleted = array_values(array_diff($blockEntries, $existing->keys()->all()));
-        $missingMedia = $linkedMedia === [] ? [] : array_values(array_diff($linkedMedia, array_filter(DB::table('kami_media')->whereIn('id', $linkedMedia)->pluck('id')->all(), is_string(...))));
+        $missingMedia = $linkedMedia === [] ? [] : array_values(array_diff($linkedMedia, array_filter(Media::query()->where('site', $site->handle)->whereKey($linkedMedia)->pluck('id')->all(), is_string(...))));
 
         foreach ($fields as $handle => $field) {
             if (! $field instanceof RichText) {
@@ -315,11 +318,11 @@ final class SaveEntry
             }
 
             if (is_array($document = $data[$handle] ?? null)) {
-                $data[$handle] = $field->withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
+                $data[$handle] = Document::withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
             }
 
             if (is_array($document = $values[$handle] ?? null)) {
-                $values[$handle] = $field->withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
+                $values[$handle] = Document::withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
             }
         }
 

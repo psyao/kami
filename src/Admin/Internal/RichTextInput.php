@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
+use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\RichEditor\Actions\LinkAction;
 use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Utilities\Set;
 use Psyao\Kami\Admin\Internal\Blocks\BlockSlot;
 use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\Fields\Media as MediaField;
@@ -56,7 +58,7 @@ final class RichTextInput
      */
     public static function linkInputs(): array
     {
-        return [
+        $inputs = [
             SelectInput::make('entry')
                 ->label(__('kami::admin.rich_text.link_entry'))
                 ->searchable()
@@ -65,10 +67,17 @@ final class RichTextInput
             MediaResource::picker(MediaField::make('media'))->label(__('kami::admin.rich_text.link_media')),
             TextInput::make('url')->label(__('filament-forms::components.rich_editor.actions.link.modal.form.url.label'))->inputMode('url'),
         ];
+
+        // One target at a time: filling one input empties the others, so what the editor sees is what the link gets.
+        return array_map(fn (Field $input): Field => $input->live(onBlur: $input instanceof TextInput)->afterStateUpdated(function (mixed $state, Set $set) use ($input): void {
+            foreach (blank($state) ? [] : array_diff(['entry', 'media', 'url'], [$input->getName()]) as $other) {
+                $set($other, null);
+            }
+        }), $inputs);
     }
 
     /** @return array{entry: string|null, media: string|null, url: string|null} */
-    public static function linkState(mixed $href): array
+    private static function linkState(mixed $href): array
     {
         $target = is_string($href) ? Document::target($href) : null;
 
@@ -84,11 +93,11 @@ final class RichTextInput
      *
      * @param  array<mixed>  $data
      */
-    public static function linkHref(array $data): ?string
+    private static function linkHref(array $data): ?string
     {
         return match (true) {
-            is_string($data['entry'] ?? null) && $data['entry'] !== '' => "kami://entry/{$data['entry']}",
-            is_string($data['media'] ?? null) && $data['media'] !== '' => "kami://media/{$data['media']}",
+            is_string($data['entry'] ?? null) && $data['entry'] !== '' => Document::href('entries', $data['entry']),
+            is_string($data['media'] ?? null) && $data['media'] !== '' => Document::href('media', $data['media']),
             default => is_string($data['url'] ?? null) ? $data['url'] : null,
         };
     }

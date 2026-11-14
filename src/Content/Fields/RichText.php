@@ -128,7 +128,7 @@ final class RichText extends Field
     /**
      * @internal
      *
-     * What its offered Blocks and its `kami://` links name, in document order, once each: the rows `SaveEntry` writes to `kami_references` under its handle.
+     * What its offered Blocks and its `kami://` links name, a Block's own RichText's links included, in document order, once each: the rows `SaveEntry` writes to `kami_references` under its handle.
      *
      * @param  array<mixed>|null  $document
      * @return array{entries: list<string>, media: list<string>}
@@ -144,6 +144,10 @@ final class RichText extends Field
 
                 if ($field->isReference() && is_array($ids)) {
                     array_push($targets[$field instanceof Media ? 'media' : 'entries'], ...array_filter($ids, is_string(...)));
+                } elseif ($field instanceof self && is_array($ids)) {
+                    $nested = $field->targets($ids);
+                    array_push($targets['entries'], ...$nested['entries']);
+                    array_push($targets['media'], ...$nested['media']);
                 }
             }
         }
@@ -178,41 +182,6 @@ final class RichText extends Field
 
         if (is_array($document['content'] ?? null)) {
             $document['content'] = array_map(fn (mixed $node): mixed => is_array($node) ? $this->withoutEntries($node, $ids) : $node, $document['content']);
-        }
-
-        return $document;
-    }
-
-    /**
-     * @internal
-     *
-     * The document with these targets' `kami://` links reduced to their text, and any `kami://` href naming no target.
-     *
-     * @param  array<mixed>  $document
-     * @param  list<string>  $entries
-     * @param  list<string>  $media
-     * @return array<mixed>
-     */
-    public function withoutLinks(array $document, array $entries, array $media): array
-    {
-        if (is_array($document['marks'] ?? null)) {
-            $document['marks'] = array_values(array_filter($document['marks'], function (mixed $mark) use ($entries, $media): bool {
-                if (! is_string($href = data_get($mark, 'attrs.href')) || ! str_starts_with($href, 'kami://')) {
-                    return true;
-                }
-
-                $target = Document::target($href);
-
-                return $target !== null && ! in_array($target[1], $target[0] === 'entries' ? $entries : $media, true);
-            }));
-
-            if ($document['marks'] === []) {
-                unset($document['marks']);
-            }
-        }
-
-        if (is_array($document['content'] ?? null)) {
-            $document['content'] = array_map(fn (mixed $node): mixed => is_array($node) ? $this->withoutLinks($node, $entries, $media) : $node, $document['content']);
         }
 
         return $document;

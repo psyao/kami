@@ -96,8 +96,8 @@ A Block's Media items and Entries are recorded in `kami_references` under the `R
 `{{ $entry->body }}` renders each Block through its view, given its data by Field handle and typed as an Entry reads a Field:
 
 - a Media Field: a `Media` or `null`, a Collection with `->multiple()`;
-- an Entries or Terms Field: a Collection of the Entries visible in the page's Locale, in pick order;
-- a `RichText`: a `Document`;
+- an Entries or Terms Field: a Collection of the Entries visible in the Locale the Entry holding the document is read in, in pick order;
+- a `RichText`: a `Document`, whose [internal links](content-types.md#internal-links) render in that Locale too and count among the Entry's References;
 - any other Field: the value its cast gives, such as a `CarbonImmutable` for a Date.
 
 ```blade

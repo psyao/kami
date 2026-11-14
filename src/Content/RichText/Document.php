@@ -178,6 +178,58 @@ final readonly class Document implements Htmlable
         return preg_match('~^kami://(entry|media)/([0-9A-Za-z]+)$~', $href, $match) === 1 ? [$match[1] === 'entry' ? 'entries' : 'media', $match[2]] : null;
     }
 
+    /**
+     * The `kami://` href `target()` reads back.
+     *
+     * @internal
+     *
+     * @param  'entries'|'media'  $kind
+     */
+    public static function href(string $kind, string $id): string
+    {
+        return 'kami://' . ($kind === 'entries' ? 'entry' : 'media') . "/{$id}";
+    }
+
+    /**
+     * @internal
+     *
+     * A document with the `kami://` links to these targets reduced to their text, and any naming no target; a Block's own RichText's too.
+     *
+     * @param  array<mixed>  $node
+     * @param  list<string>  $entries
+     * @param  list<string>  $media
+     * @return array<mixed>
+     */
+    public static function withoutLinks(array $node, array $entries, array $media): array
+    {
+        if (is_array($node['marks'] ?? null)) {
+            $node['marks'] = array_values(array_filter($node['marks'], function (mixed $mark) use ($entries, $media): bool {
+                if (! is_string($href = data_get($mark, 'attrs.href')) || ! str_starts_with($href, 'kami://')) {
+                    return true;
+                }
+
+                $target = self::target($href);
+
+                return $target !== null && ! in_array($target[1], $target[0] === 'entries' ? $entries : $media, true);
+            }));
+
+            if ($node['marks'] === []) {
+                unset($node['marks']);
+            }
+        }
+
+        // A Block's data holds its RichText Fields' documents.
+        if (($node['type'] ?? null) === 'block' && is_array($attrs = $node['attrs'] ?? null) && is_array($attrs['data'] ?? null)) {
+            $node['attrs'] = [...$attrs, 'data' => array_map(fn (mixed $value): mixed => is_array($value) && ($value['type'] ?? null) === 'doc' ? self::withoutLinks($value, $entries, $media) : $value, $attrs['data'])];
+        }
+
+        if (is_array($node['content'] ?? null)) {
+            $node['content'] = array_map(fn (mixed $child): mixed => is_array($child) ? self::withoutLinks($child, $entries, $media) : $child, $node['content']);
+        }
+
+        return $node;
+    }
+
     /** @return list<Extension> */
     private static function extensions(Link $link): array
     {
@@ -202,10 +254,9 @@ final readonly class Document implements Htmlable
             $marks = [];
 
             foreach ($node['marks'] as $mark) {
-                $target = is_string($href = data_get($mark, 'attrs.href')) && str_starts_with($href, 'kami://') ? self::target($href) ?? ['', ''] : null;
-
-                if ($target !== null) {
-                    $url = match ($target[0]) {
+                if (is_string($href = data_get($mark, 'attrs.href')) && str_starts_with($href, 'kami://')) {
+                    $target = self::target($href);
+                    $url = match ($target[0] ?? null) {
                         'entries' => ($entries[$target[1]] ?? null)?->url($this->readLocale()),
                         'media' => ($media[$target[1]] ?? null)?->url(),
                         default => null,
@@ -275,15 +326,17 @@ final readonly class Document implements Htmlable
     private function read(): array
     {
         $ids = $this->field?->targets($this->content) ?? $this->links();
+        $site = Site::current()->handle;
         $entries = [];
 
-        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn($this->readLocale())->whereIn('id', $ids['entries'])->get() as $entry) {
+        // Another Site's target, which no picker offers, reads as gone.
+        foreach ($ids['entries'] === [] ? [] : Entry::query()->readIn($this->readLocale())->where('site', $site)->whereIn('id', $ids['entries'])->get() as $entry) {
             $entries[$entry->id] = $entry;
         }
 
         VisiblePaths::preload($entries);
 
-        return [References::media($ids['media']), $entries];
+        return [array_filter(References::media($ids['media']), fn (Media $item): bool => $item->site === $site), $entries];
     }
 
     private function readLocale(): string
@@ -326,7 +379,9 @@ final readonly class Document implements Htmlable
     private function typed(Field $field, mixed $value, array $media, array $entries): mixed
     {
         if (! $field->isReference()) {
-            return $field->read($value);
+            $read = $field->read($value);
+
+            return $read instanceof self ? $read->readIn($this->readLocale()) : $read;
         }
 
         $read = $field instanceof MediaField ? $media : $entries;
