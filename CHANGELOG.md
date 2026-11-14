@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.0](https://github.com/psyao/kami/compare/v0.9.1...v0.10.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* a Taxonomy overriding `render(Entry $entry)` must declare `render(Entry $entry, ?CursorPaginator $entries = null)`.
+* nested Entries' Paths hold their ancestors' slugs from the next `kami:install`, once-public ones answering 301; an Entry under a non-visible ancestor answers 404 and its `url()` is `null`.
+
+### Features
+
+* a hierarchical type's Path holds its ancestors' slugs, an Entry under a non-visible ancestor is hidden ([#645](https://github.com/psyao/kami/issues/645)) ([6c393b6](https://github.com/psyao/kami/commit/6c393b6d86cabfcbc2828be134276e5a77d8ce5d))
+* a public SubmitForm action holds the Form route's visitor checks ([#642](https://github.com/psyao/kami/issues/642)) ([f061312](https://github.com/psyao/kami/commit/f0613129b2e525956feb36c8e3eff452748e424d))
+* Archives and Term Archives list visible Entries with cursor pagination ([#646](https://github.com/psyao/kami/issues/646)) ([b25d409](https://github.com/psyao/kami/commit/b25d4099a29fcfc7388f10afccd4861d341a95f5))
+* Kami::routes(middleware:) adds a rendering middleware to Kami's pages ([#643](https://github.com/psyao/kami/issues/643)) ([55a6450](https://github.com/psyao/kami/commit/55a64500e3df9ae3fff3baba56192e51e1abc2a8))
+* RSS Feeds at /feed and /{prefix}/feed, with autodiscovery and page caching ([#647](https://github.com/psyao/kami/issues/647)) ([f5e842b](https://github.com/psyao/kami/commit/f5e842b1e7012a6001cb66c10e04346efccf89b9))
+* the page cache keeps Inertia's JSON answer apart, served to its asset version only ([#641](https://github.com/psyao/kami/issues/641)) ([775da85](https://github.com/psyao/kami/commit/775da85a5655a2aa8bbff5b85f92c7305b2fedd8))
+
+
+### Bug Fixes
+
+* the page cache stores the response as it is sent ([#639](https://github.com/psyao/kami/issues/639)) ([5758daa](https://github.com/psyao/kami/commit/5758daafe7380d2f574bbbd42b7832c5373a3a18))
+
 ## [0.9.1](https://github.com/psyao/kami/compare/v0.9.0...v0.9.1) (2026-11-13)
 
 
