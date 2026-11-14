@@ -49,7 +49,7 @@ tests/engine.sh mariadb composer test:lowest
 `composer install` installs lefthook's hooks once the checkout is a Git repository, outside GitHub Actions; gitleaks comes from Homebrew (`brew install gitleaks`).
 
 - **pre-commit**, on staged files, in order: gitleaks, then Rector on `config/`, `src/` and `workbench/app/`, then Pint. Rector and Pint stage what they fix.
-- **pre-push**, on the whole project: `composer analyse` (Larastan at level `max`, no baseline), then `composer test`.
+- **pre-push**, on the whole project: what `composer analyse` (Larastan at level `max`, no baseline) and `composer test` run, then the [breaking-change gate](#public-surface) against `origin/main`, and the `Volume` suite when the Workbench seeder or the suite changed. It calls the `vendor/bin` tools those scripts wrap, so a push needs no `composer` on the `PATH`, only `php` (#607).
 
 Larastan registers Kami's provider itself (`tests/larastan-bootstrap.php`, a `bootstrapFiles` entry of `phpstan.neon.dist`), so `composer analyse` and CI's Static job both know its `kami::` views, whatever the package manifest holds. The manifest lists Kami only when Testbench's CLI wrote it with the skeleton's `vendor` symlink already there: the CLI deletes a symlink it created, and Larastan, creating it again, rebuilds the manifest without Kami (#543).
 
@@ -118,7 +118,7 @@ then review both diffs and commit them with the change. `composer reference` run
 The Static job checks both:
 
 - **Reference** runs `composer reference` and fails if `docs/reference/` then differs from the commit.
-- **Breaking changes** fails when the pull request removes or changes a snapshot line, unless its title is marked `!` or one of its commits carries a `BREAKING CHANGE:` footer. Added lines pass. Those are the two places release-please reads after the squash merge: a `!` on a commit's subject alone is lost. Editing the title does not rerun the job: push again.
+- **Breaking changes** runs `tests/breaking-changes.php` and fails when the pull request removes or changes a snapshot line that the last release tag holds, unless its title is marked `!` or one of its commits carries a `BREAKING CHANGE:` footer. Added lines pass, and so does a change to a line added since the last tag, which no released site can rely on. Those are the two places release-please reads after the squash merge: a `!` on a commit's subject alone is lost. Editing the title does not rerun the job: push again. Pre-push runs the same script, which knows no title there: a commit subject marked `!` stands in for it, and the pull request's title still needs its `!`.
 
 ## Shared-hosting smoke
 
@@ -156,6 +156,7 @@ Known gaps with the real host (`docs/velox-retrospective.md` § 5.1):
 
 [release-please](https://github.com/googleapis/release-please) keeps a release pull request open on `main`, with the next version and its `CHANGELOG.md` entry, from the Conventional Commit titles of squash-merged pull requests. Merging it is the release: it tags `v*` and publishes the GitHub Release, which Packagist picks up. Its settings sit in `release-please-config.json`; `.release-please-manifest.json` holds the last released version.
 
-- In 0.x, a `!` commit bumps the minor and `feat` or `fix` bump the patch. A breaking change adds its section to `UPGRADING.md` in the pull request that makes it. The number follows this rule, not the milestone: a milestone with no breaking change releases a patch. A `Release-As:` footer overrides it, and a minor still needs its section, which `ReleaseDocumentationTest` checks on the release pull request only.
+- In 0.x, a `!` commit bumps the minor and `feat` or `fix` bump the patch. The number follows this rule, not the milestone: a milestone with no breaking change releases a patch. A `Release-As:` footer overrides it.
+- `UPGRADING.md` keeps a standing `## Unreleased` section above the released ones. A pull request whose change a site must act on, a breaking one always, writes its line there. The release pull request renames it to its version, one line saying a site has nothing to do if it is empty, and puts an empty `## Unreleased` back above it: `ReleaseDocumentationTest` fails on it until then, since the manifest takes the new version there alone.
 - GitHub holds `tests.yml` on the release pull request: its run reads `action_required` until a maintainer clicks **Approve and run** on the pull request. Merge it once the seven jobs are green. A `docs:`, `ci:` or `test:` commit leaves the changelog as it was, so release-please does not refresh the pull request for it; the merge still releases what `main` holds.
 - `v*` tags are immutable: a ruleset blocks their update and deletion. A wrong release is fixed by the next one.

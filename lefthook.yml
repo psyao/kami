@@ -19,13 +19,15 @@ pre-commit:
       glob: ".claude/hooks/*"
       run: bash .claude/hooks/no-piped-gates.test.sh
 
-pre-push:
+pre-push: # the tools the composer scripts wrap, same arguments: a push needs no `composer` on the PATH (#607)
   piped: true
   jobs:
-    - name: analyse
-      run: composer analyse
-    - name: test
-      run: composer test
-    - name: volume # the Workbench seeder feeds the Volume suite, which CI runs on the server engines only (#484)
+    - name: analyse # composer analyse
+      run: vendor/bin/phpstan analyse
+    - name: test # composer test
+      run: php vendor/bin/testbench package:discover --ansi && vendor/bin/pest --testsuite=Kami --parallel && vendor/bin/pest --testsuite=Install
+    - name: breaking changes # CI gates on the pull request's title, here a commit subject with ! stands in for it
+      run: php tests/breaking-changes.php origin/main
+    - name: volume # composer test:volume; the Workbench seeder feeds the Volume suite, which CI runs on the server engines only (#484)
       glob: "{workbench/database,tests/Volume}/**"
-      run: composer test:volume
+      run: f=$(mktemp) && DB_CONNECTION=sqlite DB_DATABASE="$f" vendor/bin/pest --testsuite=Volume; rc=$?; rm -f "$f"; exit $rc

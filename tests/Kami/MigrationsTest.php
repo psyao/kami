@@ -25,3 +25,55 @@ it('keeps Eloquent models out of the migrations', function () {
 
     expect(array_map(basename(...), $mentioning))->toBe([]);
 });
+
+/**
+ * The table names raw SQL in `$php` writes out rather than interpolates: the table prefix reaches a name only through the
+ * grammar (`wrapTable()`), `getTablePrefix()` or the schema builder, so a written-out one misses it (#605). SQLite's own
+ * tables take no prefix.
+ *
+ * ponytail: a keyword heuristic over every string, not an SQL parser (V1 at the latest): a keyword it lacks lets a name
+ * through, and English prose such as "from the" trips it. A parser once either happens.
+ *
+ * @return list<string>
+ */
+function unprefixedTableNames(string $php): array
+{
+    $names = [];
+    foreach (PhpToken::tokenize($php) as $token) {
+        if ($token->is([T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE])) {
+            // `on delete cascade` and `on update set null` name no table.
+            preg_match_all('/\b(?:table|into|from|references|(?<!on )update|join|rename to|on(?! (?:delete|update)\b))\s+(?:if\s+(?:not\s+)?exists\s+)?\\\\?["`]?([a-z_]\w*)/i', $token->text, $match);
+            $names = [...$names, ...array_diff($match[1], ['sqlite_master'])];
+        }
+    }
+
+    return $names;
+}
+
+it('names tables in raw SQL through the table prefix', function () {
+    $unprefixed = [];
+    foreach (glob(dirname(__DIR__, 2) . '/database/migrations/*.php') as $file) {
+        foreach (unprefixedTableNames(file_get_contents($file)) as $name) {
+            $unprefixed[] = basename($file) . ": {$name}";
+        }
+    }
+
+    expect($unprefixed)->toBe([], 'SQLite passes, MySQL and PostgreSQL under a prefix fail (#551): interpolate a name from '
+        . '`$connection->getQueryGrammar()->wrapTable()`, or use the schema builder.');
+});
+
+it('catches a table name written out in raw SQL', function (string $php, array $names) {
+    expect(unprefixedTableNames("<?php {$php}"))->toBe($names);
+})->with([
+    // #551
+    'an alter table' => ['DB::statement(\'ALTER TABLE kami_entries ADD COLUMN x int\');', ['kami_entries']],
+    'a quoted name' => ['DB::statement("insert into \"kami_media\" select * from {$table}");', ['kami_media']],
+    'a guarded create' => ['DB::statement(\'create table if not exists kami_x (id int)\');', ['kami_x']],
+    'a foreign key' => ['DB::statement("alter table {$table} add foreign key (media_id) references kami_media (id)");', ['kami_media']],
+    'an index' => ['DB::statement(\'create index kami_x_slug on kami_entries (slug)\');', ['kami_entries']],
+    'a rename' => ['DB::statement("alter table {$table} rename to kami_x");', ['kami_x']],
+    'referential actions' => ['DB::statement("alter table {$table} add foreign key (media_id) references {$media} (id) on delete cascade on update set null");', []],
+    'an interpolated name' => ['DB::statement("alter table {$table} add constraint {$prefix}kami_x check (x)");', []],
+    'a schema builder call' => ['Schema::table(\'kami_entries\', fn () => null);', []],
+    'SQLite\'s own table' => ['DB::scalar(\'select sql from sqlite_master where name = ?\', [$table]);', []],
+]);

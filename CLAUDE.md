@@ -12,13 +12,13 @@ Laravel + Filament CMS, successor to Velox (`~/Code/velox`). `docs/brief.md` is 
 
 From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they do not say:
 
-- Pre-push runs `phpstan analyse`, `pest --parallel` and the `Install` suite; the rest runs in CI, and locally with:
+- Pre-push runs `phpstan analyse`, `pest --parallel`, the `Install` suite and `tests/breaking-changes.php`, from `vendor/bin` with no `composer`; the rest runs in CI, and locally with:
   - Infomaniak's ini: `composer test:infomaniak`; lowest dependencies under it, in a scratch copy: `composer test:lowest`.
   - Another engine (CI's image in Docker, kept up): `tests/engine.sh mysql|mariadb|pgsql [suite [pest arguments] | command]`, e.g. `tests/engine.sh mysql Volume`, `tests/engine.sh mariadb composer test:lowest`.
   - `Browser` suite: `npm ci`, `npx playwright install chromium`, then `pest --testsuite=Browser`.
   - Shared-hosting smoke: `tests/Smoke/run.sh`; it says "CI only" and stops until the images its Dockerfile names are pulled.
   - `timeout` comes from coreutils: `brew install coreutils`.
-- An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters.
+- An intended public API change: refresh `tests/Kami/PublicSurfaceTest.php` with `pest --update-snapshots`, then `composer reference`. A removed or changed snapshot line makes the commit breaking (`!`), except a final method that only gains optional trailing parameters and a line the last release tag lacks.
 - Coverage needs a driver Herd's PHP lacks: `composer test:coverage` locally, 90 % of the core checked in CI.
 - Never skip the hooks (`--no-verify`): they are the only check before a push.
 - A gate (tests, analysis, push) keeps its exit status redirected, never piped: `<gate> > "$file" 2>&1; rc=$?`, then read the file. `.claude/hooks/no-piped-gates.sh` refuses the pipe, and nothing of the refused command runs.

@@ -129,23 +129,15 @@ jobs:
           fi
 
       # ADR 0010: a removed or changed snapshot line can break a site, so the pull request must say so where release-please
-      # reads it after the squash merge: `!` in its title, or a `BREAKING CHANGE:` footer in a commit. Added lines pass,
-      # and so does a final method that only gains optional trailing parameters (tests/breaking-changes.php).
+      # reads it after the squash merge: `!` in its title, or a `BREAKING CHANGE:` footer in a commit. Added lines pass, so
+      # does a final method that only gains optional trailing parameters, and so does a line the last release tag lacks
+      # (#603): tests/breaking-changes.php. Pre-push runs it too.
       - name: Breaking changes
         if: ${{ !cancelled() && steps.setup.outcome == 'success' && github.event_name == 'pull_request' }}
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          snapshot=tests/.pest/snapshots/Kami/PublicSurfaceTest/it_snapshots_the_public_surface.snap
-          git show "$(git merge-base "$BASE" HEAD):$snapshot" > "$RUNNER_TEMP/before.snap"
-          removed=$(php tests/breaking-changes.php "$RUNNER_TEMP/before.snap" "$snapshot")
-          if [ -n "$removed" ] && ! echo "$TITLE" | grep -qE '^[a-z]+(\([^)]*\))?!:' \
-            && ! git log --format=%B "$BASE"..HEAD | grep -qE '^BREAKING[ -]CHANGE:'; then
-            echo "::error::The public surface lost or changed these lines: mark the title with ! or add a BREAKING CHANGE: footer, then push again"
-            echo "$removed"
-            exit 1
-          fi
+        run: php tests/breaking-changes.php "$BASE" "$TITLE"
 
   # Beside Static, so the checks do not delay it.
   coverage:
