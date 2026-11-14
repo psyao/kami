@@ -6,6 +6,7 @@ namespace Psyao\Kami\Content\Internal;
 
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
+use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
@@ -77,6 +78,26 @@ final class ContentTypes
     public function routableHandles(): array
     {
         return array_values(array_map(fn (ContentType $type): string => $type->handle(), array_filter($this->all(), fn (ContentType $type): bool => $type->isRoutable())));
+    }
+
+    /**
+     * The handles of every type's relation Fields: the rows of `kami_references` that classify an Entry, where a document's Block or link only points (#624).
+     *
+     * @return list<string>
+     */
+    public function relationHandles(): array
+    {
+        $handles = [];
+
+        foreach ($this->all() as $type) {
+            foreach ($type->relationFields() as $field) {
+                if ($field instanceof RelationField) {
+                    $handles[$field->handle] = $field->handle;
+                }
+            }
+        }
+
+        return array_values($handles);
     }
 
     /**
@@ -198,8 +219,8 @@ final class ContentTypes
 
                 $this->validateSelect($class, $field);
 
-                if ($field instanceof RichText && ! $field->hasValidHeadings()) {
-                    throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" takes heading levels 2, 3 and 4 only: the title is the page's H1.");
+                if ($field instanceof RichText) {
+                    $this->validateRichText($class, $field);
                 }
 
                 if ($field instanceof StructuredField) {
@@ -307,6 +328,72 @@ final class ContentTypes
 
         if ($field instanceof Select && ! array_is_list($field->optionKeys())) {
             throw new InvalidArgumentException("{$class}: the Select \"{$field->handle}\" takes a list of option keys; its labels live in kami-types.php.");
+        }
+    }
+
+    private function validateRichText(string $class, RichText $field): void
+    {
+        if (! $field->hasValidHeadings()) {
+            throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" takes heading levels 2, 3 and 4 only: the title is the page's H1.");
+        }
+
+        $declared = $field->offeredBlocks() === [] ? [] : array_map(fn (Block $block): string => $block::class, resolve(Blocks::class)->all());
+
+        foreach ($field->offeredBlocks() as $block) {
+            if (! in_array($block, $declared, true)) {
+                throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" offers {$block}, which is not listed in kami.blocks.");
+            }
+        }
+    }
+
+    /**
+     * @internal
+     *
+     * A Block's Fields as a type's, but for what has no meaning inside a document: a condition, an index, a default, and Blocks inside a Block (ADR 0016).
+     */
+    public function validateBlock(string $class, Block $block): void
+    {
+        $this->validateHandle($class, 'the handle', $block->handle());
+        $handles = [];
+
+        foreach ($block->fields() as $field) {
+            $this->validateHandle($class, 'the Field handle', $field->handle);
+
+            if (in_array($field->handle, $handles, true)) {
+                throw new InvalidArgumentException("{$class}: the Field handle \"{$field->handle}\" appears twice.");
+            }
+
+            if ($field instanceof RichText && $field->offeredBlocks() !== []) {
+                throw new InvalidArgumentException("{$class}: the RichText \"{$field->handle}\" cannot offer Blocks inside a Block; remove ->blocks().");
+            }
+
+            if ($field instanceof RichText) {
+                $this->validateRichText($class, $field);
+            }
+
+            if ($field->conditionTarget() !== null) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot take a condition inside a Block.");
+            }
+
+            if ($field->isIndexed()) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot be filterable or sortable: its value is inside a document.");
+            }
+
+            if ($field->defaultValue() !== null) {
+                throw new InvalidArgumentException("{$class}: the Field \"{$field->handle}\" cannot take a default inside a Block.");
+            }
+
+            if ($field instanceof RelationField) {
+                $this->validateRelation($class, $field, $this->declared());
+            }
+
+            $this->validateSelect($class, $field);
+
+            if ($field instanceof StructuredField) {
+                $this->validateSubFields($class, $field);
+            }
+
+            $handles[] = $field->handle;
         }
     }
 

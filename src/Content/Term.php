@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Query\Builder;
 use Psyao\Kami\Content\Internal\Ancestors;
+use Psyao\Kami\Content\Internal\ContentTypes;
 
 /** An Entry of a Taxonomy. */
 class Term extends Entry
@@ -19,12 +20,17 @@ class Term extends Entry
      */
     public function entries(): BelongsToMany
     {
+        $relations = resolve(ContentTypes::class)->relationHandles();
+
         return $this->belongsToMany(Entry::class, 'kami_references', 'target_entry_id', 'source_entry_id')
+            // A relation Field's rows only: a Block or a link in a document points at a Term without classifying the Entry.
+            ->whereIn('kami_references.field', $relations)
             // One row per Entry, whatever the Fields and Locales linking it; `distinct()` would leave `count()` counting them.
             // @phpstan-ignore argument.type (a column of the pivot, which Larastan looks for on the model)
             ->where('kami_references.id', fn (Builder $first): Builder => $first->from('kami_references', 'first_link')->selectRaw('min(first_link.id)')
                 ->whereColumn('first_link.source_entry_id', 'kami_references.source_entry_id')
-                ->whereColumn('first_link.target_entry_id', 'kami_references.target_entry_id'));
+                ->whereColumn('first_link.target_entry_id', 'kami_references.target_entry_id')
+                ->whereIn('first_link.field', $relations));
     }
 
     /**

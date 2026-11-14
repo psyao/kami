@@ -101,6 +101,8 @@ final class RenderEntry
             // a correlated `exists` made SQLite walk every published Translation by date, 1.8 s at 30,000 Entries.
             ->whereIn('kami_entries.id', fn (Builder $links): Builder => $links->select('source_entry_id')->from('kami_references')
                 ->where('target_entry_id', $id)
+                // A relation Field's rows only: a Block or a link in a document does not classify the Entry.
+                ->whereIn('field', resolve(ContentTypes::class)->relationHandles())
                 ->where(fn (Builder $inLocale): Builder => $inLocale->where('locale', $locale)->orWhereNull('locale')));
         $entries = Listing::page($query, false, $type->perPage(), $entry->url($locale) ?? '', $cursor);
 

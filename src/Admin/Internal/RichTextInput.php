@@ -8,6 +8,9 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\RichEditor\Actions\LinkAction;
 use Filament\Forms\Components\TextInput;
+use Psyao\Kami\Admin\Internal\Blocks\BlockSlot;
+use Psyao\Kami\Content\Blocks\Block;
+use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
 
@@ -36,6 +39,8 @@ final class RichTextInput
                 ['blockquote', ...($field->allowsCode() ? ['codeBlock'] : []), 'bulletList', 'orderedList', 'horizontalRule'],
                 ['undo', 'redo'],
             ])))
+            // One button per offered Block, each through its slot (ADR 0024).
+            ->customBlocks(BlockSlot::of($field->availableBlocks()))
             // After Filament's state cast, which removes a label.
             ->afterStateHydrated(fn (RichEditor $component, mixed $state): RichEditor => $component->rawState(is_array($state) ? self::labelled($state) : $state))
             ->dehydrateStateUsing(fn (mixed $state): mixed => is_array($state) ? self::fromEditor($state) : $state);
@@ -48,24 +53,50 @@ final class RichTextInput
      */
     public static function fill(Document $document): ?array
     {
-        return $document->isEmpty() ? null : self::toEditor($document->content() ?? []);
+        return $document->isEmpty() ? null : self::toEditor($document->content() ?? [], $document->field());
     }
 
     /**
-     * The editor's schema has no `block` and TipTap blanks a whole document it cannot read, so a Block travels as Filament's `customBlock`.
-     *
-     * ponytail: its `id` holds the Block and its `config` nothing, so Filament offers delete and no edit; M10 shows the Block's own label and summary.
+     * The editor's schema has no `block` and TipTap blanks a whole document it cannot read, so a Block travels as Filament's `customBlock`:
+     * an offered one with its handle as `id`, which names its slot, and its data as `config`; an unavailable one with the whole Block in `id`,
+     * which names no slot, and no `config`, so Filament offers delete and no edit (ADR 0016).
      *
      * @param  array<mixed>  $node
      * @return array<mixed>
      */
-    public static function toEditor(array $node): array
+    public static function toEditor(array $node, ?RichText $field = null): array
     {
         if (($node['type'] ?? null) === 'block') {
-            return ['type' => 'customBlock', 'attrs' => ['id' => json_encode($node['attrs'] ?? [], JSON_THROW_ON_ERROR)]];
+            $handle = data_get($node, 'attrs.handle');
+            $data = data_get($node, 'attrs.data');
+
+            $block = is_string($handle) ? $field?->offered($handle) : null;
+
+            return $block instanceof Block
+                ? ['type' => 'customBlock', 'attrs' => ['id' => $block->handle(), 'config' => self::editorData($block, is_array($data) ? $data : [])]]
+                : ['type' => 'customBlock', 'attrs' => ['id' => json_encode($node['attrs'] ?? [], JSON_THROW_ON_ERROR)]];
         }
 
-        return self::mapContent($node, self::toEditor(...));
+        return self::mapContent($node, fn (array $child): array => self::toEditor($child, $field));
+    }
+
+    /**
+     * A Block's data as its modal's inputs hold it: a single Media Field's picker one id, not the stored list.
+     *
+     * @param  array<mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function editorData(Block $block, array $data): array
+    {
+        $editor = $block->normalise($data);
+
+        foreach ($block->fields() as $field) {
+            if ($field instanceof MediaField && ! $field->isMultiple() && is_array($editor[$field->handle])) {
+                $editor[$field->handle] = $editor[$field->handle][0] ?? null;
+            }
+        }
+
+        return $editor;
     }
 
     /**
@@ -149,22 +180,28 @@ final class RichTextInput
     }
 
     /**
+     * An unavailable Block's label, which no slot gives; Filament asks an offered one's slot for its own.
+     *
      * @param  array<mixed>  $node
      * @return array<mixed>
      */
     private static function labelled(array $node): array
     {
-        if (($node['type'] ?? null) === 'customBlock') {
-            $handle = self::blockIn($node)['handle'] ?? null;
-            $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
+        $whole = is_string($id = data_get($node, 'attrs.id')) ? json_decode($id, true) : null;
 
-            return [...$node, 'attrs' => [...$attrs, 'label' => __('kami::admin.rich_text.unavailable_block', ['handle' => is_string($handle) ? $handle : ''])]];
+        if (($node['type'] ?? null) === 'customBlock' && is_array($whole)) {
+            $attrs = is_array($node['attrs'] ?? null) ? $node['attrs'] : [];
+            $handle = is_string($whole['handle'] ?? null) ? $whole['handle'] : '';
+
+            return [...$node, 'attrs' => [...$attrs, 'label' => __('kami::admin.rich_text.unavailable_block', ['handle' => $handle])]];
         }
 
         return self::mapContent($node, self::labelled(...));
     }
 
     /**
+     * The Block a `customBlock` holds: an unavailable one whole in its `id`, an offered one as its handle in `id` and its data in `config`. A handle is never JSON.
+     *
      * @param  array<mixed>  $node
      * @return array<mixed>
      */
@@ -173,7 +210,13 @@ final class RichTextInput
         $id = data_get($node, 'attrs.id');
         $block = is_string($id) ? json_decode($id, true) : null;
 
-        return is_array($block) ? $block : [];
+        if (is_array($block)) {
+            return $block;
+        }
+
+        $config = data_get($node, 'attrs.config');
+
+        return is_string($id) ? ['handle' => $id, 'data' => is_array($config) ? $config : []] : [];
     }
 
     /**

@@ -12,6 +12,7 @@ use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\Repeater;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Schema\ContentMigrator;
@@ -320,6 +321,17 @@ describe('renameField', function () {
             ->and(Schema::getIndexes('kami_type_memo'))->toHaveCount(3);
     });
 
+    it('moves a RichText\'s References with its column', function () {
+        ($this->declare)(RichText::make('body'));
+        memoRow($entry = memo(), 'fr', ['body' => '{"type":"doc","content":[]}']);
+        linked($entry, 'body', 'fr', $target = memo('target'));
+
+        ($this->inMigration)("ContentMigrator::renameField('memo', 'body', 'content');");
+
+        expect(targets($entry, 'content'))->toBe(['fr' => [$target]])
+            ->and(targets($entry, 'body'))->toBe([]);
+    });
+
     it('rewrites a relation Field\'s References, for this type alone', function () {
         ($first = memo()) && ($other = memo('other')) && ($target = memo('target'));
         linked($first, 'related', null, $target);
@@ -456,6 +468,22 @@ describe('makeTranslatable', function () {
             ->and(targets($entry, 'kept'))->toBe(['*' => [$one]])
             ->and(targets($none, 'related'))->toBe(['fr' => [$one]]);
     });
+});
+
+it('moves a RichText\'s References with its documents, both ways', function () {
+    ($this->declare)(RichText::make('body'));
+    translated($entry = memo(), 'fr');
+    translated($entry, 'en');
+    memoRow($entry, '*', ['body' => '{"type":"doc","content":[]}']);
+    linked($entry, 'body', null, $target = memo('target'));
+
+    ($this->inMigration)("ContentMigrator::makeTranslatable('memo', 'body');");
+
+    expect(targets($entry, 'body'))->toBe(['en' => [$target], 'fr' => [$target]]);
+
+    ($this->inMigration)("ContentMigrator::makeShared('memo', 'body', keep: 'fr');");
+
+    expect(targets($entry, 'body'))->toBe(['*' => [$target]]);
 });
 
 describe('makeShared', function () {

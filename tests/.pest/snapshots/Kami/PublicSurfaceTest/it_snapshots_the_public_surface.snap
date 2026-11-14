@@ -53,6 +53,15 @@ class Psyao\Kami\Content\Actions\SaveEntry final class
 class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(string $type, array $values, ?Psyao\Kami\Content\Entry $entry = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL, ?DateTimeInterface $updatedAt = NULL): Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\Actions\TrashEntry final class
 class Psyao\Kami\Content\Actions\TrashEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Content\Blocks\Block abstract class
+class Psyao\Kami\Content\Blocks\Block::fieldHelp() final public function fieldHelp(string $field): ?string
+class Psyao\Kami\Content\Blocks\Block::fieldLabel() final public function fieldLabel(string $field): string
+class Psyao\Kami\Content\Blocks\Block::fields() abstract public function fields(): array
+class Psyao\Kami\Content\Blocks\Block::handle() abstract public function handle(): string
+class Psyao\Kami\Content\Blocks\Block::label() final public function label(): string
+class Psyao\Kami\Content\Blocks\Block::optionLabel() final public function optionLabel(string $field, string $option): string
+class Psyao\Kami\Content\Blocks\Block::summary() public function summary(array $data): ?string
+class Psyao\Kami\Content\Blocks\Block::view() abstract public function view(): string
 class Psyao\Kami\Content\ContentType abstract class
 class Psyao\Kami\Content\ContentType::$archive protected bool $archive = false
 class Psyao\Kami\Content\ContentType::$feed protected bool $feed = false
@@ -172,6 +181,7 @@ class Psyao\Kami\Content\Fields\RelationField::of() public function of(string ..
 class Psyao\Kami\Content\Fields\Repeater final class extends Psyao\Kami\Content\Fields\StructuredField
 class Psyao\Kami\Content\Fields\Repeater::make() public static function make(string $handle, array $fields = []): static
 class Psyao\Kami\Content\Fields\RichText final class extends Psyao\Kami\Content\Fields\Field
+class Psyao\Kami\Content\Fields\RichText::blocks() public function blocks(array $blocks): static
 class Psyao\Kami\Content\Fields\RichText::code() public function code(): static
 class Psyao\Kami\Content\Fields\RichText::headings() public function headings(array $levels): static
 class Psyao\Kami\Content\Fields\Select final class extends Psyao\Kami\Content\Fields\Field
@@ -389,6 +399,7 @@ component x-kami::pagination ['paginator']
 component x-kami::preview-banner
 component x-kami::seo ['title' => null, 'description' => null]
 config kami.audit.retention
+config kami.blocks
 config kami.forms
 config kami.indexable
 config kami.media.avif

@@ -404,7 +404,7 @@ it('outputs its HTML through Blade\'s echo', function () {
     expect(Blade::render('{{ $body }}', ['body' => $entry->body]))->toBe('<p>a</p>');
 });
 
-it('renders a kami:// link as text and a Block as nothing until M10', function () {
+it('renders a kami:// link as text and an unavailable Block as nothing', function () {
     $body = savedArticle(['body' => doc(linkedPara('kami://entry/01JABC', 'target'), aBlock())])->body;
 
     expect($body->toHtml())->toBe('<p>target</p>');
@@ -491,14 +491,14 @@ it('reloads a saved document unchanged after a save through the form', function 
     'a Block' => [doc(para('a'), aBlock(), para('b'))],
 ]);
 
-it('gives the editor a Block as a customBlock it knows, with nothing to edit', function () {
+it('gives the editor an unavailable Block as a customBlock no slot serves, with nothing to edit', function () {
     $entry = savedArticle(['body' => doc(aBlock())]);
 
     $state = editorPage(['record' => $entry->id])->get('data.body');
 
     expect($state['content'][0]['type'])->toBe('customBlock')
         ->and($state['content'][0]['attrs']['config'] ?? null)->toBeNull()
-        ->and($state['content'][0]['attrs']['label'])->toBe('Block unavailable for now: gallery');
+        ->and($state['content'][0]['attrs']['label'])->toBe('Block unavailable: gallery');
 });
 
 it('normalises forged form state', function () {

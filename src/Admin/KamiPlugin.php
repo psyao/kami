@@ -40,6 +40,7 @@ use Livewire\Livewire;
 use LogicException;
 use Psyao\Kami\Admin\Internal\AppAuthentication;
 use Psyao\Kami\Admin\Internal\AuditEventResource;
+use Psyao\Kami\Admin\Internal\Blocks\BlockSlot;
 use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\Login;
@@ -54,6 +55,7 @@ use Psyao\Kami\Admin\Internal\SubmissionResource;
 use Psyao\Kami\Admin\Internal\Widgets\NeedsAttention;
 use Psyao\Kami\Admin\Internal\Widgets\RecentlyEdited;
 use Psyao\Kami\Admin\Internal\Widgets\Scheduled;
+use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Boolean;
 use Psyao\Kami\Content\Fields\Date;
@@ -70,6 +72,7 @@ use Psyao\Kami\Content\Fields\Terms;
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
 use Psyao\Kami\Content\Fields\Url;
+use Psyao\Kami\Content\Internal\Blocks;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Scheduling\Internal\TickOnVisit;
@@ -294,6 +297,16 @@ final class KamiPlugin implements Plugin
                 $this->requireComponent($field, $type);
             }
         }
+
+        // Each declared Block reaches the editor through a slot of its own (ADR 0024), its modal built from its Fields.
+        $blocks = array_values(resolve(Blocks::class)->all());
+        BlockSlot::assign($blocks);
+
+        foreach ($blocks as $block) {
+            foreach ($block->fields() as $field) {
+                $this->requireComponent($field, $block);
+            }
+        }
     }
 
     /**
@@ -322,14 +335,14 @@ final class KamiPlugin implements Plugin
             : '';
     }
 
-    private function requireComponent(Field $field, ContentType $type): void
+    private function requireComponent(Field $field, ContentType | Block $declaration): void
     {
         if ($field instanceof StructuredField) {
             foreach ($field->fields() as $sub) {
-                $this->requireComponent($sub, $type);
+                $this->requireComponent($sub, $declaration);
             }
         } elseif (! isset($this->fieldComponents[$field::class])) {
-            throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $type::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');
+            throw new LogicException('No admin component for the Field type ' . $field::class . ' of ' . $declaration::class . '; register one with KamiPlugin::make()->fieldComponents([...]).');
         }
     }
 }

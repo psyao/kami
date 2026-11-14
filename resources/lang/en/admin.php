@@ -214,7 +214,9 @@ return [
     ],
 
     'rich_text' => [
-        'unavailable_block' => 'Block unavailable for now: :handle',
+        'unavailable_block' => 'Block unavailable: :handle',
+        // A Block's Field in an error: "The text in Callout 2 field is required."
+        'block_attribute' => ':field in :block :position',
     ],
 
     'reminders' => [

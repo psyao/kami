@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Blocks\Callout;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
 use Workbench\App\Content\Label;
@@ -28,6 +29,10 @@ return [
 
     'forms' => [
         ContactForm::class,
+    ],
+
+    'blocks' => [
+        Callout::class,
     ],
 
     'roles' => [

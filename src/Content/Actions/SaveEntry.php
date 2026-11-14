@@ -120,6 +120,13 @@ final class SaveEntry
                 } else {
                     $rows[$contentType->isTranslatable($field) ? $locale : '*'][$handle] = $field->write($values[$handle]);
                 }
+
+                // A document's Blocks link Media and Entries too: "used by" and deletion read them (#624).
+                if ($field instanceof RichText) {
+                    /** @var array<mixed>|null $document */
+                    $document = $values[$handle];
+                    References::replaceTargets($entry->id, $handle, $contentType->isTranslatable($field) ? $locale : null, $field->targets($document));
+                }
             }
 
             foreach ($rows as $rowLocale => $row) {
@@ -130,7 +137,10 @@ final class SaveEntry
                 DB::table("kami_type_{$contentType->handle()}")->where('entry_id', $entry->id)->update($cleared);
             }
 
-            foreach ($clearedReferences as $handle) {
+            // A cleared RichText's Blocks link nothing any more (#624).
+            $clearedDocuments = array_keys(array_filter(array_intersect_key($fields, $cleared), fn (Field $field): bool => $field instanceof RichText));
+
+            foreach ([...$clearedReferences, ...$clearedDocuments] as $handle) {
                 References::clear($entry->id, $handle);
             }
 
@@ -281,6 +291,34 @@ final class SaveEntry
         $before = $data;
         $data = [...$data, ...$values];
 
+        // A Block's Entries as a relation's: deleted ones leave a given document, trashed ones are validated as absent and kept (#624).
+        $blockEntries = [];
+
+        foreach ($fields as $handle => $field) {
+            if ($field instanceof RichText && is_array($document = $data[$handle] ?? null)) {
+                array_push($blockEntries, ...$field->targets($document)['entries']);
+            }
+        }
+
+        $existing = $blockEntries === [] ? collect() : DB::table('kami_entries')->whereIn('id', $blockEntries)->pluck('deleted_at', 'id');
+        /** @var list<string> $trashedInBlocks */
+        $trashedInBlocks = $existing->filter()->keys()->all();
+        $deleted = array_values(array_diff($blockEntries, $existing->keys()->all()));
+
+        foreach ($deleted === [] ? [] : $fields as $handle => $field) {
+            if (! $field instanceof RichText) {
+                continue;
+            }
+
+            if (is_array($document = $data[$handle] ?? null)) {
+                $data[$handle] = $field->withoutEntries($document, $deleted);
+            }
+
+            if (is_array($document = $values[$handle] ?? null)) {
+                $values[$handle] = $field->withoutEntries($document, $deleted);
+            }
+        }
+
         // Always published, with nothing for an editor to fill: its form shows Fields only.
         if ($writesTranslation && $contentType instanceof GlobalSet) {
             $data['status'] = Translation::PUBLISHED;
@@ -322,10 +360,24 @@ final class SaveEntry
 
         // A Shared value is read by every Translation: a save may not blank what another one publishes. One already blank holds nothing back, as a Field may turn required after publication.
         $held = array_filter($fields, fn (Field $field): bool => $field->isRequired() && ! $contentType->isTranslatable($field) && array_key_exists($field->handle, $values) && $before[$field->handle] !== null);
-        $publishedElsewhere = ! $draft && $held !== [] && $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
+        // A Shared document's required Block Fields hold the same way (#624).
+        $heldDocuments = array_filter($fields, fn (Field $field): bool => $field instanceof RichText && $field->availableBlocks() !== [] && ! $contentType->isTranslatable($field) && array_key_exists($field->handle, $values));
+        $publishedElsewhere = ! $draft && ($held !== [] || $heldDocuments !== []) && $entry instanceof Entry && Translation::query()->where('entry_id', $entry->id)->where('locale', '!=', $locale)->where('status', Translation::PUBLISHED)->exists();
+
+        // A document's Blocks are validated at `body.blocks.{n}.{field}`, beside the document in what the validator alone reads (#624).
+        $checked = $data;
+        $blockNames = [];
 
         foreach ($fields as $handle => $field) {
-            $rules = [...$rules, ...$field->rulesAt($handle, $publishing || ($publishedElsewhere && isset($held[$handle])))];
+            $required = $publishing || ($publishedElsewhere && isset($held[$handle]));
+            $rules = [...$rules, ...$field->rulesAt($handle, $required)];
+
+            if ($field instanceof RichText && is_array($data[$handle] ?? null)) {
+                ['data' => $blocks, 'rules' => $blockRules, 'names' => $names] = $field->blockValidation($handle, $field->withoutEntries($data[$handle], $trashedInBlocks), $publishing || ($publishedElsewhere && isset($heldDocuments[$handle])));
+                $checked[$handle] = [...$data[$handle], 'blocks' => $blocks];
+                $rules = [...$rules, ...$blockRules];
+                $blockNames = [...$blockNames, ...$names];
+            }
         }
 
         // `links.*.url` reads the label at `links.fields.url`; the keys stay as they are, naming the row for code.
@@ -333,6 +385,7 @@ final class SaveEntry
 
         foreach (array_keys($rules) as $attribute) {
             $label = match (true) {
+                isset($blockNames[$attribute]) => $blockNames[$attribute],
                 $attribute === 'seo_image' => (string) __('kami::seo.image'),
                 isset($fields[Str::before($attribute, '.')]) => $contentType->fieldLabel(str_replace(['.*', '.'], ['', '.fields.'], $attribute)),
                 in_array($attribute, ['title', 'slug', 'published_at', 'parent'], true) => (string) __("kami::admin.fields.{$attribute}"),
@@ -357,7 +410,7 @@ final class SaveEntry
 
             if (! $field->isVisibleGiven($target, $data[$target->handle])) {
                 unset($values[$field->handle]);
-                $rules = array_diff_key($rules, $field->rulesAt($field->handle, $publishing));
+                $rules = array_filter(array_diff_key($rules, $field->rulesAt($field->handle, $publishing)), fn (string $attribute): bool => ! str_starts_with($attribute, "{$field->handle}.blocks."), ARRAY_FILTER_USE_KEY);
 
                 // Stored values go only with a save that gives the target: a User who may not change it must not empty what visitors read (ADR 0019).
                 if (! array_key_exists($target->handle, $values)) {
@@ -372,7 +425,7 @@ final class SaveEntry
             }
         }
 
-        Validator::make($data, $rules, [], $names)->validate();
+        Validator::make($checked, $rules, [], $names)->validate();
 
         // A given relation keeps its links to trashed targets, which no form shows and `exists` refuses: restoring a target brings them back.
         foreach (array_intersect_key($fields, $values) as $handle => $field) {

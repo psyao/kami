@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Sites\Internal\Site;
 use Psyao\Kami\Support\Internal\Doctor\Problem;
@@ -80,7 +81,8 @@ final readonly class ContentModelDrift
     /** @return list<Problem> */
     private function strandedLinks(ContentType $type): array
     {
-        $fields = collect($type->relationFields())->keyBy(fn (Field $field): string => $field->handle);
+        // A RichText's handle holds its Blocks' links (#624).
+        $fields = collect([...$type->relationFields(), ...array_filter($type->flatFields(), fn (Field $field): bool => $field instanceof RichText)])->keyBy(fn (Field $field): string => $field->handle);
         $links = $this->entries($type)->join('kami_references', 'kami_references.source_entry_id', '=', 'kami_entries.id')
             ->select('kami_references.field', 'kami_references.locale')->distinct()->get();
         $problems = [];

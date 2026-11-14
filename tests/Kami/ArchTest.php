@@ -74,6 +74,18 @@ arch('only Admin uses Admin (ADR 0011)')
     ->expect('Psyao\Kami\Admin')
     ->toOnlyBeUsedIn(['Psyao\Kami\Admin', 'Workbench\App']);
 
+// A Block is a core class: Filament's editor reaches it through a slot of the pool, one class each (ADR 0024).
+arch('Blocks reach Filament only through the slot pool (ADR 0024)')
+    ->expect('Filament\Forms\Components\RichEditor\RichContentCustomBlock')
+    ->toOnlyBeUsedIn('Psyao\Kami\Admin\Internal\Blocks');
+
+arch('every slot of the pool is a final BlockSlot (ADR 0024)')
+    ->expect('Psyao\Kami\Admin\Internal\Blocks')
+    ->classes()
+    ->toExtend('Psyao\Kami\Admin\Internal\Blocks\BlockSlot')
+    ->toBeFinal()
+    ->ignoring('Psyao\Kami\Admin\Internal\Blocks\BlockSlot');
+
 // Nothing in content, rendering or the admin reads Legacy ids.
 arch('only Import uses Import (ADR 0026)')
     ->expect('Psyao\Kami\Import')

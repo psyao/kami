@@ -19,6 +19,12 @@ return [
     'forms' => [],
 
     /*
+    | The site's Blocks: `final` classes extending `Psyao\Kami\Content\Blocks\Block`, offered on a RichText Field with `->blocks([...])`
+    | (ADR 0016). 64 at most: the admin's editor reaches each through a slot of its own (ADR 0024). Labels come from `kami-blocks`.
+    */
+    'blocks' => [],
+
+    /*
     | The Roles a User may hold, by handle, each with its Permissions; `*` matches any part (`kami.*`, `kami.entries.*.view`).
     | Checks always target a Permission, never a Role (ADR 0014). Labels come from the `kami-roles` translation file.
     */

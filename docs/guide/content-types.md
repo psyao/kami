@@ -271,6 +271,7 @@ use Psyao\Kami\Content\Fields\RichText;
 RichText::make('body');                     // Paragraphs, H2 to H4, bold, italic, links, lists, quotes, rules, hard breaks.
 RichText::make('body')->code();             // Adds inline code and a code block with an optional language, not highlighted.
 RichText::make('body')->headings([3, 4]);   // Narrows the levels.
+RichText::make('body')->blocks([Callout::class]); // Offers Blocks, each listed in kami.blocks; see Blocks.
 ```
 
 `$entry->body` is always a `Document`, even blank, so a view never tests for null:
@@ -289,7 +290,7 @@ RichText::make('body')->headings([3, 4]);   // Narrows the levels.
 
 The first read of the declarations refuses a heading level other than 2, 3 or 4 and a `RichText` inside a Repeater or a Group, as nothing normalises a document there yet.
 
-Block nodes and `kami://` links survive a save, though nothing writes them from the admin before M10. Until then, a `kami://` link renders as its text and a Block renders nothing. The editor shows a Block as unavailable: an editor can only delete it.
+A Block renders through its own view, and one the Field no longer offers is kept and renders nothing: see [Blocks](blocks.md). `kami://` links survive a save, and render as their text until internal links land later in M10.
 
 `Document::fromHtml($html, $field)` imports HTML through the same normalisation, so an importer hands `SaveEntry` the result:
 

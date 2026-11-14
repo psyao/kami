@@ -28,6 +28,7 @@ use Psyao\Kami\Content\Events\EntrySaved;
 use Psyao\Kami\Content\Events\EntryTrashed;
 use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\AnnouncePublicationsCommand;
+use Psyao\Kami\Content\Internal\Blocks;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
@@ -82,6 +83,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         $this->optimizes(clear: 'kami:cache:clear');
         $this->app->singleton(PluginRegistration::class);
         $this->app->singleton(ContentTypes::class);
+        $this->app->singleton(Blocks::class);
         $this->app->singleton(Forms::class);
         $this->app->singleton(ImagePresets::class);
         // The Admin language, as configured: a visitor's request switches `app.locale` to its page's Locale.

@@ -22,6 +22,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -229,7 +230,6 @@ final class MediaResource extends FilamentResource
     public static function picker(MediaField $field): SelectInput
     {
         $social = $field->handle === 'seo_image' || (EntryResource::type() instanceof SiteSettings && $field->handle === 'default_social_image');
-        $label = __('kami::admin.media.picker.upload', ['field' => $field->handle === 'seo_image' ? __('kami::seo.image') : EntryResource::type()->fieldLabel($field->handle)]);
 
         return SelectInput::make($field->handle)
             ->multiple($field->isMultiple())
@@ -254,9 +254,9 @@ final class MediaResource extends FilamentResource
                     ->storeFiles(false)
                     ->required(),
             ])
-            ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => self::canCreate())
-                // Named, as a form may hold several pickers (WCAG 2.4.6).
-                ->label($label)
+            // Named after the picker's own label, a type's or a Block's, as a form may hold several pickers (WCAG 2.4.6).
+            ->createOptionAction(fn (Action $action, SelectInput $component): Action => $action->authorize(fn (): bool => self::canCreate())
+                ->label($label = __('kami::admin.media.picker.upload', ['field' => ($name = $component->getLabel()) instanceof Htmlable ? $name->toHtml() : $name]))
                 ->modalHeading($label))
             ->createOptionUsing(function (array $data): string {
                 $file = $data['file'] ?? null;
