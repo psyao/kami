@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\File;
 
-// Fails on the release pull request, which is where the manifest takes the new version.
-it('has a section in UPGRADING.md for the current breaking release', function (): void {
+// #604: tickets write under `## Unreleased`, which the release pull request renames to its version, putting an empty one back
+// above it. The manifest takes the new version on that pull request alone, so the test fails there until the rename.
+it('has an Unreleased section above a section for the current release', function (): void {
     $root = dirname(__DIR__, 2);
     /** @var array{'.': string} $manifest */
     $manifest = File::json($root . '/.release-please-manifest.json');
-    [$major, $minor] = explode('.', $manifest['.']);
+    preg_match_all('/^## (.+)$/m', File::get($root . '/UPGRADING.md'), $headings);
 
-    // 0.x breaks on the minor, later versions on the major (UPGRADING.md).
-    $breaking = $major === '0' ? "0.{$minor}.0" : "{$major}.0.0";
-
-    expect(File::get($root . '/UPGRADING.md'))->toContain("\n## {$breaking}\n");
+    expect($headings[1][0] ?? null)->toBe('Unreleased')
+        ->and($headings[1])->toContain($manifest['.']);
 });
 
 it('installs released versions in the guides', function (): void {

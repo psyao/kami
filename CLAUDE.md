@@ -12,7 +12,7 @@ Laravel + Filament CMS, successor to Velox (`~/Code/velox`). `docs/brief.md` is 
 
 From M1, `composer.json` scripts and `lefthook.yml` are the reference. What they do not say:
 
-- Pre-push runs `phpstan analyse`, `pest --parallel` and the `Install` suite; the rest runs in CI, and locally with:
+- Pre-push runs `phpstan analyse`, `pest --parallel`, the `Install` suite and `tests/breaking-changes.php`, from `vendor/bin` with no `composer`; the rest runs in CI, and locally with:
   - Infomaniak's ini: `composer test:infomaniak`; lowest dependencies under it, in a scratch copy: `composer test:lowest`.
   - Another engine (CI's image in Docker, kept up): `tests/engine.sh mysql|mariadb|pgsql [suite [pest arguments] | command]`, e.g. `tests/engine.sh mysql Volume`, `tests/engine.sh mariadb composer test:lowest`.
   - `Browser` suite: `npm ci`, `npx playwright install chromium`, then `pest --testsuite=Browser`.
