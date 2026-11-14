@@ -136,6 +136,7 @@ it('serves Inertia\'s JSON before Laravel boots to its asset version only, and i
         ->and(preBootRequest()->get('/inertia_page/hello-world')->body())->toBe($html->getContent())
         ->and(preBootRequest(inertiaVisit('v0'))->get('/inertia_page/hello-world')->body())->toBe('Laravel booted')
         ->and(preBootRequest([...inertiaVisit(), 'X-Inertia-Partial-Data' => 'title', 'X-Inertia-Partial-Component' => 'Page'])->get('/inertia_page/hello-world')->body())->toBe('Laravel booted')
+        ->and(preBootRequest([...inertiaVisit(), 'X-Inertia-Partial-Except' => 'errors'])->get('/inertia_page/hello-world')->body())->toBe('Laravel booted')
         ->and(preBootRequest([...inertiaVisit(), 'X-Inertia-Reset' => 'title'])->get('/inertia_page/hello-world')->body())->toBe('Laravel booted');
 });
 

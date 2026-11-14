@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Image;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Livewire\Features\SupportTesting\Testable;
@@ -56,20 +57,25 @@ function temporaryPath(): string
 }
 
 /**
- * A published `InertiaPage` at `/inertia_page/hello-world`, behind the site's Inertia middleware.
+ * A published `InertiaPage` at `/inertia_page/hello-world`, behind the site's Inertia middleware unless told otherwise.
  * ponytail: a global middleware until `Kami::routes(middleware:)` lands (#613); the page cache sees the same response either way.
  */
-function inertiaPage(): void
+function inertiaPage(bool $middleware = true): void
 {
     config(['kami.types' => [...config('kami.types'), InertiaPage::class]]);
-    app(HttpKernel::class)->pushMiddleware(HandleInertiaRequests::class);
+    View::addNamespace('inertia-fixture', dirname(__DIR__) . '/tests/Fixtures/Inertia');
+
+    if ($middleware) {
+        app(HttpKernel::class)->pushMiddleware(HandleInertiaRequests::class);
+    }
+
     resolve(SaveEntry::class)->handle(InertiaPage::class, ['title' => 'Hello world', 'status' => 'published']);
 }
 
 /** The headers of an Inertia visit, at the asset version given. */
 function inertiaVisit(string $version = HandleInertiaRequests::VERSION): array
 {
-    return ['X-Inertia' => 'true', 'X-Inertia-Version' => $version, 'X-Requested-With' => 'XMLHttpRequest'];
+    return ['X-Inertia' => 'true', 'X-Inertia-Version' => $version];
 }
 
 /** An hourly callback task on `$test->schedule` that notes each run in `$test->runs`. */

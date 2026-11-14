@@ -432,16 +432,18 @@ it('keeps Inertia\'s JSON answer as a copy of its own beside the HTML, each serv
     expect(File::allFiles(storage_path('framework/kami/pages/' . PageCache::version())))->toHaveCount(2);
 });
 
-it('lets Laravel answer Inertia\'s 409 to another asset version, never the stored copy', function () {
-    inertiaPage();
-    $this->get('/inertia_page/hello-world', inertiaVisit())->assertOk();
+// Without Inertia's middleware, no 409 refuses a forged version: each would fill the disk with a copy of its own.
+it('never stores Inertia\'s JSON under an asset version it was not answered to', function () {
+    inertiaPage(middleware: false);
+    $this->get('/inertia_page/hello-world', inertiaVisit('forged'))->assertOk()->assertHeader('X-Inertia', 'true');
+    retitleBehindKamisBack('Unseen');
 
-    $this->get('/inertia_page/hello-world', inertiaVisit('v0'))->assertStatus(409)->assertHeader('X-Inertia-Location');
+    $this->get('/inertia_page/hello-world', inertiaVisit('forged'))->assertSee('Unseen')->assertHeaderMissing('ETag');
 });
 
 it('never stores or serves an Inertia request that asks for part of the page', function (string $header, string $value) {
     inertiaPage();
-    $partial = [...inertiaVisit(), $header => $value, 'X-Inertia-Partial-Component' => 'Page'];
+    $partial = [...inertiaVisit(), $header => $value];
     $this->get('/inertia_page/hello-world', $partial)->assertOk();
     retitleBehindKamisBack('Unseen');
 
@@ -451,6 +453,7 @@ it('never stores or serves an Inertia request that asks for part of the page', f
 
     $this->get('/inertia_page/hello-world', $partial)->assertSee('Unserved');
 })->with([
+    'one component' => ['X-Inertia-Partial-Component', 'Page'],
     'only some props' => ['X-Inertia-Partial-Data', 'title'],
     'all props but some' => ['X-Inertia-Partial-Except', 'errors'],
     'props reset' => ['X-Inertia-Reset', 'title'],

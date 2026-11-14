@@ -60,13 +60,28 @@ final class CachePages
 
     private function storable(Request $request, Response $response): bool
     {
+        $inertiaRequest = (bool) $request->headers->get('X-Inertia');
+        $inertiaAnswer = $response->headers->get('X-Inertia') === 'true';
+
         // HEAD reaches here with its body already dropped; redirects and 4xx are never stored; a cookie, ours or the outer middleware's, marks a response for one visitor;
         // Inertia's JSON is stored for an Inertia request only, and an Inertia request stores nothing else: a page outside Inertia answers it from Laravel each time.
         return $request->isMethod('GET')
-            && (bool) $request->headers->get('X-Inertia') === ($response->headers->get('X-Inertia') === 'true')
+            && $inertiaRequest === $inertiaAnswer
+            && (! $inertiaRequest || $this->answersItsVersion($request, $response))
             && $response->getStatusCode() === 200
             && $response->getContent() !== false
             && $response->headers->getCookies() === []
             && $request->attributes->get(PageCache::SKIP) !== true;
+    }
+
+    /**
+     * Whether Inertia answered the asset version the request names, under which its JSON is keyed: a route without Inertia's middleware answers any version,
+     * and a forged one must not fill the disk.
+     */
+    private function answersItsVersion(Request $request, Response $response): bool
+    {
+        $page = json_decode((string) $response->getContent(), true);
+
+        return is_array($page) && ($page['version'] ?? null) === $request->headers->get('X-Inertia-Version', '');
     }
 }
