@@ -54,10 +54,12 @@ class Psyao\Kami\Content\Actions\SaveEntry::handle() public function handle(stri
 class Psyao\Kami\Content\Actions\TrashEntry final class
 class Psyao\Kami\Content\Actions\TrashEntry::handle() public function handle(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
 class Psyao\Kami\Content\ContentType abstract class
+class Psyao\Kami\Content\ContentType::$archive protected bool $archive = false
 class Psyao\Kami\Content\ContentType::$hierarchical protected bool $hierarchical = false
 class Psyao\Kami\Content\ContentType::$model protected ?string $model = NULL
 class Psyao\Kami\Content\ContentType::$ogType protected string $ogType = 'website'
 class Psyao\Kami\Content\ContentType::$orderable protected bool $orderable = false
+class Psyao\Kami\Content\ContentType::$perPage protected int $perPage = 10
 class Psyao\Kami\Content\ContentType::$prefix protected ?string $prefix = NULL
 class Psyao\Kami\Content\ContentType::$routable protected bool $routable = true
 class Psyao\Kami\Content\ContentType::$translatable protected bool $translatable = true
@@ -69,6 +71,7 @@ class Psyao\Kami\Content\ContentType::label() final public function label(): str
 class Psyao\Kami\Content\ContentType::optionLabel() final public function optionLabel(string $field, string $option): string
 class Psyao\Kami\Content\ContentType::pluralLabel() final public function pluralLabel(): string
 class Psyao\Kami\Content\ContentType::render() public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
+class Psyao\Kami\Content\ContentType::renderArchive() public function renderArchive(Illuminate\Contracts\Pagination\CursorPaginator $entries): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Content\ContentType::sectionLabel() final public function sectionLabel(string $section): string
 class Psyao\Kami\Content\ContentType::socialImage() public function socialImage(Psyao\Kami\Content\Entry $entry): ?Psyao\Kami\Media\Media
 class Psyao\Kami\Content\ContentType::summary() public function summary(Psyao\Kami\Content\Entry $entry): ?string
@@ -205,6 +208,7 @@ class Psyao\Kami\Content\SiteSettings::fields() public function fields(): array
 class Psyao\Kami\Content\Tab final class extends Psyao\Kami\Content\Layout
 class Psyao\Kami\Content\Taxonomy abstract class extends Psyao\Kami\Content\ContentType
 class Psyao\Kami\Content\Taxonomy::$model protected ?string $model = 'Psyao\\Kami\\Content\\Term'
+class Psyao\Kami\Content\Taxonomy::render() public function render(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Pagination\CursorPaginator $entries = NULL): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Content\Term class extends Psyao\Kami\Content\Entry
 class Psyao\Kami\Content\Term::ancestors() public function ancestors(): Illuminate\Database\Eloquent\Collection
 class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
@@ -379,6 +383,7 @@ component x-kami::form ['form']
 component x-kami::form.errors ['level' => 2]
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::locales
+component x-kami::pagination ['paginator']
 component x-kami::preview-banner
 component x-kami::seo ['title' => null, 'description' => null]
 config kami.audit.retention

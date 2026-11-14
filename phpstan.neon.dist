@@ -20,7 +20,9 @@ parameters:
         # A type's view is the site's, named by convention at run time (ADR 0009): no view-string can be known statically.
         -
             identifier: argument.type
-            path: src/Content/ContentType.php
+            paths:
+                - src/Content/ContentType.php
+                - src/Content/Taxonomy.php
             message: '#expects view-string, string given#'
     # The package's own config, not Testbench's skeleton: `env()` belongs there.
     configDirectories:

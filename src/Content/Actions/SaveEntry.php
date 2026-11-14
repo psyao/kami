@@ -432,7 +432,7 @@ final class SaveEntry
         ])]);
     }
 
-    /** The Path's characters, a Path Kami answers itself, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment (ADR 0008). `kami:doctor` reports a stored Path one declared later hides. */
+    /** The Path's characters, a Path Kami answers itself or an Archive's, then the default Locale's Paths, which `ResolveLocale` hides behind another Locale's code as first segment (ADR 0008). `kami:doctor` reports a stored Path one declared later hides. */
     private function pathRule(ContentType $contentType, Site $site, string $locale): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($contentType, $site, $locale): void {
@@ -444,7 +444,7 @@ final class SaveEntry
 
             if (! Path::isAnswerable($path)) {
                 $fail(__('validation.regex'));
-            } elseif (Path::isReserved($path)) {
+            } elseif (Path::isReserved($path) || Path::isArchive($path)) {
                 $fail(__('kami::admin.fields.slug_reserved'));
             } elseif (in_array($locale, [$site->defaultLocale(), '*'], true) && in_array($segment = explode('/', $path)[0], array_slice($site->locales, 1), true)) {
                 $fail(__('kami::admin.fields.slug_locale', ['locale' => $segment]));

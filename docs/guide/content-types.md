@@ -73,6 +73,23 @@ A Prefix may not take a segment Kami answers itself ([Reserved paths](routing-an
 
 Changing a Prefix moves the type's Entries on the next `kami:install` ([Routing and rendering](routing-and-rendering.md#after-a-deploy)).
 
+### Archives
+
+`protected bool $archive = true` lists the type's visible Entries at its Prefix, newest first, `$perPage` to a page:
+
+```php
+final class Post extends ContentType
+{
+    protected ?string $prefix = 'articles';
+
+    protected bool $archive = true;
+
+    protected int $perPage = 10; // the default
+}
+```
+
+A Prefix publishes no list by itself: a type has an Archive only when it says so. An Archive needs a routable type with slugs and a Prefix of its own: on a [type with no URL](#types-with-no-url), a [Singleton](#singletons), a Prefix of `''` or a `$perPage` below 1, the first read of the declarations fails, naming the class. No Path may then take the Prefix ([Reserved paths](routing-and-rendering.md#reserved-paths)). Its view and the cursor that pages it are in [Routing and rendering](routing-and-rendering.md#archives).
+
 ### Types with no URL
 
 A collection listed on other pages, with no page of its own, declares `$routable = false`:
@@ -451,6 +468,8 @@ Term::query()->ofType(Tag::class)->with('entries')->get(); // no N+1
 A Term created from a picker on one Locale's screen has a Translation in that Locale only. The form shows it on every Locale, while the front leaves it out where it has none: translate it, or set `$translatable = false` on the Taxonomy, as above.
 
 `Terms` is creatable by default. Name several Taxonomies or a Taxonomy with a required Field, and add `->creatable(false)`, as the first read of the declarations will ask.
+
+A routable Taxonomy's Term pages list the Entries linking each Term, page by page, by its `$perPage`: its [Term Archive](routing-and-rendering.md#term-archives).
 
 ### Your own model
 

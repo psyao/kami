@@ -149,3 +149,42 @@ it('keeps Kami\'s other media defaults when a site declares only some of the med
     'some keys' => [['avif' => false], ['avif' => false]],
     'null' => [null, ['avif' => true]],
 ]);
+
+/** An Archive at the root, where every Path would sit under it. */
+final class RootArchive extends ContentType
+{
+    protected ?string $prefix = '';
+
+    protected bool $archive = true;
+}
+
+/** An Archive on a type with no URL. */
+final class UnroutedArchive extends ContentType
+{
+    protected bool $routable = false;
+
+    protected bool $archive = true;
+}
+
+/** An Archive on a Singleton, whose one Path is its Prefix. */
+final class SingletonArchive extends Singleton
+{
+    protected bool $archive = true;
+}
+
+/** An Archive whose pages hold nothing. */
+final class EmptyPages extends ContentType
+{
+    protected bool $archive = true;
+
+    protected int $perPage = 0;
+}
+
+it('fails on an Archive with no Prefix of its own, or no page size', function (string $type, string $message) {
+    expect(fn () => runWithTypes($type))->toThrow(InvalidArgumentException::class, $message);
+})->with([
+    'at the root' => [RootArchive::class, 'RootArchive: an Archive answers at its type\'s Prefix'],
+    'with no URL' => [UnroutedArchive::class, 'UnroutedArchive: an Archive answers at its type\'s Prefix'],
+    'on a Singleton' => [SingletonArchive::class, 'SingletonArchive: an Archive answers at its type\'s Prefix'],
+    'with no Entry a page' => [EmptyPages::class, 'EmptyPages: $perPage is 0'],
+]);

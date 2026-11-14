@@ -44,7 +44,7 @@ function sitemapArticle(string $locale, array $values, ?Entry $entry = null): En
 /**
  * The URLs of a sitemap file, with their `lastmod` and alternates.
  *
- * @return array<string, array{lastmod: string, alternates: array<string, string>}>
+ * @return array<string, array{lastmod: string, alternates: array<string, string>}> An empty `lastmod` for none.
  */
 function sitemapUrls(string $file): array
 {
@@ -61,13 +61,16 @@ function sitemapUrls(string $file): array
             $alternates[(string) $link['hreflang']] = (string) $link['href'];
         }
 
-        $urls[(string) $url->xpath('s:loc')[0]] = ['lastmod' => (string) $url->xpath('s:lastmod')[0], 'alternates' => $alternates];
+        $urls[(string) $url->xpath('s:loc')[0]] = ['lastmod' => (string) ($url->xpath('s:lastmod')[0] ?? ''), 'alternates' => $alternates];
     }
 
     return $urls;
 }
 
 /** @return list<string> The `loc` of each file the index lists. */
+/** The language links of Workbench's Article Archive, listed in every Locale with no `lastmod`. */
+const ARCHIVE_ALTERNATES = ['fr' => 'http://localhost/articles', 'en' => 'http://localhost/en/articles', 'x-default' => 'http://localhost/articles'];
+
 function sitemapIndex(string $file): array
 {
     $xml = simplexml_load_string(File::get($file));
@@ -86,8 +89,13 @@ it('writes an index over one file per Locale, each URL with its lastmod and alte
 
     expect(sitemapIndex("{$this->public}/sitemap.xml"))->toBe(['http://localhost/sitemaps/fr-1.xml', 'http://localhost/sitemaps/en-1.xml']);
     $alternates = ['fr' => 'http://localhost/articles/bonjour', 'en' => 'http://localhost/en/articles/hello', 'x-default' => 'http://localhost/articles/bonjour'];
-    expect(sitemapUrls("{$this->public}/sitemaps/fr-1.xml"))->toBe(['http://localhost/articles/bonjour' => ['lastmod' => '2026-11-08T10:00:00+00:00', 'alternates' => $alternates]])
-        ->and(sitemapUrls("{$this->public}/sitemaps/en-1.xml"))->toBe(['http://localhost/en/articles/hello' => ['lastmod' => '2026-11-08T11:00:00+00:00', 'alternates' => $alternates]]);
+    expect(sitemapUrls("{$this->public}/sitemaps/fr-1.xml"))->toBe([
+        'http://localhost/articles/bonjour' => ['lastmod' => '2026-11-08T10:00:00+00:00', 'alternates' => $alternates],
+        'http://localhost/articles' => ['lastmod' => '', 'alternates' => ARCHIVE_ALTERNATES],
+    ])->and(sitemapUrls("{$this->public}/sitemaps/en-1.xml"))->toBe([
+        'http://localhost/en/articles/hello' => ['lastmod' => '2026-11-08T11:00:00+00:00', 'alternates' => $alternates],
+        'http://localhost/en/articles' => ['lastmod' => '', 'alternates' => ARCHIVE_ALTERNATES],
+    ]);
 });
 
 it('lists visible Translations not Hidden from search engines, the home page once at /', function () {
@@ -110,30 +118,33 @@ it('lists visible Translations not Hidden from search engines, the home page onc
         'http://localhost' => [],
         'http://localhost/articles/visible' => [],
         'http://localhost/label/partout' => $label,
+        'http://localhost/articles' => ARCHIVE_ALTERNATES,
     ])->and(array_map(fn (array $url) => $url['alternates'], sitemapUrls("{$this->public}/sitemaps/en-1.xml")))->toBe([
         'http://localhost/en/label/partout' => $label,
+        'http://localhost/en/articles' => ARCHIVE_ALTERNATES,
     ]);
 });
 
+// Each count holds Workbench's Article Archive in both Locales.
 it('rebuilds only after a core write or a passed visibility change', function () {
     // A build in the second of a write rebuilds once more, to be safe: the steps stay a minute apart.
     $this->travelTo('2026-11-08 10:00:00');
     sitemapArticle('fr', ['title' => 'Bonjour']);
     $this->travelTo('2026-11-08 10:01:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 3 URLs.')->assertSuccessful();
 
     $this->travelTo('2026-11-08 11:00:00');
     $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
 
     sitemapArticle('fr', ['title' => 'Demain', 'published_at' => '2026-11-08 12:30:00']);
     $this->travelTo('2026-11-08 11:01:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 3 URLs.')->assertSuccessful();
     $this->travelTo('2026-11-08 12:00:00');
     $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
 
     // Read from the page cache manifest, which no request has rewritten since.
     $this->travelTo('2026-11-08 13:00:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 4 URLs.')->assertSuccessful();
     $this->travelTo('2026-11-08 13:01:00');
     $this->artisan('kami:sitemap')->expectsOutputToContain('The sitemap is up to date.')->assertSuccessful();
 });
@@ -143,12 +154,12 @@ it('still sees a passed visibility change once the page cache manifest has moved
     sitemapArticle('fr', ['title' => 'Demain', 'published_at' => '2026-11-08 12:30:00']);
     sitemapArticle('fr', ['title' => 'Plus tard', 'published_at' => '2026-11-09 12:30:00']);
     $this->travelTo('2026-11-08 10:01:00');
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 0 URLs.')->assertSuccessful();
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 2 URLs.')->assertSuccessful();
 
     $this->travelTo('2026-11-08 13:00:00');
     Kami::flushCache();
 
-    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 1 URLs.')->assertSuccessful();
+    $this->artisan('kami:sitemap')->expectsOutputToContain('Wrote the sitemap: 3 URLs.')->assertSuccessful();
 });
 
 it('keeps the sitemap fresh when Site settings or a Global Set are saved (#446)', function () {
@@ -163,11 +174,13 @@ it('keeps the sitemap fresh when Site settings or a Global Set are saved (#446)'
 });
 
 it('swaps the new files in whole, a file no longer written gone', function () {
-    $entry = sitemapArticle('fr', ['title' => 'Bonjour']);
-    sitemapArticle('en', ['title' => 'Hello'], $entry);
+    // No Archive, which writes every Locale's file.
+    config(['kami.types' => [Page::class]]);
+    $entry = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Bonjour', 'status' => 'published'], locale: 'fr');
+    resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Hello', 'status' => 'published'], $entry, 'en');
     $this->artisan('kami:sitemap')->assertSuccessful();
 
-    sitemapArticle('en', ['status' => 'draft'], $entry->refresh());
+    resolve(SaveEntry::class)->handle(Page::class, ['status' => 'draft'], $entry->refresh(), 'en');
     $this->artisan('kami:sitemap')->assertSuccessful();
 
     expect(sitemapIndex("{$this->public}/sitemap.xml"))->toBe(['http://localhost/sitemaps/fr-1.xml'])
@@ -182,7 +195,7 @@ it('writes no index over a route of the application, and lists its files for the
     $this->artisan('kami:sitemap')->assertSuccessful();
 
     expect("{$this->public}/sitemap.xml")->not->toBeFile()
-        ->and(Kami::sitemapUrls())->toBe(['http://localhost/sitemaps/fr-1.xml'])
+        ->and(Kami::sitemapUrls())->toBe(['http://localhost/sitemaps/fr-1.xml', 'http://localhost/sitemaps/en-1.xml'])
         ->and($this->get('/sitemap.xml')->getContent())->toBe('the application\'s');
 });
 
@@ -240,7 +253,7 @@ it('leaves out an Entry under a non-visible ancestor, checking ancestors per bat
 
     $queries = $count();
 
-    expect(array_keys(sitemapUrls("{$this->public}/sitemaps/fr-1.xml")))->toEqualCanonicalizing(['http://localhost/shown', 'http://localhost/shown/middle', 'http://localhost/shown/middle/child']);
+    expect(array_keys(sitemapUrls("{$this->public}/sitemaps/fr-1.xml")))->toEqualCanonicalizing(['http://localhost/shown', 'http://localhost/shown/middle', 'http://localhost/shown/middle/child', 'http://localhost/articles']);
 
     $page('More', $page('Deeper', $page('Deep', $shown)));
     File::delete("{$this->public}/sitemap.xml");

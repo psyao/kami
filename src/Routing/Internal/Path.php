@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Normalizer;
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Internal\ContentTypes;
 
 /**
  * An address Kami answers in a Site and Locale: the current Path of a Translation (status 200), a 301 to the Entry replacing a deleted one, or a 410 (ADR 0008).
@@ -59,6 +60,18 @@ final class Path extends Model
     public static function isReserved(string $path): bool
     {
         return in_array($path, self::RESERVED_PATHS, true) || in_array(explode('/', $path)[0], self::RESERVED_SEGMENTS, true);
+    }
+
+    /** The type whose Archive answers at a normalised Path, in every Locale, which hides an Entry's there (ADR 0009). */
+    public static function archiveAt(string $path): ?ContentType
+    {
+        return collect(resolve(ContentTypes::class)->all())->first(fn (ContentType $type): bool => $type->hasArchive() && self::normalise($type->prefix()) === $path);
+    }
+
+    /** Whether an Archive answers at a normalised Path. */
+    public static function isArchive(string $path): bool
+    {
+        return self::archiveAt($path) instanceof ContentType;
     }
 
     /** The slug a title gives in a Locale, the same in the admin form and on save. */

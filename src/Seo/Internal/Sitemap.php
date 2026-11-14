@@ -19,11 +19,10 @@ use Throwable;
 use XMLWriter;
 
 /**
- * The static sitemap Apache serves without PHP (ADR 0027): `public/sitemap.xml`, always an index, over `public/sitemaps/{locale}-{n}.xml`.
+ * The static sitemap Apache serves without PHP (ADR 0027), listing visible Entries, Terms among them with their Term Archive, then each Archive's first page: `public/sitemap.xml`, always an index, over `public/sitemaps/{locale}-{n}.xml`.
  * It is rebuilt whole when stale: after a core write, which touches a marker under `storage/framework/kami/`, or once a visibility change the page cache manifest records has passed.
  *
  * ponytail: the `default` Site only, as `Site::current()`; V1 multisite needs a per-host index (ADR 0027, Multi-site door).
- * ponytail: Entries only; M10 adds Archives and Term Archives.
  *
  * @internal
  */
@@ -144,8 +143,23 @@ final class Sitemap
         try {
             $routable = array_map(fn (ContentType $type): string => $type->handle(), array_filter(resolve(ContentTypes::class)->all(), fn (ContentType $type): bool => $type->isRoutable()));
 
+            $add = function (string $locale, string $url, ?string $lastmod, array $alternates) use ($directory, &$files, &$total): void {
+                if (($files[$locale]['urls'] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
+                    if (isset($files[$locale])) {
+                        self::close($files[$locale]['writer']);
+                    }
+                    $number = ($files[$locale]['number'] ?? 0) + 1;
+                    $files[$locale] = ['writer' => self::open("{$directory}/{$locale}-{$number}.xml"), 'number' => $number, 'urls' => 0];
+                }
+
+                /** @var array<string, string> $alternates */
+                self::url($files[$locale]['writer'], $url, $lastmod, $alternates);
+                $files[$locale]['urls']++;
+                $total++;
+            };
+
             // Every Translation's visibility is read in PHP, as `url()` does, rather than once per Locale in SQL; ancestors' once per batch.
-            Entry::query()->withUnpublished()->where('site', $site->handle)->whereIn('type', $routable)->chunkById(self::BATCH, function (Collection $entries) use ($site, $directory, &$files, &$total): void {
+            Entry::query()->withUnpublished()->where('site', $site->handle)->whereIn('type', $routable)->chunkById(self::BATCH, function (Collection $entries) use ($site, $add): void {
                 VisiblePaths::preload($entries);
 
                 foreach ($entries as $entry) {
@@ -153,20 +167,21 @@ final class Sitemap
                     $alternates = ResolvePageMeta::alternates($site, $urls);
 
                     foreach ($urls as $locale => $url) {
-                        if (($files[$locale]['urls'] ?? self::URLS_PER_FILE) === self::URLS_PER_FILE) {
-                            if (isset($files[$locale])) {
-                                self::close($files[$locale]['writer']);
-                            }
-                            $number = ($files[$locale]['number'] ?? 0) + 1;
-                            $files[$locale] = ['writer' => self::open("{$directory}/{$locale}-{$number}.xml"), 'number' => $number, 'urls' => 0];
-                        }
-
-                        self::url($files[$locale]['writer'], $url, $entry->translation($locale)?->updated_at?->toAtomString(), $alternates);
-                        $files[$locale]['urls']++;
-                        $total++;
+                        $add($locale, $url, $entry->translation($locale)?->updated_at?->toAtomString(), $alternates);
                     }
                 }
             });
+
+            // An Archive's first page in every Locale; its cursor pages are never indexed.
+            foreach (resolve(ContentTypes::class)->all() as $type) {
+                if ($type->hasArchive()) {
+                    $urls = ResolvePageMeta::archiveUrls($site, $type);
+
+                    foreach ($urls as $locale => $url) {
+                        $add($locale, $url, null, ResolvePageMeta::alternates($site, $urls));
+                    }
+                }
+            }
 
             foreach ($files as $file) {
                 self::close($file['writer']);

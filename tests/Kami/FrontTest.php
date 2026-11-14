@@ -137,17 +137,19 @@ it('sets no cookie on a front response, even inside the web group', function () 
     $this->get('/articles/nowhere')->assertNotFound()->assertHeaderMissing('Set-Cookie');
 });
 
-it('runs the site\'s middleware on an Entry, after the kami group, on either mount', function (bool $session) {
+it('runs the site\'s middleware on an Entry and an Archive, after the kami group, on either mount', function (bool $session) {
     saveArticle();
     Kami::routes(session: $session, middleware: [MarksRendering::class]);
 
     $this->get('/articles/hello-world')->assertOk()->assertHeader('X-Rendered-By', 'site');
+    $this->get('/articles')->assertOk()->assertHeader('X-Rendered-By', 'site');
+    $this->get('/en/articles')->assertOk()->assertHeader('X-Rendered-By', 'site');
     $middleware = Route::getRoutes()->match(Request::create('/articles/hello-world'))->gatherMiddleware();
     expect(array_search(MarksRendering::class, $middleware, true))->toBeGreaterThan(array_search('kami', $middleware, true));
 })->with(['sessionless' => [false], 'with the session' => [true]]);
 
 // `route:cache` keeps the route's own middleware but neither the `kami` group nor its alias, which `KamiServiceProvider` declares at boot.
-it('keeps the site\'s middleware on an Entry read from a cached route table', function (bool $session) {
+it('keeps the site\'s middleware on an Entry and an Archive read from a cached route table', function (bool $session) {
     saveArticle();
     Kami::routes(session: $session, middleware: [MarksRendering::class]);
     foreach (Route::getRoutes() as $route) {
@@ -156,6 +158,7 @@ it('keeps the site\'s middleware on an Entry read from a cached route table', fu
     Route::setCompiledRoutes(Route::getRoutes()->compile());
 
     $this->get('/articles/hello-world')->assertOk()->assertHeader('X-Rendered-By', 'site');
+    $this->get('/articles')->assertOk()->assertHeader('X-Rendered-By', 'site');
 })->with(['sessionless' => [false], 'with the session' => [true]]);
 
 it('keeps the site\'s middleware off the Tick, Conversions, the Form route, Preview links and the sitemap', function (bool $session, string $method, string $uri) {

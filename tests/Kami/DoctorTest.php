@@ -11,6 +11,7 @@ use Filament\Facades\Filament;
 use Filament\Panel;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel as HttpKernelContract;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as PlainUser;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
@@ -65,8 +66,21 @@ final class Undescribed extends ContentType
 }
 
 /** A type that renders without a view. */
+/** An Archive with no view of its own. */
+final class Catalogued extends ContentType
+{
+    protected bool $archive = true;
+}
+
 final class Rendered extends ContentType
 {
+    protected bool $archive = true;
+
+    public function renderArchive(CursorPaginator $entries): Response
+    {
+        return response('');
+    }
+
     public function render(Entry $entry): Response
     {
         return response('');
@@ -639,14 +653,18 @@ it('warns in production, not elsewhere, about a session cookie not always Secure
     'off in local' => ['local', false, false],
 ]);
 
-it('warns about a type whose view is missing, unless it renders without one', function () {
-    config(['kami.types' => [Undescribed::class, Rendered::class]]);
+it('warns about a type whose view or Archive view is missing, unless it renders without one', function () {
+    config(['kami.types' => [Undescribed::class, Rendered::class, Catalogued::class]]);
 
     $this->artisan('kami:doctor')
+        ->expectsOutputToContain('The Content Type catalogued has an Archive but no view kami.catalogued-archive: its Archive cannot render.')
+        ->expectsOutputToContain('Fix: create resources/views/kami/catalogued-archive.blade.php, or override renderArchive() in ' . Catalogued::class . '.')
+        ->expectsOutputToContain('docs/guide/routing-and-rendering.md#archives')
         ->expectsOutputToContain('The Content Type undescribed has no view kami.undescribed')
         ->expectsOutputToContain('Fix: create resources/views/kami/undescribed.blade.php')
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#rendering')
         ->doesntExpectOutputToContain('kami.rendered')
+        ->doesntExpectOutputToContain('kami.undescribed-archive')
         ->assertSuccessful();
 });
 

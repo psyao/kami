@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content;
 
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Str;
@@ -32,6 +33,12 @@ abstract class ContentType
 
     /** `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand. */
     protected bool $hierarchical = false;
+
+    /** `true` lists its visible Entries at its Prefix, under every Locale segment, through `renderArchive()`: a routable type with a Prefix of its own (ADR 0009). */
+    protected bool $archive = false;
+
+    /** The Entries on each page of its Archive. */
+    protected int $perPage = 10;
 
     /** Its pages' `og:type`; `article` adds `article:published_time` and `article:modified_time`. */
     protected string $ogType = 'website';
@@ -172,6 +179,18 @@ abstract class ContentType
     }
 
     /**
+     * Turns a page of its Archive into the response at its Prefix (ADR 0009): `$entries` holds the visible Entries, newest first, or in Position order on an orderable type.
+     *
+     * Kami calls it through the container, as `render()`.
+     *
+     * @param  CursorPaginator<int, Entry>  $entries
+     */
+    public function renderArchive(CursorPaginator $entries): View | Response
+    {
+        return view()->make("kami.{$this->handle()}-archive", ['entries' => $entries]);
+    }
+
+    /**
      * The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field's paragraphs, in its own Locale only.
      *
      * Headings, code blocks, lists, quotes and Blocks are left out (#467).
@@ -230,6 +249,18 @@ abstract class ContentType
     public function isOrderable(): bool
     {
         return $this->orderable;
+    }
+
+    /** @internal */
+    public function hasArchive(): bool
+    {
+        return $this->archive;
+    }
+
+    /** @internal */
+    public function perPage(): int
+    {
+        return $this->perPage;
     }
 
     /** @internal */

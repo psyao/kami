@@ -145,10 +145,12 @@ Moves an Entry to the Trash in all its Locales: it reads as absent everywhere an
 
 A kind of content, declared as a `final` class listed in `config/kami.php` under `types` (ADR 0007).
 
+- `protected bool $archive = false`: `true` lists its visible Entries at its Prefix, under every Locale segment, through `renderArchive()`: a routable type with a Prefix of its own (ADR 0009).
 - `protected bool $hierarchical = false`: `true` lets an Entry sit under another of the same type and Site. Add `$orderable` to order each Parent's children by hand.
 - `protected ?string $model = NULL`: The `Entry` subclass its Entries hydrate to, for domain methods; `null` takes `Entry`.
 - `protected string $ogType = 'website'`: Its pages' `og:type`; `article` adds `article:published_time` and `article:modified_time`.
 - `protected bool $orderable = false`: `true` lets editors drag the type's rows, and `ordered()` read that order; a new Entry goes last.
+- `protected int $perPage = 10`: The Entries on each page of its Archive.
 - `protected ?string $prefix = NULL`: The fixed start of the type's Paths; `null` takes the handle, `''` puts them at the root.
 - `protected bool $routable = true`: `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages.
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
@@ -160,6 +162,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `final public function optionLabel(string $field, string $option): string`: `kami-types.{handle}.fields.{field}.options.{option}`, or the humanised option key.
 - `final public function pluralLabel(): string`: `kami-types.{handle}.plural`, or the humanised handle in the plural.
 - `public function render(Psyao\Kami\Content\Entry $entry): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Entry into the response at its Path (ADR 0009).
+- `public function renderArchive(Illuminate\Contracts\Pagination\CursorPaginator $entries): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a page of its Archive into the response at its Prefix (ADR 0009): `$entries` holds the visible Entries, newest first, or in Position order on an orderable type.
 - `final public function sectionLabel(string $section): string`: `kami-types.{handle}.sections.{section}.label`, or the humanised handle.
 - `public function socialImage(Psyao\Kami\Content\Entry $entry): ?Psyao\Kami\Media\Media`: The page's Social image when its Entry has none of its own, before the Site's default one: `null` by default.
 - `public function summary(Psyao\Kami\Content\Entry $entry): ?string`: The page's description when it has no Meta description, exposed as `$entry->summary()`: by default the start of its first RichText Field's paragraphs, in its own Locale only.
@@ -417,6 +420,7 @@ One tab of the form, titled from `kami-types.{handle}.tabs.{tab}.label`; adjacen
 A Content Type classifying others: its Entries are `Term`s, published by default, linked with the `Terms` Field (ADR 0002).
 
 - `protected ?string $model = 'Psyao\\Kami\\Content\\Term'`
+- `public function render(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Pagination\CursorPaginator $entries = NULL): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response`: Turns a visible Term into the response at its Path, its Term Archive: Kami also passes it as `$term`, and `$entries`, the visible Entries of routable types linking it, newest first (ADR 0009).
 
 ## `Psyao\Kami\Content\Term`
 
@@ -530,7 +534,7 @@ What a site calls on Kami through the `Kami` facade.
 - `public function flushCache(): void`: Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data.
 - `public function form(string $handle): Psyao\Kami\Forms\Form`: A Form listed under `kami.forms`, by handle, for its view: `Kami::form('contact')->sent()`.
 - `public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed`: Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
-- `public function routes(bool $session = false, array $middleware = []): void`: Registers Kami's front: a fallback route, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone.
+- `public function routes(bool $session = false, array $middleware = []): void`: Registers Kami's front: a fallback route for Entries and Archives, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone: Entries, Archives and Term Archives.
 - `public function schedule(): void`: Declares Kami's Scheduled tasks on Laravel's `Schedule`, for `routes/console.php`. A Tick runs them in-process, or `schedule:run` from a server's cron (ADR 0020).
 - `public function seo(): Psyao\Kami\Seo\PageMeta`: The current page's head values: a Kami page's own, or the Site's on a site route or an error page.
 - `public function sitemapUrls(): array`: The absolute URLs of Kami's per-Locale sitemap files, built first when missing, for an application that answers `/sitemap.xml` itself to list in its own index.
