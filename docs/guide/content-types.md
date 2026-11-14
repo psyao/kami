@@ -124,7 +124,7 @@ Entry::query()->ofType(Page::class)->where('parent_id', $about->id)->ordered()->
 
 The two flags are separate. Alone, `$hierarchical` gives a tree with no hand order: a `position` is refused. With `$orderable`, Positions count within one Parent: a new Entry goes last among its siblings, and so does an Entry moved under another Parent, unless the same save gives a `position`.
 
-A Path does not follow the tree yet: it holds no ancestor's slug, and changing a Parent moves no Path.
+A Path follows the tree: it holds its ancestors' slugs, changing a Parent moves the Entry and its descendants, and an Entry under a non-visible ancestor answers 404 ([Paths](routing-and-rendering.md#paths)).
 
 In the admin, the type's table shows one level, searched within that level. **Children** goes down, the breadcrumb comes back, on the Edit and Create pages too, whose Cancel returns to the level, and **Reorder records**, on an orderable type, moves siblings only. The form changes the Parent with a searchable select, and creating from a Parent's children starts under it. Both take the type's `reorder` Permission: a User without it edits Entries where they are, and creates at the root.
 

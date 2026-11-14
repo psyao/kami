@@ -343,8 +343,10 @@ final class EditEntry extends EditRecord
             $this->statusAction('publish', Translation::PUBLISHED)
                 ->label(fn (): string => EntryResource::publishLabel($this->data['published_at'] ?? null))
                 ->visible(fn (): bool => $this->getRecord()->status !== Translation::PUBLISHED),
-            // ponytail: no confirmation listing a Parent's children, as none becomes unreachable while Paths ignore ancestors; #266 adds it with M10's hierarchical URLs.
-            $this->statusAction('unpublish', Translation::DRAFT)->visible(fn (): bool => $this->getRecord()->status === Translation::PUBLISHED),
+            $this->statusAction('unpublish', Translation::DRAFT)
+                ->visible(fn (): bool => $this->getRecord()->status === Translation::PUBLISHED)
+                ->requiresConfirmation(fn (): bool => EntryResource::unreachableChildren($this->getRecord(), $this->locale) !== null)
+                ->modalDescription(fn (): ?string => EntryResource::unreachableChildren($this->getRecord(), $this->locale)),
             $this->getCancelFormAction(),
         ];
     }

@@ -48,6 +48,9 @@ return [
         'parent' => 'Restore its Parent first: :parent.',
     ],
 
+    'unpublish' => [
+        'children' => 'Unpublishing :title also makes its visible children unreachable: :children.',
+    ],
     'bulk' => [
         'partial' => ':count of :total done',
         'reason' => ':reason (:count)',

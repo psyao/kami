@@ -48,6 +48,9 @@ return [
         'parent' => 'Restaurez d’abord son Parent : :parent.',
     ],
 
+    'unpublish' => [
+        'children' => 'Dépublier :title rend aussi ses enfants visibles inaccessibles : :children.',
+    ],
     'bulk' => [
         'partial' => ':count sur :total traités',
         'reason' => ':reason (:count)',

@@ -34,17 +34,17 @@ It also answers `POST /kami/forms/{handle}`, named `kami.form`, where each [Form
 
 ## Paths
 
-Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read, byte for byte on every engine: `/café` and `/cafe` are two addresses.
+Each Entry has a Path: its type's Prefix, then its slug, as `articles/hello-world`. On a [hierarchical type](content-types.md#hierarchical-types), its ancestors' slugs in the same Locale come between, as `bloc-note/symfony/installation`; a child has no Path in a Locale where one of its ancestors has no slug yet, and gets one once it has. It is stored lowercase, without leading or trailing slash. A request is matched to it with one indexed read, byte for byte on every engine: `/café` and `/cafe` are two addresses.
 
 The default Locale's Paths start at the root; another Locale's sit under its code, as `/en/articles/hello-world`. See [Multilingual](multilingual.md).
 
 A [Singleton](content-types.md#singletons)'s Path is its Prefix, and a [type with no URL](content-types.md#types-with-no-url) has none.
 
-An Entry answers only while it is visible. A Draft, an Entry whose publication date is still to come, or an address no Entry holds answers 404. The address of an Entry [deleted for good](content-types.md#deleting-for-good) answers 301 to its replacement's current URL, or 410 Gone.
+An Entry answers only while it is visible, and its ancestors too. A Draft, an Entry whose publication date is still to come, an Entry under one of those, or an address no Entry holds answers 404, and `$entry->url()` is `null` for each, so Kami's components and the sitemap leave them out. A child of a Scheduled Parent answers once the Parent's date has come, with no task to run. A listing of yours that builds its own links from slugs can still link to such an Entry: build them with `url()`. The same read that matches the Path checks the ancestors, whatever the depth. The address of an Entry [deleted for good](content-types.md#deleting-for-good) answers 301 to its replacement's current URL, or 410 Gone.
 
 ### Changing an address
 
-When a slug or a Prefix changes, the former address keeps answering, as a 301 to the Entry's current URL, once the Translation has been public: its publication date has passed, even if it was unpublished or rescheduled to a later date since. A Redirect always leads to the final address in one step, so a bookmark, a search result or a browser's cached Redirect never ends on a 404. A Translation never public moves without leaving anything behind.
+When a slug, a Parent or a Prefix changes, the former address keeps answering, as a 301 to the Entry's current URL, once the Translation has been public: its publication date has passed, even if it was unpublished or rescheduled to a later date since. A Redirect always leads to the final address in one step, so a bookmark, a search result or a browser's cached Redirect never ends on a 404. A Translation never public moves without leaving anything behind. On a hierarchical type, a Parent's new slug or new place moves its descendants with it, in the same save, each former address following the same rule; when one of their new addresses is taken, the save fails on the slug. A new Parent moves the Entry in every Locale.
 
 A Redirect lasts until another Entry takes its address, which replaces it. A Draft given a past publication date by hand counts as public too: its former address answers 404 until the Entry is visible, then redirects.
 
@@ -60,6 +60,7 @@ Saving an Entry reserves its Path, a Draft's included. A change in code moves Pa
 
 - a new Prefix moves the type's Entries to their new addresses; the former ones redirect there [once public](#changing-an-address);
 - a new Locale gives each Entry of an untranslatable type its Path there;
+- a nested Entry saved before 0.10, whose Path held its slug alone, moves under its ancestors' Paths;
 - a Path whose Translation is gone is deleted.
 
 `kami:install` prints what it did, as `Paths: 0 created, 12 rewritten, 0 deleted.`, and changes nothing when nothing changed. It reads the Entries in batches, so its memory stays flat whatever their number. It runs from the command line only, never in a request.
@@ -165,4 +166,4 @@ An error raised on a route keeps that route's security headers: Kami's route sen
 
 ## Query count
 
-An Entry page costs four queries before your view runs: its Path, the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. Kami's tests assert that number, so it does not grow unnoticed.
+An Entry page costs four queries before your view runs: its Path with its ancestors', the Entry, its Translations and its Field values, in every Locale, so Fallback adds none. A nested Entry's `url()` adds two, once for every Locale, whatever its depth. Kami's tests assert that number, so it does not grow unnoticed.
