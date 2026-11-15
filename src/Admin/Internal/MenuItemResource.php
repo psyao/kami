@@ -27,6 +27,7 @@ use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use Psyao\Kami\Admin\Internal\MenuItemResource\ManageMenuItems;
@@ -99,7 +100,11 @@ final class MenuItemResource extends FilamentResource
     public static function form(Schema $schema): Schema
     {
         $locales = Site::current()->locales;
-        $kind = fn (string $kind): Closure => fn (Get $get): bool => $get('kind') === $kind;
+        $shownFor = fn (string $kind): Closure => fn (Get $get): bool => $get('kind') === $kind;
+        $perLocale = fn (string $name, string $label, int $max): Grid => Grid::make(min(count($locales), 2))->schema(array_map(
+            fn (string $locale): TextInput => TextInput::make("{$name}.{$locale}")->label(__($label, ['LOCALE' => strtoupper($locale)]))->maxLength($max),
+            $locales,
+        ));
 
         return $schema->columns(1)->components([
             ToggleButtons::make('kind')->label(__('kami::admin.menus.fields.kind'))
@@ -109,22 +114,17 @@ final class MenuItemResource extends FilamentResource
                 ->searchable()
                 ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => EntryResource::linkableTitles($search, $livewire))
                 ->getOptionLabelUsing(fn (mixed $value, mixed $livewire): ?string => is_string($value) ? EntryResource::pickerTitles([$value], $livewire)[$value] ?? null : null)
-                ->visible($kind('entry')),
+                ->visible($shownFor('entry')),
             Select::make('archive')->label(__('kami::admin.menus.kinds.archive'))
                 ->options(fn (): array => self::archives())
-                ->visible($kind('archive')),
-            Grid::make(min(count($locales), 2))->schema(array_map(
-                fn (string $locale): TextInput => TextInput::make("url.{$locale}")->label(__('kami::admin.menus.fields.url', ['LOCALE' => strtoupper($locale)]))->maxLength(2048),
-                $locales,
-            ))->visible($kind('url')),
-            Grid::make(min(count($locales), 2))->schema(array_map(
-                fn (string $locale): TextInput => TextInput::make("label.{$locale}")->label(__('kami::admin.menus.fields.label', ['LOCALE' => strtoupper($locale)]))->maxLength(255),
-                $locales,
-            )),
+                ->visible($shownFor('archive')),
+            $perLocale('url', 'kami::admin.menus.fields.url', 2048)->visible($shownFor('url')),
+            $perLocale('label', 'kami::admin.menus.fields.label', 255),
             Select::make('parent')->label(__('kami::admin.menus.fields.parent'))
                 ->placeholder(__('kami::admin.menus.fields.parent_none'))
                 ->options(fn (?MenuItem $record, ManageMenuItems $livewire): array => $livewire->parentOptions($record))
-                ->hidden(fn (): bool => Menus::depth(self::menu()) === 1),
+                // Shown for an item a lowered `depth` left nested, so it can come back up.
+                ->hidden(fn (?MenuItem $record): bool => Menus::depth(self::menu()) === 1 && $record?->parent_id === null),
             Toggle::make('new_tab')->label(__('kami::admin.menus.fields.new_tab')),
         ]);
     }
@@ -137,9 +137,9 @@ final class MenuItemResource extends FilamentResource
             ->columns([
                 TextColumn::make('label')->label(__('kami::admin.menus.columns.label'))
                     ->state(fn (MenuItem $record, ManageMenuItems $livewire): string => $livewire->label($record))
-                    // Its level said to screen readers too, not only shown by the indent.
-                    ->prefix(fn (MenuItem $record, ManageMenuItems $livewire): ?string => $livewire->level($record) > 1 ? __('kami::admin.menus.level', ['level' => $livewire->level($record)]) . ': ' : null)
-                    ->extraAttributes(fn (MenuItem $record, ManageMenuItems $livewire): array => ['class' => "kami-menu-level-{$livewire->level($record)}"]),
+                    // Indented by level, and the level said to screen readers, which do not see the indent.
+                    ->prefix(fn (MenuItem $record, ManageMenuItems $livewire): ?HtmlString => $livewire->level($record) > 1 ? new HtmlString('<span class="fi-sr-only">' . e(__('kami::admin.menus.level', ['level' => $livewire->level($record)])) . ': </span>') : null)
+                    ->extraAttributes(fn (MenuItem $record, ManageMenuItems $livewire): array => ['class' => "kami-admin-menu-level-{$livewire->level($record)}"]),
                 TextColumn::make('target')->label(__('kami::admin.menus.columns.target'))
                     ->state(fn (MenuItem $record, ManageMenuItems $livewire): string => $livewire->target($record)),
                 IconColumn::make('new_tab')->label(__('kami::admin.menus.fields.new_tab'))->boolean()->visibleFrom('md'),
@@ -190,7 +190,7 @@ final class MenuItemResource extends FilamentResource
             ->extraAttributes(['data-kami-move' => $name])
             ->authorize(fn (): bool => self::can('update'))
             ->disabled(fn (MenuItem $record, ManageMenuItems $livewire): bool => ! $livewire->canMove($record, $step))
-            ->action(fn (MenuItem $record): MenuItem => resolve(MoveMenuItem::class)->handle($record, $record->position + $step, Filament::auth()->user()));
+            ->action(fn (MenuItem $record, ManageMenuItems $livewire): MenuItem => resolve(MoveMenuItem::class)->handle($record, $livewire->rank($record) + $step, Filament::auth()->user()));
     }
 
     /**
@@ -202,13 +202,13 @@ final class MenuItemResource extends FilamentResource
     {
         $locales = Site::current()->locales;
         $kind = $data['kind'] ?? null;
-        $none = array_fill_keys($locales, null);
+        $cleared = array_fill_keys($locales, null);
         $values = [
             'entry' => $kind === 'entry' ? $data['entry'] ?? null : null,
             'archive' => $kind === 'archive' ? $data['archive'] ?? null : null,
             // Each Locale given, so a Locale emptied, or another target chosen, clears the stored address.
-            'url' => $kind === 'url' && is_array($data['url'] ?? null) ? [...$none, ...$data['url']] : $none,
-            'label' => is_array($data['label'] ?? null) ? [...$none, ...$data['label']] : $none,
+            'url' => $kind === 'url' && is_array($data['url'] ?? null) ? [...$cleared, ...$data['url']] : $cleared,
+            'label' => is_array($data['label'] ?? null) ? [...$cleared, ...$data['label']] : $cleared,
             'new_tab' => (bool) ($data['new_tab'] ?? false),
         ];
 
@@ -221,14 +221,14 @@ final class MenuItemResource extends FilamentResource
             return resolve(SaveMenuItem::class)->handle(self::menu(), $values, $item, Filament::auth()->user());
         } catch (ValidationException $exception) {
             $errors = [];
-            $chosen = match ($kind) {
+            $targetInput = match ($kind) {
                 'archive' => 'archive',
                 'url' => 'url.' . Site::current()->defaultLocale(),
                 default => 'entry',
             };
 
             foreach ($exception->errors() as $key => $messages) {
-                $errors["mountedActions.{$action->getNestingIndex()}.data." . ($key === 'target' ? $chosen : $key)] = $messages;
+                $errors["mountedActions.{$action->getNestingIndex()}.data." . ($key === 'target' ? $targetInput : $key)] = $messages;
             }
 
             throw ValidationException::withMessages($errors);
@@ -238,8 +238,7 @@ final class MenuItemResource extends FilamentResource
     /** @return array<string, string> The types with an Archive, by handle. */
     private static function archives(): array
     {
-        $types = array_filter(resolve(ContentTypes::class)->all(), fn (ContentType $type): bool => $type->hasArchive());
-
-        return array_combine(array_map(fn (ContentType $type): string => $type->handle(), $types), array_map(fn (ContentType $type): string => $type->pluralLabel(), $types));
+        return collect(resolve(ContentTypes::class)->all())->filter(fn (ContentType $type): bool => $type->hasArchive())
+            ->mapWithKeys(fn (ContentType $type): array => [$type->handle() => $type->pluralLabel()])->all();
     }
 }

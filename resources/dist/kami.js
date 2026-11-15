@@ -34,7 +34,7 @@ document.addEventListener('livewire:init', () => {
         }
 
         if ('kamiMove' in button.dataset) {
-            moved = { row: `tr[wire\\:key="${CSS.escape(button.closest('tr').getAttribute('wire:key'))}"]`, controls: '[data-kami-move]', attribute: 'kamiMove', direction: button.dataset.kamiMove }
+            moved = { row: `tr[wire\\:key="${CSS.escape(button.closest('tr')?.getAttribute('wire:key') ?? '')}"]`, controls: '[data-kami-move]', attribute: 'kamiMove', direction: button.dataset.kamiMove }
         } else {
             moved = { row: `[x-sortable-item="${CSS.escape(button.closest('[x-sortable-item]').getAttribute('x-sortable-item'))}"]`, controls: '[data-table-reorder-direction]', attribute: 'tableReorderDirection', direction: button.dataset.tableReorderDirection }
         }

@@ -85,10 +85,10 @@
 }
 
 /* A Menu item's label, indented by its level in the Menu's table (ADR 0025); the level is also said in words to screen readers. */
-.kami-menu-level-2 {
+.kami-admin-menu-level-2 {
     padding-inline-start: 1.5rem;
 }
 
-.kami-menu-level-3 {
+.kami-admin-menu-level-3 {
     padding-inline-start: 3rem;
 }

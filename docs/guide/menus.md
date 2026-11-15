@@ -99,7 +99,7 @@ Each declared Menu has its own page in the admin's navigation, under its label, 
 
 The page lists the whole tree in one table, in tree order, each item indented under its Parent; screen readers hear its level too. A row shows the item's label in the default Locale, or the title it falls back to, and its target.
 
-- **New menu item** and each row's **Edit** open the same form. **Target** picks an Entry, searched by title, an Archive, or an address. The form takes a label for every Locale at once, and an address per Locale for an address item. **Parent** offers the Menu's other items, never the item itself or one under it; a Menu with a `depth` of 1 has no Parent field. **Opens in a new tab** sets `new_tab`. A refused save keeps the form open, its error on the field at fault.
+- **New menu item** and each row's **Edit** open the same form. **Target** picks an Entry, searched by title, an Archive, or an address. The form takes a label for every Locale at once, and an address per Locale for an address item. **Parent** offers the Menu's other items, but never the item itself, one under it, or one that would nest it deeper than the Menu's `depth`. A Menu with a `depth` of 1 shows no Parent field, except for an item a lowered `depth` left nested, which can come back to the top level. **Opens in a new tab** sets `new_tab`. A refused save keeps the form open, its error on the field at fault.
 - Each row's up and down buttons move it among its siblings. They are buttons, reached with Tab and pressed with Enter, and focus stays on the moved row's button. There is no drag-and-drop.
 - **Delete** asks first, then moves the item's children up one level, in its place.
 
