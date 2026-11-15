@@ -807,6 +807,20 @@ it('lists every Locale in one menu with its state, the edited one unlinked', fun
         ->assertSee('EN · Scheduled');
 });
 
+// Editing a published Translation takes `publish` (ADR 0019): its link would answer 403, so it stays listed with its state, disabled (#667).
+it('disables a Locale the User may not edit, keeping its state', function () {
+    config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello', 'status' => 'published'], $entry, 'en');
+    signInWith(['kami.entries.article.view', 'kami.entries.article.update']);
+
+    entryPage(EditEntry::class, parameters: ['record' => $entry->id])
+        ->assertActionHasLabel('locale_en', 'EN · Published')
+        ->assertActionDisabled('locale_en')
+        ->assertDontSeeHtml("/admin/articles/{$entry->id}/edit/en")
+        ->assertActionHasUrl('locale_de', url("/admin/articles/{$entry->id}/edit/de"));
+});
+
 it('names the Creator and Last modifier on the edit page, a deleted User as nobody, and the editor once they save', function () {
     $grace = User::forceCreate(['name' => 'Grace Hopper', 'email' => 'grace@example.test', 'password' => 'secret']);
     $linus = User::forceCreate(['name' => 'Linus Torvalds', 'email' => 'linus@example.test', 'password' => 'secret']);

@@ -151,7 +151,7 @@ final class AuditEventResource extends FilamentResource
     }
 
     /**
-     * The subjects of these events the reader may see, as `[label, url]` by `subjectKey()`: an Entry or a Media item the User may open is linked, a User named.
+     * The subjects of these events the reader may see, as `[label, url]` by `subjectKey()`: an Entry the User may edit or a Media item the User may open is linked, a User named.
      * One gone or out of reach is left out, for `ListAuditEvents::subject()` to show by its id.
      * One query per subject type, so a page of events costs the same whatever it holds.
      *
@@ -174,8 +174,8 @@ final class AuditEventResource extends FilamentResource
 
         foreach (Entry::query()->withUnpublished()->withTrashed()->whereKey($ids['entry'] ?? [])->with('translations')->get() as $entry) {
             if (in_array($entry->type, $readable, true)) {
-                // One in the Trash has no edit page to link to.
-                $described["entry:{$entry->id}"] = [self::subjectLabel('entry', EntryTitles::marked($entry)), $entry->trashed() ? null : EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))];
+                // One in the Trash has no edit page to link to, and one the User may not edit a page that would answer 403.
+                $described["entry:{$entry->id}"] = [self::subjectLabel('entry', EntryTitles::marked($entry)), $entry->trashed() ? null : EntryResource::withConfiguration($entry->type, fn (): ?string => EntryResource::editUrlIfAllowed($entry, null))];
             }
         }
 

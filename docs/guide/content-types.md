@@ -951,7 +951,7 @@ The copy cannot go live by accident:
 
 It writes directly, without `SaveEntry`, so it dispatches `EntryDuplicated` only ([Reacting to content](publishing.md#reacting-to-content)). A [Singleton](#singletons) or a [Global Set](#global-sets) is refused with a `ValidationException` on `entry`, as a Site holds only one; an Entry in the Trash is an `InvalidArgumentException`.
 
-In the admin, **Duplicate** on a row takes the type's `create` Permission and opens the copy's edit page.
+In the admin, **Duplicate** on a row takes the type's `create` Permission and opens the copy's edit page; a User without `update` stays on the list, the notification naming the copy.
 
 ## The Trash
 

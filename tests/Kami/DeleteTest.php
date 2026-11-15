@@ -307,6 +307,17 @@ it('deletes a Translation from its edit page, and shows a refusal on a notificat
     entriesPage(EditEntry::class, parameters: ['record' => $entry->id, 'locale' => 'en'])->assertActionHidden('deleteTranslation');
 });
 
+// The default Locale's edit page would answer 403 (ADR 0019): the list instead (#667).
+it('leads a User who may not edit the default Locale\'s Translation to the list once one is deleted', function () {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'status' => 'published']);
+    resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello'], $entry, 'en');
+
+    entriesPage(EditEntry::class, ['kami.entries.article.view', 'kami.entries.article.update', 'kami.entries.article.delete'], ['record' => $entry->id, 'locale' => 'en'])
+        ->callAction('deleteTranslation')
+        ->assertNotified(__('kami::admin.delete_translation.done'))
+        ->assertRedirect('/admin/articles');
+});
+
 it('offers the Translation\'s deletion under delete only', function () {
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
     $can = fn (string ...$actions): array => array_map(fn (string $action): string => "kami.entries.article.{$action}", ['view', 'update', ...$actions]);

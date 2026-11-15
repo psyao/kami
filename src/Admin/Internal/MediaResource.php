@@ -152,7 +152,7 @@ final class MediaResource extends FilamentResource
     }
 
     /**
-     * The first Entries using it, then how many more, each linked to its edit page; one in the Trash has no page to link to, and is named only.
+     * The first Entries using it, then how many more, each linked to its edit page; one in the Trash has no page to link to, and one the User may not edit a page that would answer 403: each is named only.
      * Those of types the User may not view, a type no longer declared included, are counted last, with no title (ADR 0014).
      */
     private static function usedBy(Media $media): HtmlString
@@ -164,10 +164,9 @@ final class MediaResource extends FilamentResource
 
         $items = $sources->limit(self::USED_BY_SHOWN)->get()->map(function (Entry $entry) use ($linkable): string {
             $title = e(EntryTitles::marked($entry));
+            $url = $entry->trashed() || ! in_array($entry->type, $linkable, true) ? null : EntryResource::withConfiguration($entry->type, fn (): ?string => EntryResource::editUrlIfAllowed($entry, null));
 
-            return $entry->trashed() || ! in_array($entry->type, $linkable, true)
-                ? "<li>{$title}</li>"
-                : '<li><a href="' . e(EntryResource::withConfiguration($entry->type, fn (): string => EntryResource::editUrl($entry, null))) . "\">{$title}</a></li>";
+            return $url === null ? "<li>{$title}</li>" : '<li><a href="' . e($url) . "\">{$title}</a></li>";
         });
 
         $more = $count > self::USED_BY_SHOWN ? '<li>' . e(__('kami::admin.media.used_by.more', ['count' => $count - self::USED_BY_SHOWN])) . '</li>' : '';

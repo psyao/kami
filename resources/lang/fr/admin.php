@@ -80,6 +80,7 @@ return [
         'title' => ':title (copie)',
         'singleton' => 'Un Singleton ou un Global Set ne se duplique pas : un Site n’en a qu’un.',
         'done' => 'Copie créée',
+        'done_named' => 'Copie créée : :title',
     ],
 
     'delete' => [

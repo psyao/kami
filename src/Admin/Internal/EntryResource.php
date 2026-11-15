@@ -415,7 +415,7 @@ final class EntryResource extends FilamentResource
             ...(self::type()->isHierarchical() ? [Action::make('children')->label(__('kami::admin.actions.children'))->url(fn (Entry $record): string => self::getUrl(parameters: ['parent' => $record->id]))->hidden($trashed)] : []),
             // A trashed Entry has no edit page: nothing changes while it waits.
             EditAction::make()->hidden($trashed),
-            // The copy opens at once: duplicating is where its editing starts.
+            // The copy opens at once: duplicating is where its editing starts. One the User may not edit would answer 403: the list stays, naming it.
             ReplicateAction::make()
                 ->label(__('kami::admin.actions.duplicate'))
                 ->modalHeading(fn (ReplicateAction $action): string => __('kami::admin.duplicate.heading', ['title' => $action->getRecordTitle()]))
@@ -426,8 +426,11 @@ final class EntryResource extends FilamentResource
                 // No refusal to show: a Singleton or a Global Set, the only ones refused, has no list.
                 ->action(function (Entry $record, ReplicateAction $action): void {
                     $copy = resolve(DuplicateEntry::class)->handle($record, Filament::auth()->user());
+                    $url = self::editUrlIfAllowed($copy, null);
+                    $url === null
+                        ? $action->successNotificationTitle(__('kami::admin.duplicate.done_named', ['title' => EntryTitles::of($copy)]))
+                        : $action->successRedirectUrl($url);
                     $action->success();
-                    $action->redirect(self::editUrl($copy, null));
                 }),
             DeleteAction::make()
                 ->label(__('kami::admin.actions.trash'))
