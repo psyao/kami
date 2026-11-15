@@ -10,6 +10,7 @@ use Filament\GlobalSearch\Providers\DefaultGlobalSearchProvider;
 use Filament\Livewire\GlobalSearch;
 use Filament\Panel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
@@ -70,7 +71,7 @@ it('skips the types the User may not list and leaves the Trash out', function ()
     $tag = resolve(SaveEntry::class)->handle(Tag::class, ['title' => 'Vevey']);
     resolve(TrashEntry::class)->handle(resolve(SaveEntry::class)->handle(Tag::class, ['title' => 'Vevey (old)']));
 
-    expect(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.tag.view'], type: null), 'vevey'))->toBe([
+    expect(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.tag.view', 'kami.entries.tag.update', 'kami.entries.tag.publish'], type: null), 'vevey'))->toBe([
         'Tags' => [['Vevey', "/admin/tags/{$tag->id}/edit", []]],
     ]);
 });
@@ -130,3 +131,34 @@ it('finds Media by name or by alt text in any Locale, leading to the edit page, 
     expect($urls)->toBe([url('/admin/media?search=vevey-beach')])
         ->and(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.tag.view'], type: null), 'vevey'))->toBe([]);
 });
+
+// An edit page answers 403 without `update`, and for a published Translation without `publish` too (ADR 0019): Filament's result needs a URL, so it is left out (#661).
+it('leaves out a Translation the User may not edit: every one without update, a published one without publish', function (array $permissions, array $shown): void {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Vevey', 'slug' => 'vevey', 'author' => 'Ada', 'status' => 'published']);
+    searchedArticle('Vevey in English', 'vevey-in-english', $entry, 'en');
+    $results = [
+        'published' => ['Vevey', "/admin/articles/{$entry->id}/edit", ['Locale' => 'FR']],
+        'draft' => ['Vevey in English', "/admin/articles/{$entry->id}/edit/en", ['Locale' => 'EN']],
+    ];
+
+    expect(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.article.view', ...$permissions], type: null), 'vevey'))
+        ->toBe($shown === [] ? [] : ['Articles' => array_map(fn (string $key): array => $results[$key], $shown)]);
+})->with([
+    'view only' => [[], []],
+    'update' => [['kami.entries.article.update'], ['draft']],
+    'update and publish' => [['kami.entries.article.update', 'kami.entries.article.publish'], ['published', 'draft']],
+]);
+
+// Every result checks the policy for its link, `publish` included, from the Translations loaded with its Entry: the User's Roles, then the Entries, their Translations and type rows, read by the render and again by `getResults()`.
+it('searches in a fixed number of queries, whatever the number of results', function (int $entries): void {
+    for ($i = 1; $i <= $entries; $i++) {
+        resolve(SaveEntry::class)->handle(Article::class, ['title' => "Vevey {$i}", 'slug' => "vevey-{$i}", 'author' => 'Ada', 'status' => 'published']);
+    }
+    $search = entriesPage(GlobalSearch::class, ['kami.entries.article.view', 'kami.entries.article.update', 'kami.entries.article.publish'], type: null);
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    expect(searchResults($search, 'vevey')['Articles'])->toHaveCount($entries)
+        ->and(DB::getQueryLog())->toHaveCount(7);
+})->with([1, 10]);
