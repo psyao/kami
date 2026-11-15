@@ -290,7 +290,7 @@ RichText::make('body')->blocks([Callout::class]); // Offers Blocks, each listed 
 
 The first read of the declarations refuses a heading level other than 2, 3 or 4 and a `RichText` inside a Repeater or a Group, as nothing normalises a document there yet.
 
-A Block renders through its own view, and one the Field no longer offers is kept and renders nothing: see [Blocks](blocks.md). `kami://` links survive a save, and render as their text until internal links land later in M10.
+A Block renders through its own view, and one the Field no longer offers is kept and renders nothing: see [Blocks](blocks.md).
 
 `Document::fromHtml($html, $field)` imports HTML through the same normalisation, so an importer hands `SaveEntry` the result:
 
@@ -308,12 +308,18 @@ resolve(SaveEntry::class)->handle(Article::class, [
 Bare text in a list item or a quote is wrapped in a paragraph, and each unknown block element such as a `div` or a table cell becomes a paragraph of its own. Scripts, styles and images leave nothing: an image is a Block. It reads three things beyond plain HTML:
 
 - `<pre><code class="language-php">` as a code block with its language, when the Field has `->code()`;
-- `kami://` links, kept as they are;
+- `kami://` links, kept as they are, and indexed on save like the editor's;
 - `<kami-block handle="gallery" data='{"items": ["01J..."]}'></kami-block>` as a Block, with `data` a JSON object, `{}` when left out. A marker with no handle or unreadable data throws an `InvalidArgumentException` naming it, as it is a bug in the importer that wrote it. A marker inside a paragraph moves after it, as a Block never sits inside text. HTML that is not valid UTF-8 throws an `InvalidArgumentException` too.
 
 Unwrapping paragraphs (`wpautop`), shortcodes, Media and rewriting URLs stay with the importer, which emits that HTML.
 
 Saving a document in the admin reminds the editor, without stopping the save, of a skipped heading level, counted from the Field's highest level as the title is the H1, of an empty heading and of a link with no text. The reminders stay on screen until dismissed; saving the Entry again replaces them rather than adding more.
+
+#### Internal links
+
+The editor's link button picks an Entry, searched by title among the types with pages the User may view, Drafts included, or a Media item. It stores `kami://entry/<id>` or `kami://media/<id>`; an address typed in the same form stays as typed, and filling one of the three empties the others. The link follows its target: it renders at the Entry's current `url()` in the Locale the Entry holding the document is read in, its ancestors' slugs included, and at the Media item's own URL (`url()`, the file for a document or an SVG). A target with no visible Translation in that Locale, under a hidden ancestor, in the Trash or on another Site renders as plain text, never as a broken link. Rendering a document reads all its targets in one batch, whatever the number of links.
+
+`SaveEntry` indexes the targets as the document's References, a Block's own `RichText` included, so the Media library's "used by" and the Trash's warning list them, and a linked Media item cannot be deleted, as for a Media Field. A link whose target is gone, an Entry deleted for good, a Media item that does not exist or a target on another Site, loses its link on the next save and keeps its text; one to an Entry in the Trash stays, and renders again once it is restored.
 
 ### Inline Markdown
 

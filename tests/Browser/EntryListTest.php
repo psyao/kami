@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Page;
 use Workbench\App\Content\Project;
 
 uses(RefreshDatabase::class);
@@ -83,11 +84,12 @@ it('names each selection checkbox with its row\'s title, whichever Locale holds 
 });
 
 it('writes in the rich text editor, shows a Block with its label and summary, and keeps an unavailable one whole', function () {
+    $target = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Cible'], locale: 'fr');
     $body = ['type' => 'doc', 'content' => [
         ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Avant']]],
         ['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => ['items' => ['01J']]]],
         ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un <b>encadré</b>', 'tone' => 'info', 'image' => null]]],
-        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Voir la '], ['type' => 'text', 'text' => 'target', 'marks' => [['type' => 'link', 'attrs' => ['href' => 'kami://entry/01JABC']]]]]],
+        ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Voir la '], ['type' => 'text', 'text' => 'target', 'marks' => [['type' => 'link', 'attrs' => ['href' => "kami://entry/{$target->id}"]]]]]],
     ]];
     $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada', 'body' => $body], locale: 'fr');
 
@@ -104,7 +106,8 @@ it('writes in the rich text editor, shows a Block with its label and summary, an
     assertAxeClean(visit("/admin/articles/{$entry->id}/edit")->on()->mobile()->assertSee('Avant'), admin: true)->assertNoJavaScriptErrors();
 
     $page->click('internal:role=button[name="Link"s]');
-    $page->assertSee('URL')->assertDontSee('Open in new tab');
+    // Kami's pickers beside Filament's address, which loses its new-tab box.
+    assertAxeClean($page->assertSee('URL')->assertSee('Entry')->assertSee('Media item')->assertDontSee('Open in new tab'), admin: true);
     $page->click('internal:role=button[name="Cancel"i] >> nth=-1');
 
     $page->click('[data-testid="rich-editor-content"] >> text=Avant');
@@ -119,5 +122,5 @@ it('writes in the rich text editor, shows a Block with its label and summary, an
 
     expect($saved->blocks())->toBe([['handle' => 'gallery', 'data' => ['items' => ['01J']]], ['handle' => 'callout', 'data' => ['text' => 'Un <b>encadré</b>', 'tone' => 'info', 'image' => null]]])
         ->and($saved->text())->toContain('Encore')->toContain('Avant')->toContain('target')
-        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][3]['content'][1]['marks'][0]['attrs']['href'])->toBe('kami://entry/01JABC');
+        ->and(json_decode((string) DB::table('kami_type_article')->where(['entry_id' => $entry->id, 'locale' => 'fr'])->value('body'), true)['content'][3]['content'][1]['marks'][0]['attrs']['href'])->toBe("kami://entry/{$target->id}");
 });

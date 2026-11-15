@@ -45,7 +45,7 @@ Security comes from structure, not from a purifier. A schema decides what can ex
   - `kami:doctor` reports such Blocks by scanning documents from the CLI, in batches.
   - `ContentMigrator` gains `renameBlock`, `renameBlockField` and `dropBlock`.
 - **Not inside a document, for now.** A `RichText` in a `Repeater` or a `Group` is a boot error, since `SaveEntry` normalises top-level Fields only. It is added when a site needs it.
-- **Until M10.** M4 keeps Block nodes and `kami://` hrefs in stored documents, and offers neither `Block` classes, the link picker nor `kami_references` indexing. A `kami://` link renders as its plain text and a Block renders nothing.
+- **Until M10.** M4 kept Block nodes and `kami://` hrefs in stored documents, and offered neither `Block` classes, the link picker nor `kami_references` indexing: a `kami://` link rendered as its plain text and a Block rendered nothing. M10 delivered all three (#624, #627).
 - **A Block in the editor.** TipTap replaces a whole document it cannot read with an empty one, and a save would then erase it. So the Admin hands a Block to Filament's `RichEditor` as a `customBlock`, the one non-text node its schema always holds, with the Block's `{handle, data}` in `id` and no `config`. Filament then offers delete and no edit, and `SaveEntry` receives the `block` node back. The editor shows it as unavailable until M10 gives it a label and a summary.
 - **Admin preview.** A Block's front view is never shown in the Admin, since the front's CSS is not loaded there. The preview shows the Block's label and its optional `summary(array $data): string`. The `Image` Block adds a thumbnail Conversion. Kami builds and escapes that HTML, since Filament trusts it.
 - **Kami's Blocks**, each opt-in:

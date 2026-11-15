@@ -47,7 +47,7 @@ function veloxPost(string $title, array $french = []): array
 /** @return array<int, array{string, string|null}> Event name and context of each Audit row, oldest first. */
 function importAudit(): array
 {
-    return DB::table('kami_audit_events')->oldest('occurred_at')->get(['event', 'context'])
+    return DB::table('kami_audit_events')->oldest('occurred_at')->orderBy('id')->get(['event', 'context'])
         ->map(fn (object $row): array => [$row->event, json_decode($row->context, true)])->all();
 }
 

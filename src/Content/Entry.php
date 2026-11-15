@@ -189,11 +189,15 @@ class Entry extends Model
         }
 
         if (! $this->contentType()?->isTranslatable($field)) {
-            return $field->read($this->fieldRows['*'][$key] ?? null);
+            $value = $field->read($this->fieldRows['*'][$key] ?? null);
+
+            return $value instanceof Document ? $value->readIn($this->readLocale()) : $value;
         }
 
         $fallback = $this->fallbackLocale($key);
         $value = $field->read($this->fieldRows[$fallback ?? $this->readLocale()][$key] ?? null);
+        // A document links in the Locale its Entry is read in, even when its text fell back (ADR 0016).
+        $value = $value instanceof Document ? $value->readIn($this->readLocale()) : $value;
 
         return $fallback !== null && ($value instanceof Document || $value instanceof InlineMarkdown) ? $value->inLanguage($fallback) : $value;
     }

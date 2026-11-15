@@ -109,8 +109,15 @@ class DatabaseSeeder extends Seeder
         $save->handle(SiteSettings::class, ['default_social_image' => $photo->id], $settings, 'fr', $admin);
 
         // Blocks in a body: a Callout with an image from the library, one with none, Kami's Image and Video, and a Block no class declares any more, kept read-only.
+        // Its first paragraph links a Page and a Media item through the link picker's `kami://` hrefs.
         $save->handle(Article::class, [...$published, 'title' => 'Avec des blocs', 'author' => 'Ada', 'body' => ['type' => 'doc', 'content' => [
-            ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Un texte entre des blocs.']]],
+            ['type' => 'paragraph', 'content' => [
+                ['type' => 'text', 'text' => 'Un texte entre des blocs, qui renvoie à '],
+                ['type' => 'text', 'text' => 'la page À propos', 'marks' => [['type' => 'link', 'attrs' => ['href' => "kami://entry/{$about->id}"]]]],
+                ['type' => 'text', 'text' => ' et à '],
+                ['type' => 'text', 'text' => 'la brochure', 'marks' => [['type' => 'link', 'attrs' => ['href' => "kami://media/{$brochure->id}"]]]],
+                ['type' => 'text', 'text' => '.'],
+            ]],
             ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un encadré illustré.', 'tone' => 'info', 'image' => [$photo->id]]]],
             ['type' => 'block', 'attrs' => ['handle' => 'callout', 'data' => ['text' => 'Un avertissement.', 'tone' => 'warning']]],
             ['type' => 'block', 'attrs' => ['handle' => 'image', 'data' => ['image' => [$photo->id], 'caption' => 'Une photo de vacances.']]],

@@ -229,7 +229,8 @@ final class MediaResource extends FilamentResource
      */
     public static function picker(MediaField $field): SelectInput
     {
-        $social = $field->handle === 'seo_image' || (EntryResource::type() instanceof SiteSettings && $field->handle === 'default_social_image');
+        // The type is read last: a picker outside an Entry's form, the link modal's, has none (#627).
+        $social = $field->handle === 'seo_image' || ($field->handle === 'default_social_image' && EntryResource::type() instanceof SiteSettings);
 
         return SelectInput::make($field->handle)
             ->multiple($field->isMultiple())

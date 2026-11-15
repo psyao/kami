@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Admin\Internal;
 
+use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\RichEditor\Actions\LinkAction;
+use Filament\Forms\Components\Select as SelectInput;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Utilities\Set;
 use Psyao\Kami\Admin\Internal\Blocks\BlockSlot;
 use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\Fields\Media as MediaField;
@@ -26,11 +30,11 @@ final class RichTextInput
         return RichEditor::make($field->handle)
             ->json()
             ->fileAttachments(false)
-            // Filament's link form without its new-tab box, as `target` is never stored; its action still reads that value.
-            ->registerActions([LinkAction::make()->schema([
-                TextInput::make('url')->label(__('filament-forms::components.rich_editor.actions.link.modal.form.url.label'))->inputMode('url'),
-                Hidden::make('shouldOpenInNewTab')->default(false),
-            ])])
+            // Filament's link form with Kami's pickers and without its new-tab box, as `target` is never stored; its action still reads that value.
+            ->registerActions([LinkAction::make()
+                ->fillForm(fn (array $arguments): array => [...self::linkState($arguments['url'] ?? null), 'shouldOpenInNewTab' => false])
+                ->schema([...self::linkInputs(), Hidden::make('shouldOpenInNewTab')->default(false)])
+                ->mutateDataUsing(fn (array $data): array => [...$data, 'url' => self::linkHref($data)])])
             // Beyond what the toolbar offers, TipTap would blank these hrefs in the editor.
             ->linkProtocols(['http', 'https', 'mailto', 'tel', 'kami'])
             ->toolbarButtons(array_values(array_filter([
@@ -44,6 +48,58 @@ final class RichTextInput
             // After Filament's state cast, which removes a label.
             ->afterStateHydrated(fn (RichEditor $component, mixed $state): RichEditor => $component->rawState(is_array($state) ? self::labelled($state) : $state))
             ->dehydrateStateUsing(fn (mixed $state): mixed => is_array($state) ? self::fromEditor($state) : $state);
+    }
+
+    /**
+     * A link's target: an Entry of a type with pages, Drafts included, or a Media item, each picked and stored as `kami://`, or an address as typed (ADR 0016).
+     * `linkState()` fills them from an href, `linkHref()` reads one back.
+     *
+     * @return list<Component>
+     */
+    public static function linkInputs(): array
+    {
+        $inputs = [
+            SelectInput::make('entry')
+                ->label(__('kami::admin.rich_text.link_entry'))
+                ->searchable()
+                ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => EntryResource::linkableTitles($search, $livewire))
+                ->getOptionLabelUsing(fn (string $value, mixed $livewire): ?string => EntryResource::pickerTitles([$value], $livewire)[$value] ?? null),
+            MediaResource::picker(MediaField::make('media'))->label(__('kami::admin.rich_text.link_media')),
+            TextInput::make('url')->label(__('filament-forms::components.rich_editor.actions.link.modal.form.url.label'))->inputMode('url'),
+        ];
+
+        // One target at a time: filling one input empties the others, so what the editor sees is what the link gets.
+        return array_map(fn (Field $input): Field => $input->live(onBlur: $input instanceof TextInput)->afterStateUpdated(function (mixed $state, Set $set) use ($input): void {
+            foreach (blank($state) ? [] : array_diff(['entry', 'media', 'url'], [$input->getName()]) as $other) {
+                $set($other, null);
+            }
+        }), $inputs);
+    }
+
+    /** @return array{entry: string|null, media: string|null, url: string|null} */
+    private static function linkState(mixed $href): array
+    {
+        $target = is_string($href) ? Document::target($href) : null;
+
+        return [
+            'entry' => $target !== null && $target[0] === 'entries' ? $target[1] : null,
+            'media' => $target !== null && $target[0] === 'media' ? $target[1] : null,
+            'url' => $target === null && is_string($href) ? $href : null,
+        ];
+    }
+
+    /**
+     * The picked Entry's `kami://` href, else the picked Media item's, else the address typed.
+     *
+     * @param  array<mixed>  $data
+     */
+    private static function linkHref(array $data): ?string
+    {
+        return match (true) {
+            is_string($data['entry'] ?? null) && $data['entry'] !== '' => Document::href('entries', $data['entry']),
+            is_string($data['media'] ?? null) && $data['media'] !== '' => Document::href('media', $data['media']),
+            default => is_string($data['url'] ?? null) ? $data['url'] : null,
+        };
     }
 
     /**

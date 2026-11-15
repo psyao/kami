@@ -128,21 +128,26 @@ final class RichText extends Field
     /**
      * @internal
      *
-     * What its offered Blocks link, in document order, once each: the rows `SaveEntry` writes to `kami_references` under its handle.
+     * What its offered Blocks and its `kami://` links name, a Block's own RichText's links included, in document order, once each: the rows `SaveEntry` writes to `kami_references` under its handle.
      *
      * @param  array<mixed>|null  $document
      * @return array{entries: list<string>, media: list<string>}
      */
     public function targets(?array $document): array
     {
-        $targets = ['entries' => [], 'media' => []];
+        $read = new Document($document);
+        $targets = $read->links();
 
-        foreach (new Document($document)->blocks() as $stored) {
+        foreach ($read->blocks() as $stored) {
             foreach ($this->offered($stored['handle'])?->fields() ?? [] as $field) {
                 $ids = $stored['data'][$field->handle] ?? null;
 
                 if ($field->isReference() && is_array($ids)) {
                     array_push($targets[$field instanceof Media ? 'media' : 'entries'], ...array_filter($ids, is_string(...)));
+                } elseif ($field instanceof self && is_array($ids)) {
+                    $nested = $field->targets($ids);
+                    array_push($targets['entries'], ...$nested['entries']);
+                    array_push($targets['media'], ...$nested['media']);
                 }
             }
         }
