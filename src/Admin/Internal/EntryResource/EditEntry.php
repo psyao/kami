@@ -285,7 +285,8 @@ final class EditEntry extends EditRecord
             ->action(function (): void {
                 if (EntryResource::onNotification(fn () => resolve(DeleteTranslation::class)->handle($this->getRecord(), $this->locale, Filament::auth()->user()))) {
                     Notification::make()->success()->title(__('kami::admin.delete_translation.done'))->send();
-                    $this->redirect(EntryResource::editUrl($this->getRecord(), null));
+                    // The default Locale's page, or the list when it would answer 403 (ADR 0019).
+                    $this->redirect(EntryResource::editUrlIfAllowed($this->getRecord(), null) ?? EntryResource::getUrl('index'));
                 }
             });
     }

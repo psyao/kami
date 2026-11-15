@@ -97,15 +97,18 @@ it('titles an Entry in the Trash, marked, with no link: it has no edit page', fu
         ->assertDontSeeHtml(EntryResource::withConfiguration('article', fn (): string => EntryResource::editUrl($entry, null)));
 });
 
-// Its edit page would answer 403 (ADR 0019): titled, as one in the Trash is (#667).
-it('titles, with no link, an Entry the User may view but not edit', function () {
-    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello']);
-    $published = auditRecord('kami.entries.published', $entry, ['locale' => 'en']);
+// Its edit page would answer 403: titled, as one in the Trash is (#667).
+it('titles, with no link, an Entry the User may not edit', function (string $status, array $permissions) {
+    $entry = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Hello', 'author' => 'Ada', 'status' => $status]);
+    $saved = auditRecord('kami.entries.saved', $entry);
 
-    auditLog(['kami.audit.view', 'kami.entries.article.view'])
-        ->assertTableColumnStateSet('subject', 'Entry: Hello', $published)
+    auditLog(['kami.audit.view', ...$permissions])
+        ->assertTableColumnStateSet('subject', 'Entry: Hello', $saved)
         ->assertDontSeeHtml(EntryResource::withConfiguration('article', fn (): string => EntryResource::editUrl($entry, null)));
-});
+})->with([
+    'without update' => ['draft', ['kami.entries.article.view']],
+    'published, without publish (ADR 0019)' => ['published', ['kami.entries.article.view', 'kami.entries.article.update']],
+]);
 
 it('filters by a User acting or acted upon, deleted ones included, by event and by days of the Site’s time zone', function () {
     config(['kami.sites.default.timezone' => 'Europe/Zurich']);

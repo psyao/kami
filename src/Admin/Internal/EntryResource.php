@@ -427,16 +427,10 @@ final class EntryResource extends FilamentResource
                 ->action(function (Entry $record, ReplicateAction $action): void {
                     $copy = resolve(DuplicateEntry::class)->handle($record, Filament::auth()->user());
                     $url = self::editUrlIfAllowed($copy, null);
-
-                    if ($url === null) {
-                        $action->successNotificationTitle(__('kami::admin.duplicate.done_named', ['title' => EntryTitles::of($copy)]));
-                    }
-
+                    $url === null
+                        ? $action->successNotificationTitle(__('kami::admin.duplicate.done_named', ['title' => EntryTitles::of($copy)]))
+                        : $action->successRedirectUrl($url);
                     $action->success();
-
-                    if ($url !== null) {
-                        $action->redirect($url);
-                    }
                 }),
             DeleteAction::make()
                 ->label(__('kami::admin.actions.trash'))

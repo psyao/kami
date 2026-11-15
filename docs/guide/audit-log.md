@@ -121,7 +121,7 @@ The admin's **Audit log** screen lists the events, newest first, to a User holdi
 - **When**: in the Site's time zone.
 - **Who**: the User, "Deleted User (id)" when that User is gone, the command line or the system.
 - **Event**: Kami's own events by their translated label, "Entry published" for `kami.entries.published`; your own events by their name.
-- **Subject**: an Entry or a Media item by its title or name, linked to its page. An Entry in the Trash shows its title marked as in the Trash, with no link: it has no edit page. An Entry deleted for good, an Entry of a type the reader may not view, or a Media item they may not view shows its id instead, so the screen never reveals a title its reader could not see elsewhere. A User shows their name.
+- **Subject**: an Entry or a Media item by its title or name, linked to its page. An Entry in the Trash shows its title marked as in the Trash, with no link: it has no edit page. An Entry the reader may not edit, such as a published one without `publish`, shows its title with no link, as its edit page would answer 403. An Entry deleted for good, an Entry of a type the reader may not view, or a Media item they may not view shows its id instead, so the screen never reveals a title its reader could not see elsewhere. A User shows their name.
 - **Site**, **IP** and **Context**: from a tablet's width up.
 
 Filters narrow the list to one User, acting or acted upon, found by name or id as you type, 50 at most, a deleted User by typing their id; to one event; and to a range of days in the Site's time zone.

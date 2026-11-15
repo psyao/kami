@@ -156,14 +156,17 @@ describe('used by and delete', function () {
             ->assertDontSee('Velox');
     });
 
-    // Its edit page would answer 403 (ADR 0019): named, as one in the Trash is (#667).
-    it('names, with no link, an Entry the User may view but not edit', function () {
-        $kami = usedByProjects($this->media);
+    // Its edit page would answer 403: named, as one in the Trash is (#667).
+    it('names, with no link, an Entry the User may not edit', function (string $status, array $permissions) {
+        $kami = resolve(SaveEntry::class)->handle(Project::class, ['title' => 'Kami', 'cover' => $this->media->id, 'status' => $status]);
 
-        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', 'kami.entries.project.view'])
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', ...$permissions])
             ->assertSeeHtml('<li>Kami</li>')
             ->assertDontSeeHtml("/admin/projects/{$kami->id}/edit");
-    });
+    })->with([
+        'without update' => ['draft', ['kami.entries.project.view']],
+        'published, without publish (ADR 0019)' => ['published', ['kami.entries.project.view', 'kami.entries.project.update']],
+    ]);
 
     it('counts the Entries of a type no longer declared, whose Permissions nobody holds', function () {
         usedByProjects($this->media);

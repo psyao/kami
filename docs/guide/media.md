@@ -114,7 +114,7 @@ Saving an image in the default Locale requires its alt text, unless it is marked
 
 **Replace file** takes a new file of the same family through `SaveMedia` ([Replacing a file](#replacing-a-file)). The form states the upload limit, and a file of another family is refused with its reason. The new `admin-thumb` is generated once the response is sent.
 
-**Used by** lists the first 50 Entries using the item, then how many more, each linked to its edit page. One in the Trash is marked and named without a link. Those of types the editor may not view, a type no longer declared included, are counted last, with no title. **Delete**, under `kami.media.delete`, goes through `DeleteMedia` ([Deleting a Media item](#deleting-a-media-item)): an item in use is refused on a message naming its Entries, and counting those the editor may not view.
+**Used by** lists the first 50 Entries using the item, then how many more, each linked to its edit page. One in the Trash is marked and named without a link, as is one the editor may not edit, whose edit page would answer 403. Those of types the editor may not view, a type no longer declared included, are counted last, with no title. **Delete**, under `kami.media.delete`, goes through `DeleteMedia` ([Deleting a Media item](#deleting-a-media-item)): an item in use is refused on a message naming its Entries, and counting those the editor may not view.
 
 ## Reading Media
 
