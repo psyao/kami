@@ -41,7 +41,7 @@ if grep -q '^KAMI_TICK_TOKEN=' .env; then sed -i "s|^KAMI_TICK_TOKEN=.*|KAMI_TIC
 # The queue the Tick works through, as the starter kit's `next` sets it.
 if grep -q '^QUEUE_CONNECTION=' .env; then sed -i 's|^QUEUE_CONNECTION=.*|QUEUE_CONNECTION=database|' .env; else echo 'QUEUE_CONNECTION=database' >> .env; fi
 grep -q 'Kami::schedule()' routes/console.php || echo '\Psyao\Kami\Facades\Kami::schedule();' >> routes/console.php
-# A type with an Archive and a Feed (psyao/kami#623), which the starter kit does not declare yet: psyao/kami#634 may replace it with its own.
+# A type with an Archive and a Feed (psyao/kami#623): the starter kit's News (psyao/kami#634) has an Archive and no Feed, so Smoke declares its own.
 mkdir -p app/Content resources/views/kami
 cat > app/Content/Post.php <<'PHP'
 <?php
