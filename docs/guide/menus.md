@@ -93,9 +93,21 @@ When the component does not fit, `Kami::menu()` returns the same tree as `Psyao\
 
 A Menu is read in a few queries once per request and Locale, so the component and your own calls share them: the items, their Entries with their Translations and Field values, and the ancestors of nested Entries. It has no cache of its own: the [page cache](page-cache.md) stores the page around it, and every item write makes it stale, since every page may show a Menu. A write in the same request reads the Menu again; after a change Kami cannot see, such as a config set at runtime, call `Kami::flushCache()`.
 
+## The admin
+
+Each declared Menu has its own page in the admin's navigation, under its label, at `/admin/menus/<handle>`. A User needs `kami.menus.manage` to see it ([Users and Roles](users-and-roles.md#permissions)).
+
+The page lists the whole tree in one table, in tree order, each item indented under its Parent; screen readers hear its level too. A row shows the item's label in the default Locale, or the title it falls back to, and its target.
+
+- **New menu item** and each row's **Edit** open the same form. **Target** picks an Entry, searched by title, an Archive, or an address. The form takes a label for every Locale at once, and an address per Locale for an address item. **Parent** offers the Menu's other items, never the item itself or one under it; a Menu with a `depth` of 1 has no Parent field. **Opens in a new tab** sets `new_tab`. A refused save keeps the form open, its error on the field at fault.
+- Each row's up and down buttons move it among its siblings. They are buttons, reached with Tab and pressed with Enter, and focus stays on the moved row's button. There is no drag-and-drop.
+- **Delete** asks first, then moves the item's children up one level, in its place.
+
+Every change goes through the actions below, so the Audit log and the page cache see it as they see a seeder's.
+
 ## Writing items
 
-Editors write items in the admin, under `kami.menus.manage` ([Users and Roles](users-and-roles.md#permissions)). Your seeders and importers write them through the same three actions, which do not authorise: code calling them from a request checks `kami.menus.manage` first.
+Editors write items in the admin ([above](#the-admin)). Your seeders and importers write them through the same three actions, which do not authorise: code calling them from a request checks `kami.menus.manage` first.
 
 ```php
 use Psyao\Kami\Menus\Actions\DeleteMenuItem;

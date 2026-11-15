@@ -61,6 +61,23 @@ final readonly class MenuTree
         return array_values($this->items->where('parent_id', $parent)->keys()->map(strval(...))->all());
     }
 
+    /**
+     * The ids under the Parent in tree order, each before its children, with its level from 1: the root's items when null. An item on a cycle written outside the actions never sits under the root, so it is left out.
+     *
+     * @return array<string, int>
+     */
+    public function levels(?string $parent = null, int $level = 1): array
+    {
+        $levels = [];
+
+        foreach ($this->children($parent) as $id) {
+            $levels[$id] = $level;
+            $levels += $this->levels($id, $level + 1);
+        }
+
+        return $levels;
+    }
+
     /** The Position of a new last child of the Parent; of the root when null. */
     public function nextPosition(?string $parent): int
     {

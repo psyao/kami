@@ -232,6 +232,29 @@ return [
     ],
 
     'menus' => [
+        'label' => 'menu item',
+        'level' => 'Level :level',
+        'archive_of' => 'Archive: :type',
+        'up' => 'Move :label up',
+        'down' => 'Move :label down',
+        'delete' => 'Its children move up one level, in its place.',
+        'kinds' => [
+            'entry' => 'Entry',
+            'archive' => 'Archive',
+            'url' => 'Address',
+        ],
+        'fields' => [
+            'kind' => 'Target',
+            'url' => 'Address (:LOCALE)',
+            'label' => 'Label (:LOCALE)',
+            'parent' => 'Parent',
+            'parent_none' => 'None: top level',
+            'new_tab' => 'Opens in a new tab',
+        ],
+        'columns' => [
+            'label' => 'Label',
+            'target' => 'Target',
+        ],
         'target' => 'Choose one target: an Entry, an Archive or an address.',
         'entry' => 'This Entry cannot be linked: it is gone, in the Trash, or has no address.',
         'archive' => 'This type has no Archive.',
