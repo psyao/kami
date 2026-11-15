@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -141,6 +142,17 @@ it('serves an empty Feed, and leaves out an Entry under a hidden Parent', functi
     expect(feed('/articles/feed')->channel->item)->toHaveCount(0)
         ->and(items(feed('/dossier/feed'), 'link'))->toEqualCanonicalizing(['http://localhost/dossier/parent', 'http://localhost/dossier/parent/enfant']);
 });
+
+it('serves its latest items whatever cursor the request carries', function (Closure $cursor) {
+    saveDispatch('Old', 2);
+    saveDispatch('New', 1);
+
+    expect(items(feed('/feed?cursor=' . (new Cursor($cursor(), true))->encode())))->toBe(['New', 'Old']);
+})->with([
+    'another listing\'s parameters' => [fn (): array => ['nope' => 1]],
+    // Read under the frozen clock: an Archive's cursor at New's date, past every id, which would leave Old alone.
+    'an Archive\'s, past the newest' => [fn (): array => ['kami__published_at' => now()->subDay()->toDateTimeString(), 'kami_entries.id' => '0']],
+]);
 
 it('drops the characters XML 1.0 forbids, and escapes the rest', function () {
     saveDispatch("Sauts\u{0B} <b>& co</b>", 1);

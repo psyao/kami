@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psyao\Kami\Redirects\Actions;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +23,7 @@ use Psyao\Kami\Sites\Internal\Site;
  * redirected changes that Redirect, so an import replays. It does not authorise: the caller checks the actor's `kami.redirects.manage` Permission first (ADR 0011).
  *
  * Refusals throw Laravel's `ValidationException`, changing nothing: on `source` for an address no request reaches, one Kami, an Archive, a Feed or
- * another Locale answers, or an Entry's current Path; on `status`; on `target` for a 301 or 302 with none, a 410 with one, an Entry with no address,
+ * another Locale answers, an Entry's current Path, or one a concurrent save took; on `status`; on `target` for a 301 or 302 with none, a 410 with one, an Entry with no address,
  * an address not allow-listed, or one that is itself a Redirect source here, its own source included: Redirects never chain.
  */
 final class SaveRedirect
@@ -82,7 +83,14 @@ final class SaveRedirect
             }
 
             $created = ! $redirect->exists;
-            $redirect->fill(['status' => $status, 'entry_id' => $entryId, 'target' => $address])->save();
+
+            try {
+                $redirect->fill(['status' => $status, 'entry_id' => $entryId, 'target' => $address])->save();
+            } catch (UniqueConstraintViolationException) {
+                // A concurrent save at the source, or an Entry taking it, inserted since the lookup, which locks no row for a new source.
+                throw ValidationException::withMessages(['source' => __('validation.unique', ['attribute' => 'source'])]);
+            }
+
             resolve(RecordAuditEvent::class)->handle($created ? 'kami.redirects.created' : 'kami.redirects.updated', $redirect, ['locale' => $locale, 'source' => mb_substr($source, 0, 255), 'status' => $status], $actor);
 
             return [$redirect, $created];

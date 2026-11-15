@@ -18,16 +18,16 @@ class Term extends Entry
      */
     public function entries(): BelongsToMany
     {
-        $relations = resolve(ContentTypes::class)->relationHandles();
+        $types = resolve(ContentTypes::class);
 
         return $this->belongsToMany(Entry::class, 'kami_references', 'target_entry_id', 'source_entry_id')
             // A relation Field's rows only: a Block or a link in a document points at a Term without classifying the Entry.
-            ->whereIn('kami_references.field', $relations)
+            ->where($types->classifying('kami_references.field', 'kami_references.source_entry_id'))
             // One row per Entry, whatever the Fields and Locales linking it; `distinct()` would leave `count()` counting them.
             // @phpstan-ignore argument.type (a column of the pivot, which Larastan looks for on the model)
             ->where('kami_references.id', fn (Builder $first): Builder => $first->from('kami_references', 'first_link')->selectRaw('min(first_link.id)')
                 ->whereColumn('first_link.source_entry_id', 'kami_references.source_entry_id')
                 ->whereColumn('first_link.target_entry_id', 'kami_references.target_entry_id')
-                ->whereIn('first_link.field', $relations));
+                ->where($types->classifying('first_link.field', 'first_link.source_entry_id')));
     }
 }

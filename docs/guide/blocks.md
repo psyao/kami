@@ -96,7 +96,7 @@ An admin installation reaches 64 Blocks at most: Filament's editor needs one cla
 
 `SaveEntry` normalises a Block like any document. An offered Block keeps its declared Fields only, each normalised as a type's Field is: a forged key goes, and a single Media id becomes a list. Its errors are keyed `body.blocks.{n}.{field}`, with `n` counting every Block of the document from 0, and their message names the Block: "The text in Callout 2 field is required." The admin shows them on the editor.
 
-A Block's Media items and Entries are recorded in `kami_references` under the `RichText`'s handle, in its Locale. "What uses this?" lists the Entry, and a Media item a Block shows cannot be deleted. A Block that links a Term does not list the Entry in that Term's Archive or its `entries()`: only a relation Field classifies an Entry.
+A Block's Media items and Entries are recorded in `kami_references` under the `RichText`'s handle, in its Locale. "What uses this?" lists the Entry, and a Media item a Block shows cannot be deleted. A Block that links a Term does not list the Entry in that Term's Archive or its `entries()`: only a relation Field of the Entry's own type classifies it, even when another type gives a relation Field the `RichText`'s handle.
 
 ## Rendering
 

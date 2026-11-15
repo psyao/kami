@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
@@ -229,14 +230,17 @@ it('renders an Archive page and a Term Archive page in an exact number of querie
     expect([$count('/articles'), $count('/tag/live')])->toBe($small)->toBe([3, 7]);
 });
 
-it('gives a Term\'s Preview the first page of its Entries, as visitors see them', function () {
+it('gives a Term\'s Preview the first page of its Entries, as visitors see them', function (string $cursor) {
     $live = resolve(SaveEntry::class)->handle(Keyword::class, ['title' => 'Live', 'status' => 'draft']);
     savePost('Concert', 1, ['keywords' => [$live->id]]);
     savePost('Rehearsal', 2, ['keywords' => [$live->id], 'status' => 'draft']);
 
-    $this->get(PreviewLink::issue($live, 'fr', 7, null) . '?cursor=garbage')
+    $this->get(PreviewLink::issue($live, 'fr', 7, null) . '?cursor=' . $cursor)
         ->assertOk()->assertSee('<h1>Live</h1>', escape: false)->assertSee('Concert')->assertDontSee('Rehearsal');
-});
+})->with([
+    'malformed' => ['garbage'],
+    'another listing\'s parameters' => [(new Cursor(['nope' => 1], true))->encode()],
+]);
 
 // A Term never saved has no id, as the admin Preview's; the Preview's own setup needs the type's Filament routes, registered at boot.
 it('gives a Term never saved an empty page, whatever links Media', function () {

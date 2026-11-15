@@ -96,6 +96,15 @@ final class BlockProse extends ContentType
     }
 }
 
+/** A type classifying by a relation Field on the handle another type gives its RichText. */
+final class BlockClassified extends ContentType
+{
+    public function fields(): array
+    {
+        return [Terms::make('body')->of(BlockTopic::class)];
+    }
+}
+
 /** A Taxonomy whose Term Archive hands back what it lists. */
 final class BlockTopic extends Taxonomy
 {
@@ -279,17 +288,20 @@ it('keeps a Media item a Block shows from being deleted, naming the Entry', func
     expect(fn () => resolve(DeleteMedia::class)->handle($image))->toThrow(ValidationException::class, 'Illustrated');
 });
 
-it('lists in a Term\'s Entries none that only a Block links it from', function () {
+it('lists in a Term\'s Entries none that only a Block links it from, whatever handle another type\'s relation Field takes', function () {
     Declaring::$declared = [Terms::make('topics')->of(BlockTopic::class)];
     BlockProse::$declared = [RichText::make('body')->blocks([Declaring::class])];
-    config(['kami.types' => [BlockProse::class, BlockTopic::class], 'kami.blocks' => [Declaring::class]]);
+    config(['kami.types' => [BlockProse::class, BlockTopic::class, BlockClassified::class], 'kami.blocks' => [Declaring::class]]);
     $tag = resolve(SaveEntry::class)->handle(BlockTopic::class, ['title' => 'Laravel']);
     $entry = resolve(SaveEntry::class)->handle(BlockProse::class, ['title' => 'Linking', 'status' => 'published', 'body' => bodyOf(callout(['topics' => [$tag->id]], 'declaring'))], locale: 'fr');
+    $classified = resolve(SaveEntry::class)->handle(BlockClassified::class, ['title' => 'Classified', 'status' => 'published', 'body' => [$tag->id]], locale: 'fr');
     $term = Term::query()->findOrFail($tag->id);
 
-    expect(DB::table('kami_references')->where(['source_entry_id' => $entry->id, 'target_entry_id' => $tag->id])->exists())->toBeTrue()
-        ->and($term->entries()->count())->toBe(0)
-        ->and(RenderEntry::call(new BlockTopic, $term)->getData()['entries']->items())->toBe([]);
+    expect(DB::table('kami_references')->where(['source_entry_id' => $entry->id, 'field' => 'body', 'target_entry_id' => $tag->id])->exists())->toBeTrue()
+        ->and($term->entries()->pluck('kami_entries.id')->all())->toBe([$classified->id])
+        ->and(Term::query()->whereKey($tag->id)->withCount('entries')->sole()->entries_count)->toBe(1)
+        ->and(Term::query()->whereHas('entries')->pluck('id')->all())->toBe([$tag->id])
+        ->and(array_map(fn (Entry $listed): string => $listed->id, RenderEntry::call(new BlockTopic, $term)->getData()['entries']->items()))->toBe([$classified->id]);
 });
 
 it('gives a duplicate its documents\' References, which the doctor reads as the RichText\'s own', function () {
