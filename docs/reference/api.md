@@ -231,10 +231,12 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `public function langAttribute(string $field): Illuminate\Support\HtmlString`: ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
+- `protected function orderByField(Illuminate\Database\Eloquent\Builder $query, string $field, string $direction = 'asc'): void`: Entries ordered on a `->sortable()` Field, after `ofType()`, read as `whereField()` reads it.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
 - `public function parent(): Illuminate\Database\Eloquent\Relations\BelongsTo`: Its Parent on a hierarchical type, visible in the Locale it is read in; `null` at the root. `with('parent')` loads a list's at once.
 - `public function summary(): ?string`: Its type's `summary()`: the page's description when it has no Meta description. `$entry->summary`, with no call, reads a Field of that name.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it or one of its ancestors is not visible there, or its type has no URL.
+- `protected function whereField(Illuminate\Database\Eloquent\Builder $query, string $field, mixed $operator, mixed $value = NULL): void`: Entries whose `->filterable()` Field matches, after `ofType()`, taking an operator and a value as `where()` does.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
 
 ## `Psyao\Kami\Content\Fields\Boolean`
@@ -287,12 +289,12 @@ A value a Content Type stores, in a typed column of its `kami_type_<handle>` tab
 - `protected function cast(mixed $value): mixed`: The value `$entry->handle` returns for what its column stores; never called with `null`.
 - `public function column(): string`: The column type of its `kami_type_<handle>` column: `string`, `text`, `boolean`, `integer`, `decimal`, `date`, `dateTime` or `json` (ADR 0006).
 - `public function default(mixed $value): static`: The value a new Translation stores when none is given: for a Shared Field, only when the Entry is created.
-- `public function filterable(): static`: A listing filters on this Field: `kami:make:migration` indexes its column.
+- `public function filterable(): static`: A listing filters on this Field, with `whereField()`: `kami:make:migration` indexes its column.
 - `public static function make(string $handle): static`
 - `public function required(): static`: Required to publish; a Draft may leave it blank, but may not blank a Shared value another Translation publishes.
 - `public function rules(array $rules): static`: Laravel validation rules, applied on every save, Drafts included; a blank value passes them unless the rule is implicit.
 - `public function shared(): static`: One value for the whole Entry, whatever the Locale.
-- `public function sortable(): static`: A listing sorts on this Field: `kami:make:migration` indexes its column.
+- `public function sortable(): static`: A listing sorts on this Field, with `orderByField()`: `kami:make:migration` indexes its column.
 - `protected function store(mixed $value): mixed`: What its column stores for a valid value given to `SaveEntry`; never called with `null`.
 - `public function translatable(): static`: One value per Locale, falling back to the default Locale's when blank.
 - `public function visibleWhen(string $field, mixed $value): static`: Shown only while another Field of the type holds this value, or one of this list. Hidden, it is neither validated nor stored, and a save that gives the target clears it.

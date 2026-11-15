@@ -32,7 +32,9 @@ abstract class Field
 
     private mixed $default = null;
 
-    private bool $indexed = false;
+    private bool $filterable = false;
+
+    private bool $sortable = false;
 
     private ?string $target = null;
 
@@ -90,18 +92,18 @@ abstract class Field
         return $this;
     }
 
-    /** A listing filters on this Field: `kami:make:migration` indexes its column. */
+    /** A listing filters on this Field, with `whereField()`: `kami:make:migration` indexes its column. */
     public function filterable(): static
     {
-        $this->indexed = true;
+        $this->filterable = true;
 
         return $this;
     }
 
-    /** A listing sorts on this Field: `kami:make:migration` indexes its column. */
+    /** A listing sorts on this Field, with `orderByField()`: `kami:make:migration` indexes its column. */
     public function sortable(): static
     {
-        $this->indexed = true;
+        $this->sortable = true;
 
         return $this;
     }
@@ -170,7 +172,19 @@ abstract class Field
     /** @internal */
     public function isIndexed(): bool
     {
-        return $this->indexed;
+        return $this->filterable || $this->sortable;
+    }
+
+    /** @internal */
+    public function isFilterable(): bool
+    {
+        return $this->filterable;
+    }
+
+    /** @internal */
+    public function isSortable(): bool
+    {
+        return $this->sortable;
     }
 
     /** @internal */
