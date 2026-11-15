@@ -110,10 +110,12 @@ class Psyao\Kami\Content\Entry::fallbackLocale() public function fallbackLocale(
 class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void
 class Psyao\Kami\Content\Entry::langAttribute() public function langAttribute(string $field): Illuminate\Support\HtmlString
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
+class Psyao\Kami\Content\Entry::orderByField() protected function orderByField(Illuminate\Database\Eloquent\Builder $query, string $field, string $direction = 'asc'): void
 class Psyao\Kami\Content\Entry::ordered() protected function ordered(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Entry::parent() public function parent(): Illuminate\Database\Eloquent\Relations\BelongsTo
 class Psyao\Kami\Content\Entry::summary() public function summary(): ?string
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
+class Psyao\Kami\Content\Entry::whereField() protected function whereField(Illuminate\Database\Eloquent\Builder $query, string $field, mixed $operator, mixed $value = NULL): void
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
 class Psyao\Kami\Content\Events\EntryDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
 class Psyao\Kami\Content\Events\EntryDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor

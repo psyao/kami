@@ -15,6 +15,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Start a type (`kami:make:type Name`, `--singleton`, `--global-set`, `--taxonomy`) | `vendor/psyao/kami/docs/guide/content-types.md#declaring-a-type` |
 | Declare a type with no URL (`$routable = false`) or a Singleton (`Home::entry()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-with-no-url` |
 | Let editors order a type by hand (`$orderable = true`, `Entry::query()->ordered()`) | `vendor/psyao/kami/docs/guide/content-types.md#types-ordered-by-hand` |
+| Filter or sort Entries on a Field (`->filterable()`, `->sortable()`, `whereField()`, `orderByField()`) | `vendor/psyao/kami/docs/guide/content-types.md#listing-on-a-field` |
 | Put a type's Entries in a tree (`$hierarchical = true`, `parent` on `SaveEntry`, `Term::ancestors()`) | `vendor/psyao/kami/docs/guide/content-types.md#hierarchical-types` |
 | Hold values shown across the Site in a Global Set (`Footer::entry()`), or read `SiteSettings` | `vendor/psyao/kami/docs/guide/content-types.md#global-sets` |
 | Link Entries with `Entries`, or classify them with a Taxonomy and `Terms` | `vendor/psyao/kami/docs/guide/content-types.md#relations` |

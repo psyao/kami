@@ -263,7 +263,7 @@ Each type refuses what it cannot hold, with no rule of yours: `Url::make('websit
 
 A `DateTime` is stored in UTC, whatever zone it is given in, and shown in the Site's time zone in the admin, as `published_at` is. A `Date` has no time, so no zone converts it: the day given is the day stored, in the admin and in code.
 
-`->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters or sorts on it: see [Listing on a Field](#listing-on-a-field). A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
+`->filterable()` and `->sortable()` ask `kami:make:migration` for an index on the Field's column, for a listing that filters on it with `whereField()` or sorts on it with `orderByField()`: see [Listing on a Field](#listing-on-a-field). A column has no index otherwise. On a `text` or `json` column, which no engine indexes whole, either call is an error at the first read of the declarations.
 
 `->default($value)` is the value a new Translation stores when the save gives none, and the admin's create form shows it pre-filled. A Shared Field takes it only when the Entry is created, so adding a Locale never writes one, even to an Entry that has no Shared value: that value is read by Translations already published. To fill existing Entries after declaring a default, save the value in them through `SaveEntry`: a `->required()` Shared Field left blank stops a Locale from publishing until someone fills it. An update never applies a default, and a value given as `null` stays `null`:
 
@@ -1026,7 +1026,21 @@ Field values load with the Entries, in one query per type, so a list costs the s
 
 ### Listing on a Field
 
-A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank', 7)` or `orderBy('rank')` on an Entry query does not reach it: SQLite takes the name for a string with no error, so a filter finds nothing and a sort does nothing, and the other engines refuse the column. Join the type's table: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
+A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank', 7)` or `orderBy('rank')` on an Entry query does not reach it: SQLite takes the name for a string with no error, so a filter finds nothing and a sort does nothing, and the other engines refuse the column. `whereField()` and `orderByField()` reach it, after `ofType()`:
+
+```php
+Entry::query()->ofType(Product::class)
+    ->whereField('rank', 7)             // Translatable, ->filterable()
+    ->whereField('rank', '>=', 3)       // An operator, as where() takes one
+    ->orderByField('stock', 'desc')     // Shared, ->sortable()
+    ->get();
+```
+
+A Translatable Field reads its row in the Locale the query reads, the current one or `inLocale()`'s, which comes before them; a Shared Field reads the `'*'` row. Each row joins once, however many Fields read it, and the Entries read as usual, visibility included. A `select()` of yours is kept; without one, the query selects `kami_entries.*`. Fallback does not apply: an Entry with no row in the Locale is left out, and a blank value does not read the default Locale's.
+
+Each throws an `InvalidArgumentException` naming the Field for one the type does not declare, a relation or Media Field, a sub-Field of a Repeater or a Group, and a Field not declared `->filterable()` (for `whereField()`) or `->sortable()` (for `orderByField()`), so a listing always has its index. Without `ofType()` first, or after it with an undeclared type, they throw a `LogicException`, and so does `inLocale()` after a Translatable Field's join.
+
+The same join by hand, for a query they do not cover: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
 
 ```php
 use Illuminate\Database\Query\JoinClause;
@@ -1035,11 +1049,9 @@ Entry::query()->ofType(Product::class)
     ->select('kami_entries.*')
     ->join('kami_type_product as translated', fn (JoinClause $join) => $join->on('translated.entry_id', '=', 'kami_entries.id')->where('translated.locale', app()->getLocale()))
     ->join('kami_type_product as shared', fn (JoinClause $join) => $join->on('shared.entry_id', '=', 'kami_entries.id')->where('shared.locale', '*'))
-    ->where('translated.rank', 7)   // Translatable, ->filterable()
-    ->orderBy('shared.stock')       // Shared, ->sortable()
+    ->where('translated.rank', 7)
+    ->orderBy('shared.stock')
     ->get();
 ```
-
-Keep only the join you need. The Entries read as usual, visibility included. Fallback does not apply: an Entry with no row in the Locale is left out, and a blank value does not read the default Locale's.
 
 With 6,000 Entries, the filter used the Field's index on all four engines. The sort used its index on SQLite and PostgreSQL; MySQL and MariaDB sorted without it.

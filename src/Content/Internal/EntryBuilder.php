@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Psyao\Kami\Content\Internal;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use LogicException;
+use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Media;
+use Psyao\Kami\Content\Fields\StructuredField;
 use Psyao\Kami\Routing\Internal\VisiblePaths;
 use Psyao\Kami\Sites\Internal\Site;
 
@@ -21,13 +26,28 @@ use Psyao\Kami\Sites\Internal\Site;
  */
 final class EntryBuilder extends Builder
 {
+    /** The aliases of the type table's rows a listing reads: two underscores, which no Field handle takes. */
+    private const string TRANSLATED = 'kami__translated';
+
+    private const string SHARED = 'kami__shared';
+
     /** The Locale its Entries are checked and read in; the current Locale when null. */
     private ?string $locale = null;
 
     private bool $preloadsPaths = false;
 
+    /** The type `ofType()` named, by class or handle. */
+    private ?string $type = null;
+
+    /** @var list<string> The aliases under which `whereField()` and `orderByField()` joined the type's table: one per row read. */
+    private array $fieldRows = [];
+
     public function readIn(string $locale): static
     {
+        if (in_array(self::TRANSLATED, $this->fieldRows, true) && $locale !== $this->locale()) {
+            throw new LogicException('Call inLocale() before whereField() and orderByField(): their join already reads the Locale\'s row.');
+        }
+
         $this->locale = $locale;
 
         return $this;
@@ -36,6 +56,67 @@ final class EntryBuilder extends Builder
     public function locale(): string
     {
         return $this->locale ?? Site::current()->currentLocale();
+    }
+
+    public function ofTypeNamed(string $type): void
+    {
+        $this->type = $type;
+    }
+
+    /**
+     * The column a listing filters or sorts on: the Field's, in the row of the Locale read for a Translatable Field, the `'*'` row for a
+     * Shared one. Joins each row once, and selects `kami_entries.*` unless something is selected already (#231).
+     */
+    public function fieldColumn(string $handle, bool $sorting): string
+    {
+        $scope = $sorting ? 'orderByField()' : 'whereField()';
+        $type = $this->type ?? throw new LogicException("{$scope} needs ofType() first: it reads the type's table.");
+        $contentType = resolve(ContentTypes::class)->find($type) ?? throw new LogicException("{$scope}: the type \"{$type}\" is not declared.");
+        $field = $this->listedField($contentType, $handle, $sorting, $scope);
+        $locale = $contentType->isTranslatable($field) ? $this->locale() : '*';
+        $alias = $locale === '*' ? self::SHARED : self::TRANSLATED;
+
+        if (! in_array($alias, $this->fieldRows, true)) {
+            $this->fieldRows[] = $alias;
+
+            if ($this->getQuery()->columns === null) {
+                $this->select('kami_entries.*');
+            }
+
+            $this->join("kami_type_{$contentType->handle()} as {$alias}", fn (JoinClause $join): JoinClause => $join
+                ->on("{$alias}.entry_id", '=', 'kami_entries.id')->where("{$alias}.locale", $locale));
+        }
+
+        return "{$alias}.{$handle}";
+    }
+
+    /** A Field in a column of the type's table, indexed for what the listing does with it. */
+    private function listedField(ContentType $contentType, string $handle, bool $sorting, string $scope): Field
+    {
+        $prefix = "{$scope} on \"{$contentType->handle()}\":";
+        $field = collect($contentType->storedFields())->firstWhere('handle', $handle);
+
+        if (! $field instanceof Field) {
+            $parent = collect($contentType->flatFields())->first(fn (Field $field): bool => $field instanceof StructuredField && array_key_exists($handle, $field->fields()));
+
+            throw new InvalidArgumentException($parent instanceof Field
+                ? "{$prefix} the Field \"{$handle}\" is inside \"{$parent->handle}\", in a json column no listing reads."
+                : "{$prefix} the type has no Field \"{$handle}\".");
+        }
+
+        if ($field->isReference()) {
+            $kind = $field instanceof Media ? 'the Media Field' : 'the relation';
+
+            throw new InvalidArgumentException("{$prefix} {$kind} \"{$handle}\" has no column: it is kept in kami_references.");
+        }
+
+        if ($sorting ? ! $field->isSortable() : ! $field->isFilterable()) {
+            $call = $sorting ? '->sortable()' : '->filterable()';
+
+            throw new InvalidArgumentException("{$prefix} the Field \"{$handle}\" is not {$call}: declare it so, and kami:make:migration indexes its column.");
+        }
+
+        return $field;
     }
 
     /** Gives the nested Entries it returns their Paths, in one batch: what `url()` reads (ADR 0019). */

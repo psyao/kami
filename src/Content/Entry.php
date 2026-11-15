@@ -425,7 +425,33 @@ class Entry extends Model
     #[Scope]
     protected function ofType(Builder $query, string $type): void
     {
+        $this->entryBuilder($query)->ofTypeNamed($type);
         $query->where('type', resolve(ContentTypes::class)->find($type)?->handle() ?? $type);
+    }
+
+    /**
+     * Entries whose Field matches, as `where()` reads its operator and value, after `ofType()`. A Translatable Field reads its value
+     * in the Locale read, a Shared one its Shared value: stored values, with no Fallback. The Field must be `->filterable()`.
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function whereField(Builder $query, string $field, mixed $operator, mixed $value = null): void
+    {
+        // As given, so that `whereField('rank', 7)` reads as `where('rank', 7)`.
+        $query->where($this->entryBuilder($query)->fieldColumn($field, sorting: false), ...array_slice(func_get_args(), 2));
+    }
+
+    /**
+     * Entries ordered on a Field, after `ofType()`, read as `whereField()` reads it. The Field must be `->sortable()`.
+     *
+     * @param  Builder<static>  $query
+     * @param  'asc'|'desc'  $direction
+     */
+    #[Scope]
+    protected function orderByField(Builder $query, string $field, string $direction = 'asc'): void
+    {
+        $query->orderBy($this->entryBuilder($query)->fieldColumn($field, sorting: true), $direction);
     }
 
     /**
@@ -447,11 +473,17 @@ class Entry extends Model
     #[Scope]
     protected function inLocale(Builder $query, string $locale): void
     {
-        // Always an EntryBuilder (`UseEloquentBuilder`), which the public signature does not name.
-        if (! $query instanceof EntryBuilder) {
-            throw new LogicException('Entry queries use an EntryBuilder.');
-        }
-        $query->readIn($locale)->whereHas('translations', fn (Builder $translations) => $translations->whereIn('locale', [$locale, '*']));
+        $this->entryBuilder($query)->readIn($locale)->whereHas('translations', fn (Builder $translations) => $translations->whereIn('locale', [$locale, '*']));
+    }
+
+    /**
+     * Always an EntryBuilder (`UseEloquentBuilder`), which the scopes' public signatures do not name.
+     *
+     * @param  Builder<static>  $query
+     */
+    private function entryBuilder(Builder $query): EntryBuilder
+    {
+        return $query instanceof EntryBuilder ? $query : throw new LogicException('Entry queries use an EntryBuilder.');
     }
 
     /**
