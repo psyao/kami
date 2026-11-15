@@ -166,25 +166,38 @@ final class RichText extends Field
      */
     public function withoutEntries(array $document, array $ids): array
     {
-        if ($ids === []) {
+        if ($ids === [] || ! is_array($document['content'] ?? null)) {
             return $document;
         }
 
-        if (($document['type'] ?? null) === 'block' && is_string($handle = data_get($document, 'attrs.handle')) && is_array($data = data_get($document, 'attrs.data'))) {
+        return [...$document, 'content' => Document::mapBlocks($document['content'], function (array $attrs) use ($ids): array {
+            if (! is_string($handle = $attrs['handle'] ?? null) || ! is_array($data = $attrs['data'] ?? null)) {
+                return $attrs;
+            }
+
             foreach ($this->offered($handle)?->fields() ?? [] as $field) {
                 if ($field instanceof RelationField && is_array($data[$field->handle] ?? null)) {
                     $data[$field->handle] = array_values(array_diff(array_filter($data[$field->handle], is_string(...)), $ids)) ?: null;
                 }
             }
 
-            return ['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => $data]];
-        }
+            return ['handle' => $handle, 'data' => $data];
+        })];
+    }
 
-        if (is_array($document['content'] ?? null)) {
-            $document['content'] = array_map(fn (mixed $node): mixed => is_array($node) ? $this->withoutEntries($node, $ids) : $node, $document['content']);
-        }
-
-        return $document;
+    /**
+     * @internal
+     *
+     * The document with its missing targets gone: deleted Entries from its Blocks' relation Fields, links to deleted Entries and missing Media items reduced to their text.
+     *
+     * @param  array<mixed>  $document
+     * @param  list<string>  $entries
+     * @param  list<string>  $media
+     * @return array<mixed>
+     */
+    public function withoutMissing(array $document, array $entries, array $media): array
+    {
+        return Document::withoutLinks($this->withoutEntries($document, $entries), $entries, $media);
     }
 
     /** @internal */
