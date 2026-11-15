@@ -232,6 +232,29 @@ return [
     ],
 
     'menus' => [
+        'label' => 'élément de menu',
+        'level' => 'Niveau :level',
+        'archive_of' => 'Archive : :type',
+        'up' => 'Monter :label',
+        'down' => 'Descendre :label',
+        'delete' => 'Ses enfants remontent d’un niveau, à sa place.',
+        'kinds' => [
+            'entry' => 'Entrée',
+            'archive' => 'Archive',
+            'url' => 'Adresse',
+        ],
+        'fields' => [
+            'kind' => 'Cible',
+            'url' => 'Adresse (:LOCALE)',
+            'label' => 'Libellé (:LOCALE)',
+            'parent' => 'Parent',
+            'parent_none' => 'Aucun : premier niveau',
+            'new_tab' => 'S’ouvre dans un nouvel onglet',
+        ],
+        'columns' => [
+            'label' => 'Libellé',
+            'target' => 'Cible',
+        ],
         'target' => 'Choisissez une seule cible : une entrée, une archive ou une adresse.',
         'entry' => 'Cette entrée ne peut pas être liée : elle n’existe plus, elle est à la corbeille ou elle n’a pas d’adresse.',
         'archive' => 'Ce type n’a pas d’archive.',

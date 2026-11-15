@@ -45,6 +45,7 @@ use Psyao\Kami\Admin\Internal\EntryResource;
 use Psyao\Kami\Admin\Internal\KamiGlobalSearchProvider;
 use Psyao\Kami\Admin\Internal\Login;
 use Psyao\Kami\Admin\Internal\MediaResource;
+use Psyao\Kami\Admin\Internal\MenuItemResource;
 use Psyao\Kami\Admin\Internal\NoIndex;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
@@ -223,6 +224,13 @@ final class KamiPlugin implements Plugin
         }
 
         $panel->resources([$media, AuditEventResource::class]);
+
+        // One page per declared Menu, read from config as Forms are: a handle is checked where its page is used.
+        foreach (array_keys(Config::array('kami.menus', [])) as $menu) {
+            if (is_string($menu) && ! $panel->getResourceConfiguration(MenuItemResource::class, $menu) instanceof ResourceConfiguration) {
+                $panel->resources([MenuItemResource::configure($menu)]);
+            }
+        }
 
         // Read from config, not the registry: `register()` runs for Artisan too, which must keep working to fix a declaration.
         if (Config::array('kami.forms', []) !== []) {

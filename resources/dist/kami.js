@@ -1,5 +1,5 @@
 // Filament's tables, adjusted where their markup falls short of WCAG 2.2 AA.
-// ponytail: tied to Filament's table markup, with `tests/Browser/EntryListTest.php` as its alarm: it fails once Filament changes the move buttons, the selection checkbox or the reorder focus. Each part goes once Filament covers it (#580).
+// ponytail: tied to Filament's table markup, with `tests/Browser/EntryListTest.php` and `tests/Browser/MenusTest.php` as its alarms: they fail once Filament changes the move buttons, the selection checkbox, a row's `wire:key` or the reorder focus. Each part goes once Filament covers it (#580).
 document.addEventListener('livewire:init', () => {
     // Filament keeps the move buttons out of the Tab order (filamentphp/filament#20713): a keyboard user without a screen reader could not move a row (WCAG 2.1.1). `kami.css` shows them.
     const reachMoveButtons = (root) => root.querySelectorAll('[data-table-reorder-direction][tabindex]').forEach((button) => button.removeAttribute('tabindex'))
@@ -23,29 +23,36 @@ document.addEventListener('livewire:init', () => {
     document.addEventListener('livewire:navigated', () => adjust(document))
 
     // A keyboard move re-renders the rows and drops focus to the body (WCAG 2.4.3): bring it back to the moved row's control, or its other one where the row reached the end.
+    // Filament's reorder buttons, and the up and down actions of a Menu's table (`MenuItemResource`), which a row's `wire:key` finds again.
     let moved = null
 
     document.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-table-reorder-direction]')
+        const button = event.target.closest('[data-table-reorder-direction], [data-kami-move]')
 
-        if (button) {
-            moved = { key: button.closest('[x-sortable-item]').getAttribute('x-sortable-item'), direction: button.dataset.tableReorderDirection }
+        if (! button) {
+            return
+        }
+
+        if ('kamiMove' in button.dataset) {
+            moved = { row: `tr[wire\\:key="${CSS.escape(button.closest('tr')?.getAttribute('wire:key') ?? '')}"]`, controls: '[data-kami-move]', attribute: 'kamiMove', direction: button.dataset.kamiMove }
+        } else {
+            moved = { row: `[x-sortable-item="${CSS.escape(button.closest('[x-sortable-item]').getAttribute('x-sortable-item'))}"]`, controls: '[data-table-reorder-direction]', attribute: 'tableReorderDirection', direction: button.dataset.tableReorderDirection }
         }
     }, true)
 
     Livewire.hook('morphed', ({ el }) => {
         adjust(el)
 
-        const row = moved && el.querySelector(`[x-sortable-item="${CSS.escape(moved.key)}"]`)
+        const row = moved && el.querySelector(moved.row)
 
         // Another component may answer first: the table's own morph takes it.
         if (! row) {
             return
         }
 
-        const buttons = [...row.querySelectorAll('[data-table-reorder-direction]')].filter((button) => ! button.disabled)
+        const buttons = [...row.querySelectorAll(moved.controls)].filter((button) => ! button.disabled)
 
-        ;(buttons.find((button) => button.dataset.tableReorderDirection === moved.direction) ?? buttons[0])?.focus()
+        ;(buttons.find((button) => button.dataset[moved.attribute] === moved.direction) ?? buttons[0])?.focus()
         moved = null
     })
 })

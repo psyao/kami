@@ -61,6 +61,16 @@ final readonly class MenuTree
         return array_values($this->items->where('parent_id', $parent)->keys()->map(strval(...))->all());
     }
 
+    /**
+     * The Menu's ids in tree order, each before its children, with its level from 1. An item on a cycle written outside the actions never sits under the root, so it is left out.
+     *
+     * @return array<string, int>
+     */
+    public function levels(): array
+    {
+        return $this->levelsUnder(null, 1);
+    }
+
     /** The Position of a new last child of the Parent; of the root when null. */
     public function nextPosition(?string $parent): int
     {
@@ -81,5 +91,18 @@ final readonly class MenuTree
                 MenuItem::query()->whereKey($id)->update(['position' => $index + 1, 'parent_id' => $parent]);
             }
         }
+    }
+
+    /** @return array<string, int> */
+    private function levelsUnder(?string $parent, int $level): array
+    {
+        $levels = [];
+
+        foreach ($this->children($parent) as $id) {
+            $levels[$id] = $level;
+            $levels += $this->levelsUnder($id, $level + 1);
+        }
+
+        return $levels;
     }
 }
