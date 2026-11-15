@@ -234,6 +234,23 @@ it('stores the page as sent, with the script and style Livewire injects once the
         ->and($hit->getContent())->toBe($first->getContent());
 });
 
+it('serves a stored page with Livewire\'s assets once when the site forces their injection (#638)', function () {
+    config(['kami.types' => [Article::class, Notice::class]]);
+    Notice::$render = fn () => response('<html><head></head><body></body></html>');
+    resolve(SaveEntry::class)->handle(Notice::class, ['title' => 'Hello world', 'status' => 'published']);
+    Livewire::forceAssetInjection();
+    $first = $this->get('/notice/hello-world')->assertOk();
+    // A request of its own, as in production: Livewire otherwise remembers within the test that it has sent its script, and injects nothing either way. flushState() also clears the forced injection.
+    Livewire::flushState();
+    Livewire::forceAssetInjection();
+
+    $hit = $this->get('/notice/hello-world')->assertOk()->assertHeader('ETag');
+
+    expect(substr_count((string) $first->getContent(), '<script'))->toBe(1)
+        ->and(substr_count((string) $first->getContent(), '<style'))->toBe(1);
+    expect($hit->getContent())->toBe($first->getContent());
+});
+
 it('keeps the host\'s session on Kami::routes(session: true), its pages neither stored nor served from the page cache', function (bool $inWebGroup) {
     cachedArticle();
     $this->get('/articles/hello-world');
