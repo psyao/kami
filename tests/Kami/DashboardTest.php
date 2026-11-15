@@ -124,7 +124,8 @@ it('leaves out a Scheduled Translation in a Locale the Site no longer has, which
 
 // Editing a published Translation takes `publish` (ADR 0019): a link would answer 403, so the row shows with none, as in the Media library (#388).
 it('links a published Entry to its edit page only for a User who may publish it', function (string $widget, array $permissions, bool $linked) {
-    $entry = editedArticle('Plus tard', ['status' => 'published', 'published_at' => now()->addDay()]);
+    $this->travelTo('2026-03-01 10:00:00');
+    $entry = editedArticle('Plus tard', ['status' => 'published', 'published_at' => '2026-03-02 08:00:00']);
 
     $page = entriesPage($widget, ['kami.entries.article.view', 'kami.entries.article.update', ...$permissions], type: null)->assertSee('Plus tard');
 
@@ -133,6 +134,14 @@ it('links a published Entry to its edit page only for a User who may publish it'
     'without publish' => [[], false],
     'with publish' => [['kami.entries.article.publish'], true],
 ]);
+
+// Recently edited opens the default Locale: another one published does not take the link away.
+it('links a recently edited Entry whose default Translation is a Draft, another one published', function () {
+    $entry = editedArticle('Hello', ['status' => 'published'], editedArticle('Brouillon'), 'en');
+
+    entriesPage(RecentlyEdited::class, ['kami.entries.article.view', 'kami.entries.article.update'], type: null)
+        ->assertSeeHtml("/admin/articles/{$entry->id}/edit\"");
+});
 
 // An Entry loads its Translations and its type's row with it: 3 queries for Entries, 4 from the Translations.
 it('reads each list in a fixed number of queries, whatever its size', function (string $widget, int $queries, int $entries) {

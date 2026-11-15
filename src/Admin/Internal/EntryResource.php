@@ -671,6 +671,18 @@ final class EntryResource extends FilamentResource
     }
 
     /**
+     * The edit page, or none when the User may not edit the Entry in that Locale: a published Translation takes `publish` (ADR 0019), so a link would answer 403.
+     * Checked on a copy read in that Locale, leaving the caller's Entry as it was read.
+     */
+    public static function editUrlIfAllowed(Entry $entry, ?string $locale): ?string
+    {
+        $read = clone $entry;
+        $read->readIn($locale ?? Site::current()->defaultLocale());
+
+        return self::can('update', $read) ? self::editUrl($entry, $locale) : null;
+    }
+
+    /**
      * The Locales a Translation of the type may have, each with its own edit page; none for an untranslatable type, whose `'*'` Translation answers in every Locale.
      *
      * @return list<string>
@@ -749,7 +761,7 @@ final class EntryResource extends FilamentResource
         $label = __('kami::admin.actions.create_target', ['type' => $type->label()]);
 
         return $picker
-            ->createOptionForm([TextInput::make('title')->label(__('kami::admin.fields.title'))->required()])
+            ->createOptionForm([TextInput::make('title')->label($type->fieldLabel('title'))->required()])
             // Offering a link takes `view` (`viewAny` without a record): a User never creates a target they would then see as restricted.
             ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => $allows('create') && $allows('viewAny'))
                 // Named, as a form may hold several pickers (WCAG 2.4.6).

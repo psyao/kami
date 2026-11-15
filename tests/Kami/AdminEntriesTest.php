@@ -1518,6 +1518,14 @@ describe('quick create', function () {
         expect(Entry::query()->withUnpublished()->ofType(Genre::class)->sole()->translations->pluck('locale')->all())->toBe(['en']);
     });
 
+    it('labels the title as the target type relabels it', function () {
+        app('translator')->addLines(['kami-types.page.fields.title.label' => 'Heading'], 'en');
+
+        entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
+            ->mountAction(quickCreate('pages'))
+            ->assertFormFieldExists('title', 'mountedActionSchema0', fn (Field $field): bool => $field->getLabel() === 'Heading');
+    });
+
     it('creates a related Entry as a Draft', function () {
         $page = entryPage(EditEntry::class, 'project', ['record' => $this->project->id])
             ->callAction(quickCreate('pages'), ['title' => 'À propos'])
