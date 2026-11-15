@@ -383,12 +383,15 @@ class Psyao\Kami\Redirects\Events\RedirectSaved::__construct() public function _
 class Psyao\Kami\Redirects\Redirect final class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Redirects\Redirect::entry() public function entry(): Illuminate\Database\Eloquent\Relations\BelongsTo
 class Psyao\Kami\Schema\ContentMigrator final class
+class Psyao\Kami\Schema\ContentMigrator::dropBlock() public static function dropBlock(string $block): void
 class Psyao\Kami\Schema\ContentMigrator::dropLocale() public static function dropLocale(string $locale): void
 class Psyao\Kami\Schema\ContentMigrator::dropType() public static function dropType(string $type): void
 class Psyao\Kami\Schema\ContentMigrator::makeShared() public static function makeShared(string $type, string $field, string $keep, bool $discardOthers = false): void
 class Psyao\Kami\Schema\ContentMigrator::makeTranslatable() public static function makeTranslatable(string $type, string $field): void
 class Psyao\Kami\Schema\ContentMigrator::makeTypeShared() public static function makeTypeShared(string $type, string $keep, bool $discardOthers = false): void
 class Psyao\Kami\Schema\ContentMigrator::makeTypeTranslatable() public static function makeTypeTranslatable(string $type, string $locale): void
+class Psyao\Kami\Schema\ContentMigrator::renameBlock() public static function renameBlock(string $from, string $to): void
+class Psyao\Kami\Schema\ContentMigrator::renameBlockField() public static function renameBlockField(string $block, string $from, string $to): void
 class Psyao\Kami\Schema\ContentMigrator::renameField() public static function renameField(string $type, string $from, string $to): void
 class Psyao\Kami\Schema\ContentMigrator::renameType() public static function renameType(string $from, string $to): void
 class Psyao\Kami\Seo\PageMeta final readonly class
@@ -436,6 +439,8 @@ command kami:forms:prune
 command kami:install
 command kami:install --email [--email [EMAIL]]
 command kami:install --name [--name [NAME]]
+command kami:make:block
+command kami:make:block name <name>
 command kami:make:form
 command kami:make:form name <name>
 command kami:make:migration

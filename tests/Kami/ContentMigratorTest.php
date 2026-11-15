@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Text;
@@ -36,6 +38,46 @@ final class Memo extends ContentType
     public function fields(): array
     {
         return self::$declared;
+    }
+}
+
+/** A Block linking Memos, whose handle and text Field each test names. */
+final class MigratedQuote extends Block
+{
+    public static string $name = 'quote';
+
+    public static string $text = 'text';
+
+    public function handle(): string
+    {
+        return self::$name;
+    }
+
+    public function fields(): array
+    {
+        return [Text::make(self::$text), Entries::make('source')->of(Memo::class), MediaField::make('image')];
+    }
+
+    public function view(): string
+    {
+        return 'quote';
+    }
+}
+
+/** A second type holding documents. */
+final class MigratedNotebook extends ContentType
+{
+    /** @var list<class-string<Block>> */
+    public static array $offered = [MigratedQuote::class];
+
+    public function handle(): string
+    {
+        return 'notebook';
+    }
+
+    public function fields(): array
+    {
+        return [RichText::make('notes')->blocks(self::$offered)];
     }
 }
 
@@ -122,6 +164,26 @@ function linked(string $source, string $field, ?string $locale, string $target, 
 function column(string $entry, string $field, string $table = 'kami_type_memo'): array
 {
     return DB::table($table)->where('entry_id', $entry)->whereNotNull($field)->pluck($field, 'locale')->sortKeys()->all();
+}
+
+/** @return array<mixed> A stored Block node. */
+function quote(string $text, ?string $source = null, string $handle = 'quote', string $field = 'text'): array
+{
+    return ['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => [$field => $text, 'source' => $source === null ? null : [$source]]]];
+}
+
+/** @param  array<mixed>  ...$nodes */
+function prose(array ...$nodes): string
+{
+    return json_encode(['type' => 'doc', 'content' => $nodes], JSON_THROW_ON_ERROR);
+}
+
+/** @return array<mixed>|null A row's document, decoded. */
+function storedDocument(string $entry, string $locale, string $field = 'body', string $table = 'kami_type_memo'): ?array
+{
+    $stored = DB::table($table)->where(['entry_id' => $entry, 'locale' => $locale])->value($field);
+
+    return is_string($stored) ? json_decode($stored, true) : null;
 }
 
 /** @return array<string, list<string>> A Field's targets, by Locale (`'*'` when shared), in pick order. */
@@ -643,6 +705,114 @@ describe('makeTypeShared', function () {
             ->and(DB::table('kami_translations')->where('entry_id', $entry)->sole()->locale)->toBe('*')
             ->and(DB::table('kami_translations')->where('entry_id', $alone)->count())->toBe(0)
             ->and(DB::table('kami_entries')->where('id', $alone)->exists())->toBeTrue();
+    });
+});
+
+describe('Blocks', function () {
+    beforeEach(function () {
+        MigratedQuote::$name = 'quote';
+        MigratedQuote::$text = 'text';
+        MigratedNotebook::$offered = [MigratedQuote::class];
+        config(['kami.types' => [Memo::class, MigratedNotebook::class], 'kami.blocks' => [MigratedQuote::class]]);
+        ($this->declare)(RichText::make('body')->blocks([MigratedQuote::class]));
+        $this->paragraph = ['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Avant']]];
+    });
+
+    it('renames a Block in every type and Locale, nested or not, and re-indexes what it links but what is gone', function () {
+        ($memo = memo()) && ($notebook = memo('notebook')) && ($target = memo());
+        $gone = (string) Str::ulid();
+        DB::table('kami_media')->insert(['id' => $media = (string) Str::ulid(), 'site' => 'default', 'file' => 'a.jpg', 'name' => 'a', 'mime' => 'image/jpeg', 'family' => 'image', 'size' => 1, 'checksum' => str_repeat('0', 64)]);
+        $illustrated = quote('Image', handle: 'pullquote');
+        $illustrated['attrs']['data']['image'] = [$media, (string) Str::ulid()];
+        memoRow($memo, 'fr', ['body' => prose($this->paragraph, quote('Un', $target, 'pullquote'), $illustrated)]);
+        memoRow($memo, 'en', ['body' => prose(['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [quote('Two', handle: 'pullquote')]]]])]);
+        memoRow($notebook, '*', ['notes' => prose(quote('Partout', $gone, 'pullquote'), quote('Kept', $target, 'other'))], 'kami_type_notebook');
+
+        ($this->inMigration)("ContentMigrator::renameBlock('pullquote', 'quote');");
+
+        // `toEqual`: MySQL's JSON keeps no key order.
+        $illustrated['attrs']['handle'] = 'quote';
+        expect(storedDocument($memo, 'fr'))->toEqual(json_decode(prose($this->paragraph, quote('Un', $target), $illustrated), true))
+            ->and(storedDocument($memo, 'en')['content'][0]['content'][0]['content'][0])->toEqual(quote('Two'))
+            ->and(storedDocument($notebook, '*', 'notes', 'kami_type_notebook'))->toEqual(json_decode(prose(quote('Partout', $gone), quote('Kept', $target, 'other')), true))
+            ->and(targets($memo, 'body'))->toBe(['fr' => [$target, null]])
+            // The gone Media item stores no row either.
+            ->and(DB::table('kami_references')->where(['source_entry_id' => $memo, 'field' => 'body'])->orderBy('position')->pluck('target_media_id')->all())->toBe([null, $media])
+            // The gone Entry stores no row; the unavailable Block links nothing.
+            ->and(targets($notebook, 'notes'))->toBe([]);
+    });
+
+    it('renames a Block\'s Field in every type and Locale, leaving another Block\'s alone', function () {
+        ($memo = memo()) && ($notebook = memo('notebook')) && ($target = memo());
+        MigratedQuote::$text = 'quoted';
+        // A blank Field is stored as null: it holds nothing to keep.
+        $blank = quote('Un', $target);
+        $blank['attrs']['data']['quoted'] = null;
+        memoRow($memo, 'fr', ['body' => prose($blank)]);
+        memoRow($memo, 'en', ['body' => prose(quote('Two'), quote('Other', handle: 'other'))]);
+        memoRow($notebook, '*', ['notes' => prose(quote('Partout'))], 'kami_type_notebook');
+
+        ($this->inMigration)("ContentMigrator::renameBlockField('quote', 'text', 'quoted');");
+
+        // `toEqual`: MySQL's JSON keeps no key order.
+        expect(storedDocument($memo, 'fr')['content'])->toEqual([quote('Un', $target, field: 'quoted')])
+            ->and(storedDocument($memo, 'en')['content'])->toEqual([quote('Two', field: 'quoted'), quote('Other', handle: 'other')])
+            ->and(storedDocument($notebook, '*', 'notes', 'kami_type_notebook')['content'])->toEqual([quote('Partout', field: 'quoted')])
+            ->and(targets($memo, 'body'))->toBe(['fr' => [$target]]);
+    });
+
+    it('refuses to rename a Block\'s Field to itself', function () {
+        expect(fn () => ContentMigrator::renameBlockField('quote', 'text', 'text'))->toThrow(InvalidArgumentException::class, 'cannot be renamed to itself');
+    });
+
+    it('refuses to rename a Block\'s Field onto one a document holds, before writing anything', function () {
+        ($first = memo()) && ($notebook = memo('notebook'));
+        memoRow($first, 'fr', ['body' => $untouched = prose(quote('Un'))]);
+        $held = quote('Deux');
+        $held['attrs']['data']['quoted'] = 'Déjà';
+        memoRow($notebook, '*', ['notes' => prose($held)], 'kami_type_notebook');
+
+        expect(fn () => ($this->inMigration)("ContentMigrator::renameBlockField('quote', 'text', 'quoted');"))->toThrow(InvalidArgumentException::class, 'already holds quoted')
+            ->and(storedDocument($first, 'fr'))->toEqual(json_decode($untouched, true));
+    });
+
+    it('drops a Block from every document, a document left empty becoming null, with its References', function () {
+        ($memo = memo()) && ($notebook = memo('notebook')) && ($target = memo());
+        memoRow($memo, 'fr', ['body' => prose($this->paragraph, quote('Un', $target))]);
+        memoRow($notebook, '*', ['notes' => prose(quote('Partout', $target))], 'kami_type_notebook');
+        linked($memo, 'body', 'fr', $target);
+        linked($notebook, 'notes', null, $target);
+        // The code shipping with the migration no longer declares it.
+        config(['kami.blocks' => []]);
+        Memo::$declared = [RichText::make('body')];
+        MigratedNotebook::$offered = [];
+
+        ($this->inMigration)("ContentMigrator::dropBlock('quote');");
+
+        expect(storedDocument($memo, 'fr')['content'])->toEqual([$this->paragraph])
+            ->and(DB::table('kami_type_notebook')->where('entry_id', $notebook)->value('notes'))->toBeNull()
+            ->and(targets($memo, 'body'))->toBe([])
+            ->and(targets($notebook, 'notes'))->toBe([]);
+    });
+
+    it('refuses to drop a Block still declared', function () {
+        memoRow($memo = memo(), 'fr', ['body' => $kept = prose(quote('Un'))]);
+
+        expect(fn () => ContentMigrator::dropBlock('quote'))->toThrow(InvalidArgumentException::class, 'still declared in kami.blocks')
+            ->and(storedDocument($memo, 'fr'))->toEqual(json_decode($kept, true));
+    });
+
+    it('goes through more Entries than one batch holds', function () {
+        $ids = array_map(fn (): array => ['id' => (string) Str::ulid(), 'site' => 'default', 'type' => 'memo'], range(1, 501));
+
+        foreach (array_chunk($ids, 100) as $chunk) {
+            DB::table('kami_entries')->insert($chunk);
+            DB::table('kami_type_memo')->insert(array_map(fn (array $entry): array => ['entry_id' => $entry['id'], 'locale' => 'fr', 'body' => prose(quote('Un', handle: 'pullquote'))], $chunk));
+        }
+
+        ContentMigrator::renameBlock('pullquote', 'quote');
+
+        expect(DB::table('kami_type_memo')->pluck('body')->map(fn (string $body): mixed => json_decode($body, true)['content'][0]['attrs']['handle'])->unique()->all())->toBe(['quote']);
     });
 });
 

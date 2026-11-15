@@ -18,6 +18,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Put a type's Entries in a tree (`$hierarchical = true`, `parent` on `SaveEntry`, `Term::ancestors()`) | `vendor/psyao/kami/docs/guide/content-types.md#hierarchical-types` |
 | Hold values shown across the Site in a Global Set (`Footer::entry()`), or read `SiteSettings` | `vendor/psyao/kami/docs/guide/content-types.md#global-sets` |
 | Link Entries with `Entries`, or classify them with a Taxonomy and `Terms` | `vendor/psyao/kami/docs/guide/content-types.md#relations` |
+| Put Blocks in rich text (`kami:make:block Name`, `kami.blocks`, `RichText::blocks()`, Kami's `Image` and `Video`), rename or drop one (`ContentMigrator::renameBlock()`, `renameBlockField()`, `dropBlock()`) | `vendor/psyao/kami/docs/guide/blocks.md` |
 | Hold repeated or grouped values in one Field (`Repeater`, `Group`) | `vendor/psyao/kami/docs/guide/content-types.md#repeaters-and-groups` |
 | Change a declared model: rename or drop a Field or type, flip `$translatable` (`ContentMigrator`), or fix content model drift | `vendor/psyao/kami/docs/guide/content-types.md#schema-changes` |
 | Replace a type's admin form or table (`EntryForm`, `EntryTable`), or add a Field type or an admin page | `vendor/psyao/kami/docs/guide/content-types.md#in-the-admin` |

@@ -4,7 +4,13 @@ A Block is anything other than text inside a `RichText` document: a highlighted 
 
 ## Declaring a Block
 
-A Block is a `final` class extending `Psyao\Kami\Content\Blocks\Block`:
+A Block is a `final` class extending `Psyao\Kami\Content\Blocks\Block`. `kami:make:block` starts one: it writes the class into `app/Blocks`, with a required `text` Field and a `summary()` reading it, and its view into `resources/views/blocks`, refuses to overwrite either file, and prints what to add elsewhere: the `config/kami.php` line, the `->blocks()` call and its labels in `kami-blocks.php`.
+
+```bash
+php artisan kami:make:block Callout
+```
+
+A Block written by hand looks the same:
 
 ```php
 namespace App\Blocks;
@@ -54,7 +60,7 @@ List it in `config/kami.php`, then offer it on a `RichText` Field:
 RichText::make('body')->blocks([Callout::class]),
 ```
 
-The handle is stored in every document holding the Block: renaming it means migrating those documents. Labels come from `lang/<locale>/kami-blocks.php`, by handle, as types' come from `kami-types.php`:
+The handle is stored in every document holding the Block: renaming it means [migrating those documents](#renaming-or-dropping-a-block). Labels come from `lang/<locale>/kami-blocks.php`, by handle, as types' come from `kami-types.php`:
 
 ```php
 return [
@@ -165,6 +171,29 @@ The script is Kami's only front JavaScript, a static file `kami:install` copies 
 
 A Block whose class is gone from `kami.blocks`, or that its Field no longer offers, stays in its document as it is: Kami never drops it. `SaveEntry` keeps it untouched, neither validated nor recorded. It renders nothing. The editor shows it as unavailable, under its handle: an editor can only delete it. Declaring or offering it again brings it back.
 
+`kami:doctor` reads every document, 500 Entries at a time, and warns about each unavailable Block, by type and `RichText` Field, naming the Entries holding it by id, ten at most: "2 Entries of article hold the Block callout in body, which kami.blocks no longer declares: 01JD3W…, 01JD3X…." Ids rather than titles, since the admin's "Needs attention" panel shows the warning to Users who may not view that type. The warning fails `kami:doctor --strict`. Declare or offer the Block again, delete it in the editor, or drop it everywhere with `ContentMigrator::dropBlock()`.
+
+## Renaming or dropping a Block
+
+A Block's handle and its Fields' handles are keys in stored documents. Change them from a migration you write, next to the code that changes the Block, with `ContentMigrator` ([Schema changes](content-types.md#schema-changes)):
+
+```php
+use Psyao\Kami\Schema\ContentMigrator;
+
+public function up(): void
+{
+    ContentMigrator::renameBlock('note', 'callout');
+}
+```
+
+| Call | What it does |
+| --- | --- |
+| `renameBlock('note', 'callout')` | Renames the Block in every document holding it. |
+| `renameBlockField('callout', 'body', 'text')` | Renames one of its Fields in every document holding the Block. Refuses, before writing anything, while a document's Block already holds a value under the new handle. |
+| `dropBlock('callout')` | Removes the Block from every document; a document left with nothing becomes blank. Refuses a Block still listed in `kami.blocks`: remove it in the same change. |
+
+Each call reads the `RichText` Fields of the declared types, wherever the Block sits in the document, in batches of 500 Entries, each batch a transaction, so one that stops runs again. It writes through the query builder, with no model event and no `updated_at` change, and records one Audit event. Each document it rewrites gets its References again, under the code that ships with the migration: a target deleted since the document was saved is left out. A type no longer in `kami.types` names no `RichText`, so its documents stay as they are.
+
 ## Shared hosting and a server
 
-No difference: validation and rendering are plain PHP in the request, with a few indexed queries and no process, network or queue. The Video facade is a static file, served by Apache with the `.htaccess` `kami:install` writes beside it, or by nginx with the [documented block](hosting.md#nginx).
+No difference: validation and rendering are plain PHP in the request, with a few indexed queries and no process, network or queue. The doctor's scan and `ContentMigrator`'s Block calls run from the command line only, in batches of 500 Entries. The Video facade is a static file, served by Apache with the `.htaccess` `kami:install` writes beside it, or by nginx with the [documented block](hosting.md#nginx).

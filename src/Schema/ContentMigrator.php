@@ -14,8 +14,12 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Internal\Blocks;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\Documents;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
+use Psyao\Kami\Content\Internal\References;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Sites\Internal\Site;
 use RuntimeException;
 
@@ -26,7 +30,7 @@ final class ContentMigrator
 {
     // ponytail: Locales are the `default` Site's, and rows every Site's; V1 multisite takes a Site.
 
-    private const int BATCH = 500;
+    private const int BATCH = Documents::BATCH;
 
     private const string REFERENCES = 'kami_references';
 
@@ -291,6 +295,168 @@ final class ContentMigrator
         });
 
         self::migrated('makeTypeShared', ['type' => $type, 'keep' => $keep, 'discard_others' => $discardOthers]);
+    }
+
+    /** Renames a Block in every document holding it, re-indexing each document it rewrites under the code that ships with the migration, already renamed. */
+    public static function renameBlock(string $from, string $to): void
+    {
+        resolve(ContentTypes::class)->validateHandle(self::class, 'the Block handle', $to);
+
+        self::rewriteBlocks(fn (array $attrs): array => ($attrs['handle'] ?? null) === $from ? [...$attrs, 'handle' => $to] : $attrs);
+
+        self::migrated('renameBlock', ['from' => $from, 'to' => $to]);
+    }
+
+    /**
+     * Renames a Field of a Block in every document holding the Block.
+     *
+     * @throws InvalidArgumentException While a Block already holds a value under the new handle, before anything is written. A blank Field is stored as `null`, so a `null` there is overwritten.
+     */
+    public static function renameBlockField(string $block, string $from, string $to): void
+    {
+        resolve(ContentTypes::class)->validateHandle(self::class, 'the Field handle', $to);
+
+        if ($from === $to) {
+            throw new InvalidArgumentException("The Field {$from} of the Block {$block} cannot be renamed to itself.");
+        }
+
+        // The Block's data when it holds the Field.
+        $held = fn (array $attrs): ?array => ($attrs['handle'] ?? null) === $block && is_array($data = $attrs['data'] ?? null) && array_key_exists($from, $data) ? $data : null;
+
+        self::eachBlock(function (array $attrs) use ($held, $block, $from, $to): void {
+            if (($held($attrs)[$to] ?? null) !== null) {
+                throw new InvalidArgumentException("The Field {$from} of the Block {$block} cannot become {$to}: a document already holds {$to} in that Block.");
+            }
+        });
+
+        self::rewriteBlocks(function (array $attrs) use ($held, $from, $to): array {
+            if (($data = $held($attrs)) === null) {
+                return $attrs;
+            }
+
+            $data[$to] = $data[$from];
+            unset($data[$from]);
+
+            return [...$attrs, 'data' => $data];
+        });
+
+        self::migrated('renameBlockField', ['block' => $block, 'from' => $from, 'to' => $to]);
+    }
+
+    /** Removes a Block from every document holding it. A Block still listed in `kami.blocks` is refused. */
+    public static function dropBlock(string $block): void
+    {
+        if (isset(resolve(Blocks::class)->all()[$block])) {
+            throw new InvalidArgumentException("The Block {$block} is still declared in kami.blocks: remove it before dropping it.");
+        }
+
+        self::rewriteBlocks(fn (array $attrs): ?array => ($attrs['handle'] ?? null) === $block ? null : $attrs);
+
+        self::migrated('dropBlock', ['block' => $block]);
+    }
+
+    /**
+     * Reads every Block of the declared types' documents, writing nothing.
+     *
+     * @param  Closure(array<mixed>): void  $visit  A Block's `attrs`.
+     */
+    private static function eachBlock(Closure $visit): void
+    {
+        foreach (resolve(ContentTypes::class)->all() as $type) {
+            Documents::each($type, function (array $documents) use ($visit): void {
+                foreach ($documents as $read) {
+                    self::mapBlocks($read['content'], function (array $attrs) use ($visit): array {
+                        $visit($attrs);
+
+                        return $attrs;
+                    });
+                }
+            });
+        }
+    }
+
+    /**
+     * Maps every Block of the declared types' documents and writes each document that changed, a document left with nothing becoming `null` as `RichText` stores it. Each batch is a transaction, so one that stops runs again.
+     *
+     * @param  Closure(array<mixed>): ?array<mixed>  $map  A Block's `attrs`, or `null` to remove the Block.
+     */
+    private static function rewriteBlocks(Closure $map): void
+    {
+        // A type no longer in kami.types names no RichText Field: its documents stay as they are, as the guide says.
+        foreach (resolve(ContentTypes::class)->all() as $type) {
+            $table = self::table($type->handle());
+
+            Documents::each($type, fn (array $documents) => DB::transaction(function () use ($documents, $map, $table): void {
+                $rewritten = [];
+
+                foreach ($documents as ['entry' => $entry, 'locale' => $locale, 'field' => $field, 'document' => $document, 'content' => $stored]) {
+                    $content = self::mapBlocks($stored, $map);
+
+                    if ($content === $stored) {
+                        continue;
+                    }
+
+                    $document = new Document([...$document, 'content' => $content])->isEmpty() ? null : [...$document, 'content' => $content];
+                    DB::table($table)->where(['entry_id' => $entry, 'locale' => $locale])->update([$field->handle => $field->write($document)]);
+                    $rewritten[] = ['entry' => $entry, 'handle' => $field->handle, 'locale' => $locale === self::SHARED ? null : $locale, 'targets' => $field->targets($document)];
+                }
+
+                self::reindex($rewritten);
+            }));
+        }
+    }
+
+    /**
+     * @param  array<mixed>  $nodes
+     * @param  Closure(array<mixed>): ?array<mixed>  $map
+     * @return array<mixed>
+     */
+    private static function mapBlocks(array $nodes, Closure $map): array
+    {
+        $mapped = [];
+
+        foreach ($nodes as $node) {
+            if (is_array($node) && ($node['type'] ?? null) === 'block' && is_array($node['attrs'] ?? null)) {
+                if (($attrs = $map($node['attrs'])) !== null) {
+                    $mapped[] = [...$node, 'attrs' => $attrs];
+                }
+
+                continue;
+            }
+
+            if (is_array($node) && is_array($node['content'] ?? null)) {
+                $node['content'] = self::mapBlocks($node['content'], $map);
+            }
+
+            $mapped[] = $node;
+        }
+
+        return $mapped;
+    }
+
+    /**
+     * Rebuilds the rows of rewritten documents, as `SaveEntry` would. A target gone since the document was saved, such as a link to an Entry deleted for good, is left out, so no row breaks a foreign key.
+     *
+     * @param  list<array{entry: string, handle: string, locale: string|null, targets: array{entries: list<string>, media: list<string>}}>  $documents  `locale` is `null` when shared.
+     */
+    private static function reindex(array $documents): void
+    {
+        $existing = ['entries' => [], 'media' => []];
+
+        foreach (['entries' => 'kami_entries', 'media' => 'kami_media'] as $kind => $table) {
+            $ids = array_values(array_unique(array_merge(...array_map(fn (array $document): array => $document['targets'][$kind], $documents))));
+
+            foreach (array_chunk($ids, self::BATCH) as $chunk) {
+                array_push($existing[$kind], ...array_filter(DB::table($table)->whereIn('id', $chunk)->pluck('id')->all(), is_string(...)));
+            }
+        }
+
+        foreach ($documents as ['entry' => $entry, 'handle' => $handle, 'locale' => $locale, 'targets' => $targets]) {
+            References::replaceTargets($entry, $handle, $locale, [
+                'entries' => array_values(array_intersect($targets['entries'], $existing['entries'])),
+                'media' => array_values(array_intersect($targets['media'], $existing['media'])),
+            ]);
+        }
     }
 
     /**
