@@ -168,7 +168,7 @@ A cursor in `?cursor=` reaches the next pages: an address for a moment of the li
 
 ### Term Archives
 
-A Term's page is its Term Archive: its Taxonomy's `render()` receives the Term, also as `$term`, and `$entries`, the visible Entries of routable types that link it through any Field, in the page's Locale or a Shared one. They come newest first, `$perPage` of the Taxonomy at a time, with the same cursor. The default view, `kami.{handle}`, receives all three:
+A Term's page is its Term Archive: its Taxonomy's `render()` receives the Term, also as `$term`, and `$entries`, the visible Entries of routable types that link it through a relation Field of their own type, in the page's Locale or a Shared one: a [Block's](blocks.md) or a link's target does not count. They come newest first, `$perPage` of the Taxonomy at a time, with the same cursor; a [Preview](publishing.md#preview) shows the first page, whatever its query string. The default view, `kami.{handle}`, receives all three:
 
 ```blade
 <h1>{{ $term->title }}</h1>
@@ -190,7 +190,7 @@ An override takes the same parameters, each extra one with a default: `render(En
 
 ## Feeds
 
-A type with `protected bool $feed = true` offers an RSS 2.0 Feed of its Entries at its Prefix followed by `/feed`, and joins the Site's Feed at `/feed`, which mixes every type that offers one; both answer under every Locale segment: `/articles/feed`, `/en/feed` ([Content types](content-types.md#feeds)). A Feed holds the 20 latest visible Entries in its Locale, newest first by publication date, each with:
+A type with `protected bool $feed = true` offers an RSS 2.0 Feed of its Entries at its Prefix followed by `/feed`, and joins the Site's Feed at `/feed`, which mixes every type that offers one; both answer under every Locale segment: `/articles/feed`, `/en/feed` ([Content types](content-types.md#feeds)). A Feed holds the 20 latest visible Entries in its Locale, newest first by publication date, whatever its query string, a `?cursor=` included, each with:
 
 - `title`: its title;
 - `link`: its `url()`;

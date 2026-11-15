@@ -107,7 +107,7 @@ final class RenderEntry
             ->whereIn('kami_entries.id', fn (Builder $links): Builder => $links->select('source_entry_id')->from('kami_references')
                 ->where('target_entry_id', $id)
                 // A relation Field's rows only: a Block or a link in a document does not classify the Entry.
-                ->whereIn('field', resolve(ContentTypes::class)->relationHandles())
+                ->where(resolve(ContentTypes::class)->classifying('field', 'source_entry_id'))
                 ->where(fn (Builder $inLocale): Builder => $inLocale->where('locale', $locale)->orWhereNull('locale')));
         $entries = Listing::page($query, false, $type->perPage(), $entry->url($locale) ?? '', $cursor);
 

@@ -65,7 +65,7 @@ Other parameters are ignored, as is every pair past the 20 that sort first; a so
 
 `SaveRedirect` throws Laravel's `ValidationException`, changing nothing, on the input at fault:
 
-- `source`: an Entry's current address, which the error names, since that Entry is where to change it; an address Kami answers itself (`media/…`, `sitemap.xml`…), an Archive's or a Feed's; in the default Locale, one starting with another Locale's code; a character no URL carries there, such as a space; more than 500 characters.
+- `source`: an Entry's current address, which the error names, since that Entry is where to change it; an address Kami answers itself (`media/…`, `sitemap.xml`…), an Archive's or a Feed's; in the default Locale, one starting with another Locale's code; a character no URL carries there, such as a space; more than 500 characters; one a concurrent save, a Redirect's or an Entry's, takes first.
 - `status`: anything but 301, 302 or 410.
 - `target`: none for a 301 or 302, one for a 410; an Entry in the Trash, of another Site or with no URL; an address that is not `https://`, `http://` or `/…`, such as `//host` or `javascript:`; a relative address that is itself a Redirect source in that Locale, or the source itself.
 

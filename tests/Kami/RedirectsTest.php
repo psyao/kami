@@ -196,6 +196,18 @@ describe('saving', function (): void {
         'a target that redirects in its Locale' => [fn () => saveRedirect('/blog', target: '/articles', locale: 'en') && saveRedirect('/x', target: '/en/blog', locale: 'en'), 'target'],
     ]);
 
+    it('refuses a source a concurrent save takes after the lookup, changing nothing', function (): void {
+        Event::fake([RedirectSaved::class]);
+        // The concurrent save, inserted between this one's lookup, which locks no row for a new source, and its insert.
+        Redirect::creating(fn (Redirect $redirect) => $redirect->replicate()->saveQuietly());
+
+        expect(fn () => saveRedirect('/blog'))->toThrow(function (ValidationException $exception): void {
+            expect(array_keys($exception->errors()))->toBe(['source']);
+        })->and(Redirect::query()->count())->toBe(0)
+            ->and(auditEvents())->toBe([]);
+        Event::assertNotDispatched(RedirectSaved::class);
+    });
+
     it('names the Entry whose current Path a source is', function (): void {
         redirectedPage();
 

@@ -25,7 +25,7 @@ final class Listing
     private const string PUBLISHED_AT = 'kami__published_at';
 
     /**
-     * Answers 404 for a malformed cursor, or an empty page other than the first. An Entry under an ancestor not visible in the Locale is dropped
+     * Answers 404 for a malformed cursor, or an empty page other than the first; with no cursor given, the first page, whatever the request's. An Entry under an ancestor not visible in the Locale is dropped
      * from its page, which then holds fewer Entries, its links kept: no query of fixed cost can see ancestors (ADR 0019).
      *
      * @param  EntryBuilder  $query  The Entries to list, in the Locale they are read in.
@@ -56,7 +56,10 @@ final class Listing
         abort_if($cursor !== null && ! self::fits($decoded, $parameters), 404);
 
         /** @var CursorPaginator<int, Entry> $page */
-        $page = $query->cursorPaginate($perPage, ['*'], self::CURSOR, $decoded);
+        $page = $decoded instanceof Cursor
+            ? $query->cursorPaginate($perPage, ['*'], self::CURSOR, $decoded)
+            // Not `cursorPaginate()`, which reads the request's cursor when given none: a Feed's or a Preview's, which `fits()` never saw.
+            : new CursorPaginator($query->limit($perPage + 1)->get(), $perPage, null, ['parameters' => $parameters]);
         abort_if($decoded !== null && $page->isEmpty(), 404);
 
         VisiblePaths::preload($page->items());

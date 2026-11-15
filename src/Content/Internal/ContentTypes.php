@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content\Internal;
 
+use Closure;
+use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
 use Psyao\Kami\Content\Blocks\Block;
@@ -81,23 +84,28 @@ final class ContentTypes
     }
 
     /**
-     * The handles of every type's relation Fields: the rows of `kami_references` that classify an Entry, where a document's Block or link only points (#624).
+     * Keeps the rows of `kami_references` that classify an Entry: a relation Field's of the source Entry's own type, where a document's Block or link
+     * only points (#624), whatever handle another type gives its own Fields. It names no outer table, so a self-join's alias, as `withCount()`'s, holds.
      *
-     * @return list<string>
+     * @param  string  $field  The column holding the row's handle.
+     * @param  string  $source  The column holding the source Entry's id.
+     * @return Closure(Builder): void For a `where()`.
      */
-    public function relationHandles(): array
+    public function classifying(string $field, string $source): Closure
     {
-        $handles = [];
+        return function (Builder $query) use ($field, $source): void {
+            // No row when no type declares a relation Field: an empty nested `where()` would keep them all.
+            $query->whereIn($field, []);
 
-        foreach ($this->all() as $type) {
-            foreach ($type->relationFields() as $field) {
-                if ($field instanceof RelationField) {
-                    $handles[$field->handle] = $field->handle;
+            foreach ($this->all() as $type) {
+                $handles = array_column(array_filter($type->relationFields(), fn (Field $relation): bool => $relation instanceof RelationField), 'handle');
+
+                if ($handles !== []) {
+                    $query->orWhere(fn (Builder $ofType): Builder => $ofType->whereIn($field, $handles)
+                        ->whereIn($source, fn (QueryBuilder $ids): QueryBuilder => $ids->select('id')->from('kami_entries')->where('type', $type->handle())));
                 }
             }
-        }
-
-        return array_values($handles);
+        };
     }
 
     /**

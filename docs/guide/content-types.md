@@ -533,7 +533,7 @@ $term->entries()->withUnpublished()->count();
 Term::query()->ofType(Tag::class)->with('entries')->get(); // no N+1
 ```
 
-`entries()` is an Eloquent relation, across every relation Field naming the Term, reading visible Entries in the current Locale, whatever the Term's own query says: ask for more on the relation, with `$term->entries()->inLocale('en')` or `with(['entries' => fn ($query) => $query->withUnpublished()])`.
+`entries()` is an Eloquent relation, across every relation Field naming the Term on its Entry's own type, reading visible Entries in the current Locale, whatever the Term's own query says: ask for more on the relation, with `$term->entries()->inLocale('en')` or `with(['entries' => fn ($query) => $query->withUnpublished()])`.
 
 `SaveEntry` publishes a new Term when `status` is left out; a Draft is asked for by name. The picker's creation does the same, so a Tag needs no second step, for an editor holding the Taxonomy's `publish`; without it, the Term is a Draft, left out of reads until someone publishes it. A Taxonomy's own form keeps its two buttons, Save draft and Publish.
 
