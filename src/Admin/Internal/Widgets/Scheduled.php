@@ -52,6 +52,7 @@ final class Scheduled extends TableWidget
                 TextColumn::make('locale')->label(__('kami::admin.search.locale'))->state(fn (Translation $record): ?string => $record->locale === '*' ? null : Str::upper($record->locale)),
                 TextColumn::make('published_at')->label(__('kami::admin.fields.published_at'))->dateTime(timezone: Site::current()->timezone),
             ])
-            ->recordUrl(fn (Translation $record): string => EntryResource::withConfiguration($record->entry->type, fn (): string => EntryResource::editUrl($record->entry, $record->locale)));
+            // A row the User may not edit has no link, as in the Media library (#388).
+            ->recordUrl(fn (Translation $record): ?string => EntryResource::withConfiguration($record->entry->type, fn (): ?string => EntryResource::editUrlIfAllowed($record->entry, $record->locale)));
     }
 }

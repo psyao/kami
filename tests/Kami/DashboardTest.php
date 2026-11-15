@@ -75,7 +75,7 @@ it('lists the last 10 Entries the User may view, Drafts included and the Trash l
     resolve(SaveEntry::class)->handle(Page::class, ['title' => 'A page']);
     $last = $articles->last();
 
-    entriesPage(RecentlyEdited::class, ['kami.entries.article.view'], type: null)
+    entriesPage(RecentlyEdited::class, ['kami.entries.article.view', 'kami.entries.article.update'], type: null)
         ->assertCanSeeTableRecords($articles->slice(1)->reverse(), inOrder: true)
         ->assertCanNotSeeTableRecords([$articles->first()])
         ->assertTableColumnStateSet('title', 'Article 11', $last)
@@ -104,7 +104,7 @@ it('lists the Translations to come, soonest first, dated in the Site\'s time zon
     resolve(TrashEntry::class)->handle(editedArticle('Jeté', $scheduled));
     resolve(SaveEntry::class)->handle(Page::class, ['title' => 'A page', ...$scheduled]);
 
-    entriesPage(Scheduled::class, ['kami.entries.article.view'], type: null)
+    entriesPage(Scheduled::class, ['kami.entries.article.view', 'kami.entries.article.update', 'kami.entries.article.publish'], type: null)
         ->assertCanSeeTableRecords([translationTitled('Sooner'), translationTitled('Plus tard')], inOrder: true)
         ->assertCanNotSeeTableRecords([translationTitled('Publié'), translationTitled('Brouillon daté'), translationTitled('Jeté'), translationTitled('A page')])
         ->assertTableColumnStateSet('locale', 'EN', translationTitled('Sooner'))
@@ -122,12 +122,34 @@ it('leaves out a Scheduled Translation in a Locale the Site no longer has, which
         ->assertCanNotSeeTableRecords([translationTitled('Hello later')]);
 });
 
+// Editing a published Translation takes `publish` (ADR 0019): a link would answer 403, so the row shows with none, as in the Media library (#388).
+it('links a published Entry to its edit page only for a User who may publish it', function (string $widget, array $permissions, bool $linked) {
+    $this->travelTo('2026-03-01 10:00:00');
+    $entry = editedArticle('Plus tard', ['status' => 'published', 'published_at' => '2026-03-02 08:00:00']);
+
+    $page = entriesPage($widget, ['kami.entries.article.view', 'kami.entries.article.update', ...$permissions], type: null)->assertSee('Plus tard');
+
+    $linked ? $page->assertSeeHtml("/admin/articles/{$entry->id}/edit\"") : $page->assertDontSeeHtml("/admin/articles/{$entry->id}/edit");
+})->with([RecentlyEdited::class, Scheduled::class])->with([
+    'without publish' => [[], false],
+    'with publish' => [['kami.entries.article.publish'], true],
+]);
+
+// Recently edited opens the default Locale: another one published does not take the link away.
+it('links a recently edited Entry whose default Translation is a Draft, another one published', function () {
+    $entry = editedArticle('Hello', ['status' => 'published'], editedArticle('Brouillon'), 'en');
+
+    entriesPage(RecentlyEdited::class, ['kami.entries.article.view', 'kami.entries.article.update'], type: null)
+        ->assertSeeHtml("/admin/articles/{$entry->id}/edit\"");
+});
+
 // An Entry loads its Translations and its type's row with it: 3 queries for Entries, 4 from the Translations.
 it('reads each list in a fixed number of queries, whatever its size', function (string $widget, int $queries, int $entries) {
     for ($i = 1; $i <= $entries; $i++) {
         editedArticle("Article {$i}", ['status' => 'published', 'published_at' => now()->addDay()]);
     }
-    $page = entriesPage($widget, ['kami.entries.article.view'], type: null);
+    // Every row checks the policy for its link, `publish` included.
+    $page = entriesPage($widget, ['kami.entries.article.view', 'kami.entries.article.update', 'kami.entries.article.publish'], type: null);
 
     DB::flushQueryLog();
     DB::enableQueryLog();

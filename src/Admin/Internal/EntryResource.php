@@ -241,7 +241,7 @@ final class EntryResource extends FilamentResource
         $hasPublication = ! self::type() instanceof GlobalSet;
 
         return [
-            ...($hasPublication ? [TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)
+            ...($hasPublication ? [TextInput::make('title')->label(self::type()->fieldLabel('title'))->extraInputAttributes($lang)
                 ->live(onBlur: true, condition: fn (): bool => $hasSlug && ! $hasStoredSlug())
                 // The hook also runs on a save's deferred update, hence the check. Blank or the previous title's slug: not typed by hand.
                 ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasSlug, $hasStoredSlug, $locale): void {
@@ -249,12 +249,12 @@ final class EntryResource extends FilamentResource
                         $set('slug', Path::slugFrom($state ?? '', $locale));
                     }
                 })] : []),
-            ...($hasSlug ? [TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
+            ...($hasSlug ? [TextInput::make('slug')->label(self::type()->fieldLabel('slug'))->extraInputAttributes($lang)
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help'))] : []),
             ...(self::type()->isHierarchical() ? [self::parentInput()] : []),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish` (ADR 0019); `save()` holds the rule, this shows it.
-            ...($hasPublication ? [DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
+            ...($hasPublication ? [DateTimePicker::make('published_at')->label(self::type()->fieldLabel('published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 // Live, so Publish reads Schedule as soon as a date to come is chosen.
                 ->live()
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record))] : []),
@@ -375,7 +375,7 @@ final class EntryResource extends FilamentResource
     {
         return [
             TextColumn::make('title')
-                ->label(__('kami::admin.fields.title'))
+                ->label(self::type()->fieldLabel('title'))
                 // Every cell links to the record: an empty one would be a link with no name (WCAG 2.4.4). Not `placeholder()`, whose grey fails contrast (WCAG 1.4.3).
                 ->state(fn (Entry $record): ?string => self::firstTitle($record))
                 ->default(__('kami::admin.fields.untitled'))
@@ -671,6 +671,18 @@ final class EntryResource extends FilamentResource
     }
 
     /**
+     * The edit page, or none when the User may not edit the Entry in that Locale: a published Translation takes `publish` (ADR 0019), so a link would answer 403.
+     * Checked on a copy read in that Locale, leaving the caller's Entry as it was read.
+     */
+    public static function editUrlIfAllowed(Entry $entry, ?string $locale): ?string
+    {
+        $read = clone $entry;
+        $read->readIn($locale ?? Site::current()->defaultLocale());
+
+        return self::can('update', $read) ? self::editUrl($entry, $locale) : null;
+    }
+
+    /**
      * The Locales a Translation of the type may have, each with its own edit page; none for an untranslatable type, whose `'*'` Translation answers in every Locale.
      *
      * @return list<string>
@@ -749,7 +761,7 @@ final class EntryResource extends FilamentResource
         $label = __('kami::admin.actions.create_target', ['type' => $type->label()]);
 
         return $picker
-            ->createOptionForm([TextInput::make('title')->label(__('kami::admin.fields.title'))->required()])
+            ->createOptionForm([TextInput::make('title')->label($type->fieldLabel('title'))->required()])
             // Offering a link takes `view` (`viewAny` without a record): a User never creates a target they would then see as restricted.
             ->createOptionAction(fn (Action $action): Action => $action->authorize(fn (): bool => $allows('create') && $allows('viewAny'))
                 // Named, as a form may hold several pickers (WCAG 2.4.6).

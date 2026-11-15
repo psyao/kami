@@ -124,6 +124,15 @@ it('reads labels from kami-types by handle, or humanises the handle in sentence 
         ->and($type->fieldHelp('lead'))->toBeNull();
 });
 
+it('reads a built-in Field\'s label from kami-types, or Kami\'s own', function () {
+    app('translator')->addLines(['kami-types.declared.fields.title.label' => 'Name'], 'en');
+    $type = new Declared;
+
+    expect($type->fieldLabel('title'))->toBe('Name')
+        ->and($type->fieldLabel('slug'))->toBe('Slug')
+        ->and($type->fieldLabel('published_at'))->toBe('Publication date');
+});
+
 it('reads an option\'s label from kami-types by key, or humanises the key', function () {
     app('translator')->addLines(['kami-types.declared.fields.kind.options.news' => 'Latest news'], 'en');
     $type = new Declared;
