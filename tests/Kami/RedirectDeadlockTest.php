@@ -85,7 +85,7 @@ it('refuses an Entry\'s new Path a concurrent Redirect save takes, rather than d
         $other->query("select * from kami_paths where site = 'default' and locale = 'fr' and path = 'blog' for update");
         $other->query(sprintf("insert into kami_paths (id, site, locale, path, status, target) values ('%s', 'default', 'fr', 'blog', 302, '/winner')", Str::ulid()), MYSQLI_ASYNC);
 
-        foreach (range(1, 50) as $_) {
+        foreach (range(1, 25) as $_) {
             if (DB::selectOne("select count(*) as waiting from information_schema.innodb_trx where trx_state = 'LOCK WAIT' and trx_mysql_thread_id = ?", [$other->thread_id])->waiting > 0) {
                 // Its insert waits on a lock this save holds: this save's insert closes the cycle.
                 return;
@@ -102,7 +102,7 @@ it('refuses an Entry\'s new Path a concurrent Redirect save takes, rather than d
     try {
         expect(fn () => resolve(SaveEntry::class)->handle(Page::class, ['title' => 'Blog', 'status' => 'published'], locale: 'fr'))
             ->toThrow(function (ValidationException $e): void {
-                expect($e->errors())->toHaveKey('slug');
+                expect($e->errors())->toBe(['slug' => [__('validation.unique', ['attribute' => 'slug'])]]);
             });
     } finally {
         DB::statement("kill {$other->thread_id}");
@@ -110,5 +110,6 @@ it('refuses an Entry\'s new Path a concurrent Redirect save takes, rather than d
 
     expect(Entry::query()->withUnpublished()->count())->toBe(0);
     expect(Redirect::query()->sole()->only(['status', 'target']))->toBe(['status' => 302, 'target' => '/winner']);
+    expect(auditEvents())->toBe([]);
     Event::assertNotDispatched(EntrySaved::class);
 })->skip(fn (): bool => ! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true) || ! extension_loaded('mysqli'), 'A locking read or delete of a missing row takes a gap lock on InnoDB only; the concurrent save needs mysqli.');

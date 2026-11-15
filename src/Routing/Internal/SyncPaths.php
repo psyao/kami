@@ -283,11 +283,7 @@ final readonly class SyncPaths
         DB::transaction(function () use ($site, $row, $current): void {
             // A new Path that lands on a Redirect or a 410 replaces it (ADR 0008); kept when the write clashes. Found by a plain read and deleted
             // by key: on InnoDB a delete that matches nothing takes a gap lock, which a concurrent save at that path takes too, deadlocking both inserts.
-            $replaced = Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->where('status', '!=', 200)->value('id');
-
-            if ($replaced !== null) {
-                Path::query()->whereKey($replaced)->delete();
-            }
+            Path::query()->where(['site' => $site->handle, 'locale' => $row['locale'], 'path' => $row['path']])->where('status', '!=', 200)->first()?->delete();
 
             if ($current instanceof Path && ! $row['wasPublic']) {
                 $current->update(['path' => $row['path']]);
