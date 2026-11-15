@@ -240,7 +240,7 @@ it('serves a stored page with Livewire\'s assets once when the site forces their
     resolve(SaveEntry::class)->handle(Notice::class, ['title' => 'Hello world', 'status' => 'published']);
     Livewire::forceAssetInjection();
     $first = $this->get('/notice/hello-world')->assertOk();
-    // A request of its own, as in production: Livewire otherwise remembers within the test that it has sent its script, and injects nothing either way.
+    // A request of its own, as in production: Livewire otherwise remembers within the test that it has sent its script, and injects nothing either way. flushState() also clears the forced injection.
     Livewire::flushState();
     Livewire::forceAssetInjection();
 
