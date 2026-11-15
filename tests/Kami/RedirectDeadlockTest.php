@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
-use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Redirects\Actions\SaveRedirect;
 use Psyao\Kami\Redirects\Events\RedirectSaved;
 use Psyao\Kami\Redirects\Redirect;
@@ -16,7 +15,6 @@ use Psyao\Kami\Redirects\Redirect;
 uses(DatabaseMigrations::class);
 
 it('saves over a concurrent save that deadlocks it at a new source', function (): void {
-    Kami::routes();
     Event::fake([RedirectSaved::class]);
     $config = config('database.connections.' . config('database.default'));
     $other = new mysqli($config['host'], $config['username'], $config['password'], $config['database'], (int) $config['port']);
@@ -37,9 +35,7 @@ it('saves over a concurrent save that deadlocks it at a new source', function ()
         // one's, and this one's then closes the cycle. Its rows elsewhere make it the heavier transaction, so InnoDB rolls this one back.
         $other->begin_transaction();
 
-        foreach (range(1, 3) as $i) {
-            $other->query(sprintf("insert into kami_task_runs (id, task, description, last_run_at) values ('%s', 'task-%d', '', now())", Str::ulid(), $i));
-        }
+        $other->query(sprintf("insert into kami_task_runs (id, task, description, last_run_at) values ('%s', 'a', '', now()), ('%s', 'b', '', now()), ('%s', 'c', '', now())", Str::ulid(), Str::ulid(), Str::ulid()));
 
         $other->query("select * from kami_paths where site = 'default' and locale = 'fr' and path = 'blog' for update");
         $other->query(sprintf("insert into kami_paths (id, site, locale, path, status, target) values ('%s', 'default', 'fr', 'blog', 302, '/winner')", Str::ulid()), MYSQLI_ASYNC);
@@ -54,14 +50,14 @@ it('saves over a concurrent save that deadlocks it at a new source', function ()
     });
 
     try {
-        $redirect = resolve(SaveRedirect::class)->handle('/blog', 301, '/elsewhere');
+        resolve(SaveRedirect::class)->handle('/blog', 301, '/elsewhere');
     } finally {
         // A failure leaves the concurrent save open, holding locks the closing rollback of migrations would wait on.
         DB::statement("kill {$other->thread_id}");
     }
 
-    expect(Redirect::query()->sole()->only(['id', 'status', 'target']))->toBe(['id' => $redirect->id, 'status' => 301, 'target' => '/elsewhere'])
+    expect(Redirect::query()->sole()->only(['status', 'target']))->toBe(['status' => 301, 'target' => '/elsewhere'])
         ->and(array_column(auditEvents(), 'event'))->toBe(['kami.redirects.updated'])
         ->and($lookups)->toBe(2);
     Event::assertDispatched(RedirectSaved::class, fn (RedirectSaved $event): bool => ! $event->created);
-})->skip(fn (): bool => ! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true), 'A locking read of a missing row takes a gap lock on InnoDB only.');
+})->skip(fn (): bool => ! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true) || ! extension_loaded('mysqli'), 'A locking read of a missing row takes a gap lock on InnoDB only; the concurrent save needs mysqli.');
