@@ -27,6 +27,7 @@ use Psyao\Kami\Content\Internal\VideoFacade;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Routing\Internal\PageCache;
+use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\SyncPaths;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Psyao\Kami\Sites\Internal\Site;
@@ -161,7 +162,7 @@ final class InstallCommand extends Command
         return true;
     }
 
-    /** Moves URLs to follow the declarations (ADR 0008); an address another Entry holds fails the deploy, naming both sides. */
+    /** Moves URLs to follow the declarations (ADR 0008); an address another Entry holds, or one too long to store, fails the deploy, naming the Entry. */
     private function syncPaths(SyncPaths $syncPaths): bool
     {
         $result = $syncPaths();
@@ -176,7 +177,11 @@ final class InstallCommand extends Command
             $this->components->error("Entry {$clash['entry_id']} cannot take /{$clash['path']} in {$clash['locale']}: Entry {$clash['holder']} holds it. Change one of the two slugs, then run kami:install again.");
         }
 
-        return $result['clashes'] === [];
+        foreach ($result['tooLong'] as $long) {
+            $this->components->error("Entry {$long['entry_id']} cannot take its Path in {$long['locale']}: /" . mb_substr($long['path'], 0, 60) . '… is longer than ' . Path::MAX_LENGTH . " characters. Shorten its slug or an ancestor's, then run kami:install again.");
+        }
+
+        return $result['clashes'] === [] && $result['tooLong'] === [];
     }
 
     /**
