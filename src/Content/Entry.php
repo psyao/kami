@@ -445,6 +445,8 @@ class Entry extends Model
     /**
      * Entries ordered on a `->sortable()` Field, after `ofType()`, read as `whereField()` reads it.
      *
+     * Paged with `paginate()`: `cursorPaginate()` throws, as a cursor skips Entries whose Field is blank.
+     *
      * @param  Builder<static>  $query
      * @param  'asc'|'desc'  $direction
      */

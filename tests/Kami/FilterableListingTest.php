@@ -149,3 +149,13 @@ it('needs ofType() first, and its Locale fixed before a Field joins', function (
         ->and(fn () => Entry::query()->ofType('nope')->whereField('rank', 7))->toThrow(LogicException::class, '"nope"')
         ->and(fn () => Entry::query()->ofType(Listed::class)->whereField('rank', 7)->inLocale('en'))->toThrow(LogicException::class, 'inLocale()');
 });
+
+it('refuses cursorPaginate() after orderByField(), pages with paginate(), and still cursors a filtered listing', function (): void {
+    $sorted = fn (string $field) => Entry::query()->ofType(Listed::class)->orderByField($field)->orderBy('kami_entries.id');
+
+    expect(fn () => $sorted('stock')->cursorPaginate(1))->toThrow(LogicException::class, 'paginate()')
+        ->and(fn () => $sorted('code')->cursorPaginate(1))->toThrow(LogicException::class, 'paginate()')
+        ->and($sorted('stock')->paginate(1, page: 2)->pluck('title')->all())->toBe(['Second'])
+        ->and($sorted('stock')->reorder('kami_entries.id')->cursorPaginate(3)->items())->toHaveCount(3)
+        ->and(Entry::query()->ofType(Listed::class)->whereField('weight', 3)->cursorPaginate(1)->pluck('title')->all())->toBe(['First']);
+});

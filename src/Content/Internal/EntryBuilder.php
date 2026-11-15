@@ -7,6 +7,7 @@ namespace Psyao\Kami\Content\Internal;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use LogicException;
 use Psyao\Kami\Content\ContentType;
@@ -153,6 +154,18 @@ final class EntryBuilder extends Builder
         }
 
         return $relation;
+    }
+
+    /** A blank stored value is `NULL`, which no cursor condition reaches (#659). */
+    public function cursorPaginate($perPage = null, $columns = ['*'], $cursorName = 'cursor', $cursor = null)
+    {
+        $onField = fn (array $order): bool => is_string($order['column'] ?? null) && Str::startsWith($order['column'], [self::TRANSLATED . '.', self::SHARED . '.']);
+
+        if (collect($this->getQuery()->orders)->contains($onField)) {
+            throw new LogicException('Page a query sorted with orderByField() with paginate(), not cursorPaginate(): a cursor skips Entries whose Field is blank.');
+        }
+
+        return parent::cursorPaginate($perPage, $columns, $cursorName, $cursor);
     }
 
     /** It hydrates without `eagerLoadRelations()`, so its Entries would read `null` for every stored Field value. */
