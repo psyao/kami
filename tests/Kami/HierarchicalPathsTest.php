@@ -208,7 +208,7 @@ it('resolves a nested Entry in an exact number of queries, whatever its depth', 
     };
 
     // The Path and its prefixes with their visibility, the Entry with its visibility, its Translations, its type rows, the head's look for the
-    // Site settings, its Social image Reference; `url()`'s own Paths and its ancestors', read once for every Locale; the layout's Site settings.
-    expect($count('/one/two'))->toBe(9)
-        ->and($count('/one/two/three/four'))->toBe(9);
+    // Site settings, its Social image Reference; `url()`'s own Paths and its ancestors', read once for every Locale; the layout's Site settings and primary Menu.
+    expect($count('/one/two'))->toBe(10)
+        ->and($count('/one/two/three/four'))->toBe(10);
 });

@@ -12,10 +12,12 @@ use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Events\EntryDeleted;
 use Psyao\Kami\Content\Internal\EntryTitles;
+use Psyao\Kami\Menus\Actions\DeleteMenuItem;
+use Psyao\Kami\Menus\MenuItem;
 use Psyao\Kami\Routing\Internal\Path;
 
 /**
- * Deletes an Entry from the Trash for good, with its Translations, Field values, References and Preview links. Its addresses, in every Locale, become 301s to a replacement Entry, or 410s, so none falls silently to a 404 (ADR 0008). It does not authorise: the caller checks the actor's `force-delete` Permission first (ADR 0011).
+ * Deletes an Entry from the Trash for good, with its Translations, Field values, References and Preview links, and its Menu items through `DeleteMenuItem`. Its addresses, in every Locale, become 301s to a replacement Entry, or 410s, so none falls silently to a 404 (ADR 0008). It does not authorise: the caller checks the actor's `force-delete` Permission first (ADR 0011).
  */
 final class DeleteEntry
 {
@@ -45,6 +47,11 @@ final class DeleteEntry
         }
 
         DB::transaction(function () use ($entry, $replacement, $actor): void {
+            // Its Menu items first, their children moving up one level: `entry_id` restricts, so no subtree goes silently (ADR 0025).
+            foreach (MenuItem::query()->where('entry_id', $entry->id)->get() as $item) {
+                resolve(DeleteMenuItem::class)->handle($item, $actor);
+            }
+
             Path::query()->where('entry_id', $entry->id)->update($replacement instanceof Entry ? ['status' => 301, 'entry_id' => $replacement->id] : ['status' => 410, 'entry_id' => null]);
             $entry->forceDelete();
             resolve(RecordAuditEvent::class)->handle('kami.entries.force-deleted', $entry, actor: $actor);

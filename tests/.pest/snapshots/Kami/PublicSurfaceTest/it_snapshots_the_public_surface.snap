@@ -291,6 +291,7 @@ class Psyao\Kami\Import\ImportReport::$updated public protected(set) readonly in
 class Psyao\Kami\Kami final class
 class Psyao\Kami\Kami::flushCache() public function flushCache(): void
 class Psyao\Kami\Kami::form() public function form(string $handle): Psyao\Kami\Forms\Form
+class Psyao\Kami\Kami::menu() public function menu(string $handle): array
 class Psyao\Kami\Kami::remember() public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed
 class Psyao\Kami\Kami::routes() public function routes(bool $session = false, array $middleware = []): void
 class Psyao\Kami\Kami::schedule() public function schedule(): void
@@ -331,6 +332,36 @@ class Psyao\Kami\Media\Media::caption() public function caption(): ?string
 class Psyao\Kami\Media\Media::isDecorative() public function isDecorative(): bool
 class Psyao\Kami\Media\Media::isImage() public function isImage(): bool
 class Psyao\Kami\Media\Media::url() public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string
+class Psyao\Kami\Menus\Actions\DeleteMenuItem final class
+class Psyao\Kami\Menus\Actions\DeleteMenuItem::handle() public function handle(Psyao\Kami\Menus\MenuItem $item, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Menus\Actions\MoveMenuItem final class
+class Psyao\Kami\Menus\Actions\MoveMenuItem::handle() public function handle(Psyao\Kami\Menus\MenuItem $item, int $position, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Menus\MenuItem
+class Psyao\Kami\Menus\Actions\SaveMenuItem final class
+class Psyao\Kami\Menus\Actions\SaveMenuItem::handle() public function handle(string $menu, array $values, ?Psyao\Kami\Menus\MenuItem $item = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Menus\MenuItem
+class Psyao\Kami\Menus\Events\MenuItemDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Menus\Events\MenuItemDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Menus\Events\MenuItemDeleted::$itemId public protected(set) readonly string $itemId
+class Psyao\Kami\Menus\Events\MenuItemDeleted::$menu public protected(set) readonly string $menu
+class Psyao\Kami\Menus\Events\MenuItemDeleted::$site public protected(set) readonly string $site
+class Psyao\Kami\Menus\Events\MenuItemDeleted::__construct() public function __construct(string $itemId, string $menu, string $site, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Menus\Events\MenuItemMoved final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Menus\Events\MenuItemMoved::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Menus\Events\MenuItemMoved::$item public protected(set) readonly Psyao\Kami\Menus\MenuItem $item
+class Psyao\Kami\Menus\Events\MenuItemMoved::__construct() public function __construct(Psyao\Kami\Menus\MenuItem $item, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Menus\Events\MenuItemSaved final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Menus\Events\MenuItemSaved::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Menus\Events\MenuItemSaved::$created public protected(set) readonly bool $created
+class Psyao\Kami\Menus\Events\MenuItemSaved::$item public protected(set) readonly Psyao\Kami\Menus\MenuItem $item
+class Psyao\Kami\Menus\Events\MenuItemSaved::__construct() public function __construct(Psyao\Kami\Menus\MenuItem $item, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Menus\MenuItem final class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Menus\MenuLink final readonly class
+class Psyao\Kami\Menus\MenuLink::$children public protected(set) readonly array $children
+class Psyao\Kami\Menus\MenuLink::$inTrail public protected(set) readonly bool $inTrail
+class Psyao\Kami\Menus\MenuLink::$isCurrent public protected(set) readonly bool $isCurrent
+class Psyao\Kami\Menus\MenuLink::$label public protected(set) readonly string $label
+class Psyao\Kami\Menus\MenuLink::$newTab public protected(set) readonly bool $newTab
+class Psyao\Kami\Menus\MenuLink::$url public protected(set) readonly ?string $url
+class Psyao\Kami\Menus\MenuLink::__construct() public function __construct(string $label, ?string $url, bool $newTab, array $children, bool $isCurrent, bool $inTrail)
 class Psyao\Kami\Schema\ContentMigrator final class
 class Psyao\Kami\Schema\ContentMigrator::dropLocale() public static function dropLocale(string $locale): void
 class Psyao\Kami\Schema\ContentMigrator::dropType() public static function dropType(string $type): void
@@ -411,6 +442,7 @@ component x-kami::form ['form']
 component x-kami::form.errors ['level' => 2]
 component x-kami::image ['media', 'preset', 'sizes' => null, 'eager' => false]
 component x-kami::locales
+component x-kami::menu ['handle']
 component x-kami::pagination ['paginator']
 component x-kami::preview-banner
 component x-kami::seo ['title' => null, 'description' => null]
@@ -425,6 +457,7 @@ config kami.media.mimes.image
 config kami.media.originals_disk
 config kami.media.presets
 config kami.media.public_disk
+config kami.menus
 config kami.page_cache.enabled
 config kami.resources.entry
 config kami.resources.media
@@ -457,6 +490,7 @@ permission kami.media.create
 permission kami.media.delete
 permission kami.media.update
 permission kami.media.view
+permission kami.menus.manage
 permission kami.users.manage
 route kami.form POST kami/forms/{handle}
 route kami.tick GET|POST|HEAD kami/tick/{token}
@@ -467,6 +501,7 @@ table kami_form_submissions
 table kami_import_keys
 table kami_media
 table kami_media_translations
+table kami_menu_items
 table kami_paths
 table kami_preview_links
 table kami_references

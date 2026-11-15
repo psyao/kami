@@ -43,6 +43,9 @@ use Psyao\Kami\Media\Internal\ImagePresets;
 use Psyao\Kami\Media\Internal\PruneMediaCommand;
 use Psyao\Kami\Media\Internal\StripMetadata;
 use Psyao\Kami\Media\Internal\WarmMediaCommand;
+use Psyao\Kami\Menus\Events\MenuItemDeleted;
+use Psyao\Kami\Menus\Events\MenuItemMoved;
+use Psyao\Kami\Menus\Events\MenuItemSaved;
 use Psyao\Kami\Routing\Internal\BenchCommand;
 use Psyao\Kami\Routing\Internal\CachePages;
 use Psyao\Kami\Routing\Internal\ClearCacheCommand;
@@ -119,7 +122,7 @@ final class KamiServiceProvider extends PackageServiceProvider
         $router->aliasMiddleware('kami.security-headers', SecurityHeaders::class);
 
         // Every public write action dispatches one of these after commit (ADR 0029); `EntrySaved` comes with each `EntryPublished` and `EntryUnpublished`.
-        Event::listen([EntrySaved::class, EntryDuplicated::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class, MediaSaved::class, MediaDeleted::class], PageCache::invalidate(...));
+        Event::listen([EntrySaved::class, EntryDuplicated::class, EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class, MediaSaved::class, MediaDeleted::class, MenuItemSaved::class, MenuItemMoved::class, MenuItemDeleted::class], PageCache::invalidate(...));
         // Any save changes a Translation's `updated_at`, the sitemap's `lastmod`, beside publishing, Paths and `noindex` (#410); a type with no URL is in no sitemap (#446).
         Event::listen(EntrySaved::class, fn (EntrySaved $event) => $event->entry->contentType()?->isRoutable() === true ? Sitemap::markStale() : null);
         Event::listen([EntryTrashed::class, EntryRestored::class, EntryDeleted::class, TranslationDeleted::class], fn () => Sitemap::markStale());

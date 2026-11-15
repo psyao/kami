@@ -95,7 +95,7 @@ Groups the Audit events of a long run, such as an import, into one summary event
 
 `final class`
 
-Deletes an Entry from the Trash for good, with its Translations, Field values, References and Preview links. Its addresses, in every Locale, become 301s to a replacement Entry, or 410s, so none falls silently to a 404 (ADR 0008). It does not authorise: the caller checks the actor's `force-delete` Permission first (ADR 0011).
+Deletes an Entry from the Trash for good, with its Translations, Field values, References and Preview links, and its Menu items through `DeleteMenuItem`. Its addresses, in every Locale, become 301s to a replacement Entry, or 410s, so none falls silently to a 404 (ADR 0008). It does not authorise: the caller checks the actor's `force-delete` Permission first (ADR 0011).
 
 - `public function handle(Psyao\Kami\Content\Entry $entry, ?Psyao\Kami\Content\Entry $replacement = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
 
@@ -584,6 +584,7 @@ What a site calls on Kami through the `Kami` facade.
 
 - `public function flushCache(): void`: Makes every cached page and fragment stale, after a change Kami cannot see, such as the host application's data.
 - `public function form(string $handle): Psyao\Kami\Forms\Form`: A Form listed under `kami.forms`, by handle, for its view: `Kami::form('contact')->sent()`.
+- `public function menu(string $handle): array`: A Menu declared under `kami.menus`, as the links visible in the current Locale, with the current page and its Trail marked (ADR 0025): for a site's own markup when `<x-kami::menu>` does not fit.
 - `public function remember(string $key, DateTimeInterface|DateInterval|int $ttl, Closure $callback): mixed`: Caches a fragment on Laravel's default store until any core write, `kami:install` or `Kami::flushCache()`, or its TTL: the key carries the Content version, so it needs no tags (ADR 0021).
 - `public function routes(bool $session = false, array $middleware = []): void`: Registers Kami's front: a fallback route for Entries and Archives, `/kami/share/{token}` for Preview links, `/media/{ulid}/{v}/{file}` for Conversions and the files of documents and SVG, `/sitemap.xml` and `/sitemaps/{file}`, which build the sitemap when its static files are missing, `/feed` and `/{prefix}/feed` for Feeds under every Locale segment, `/kami/tick/{token}` for a host's planner, and `POST /kami/forms/{handle}` for Forms. `$middleware` adds the site's rendering middleware, such as Inertia's, to the pages alone: Entries, Archives and Term Archives.
 - `public function schedule(): void`: Declares Kami's Scheduled tasks on Laravel's `Schedule`, for `routes/console.php`. A Tick runs them in-process, or `schedule:run` from a server's cron (ADR 0020).
@@ -643,6 +644,50 @@ An image or a document of the Site's library (ADR 0017), written through `SaveMe
 - `public function isDecorative(): bool`: Marked as adding nothing to the page: rendered with `alt=""`, never reported as missing its alt text.
 - `public function isImage(): bool`
 - `public function url(?string $preset = NULL, ?int $width = NULL, ?string $format = NULL): string`: The absolute URL of a Conversion: an Image Preset at one of its widths, in a format; for a document or an SVG, of its own file.
+
+## `Psyao\Kami\Menus\Actions\DeleteMenuItem`
+
+`final class`
+
+Deletes a Menu item; its children move up one level, in its place and in their order, so no subtree is dropped silently (ADR 0025). `DeleteEntry` calls it for the items leading to the Entry. It does not authorise: the caller checks the actor's `kami.menus.manage` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Menus\MenuItem $item, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
+## `Psyao\Kami\Menus\Actions\MoveMenuItem`
+
+`final class`
+
+Gives a Menu item another rank among its siblings, the others renumbered, as the admin's up and down actions do; its Parent changes through `SaveMenuItem` (ADR 0025). It does not authorise: the caller checks the actor's `kami.menus.manage` Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Menus\MenuItem $item, int $position, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Menus\MenuItem`
+
+## `Psyao\Kami\Menus\Actions\SaveMenuItem`
+
+`final class`
+
+Creates or changes a Menu item of the current Site: its target, Parent, labels, addresses and `new_tab`. The one way items are written, from the admin, seeders or imports alike (ADR 0025). It does not authorise: the caller checks the actor's `kami.menus.manage` Permission first (ADR 0011).
+
+- `public function handle(string $menu, array $values, ?Psyao\Kami\Menus\MenuItem $item = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Menus\MenuItem`
+
+## `Psyao\Kami\Menus\MenuItem`
+
+`final class extends Illuminate\Database\Eloquent\Model`
+
+One link in a Menu's tree, for every Locale of its Site (ADR 0025). Written by `SaveMenuItem`, `MoveMenuItem` and `DeleteMenuItem` only; read on the front through `Kami::menu()`.
+
+## `Psyao\Kami\Menus\MenuLink`
+
+`final readonly class`
+
+One visible link of a Menu, in the current Locale, as `Kami::menu()` returns it for a site's own markup (ADR 0025).
+
+- `public protected(set) readonly array $children`
+- `public protected(set) readonly bool $inTrail`
+- `public protected(set) readonly bool $isCurrent`
+- `public protected(set) readonly string $label`
+- `public protected(set) readonly bool $newTab`
+- `public protected(set) readonly ?string $url`
+- `public function __construct(string $label, ?string $url, bool $newTab, array $children, bool $isCurrent, bool $inTrail)`
 
 ## `Psyao\Kami\Schema\ContentMigrator`
 

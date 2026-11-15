@@ -126,7 +126,8 @@ it('stays within an exact query count in a view', function () {
 
     // The page's Path, Entry, Translations and type rows; the Global Set's Entry, Translations and type rows; the head's look for the Site settings, none here;
     // the Social image Reference.
-    expect(DB::getQueryLog())->toHaveCount(9);
+    // The Workbench layout's primary Menu included: one query for an empty Menu.
+    expect(DB::getQueryLog())->toHaveCount(10);
 });
 
 describe('SiteSettings', function () {

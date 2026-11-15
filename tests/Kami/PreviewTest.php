@@ -256,7 +256,8 @@ it('renders a rich text Preview with no query of its own, under strict mode', fu
     $this->get($url)->assertOk()->assertSee('<p>Du texte riche</p>', escape: false);
 
     // Everything comes from the cache but the head's: the Site settings, and the saved Entry for its canonical URL.
-    expect(previewQueries())->toHaveCount(4);
+    // The Workbench layout's primary Menu included: one query for an empty Menu.
+    expect(previewQueries())->toHaveCount(5);
 });
 
 it('shows the Preview banner in a Preview only', function () {

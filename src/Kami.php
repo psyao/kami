@@ -18,6 +18,8 @@ use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Forms\Internal\SubmitForm;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Internal\RenderConversion;
+use Psyao\Kami\Menus\Internal\BuildMenu;
+use Psyao\Kami\Menus\MenuLink;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\RenderEntry;
 use Psyao\Kami\Routing\Internal\RenderFeed;
@@ -123,6 +125,19 @@ final class Kami
     public function form(string $handle): Form
     {
         return resolve(Forms::class)->find($handle) ?? throw new InvalidArgumentException("No Form [{$handle}] is listed under kami.forms.");
+    }
+
+    /**
+     * A Menu declared under `kami.menus`, as the links visible in the current Locale, with the current page and its Trail marked (ADR 0025): for a site's own markup when `<x-kami::menu>` does not fit.
+     * Read in a few queries once per request and Locale, with no cache of its own: the page cache stores the page around it, and any write reads it again.
+     *
+     * @return list<MenuLink>
+     *
+     * @throws InvalidArgumentException For a handle not declared.
+     */
+    public function menu(string $handle): array
+    {
+        return resolve(BuildMenu::class)->handle($handle);
     }
 
     /** Keeps the current response out of the page cache, as for a page showing the time of day. */

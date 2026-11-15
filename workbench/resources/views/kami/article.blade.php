@@ -8,6 +8,7 @@
 <body>
     <x-kami::preview-banner />
     <header>
+        <x-kami::menu handle="primary" />
         <x-kami::locales />
     </header>
     <main>

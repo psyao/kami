@@ -17,6 +17,10 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.preview-links.created` | A Preview link is created | `entry`, `locale`, `expires_at` |
 | `kami.preview-links.revoked` | A Preview link is revoked | `entry`, `locale`, `expires_at` |
 | `kami.media.deleted` | `DeleteMedia` | `name` |
+| `kami.menu-items.created` | [`SaveMenuItem`](menus.md#writing-items) creates an item | `menu` |
+| `kami.menu-items.updated` | `SaveMenuItem` changes an item | `menu` |
+| `kami.menu-items.moved` | [`MoveMenuItem`](menus.md#writing-items) gives an item another rank | `menu`, `position` |
+| `kami.menu-items.deleted` | [`DeleteMenuItem`](menus.md#writing-items), `DeleteEntry` included for the Entry's items | `menu` |
 | `kami.form-submissions.deleted` | `DeleteSubmissions`, once per Form, with no subject; never the Submission's content | `form`, `count` |
 | `kami.content.migrated` | Each `ContentMigrator` operation | `operation` and its arguments |
 | `kami.import.completed` | [`Import::finish()`](imports.md), once per run, with no subject | `label`, `created`, `updated`, `unchanged`, `unseen` and the count of each event recorded during the run |

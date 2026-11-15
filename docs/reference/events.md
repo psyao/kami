@@ -152,6 +152,39 @@ A Media item was saved through `SaveMedia`, once its transaction committed (ADR 
 - `public protected(set) readonly Psyao\Kami\Media\Media $media`
 - `public function __construct(Psyao\Kami\Media\Media $media, string $locale, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
+## `Psyao\Kami\Menus\Events\MenuItemDeleted`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Menu item was deleted through `DeleteMenuItem`, its children moved up one level, once the write committed (ADR 0029). It carries values: the row is gone.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly string $itemId`
+- `public protected(set) readonly string $menu`
+- `public protected(set) readonly string $site`
+- `public function __construct(string $itemId, string $menu, string $site, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
+## `Psyao\Kami\Menus\Events\MenuItemMoved`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Menu item took another rank among its siblings through `MoveMenuItem`, once the write committed (ADR 0029). A call that changes nothing dispatches nothing.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly Psyao\Kami\Menus\MenuItem $item`
+- `public function __construct(Psyao\Kami\Menus\MenuItem $item, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
+## `Psyao\Kami\Menus\Events\MenuItemSaved`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Menu item was created or changed through `SaveMenuItem`, once the write committed (ADR 0029).
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly bool $created`
+- `public protected(set) readonly Psyao\Kami\Menus\MenuItem $item`
+- `public function __construct(Psyao\Kami\Menus\MenuItem $item, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
 ## `Psyao\Kami\Users\Events\RolesAssigned`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`

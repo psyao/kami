@@ -74,8 +74,8 @@ it('renders an Image Block as its picture in a figure, and Video Blocks as provi
         ->toContain('<script type="module" src="http://localhost/vendor/kami/video.js"></script>')
         // One facade tag for both videos; other scripts, such as Livewire's under its lowest version, are not Kami's to count.
         ->and(substr_count($html, 'vendor/kami/video.js'))->toBe(1)
-        // The page's six, then the Image's Media item and its Translations.
-        ->and(DB::getQueryLog())->toHaveCount(8);
+        // The page's six, the layout's primary Menu, then the Image's Media item and its Translations.
+        ->and(DB::getQueryLog())->toHaveCount(9);
 });
 
 it('reads each YouTube and Vimeo address form into its privacy-preserving player', function (string $url, string $player) {

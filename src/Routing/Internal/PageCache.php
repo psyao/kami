@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\File;
 use Psyao\Kami\Content\Internal\Visibility;
+use Psyao\Kami\Menus\Internal\BuildMenu;
 use Psyao\Kami\Seo\Internal\Sitemap;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -124,6 +125,8 @@ final class PageCache
         }, false);
 
         request()->attributes->set(self::VERSION, $written ? $version : false);
+        // The Menus this request read are stale too, written or not.
+        request()->attributes->remove(BuildMenu::MEMO);
 
         return $written ? $version : null;
     }

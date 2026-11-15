@@ -7,6 +7,7 @@
 </head>
 <body>
     <header>
+        <x-kami::menu handle="primary" />
         <x-kami::locales />
     </header>
     <main>
