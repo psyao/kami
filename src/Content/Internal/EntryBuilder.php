@@ -43,6 +43,8 @@ final class EntryBuilder extends Builder
     /** @var list<string> The aliases under which `whereField()` and `orderByField()` joined the type's table: one per row read. */
     private array $fieldRows = [];
 
+    private bool $sortsOnField = false;
+
     public function readIn(string $locale): static
     {
         if (in_array(self::TRANSLATED, $this->fieldRows, true) && $locale !== $this->locale()) {
@@ -77,6 +79,7 @@ final class EntryBuilder extends Builder
         [$contentType, $field] = $this->listedField($handle, $sorting);
         $locale = $contentType->isTranslatable($field) ? $this->locale() : '*';
         $alias = $locale === '*' ? self::SHARED : self::TRANSLATED;
+        $this->sortsOnField = $this->sortsOnField || $sorting;
 
         if (! in_array($alias, $this->fieldRows, true)) {
             $this->fieldRows[] = $alias;
@@ -153,6 +156,16 @@ final class EntryBuilder extends Builder
         }
 
         return $relation;
+    }
+
+    /** A blank stored value is `NULL`, which no cursor condition reaches, and an Entry's attribute reads its Fallback, which no row holds (#659). */
+    public function cursorPaginate($perPage = null, $columns = ['*'], $cursorName = 'cursor', $cursor = null)
+    {
+        if ($this->sortsOnField) {
+            throw new LogicException('Page a query sorted with orderByField() with paginate(), not cursorPaginate(): a cursor skips Entries whose Field is blank.');
+        }
+
+        return parent::cursorPaginate($perPage, $columns, $cursorName, $cursor);
     }
 
     /** It hydrates without `eagerLoadRelations()`, so its Entries would read `null` for every stored Field value. */

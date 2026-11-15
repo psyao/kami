@@ -1042,6 +1042,12 @@ A Translatable Field reads its row in the Locale the query reads, the current on
 
 Each throws an `InvalidArgumentException` naming the Field for one the type does not declare, a relation or Media Field, a sub-Field of a Repeater or a Group, and a Field not declared `->filterable()` (for `whereField()`) or `->sortable()` (for `orderByField()`), so a listing always has its index. Without `ofType()` first, or after it with an undeclared type, they throw a `LogicException`, and so does `inLocale()` naming another Locale after a Translatable Field's join. They join the query they are called on, so neither works inside a `where(fn ($query) => …)` group, whose joins Eloquent drops: an `OR` between Fields takes the join by hand.
 
+A listing sorted with `orderByField()` pages with `paginate()`, after an `orderBy('kami_entries.id')` that gives Entries sharing a value a fixed order. `cursorPaginate()` throws a `LogicException` there: a blank value is stored as `NULL`, which a cursor skips on every engine. Blank values sort first on SQLite, MySQL and MariaDB, last on PostgreSQL, in ascending order.
+
+```php
+Entry::query()->ofType(Product::class)->orderByField('stock')->orderBy('kami_entries.id')->paginate(20);
+```
+
 The same join by hand, for a query they do not cover: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
 
 ```php

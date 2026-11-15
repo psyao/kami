@@ -149,3 +149,12 @@ it('needs ofType() first, and its Locale fixed before a Field joins', function (
         ->and(fn () => Entry::query()->ofType('nope')->whereField('rank', 7))->toThrow(LogicException::class, '"nope"')
         ->and(fn () => Entry::query()->ofType(Listed::class)->whereField('rank', 7)->inLocale('en'))->toThrow(LogicException::class, 'inLocale()');
 });
+
+// A blank stored value is NULL: no cursor condition reaches it, and its Fallback is no value its row holds (#659).
+it('refuses cursorPaginate() after orderByField(), and pages with paginate()', function (): void {
+    $sorted = fn () => Entry::query()->ofType(Listed::class)->orderByField('stock')->orderBy('kami_entries.id');
+
+    expect(fn () => $sorted()->cursorPaginate(1))->toThrow(LogicException::class, 'paginate()')
+        ->and($sorted()->paginate(1, page: 2)->pluck('title')->all())->toBe(['Second'])
+        ->and(Entry::query()->ofType(Listed::class)->whereField('rank', 7)->cursorPaginate(1)->items())->toHaveCount(1);
+});
