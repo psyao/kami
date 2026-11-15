@@ -300,7 +300,7 @@ Mount it from the page's view with `<livewire:contact :entry="$entry" :locale="a
 - **Refused by validation.** It throws Laravel's `ValidationException`: Livewire shows its errors through `$errors` and `@error`, in the page's Locale. `$this->resetErrorBag()` first clears the previous attempt's errors.
 - **The page is no longer visible** in that Locale: a 422. **Above the throttle**: a 429 with `Retry-After`. Both are `HttpException`s: Livewire answers its update with that status.
 
-The visitor's origin stays Livewire's to check: its update route runs your `web` group, whose CSRF check refuses a cross-site post. A controller of your own calls the action the same way, behind its own CSRF or origin check.
+The visitor's origin stays Livewire's to check: its update route runs your `web` group, whose CSRF check refuses a cross-site post. A controller of your own calls the action the same way, behind its own CSRF or origin check. The component itself, on a cached page and under the front policy: [Front stacks](front-stacks.md#livewire).
 
 ## Submissions
 

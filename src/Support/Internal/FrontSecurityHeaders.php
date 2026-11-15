@@ -39,4 +39,9 @@ final readonly class FrontSecurityHeaders
 
         return $response;
     }
+
+    public function terminate(Request $request): void
+    {
+        $this->headers->terminate($request);
+    }
 }

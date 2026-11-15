@@ -17,9 +17,13 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * The `front` profile (default) is fixed and nonce-free, so a cached page stays a static file; `kami.security.*` extends it.
  * The `admin` profile (`kami.security-headers:admin`) is Filament's minimum, with a per-request nonce on inline scripts.
+ * The `front` profile also has Livewire inject its CSP build without its progress bar, for this request only (ADR 0040).
  */
 final class SecurityHeaders
 {
+    /** The request attribute holding the Livewire settings to put back. */
+    private const string LIVEWIRE = 'kami.livewire_settings';
+
     /** @param  Closure(Request): Response  $next */
     public function handle(Request $request, Closure $next, string $profile = 'front'): Response
     {
@@ -31,6 +35,10 @@ final class SecurityHeaders
 
         if (Vite::isRunningHot()) {
             $policy = $this->withHotServer($policy);
+        }
+
+        if ($profile === 'front') {
+            $this->useLivewireCspBuild($request);
         }
 
         $response = $next($request);
@@ -51,6 +59,31 @@ final class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /** Puts back the Livewire settings the front profile changed, for a container that outlives the request (ADR 0040). */
+    public function terminate(Request $request): void
+    {
+        /** @var array<string, mixed>|null $livewire */
+        $livewire = $request->attributes->get(self::LIVEWIRE);
+
+        if ($livewire !== null) {
+            config($livewire);
+        }
+    }
+
+    /**
+     * Livewire reads both settings when it injects its script, once the pipeline has returned; the admin keeps its full build,
+     * which Filament's templates need. Its script loads from `public/vendor/livewire/`, where `kami:install` publishes it.
+     */
+    private function useLivewireCspBuild(Request $request): void
+    {
+        // The first values only: a site may wrap Kami's group in this middleware again.
+        $request->attributes->set(self::LIVEWIRE, $request->attributes->get(self::LIVEWIRE) ?? [
+            'livewire.csp_safe' => config('livewire.csp_safe'),
+            'livewire.navigate.show_progress_bar' => config('livewire.navigate.show_progress_bar'),
+        ]);
+        config(['livewire.csp_safe' => true, 'livewire.navigate.show_progress_bar' => false]);
     }
 
     /**

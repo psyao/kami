@@ -14,7 +14,7 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 
 - **No cron.** Kami's Scheduled tasks run from a Tick: `php artisan kami:tick` from a server's cron, a secret URL the host's planner calls, or visits; nothing visible waits for it ([Scheduler](scheduler.md)).
 - **No queue worker.** Kami dispatches no job, and sends the password reset email itself rather than queue it ([Security](security.md#password-reset)). Your application's jobs on the `database` queue run from each Tick ([Scheduler](scheduler.md#the-queue)).
-- **No Redis, Memcached or other daemon.** The starter kit uses the `file` cache store and the `database` session driver.
+- **No Redis, Memcached or other daemon.** The starter kit uses the `file` cache store and the `file` session driver.
 - **No Node on the server.** Kami's admin assets ship precompiled and `kami:install` copies them to `public/`. The site's own front assets are built before the deploy: see [Deployment](deployment.md#front-assets).
 - **No `mail()`.** Kami sends mail through Laravel's mailer, over authenticated SMTP ([below](#mail)).
 - **No `exec` or `proc_open` on the web.** Shared hosts often disable them; Kami never calls them.
@@ -24,10 +24,10 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | Subject | Shared hosting (Infomaniak Web Hosting) | Server (Cloud Server or VPS) |
 | --- | --- | --- |
 | **Install and deploy** | `kami:install` over SSH, under the command line's limits (no time limit on Infomaniak) | The same |
-| **Admin assets** | Precompiled in the package, copied to `public/` by `kami:install` | The same |
+| **Admin assets** | Precompiled in the package, copied to `public/` by `kami:install`, with Livewire's assets to `public/vendor/livewire/` | The same |
 | **Video facade** | Prebuilt in the package, copied to `public/vendor/kami/` by `kami:install` and served by Apache with `nosniff` from its `.htaccess` ([Front script](#front-script)) | nginx serves it once given the header below, on a site offering the Video Block |
 | **Front assets** | Built by the site in CI or on the developer's machine, then copied with the code | The same |
-| **Cache and sessions** | `file` cache, `database` sessions, as the starter kit sets them | The same; Redis or Memcached possible, never required |
+| **Cache and sessions** | `file` cache and `file` sessions, as the starter kit sets them: a session holds its payload alone, on the local disk, with no IP address or browser name | The same, with every web server sharing `storage/`; Redis or Memcached possible, never required |
 | **Page cache** | Served by the line in `public/index.php` before Laravel boots: the manifest and one file read, about a hundred lines compiled with OPcache off ([Page cache](page-cache.md#serving-before-laravel-boots)) | The same; behind several web servers, share `storage/` or turn the page cache off |
 | **`robots.txt`** | A static file `kami:install` writes over SSH, so Infomaniak never answers its own, which disallows nothing ([SEO](seo.md#robotstxt)) | The same; Apache or nginx serve it |
 | **Sitemap** | Static files Apache serves, rebuilt hourly by a Tick when stale; built through the `!-f` rewrite when missing ([SEO](seo.md#sitemap)) | `kami:sitemap` hourly from `kami:tick` in cron; nginx needs the fallback below |

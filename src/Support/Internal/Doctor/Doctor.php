@@ -6,6 +6,7 @@ namespace Psyao\Kami\Support\Internal\Doctor;
 
 use Carbon\CarbonImmutable;
 use Closure;
+use Composer\InstalledVersions;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -130,7 +131,7 @@ final readonly class Doctor
             ...$this->missingViews(),
             ...$this->undescribedTypes(),
             ...$this->missingLabels(),
-            ...array_filter([$this->lockStore(), $this->publicMedia(), $this->videoFacade(), $this->pageCacheStorage(), $this->smtpTimeout()]),
+            ...array_filter([$this->lockStore(), $this->publicMedia(), $this->videoFacade(), $this->livewireAssets(), $this->pageCacheStorage(), $this->smtpTimeout()]),
             ...$this->searchEngines(),
             ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...$this->unavailableBlocks(), ...array_filter([$this->hiddenPaths(), $this->hiddenRedirects()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
@@ -1301,6 +1302,23 @@ final readonly class Doctor
                 'run php artisan kami:install, which copies it, as every deploy does.',
                 'hosting.md#front-script',
             );
+    }
+
+    /** Kami's pages load Livewire's CSP build from `public/vendor/livewire/`, which `kami:install` publishes on every deploy (ADR 0040). */
+    private function livewireAssets(): ?Problem
+    {
+        $published = public_path('vendor/livewire/manifest.json');
+        // The comparison Livewire makes before it warns in the browser console.
+        $current = is_file($published) && json_decode(File::get($published), true) === json_decode(File::get(InstalledVersions::getInstallPath('livewire/livewire') . '/dist/manifest.json'), true);
+
+        return $current ? null : new Problem(
+            app()->isLocal() ? Severity::Info : Severity::Warning,
+            is_file($published)
+                ? "Livewire's assets in public/vendor/livewire/ are not the installed version's: Kami's pages load a script that no longer matches the server."
+                : "Livewire's assets are not published in public/vendor/livewire/: a Livewire component on Kami's pages gets the build the admin uses, which their policy blocks.",
+            'run php artisan kami:install, which publishes them, as every deploy does.',
+            'front-stacks.md#livewire',
+        );
     }
 
     /**
