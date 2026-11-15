@@ -45,7 +45,7 @@ It may carry a query string, normalised too: keys sorted, case and encoding fixe
 3. the path with one of its keys alone;
 4. the path alone.
 
-Other parameters are ignored. A request whose query string matches no Redirect renders the page at its path as usual, and is never stored in the page cache.
+Other parameters are ignored, as is every pair past the 20 that sort first; a source holds 20 at most. A request whose query string matches no Redirect renders the page at its path as usual, and is never stored in the page cache.
 
 ## Refusals
 

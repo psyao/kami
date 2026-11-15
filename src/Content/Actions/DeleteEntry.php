@@ -52,7 +52,12 @@ final class DeleteEntry
                 resolve(DeleteMenuItem::class)->handle($item, $actor);
             }
 
-            Path::query()->where('entry_id', $entry->id)->update($replacement instanceof Entry ? ['status' => 301, 'entry_id' => $replacement->id] : ['status' => 410, 'entry_id' => null]);
+            // Its Paths turn into 301s to the replacement, a 302 staying temporary; with none, every row answers 410.
+            if ($replacement instanceof Entry) {
+                Path::query()->where(['entry_id' => $entry->id, 'status' => 200])->update(['status' => 301]);
+            }
+
+            Path::query()->where('entry_id', $entry->id)->update($replacement instanceof Entry ? ['entry_id' => $replacement->id] : ['status' => 410, 'entry_id' => null]);
             $entry->forceDelete();
             resolve(RecordAuditEvent::class)->handle('kami.entries.force-deleted', $entry, actor: $actor);
         });

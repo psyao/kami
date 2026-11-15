@@ -272,6 +272,7 @@ return [
         'entry' => 'This Entry cannot be a target: it is gone, in the Trash, or has no address.',
         'address' => 'An address starts with https://, http:// or /.',
         'chain' => 'This target redirects itself: point to its destination instead.',
+        'pairs' => 'A source holds :max query parameters at most.',
     ],
 
     'media' => [

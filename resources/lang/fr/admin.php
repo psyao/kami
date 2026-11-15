@@ -272,6 +272,7 @@ return [
         'entry' => 'Cette entrée ne peut pas être une cible : elle n’existe plus, elle est à la corbeille ou elle n’a pas d’adresse.',
         'address' => 'Une adresse commence par https://, http:// ou /.',
         'chain' => 'Cette cible redirige elle-même : visez plutôt sa destination.',
+        'pairs' => 'Une source a au plus :max paramètres de requête.',
     ],
 
     'media' => [

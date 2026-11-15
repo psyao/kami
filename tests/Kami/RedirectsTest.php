@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
+use Psyao\Kami\Content\Actions\DeleteEntry;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
 use Psyao\Kami\Content\Entry;
@@ -93,6 +94,36 @@ describe('answering', function (): void {
         $this->get('/a-propos?lang=en')->assertMovedPermanently()->assertHeader('Location', '/en/about');
     });
 
+    it('answers 404 to a Redirect whose Entry is not visible, and to an encoded `?` in the path', function (): void {
+        saveRedirect('/about', 302, redirectedPage('Brouillon', ['status' => 'draft']));
+        saveRedirect('/blog?p=1', target: '/articles');
+
+        $this->get('/about')->assertNotFound();
+        $this->get('/blog%3Fp=1')->assertNotFound();
+        $this->get('/blog?p=1')->assertMovedPermanently();
+    });
+
+    it('reads 20 query pairs at most, those that sort first', function (): void {
+        saveRedirect('/?a01=1', target: '/first');
+        saveRedirect('/?zz=1', target: '/last');
+        $others = implode('&', array_map(fn (int $n): string => sprintf('b%02d=1', $n), range(1, 2000)));
+
+        $this->get("/?zz=1&{$others}")->assertNotFound();
+        $this->get("/?zz=1&a01=1&{$others}")->assertMovedPermanently()->assertHeader('Location', '/first');
+    });
+
+    it('keeps a 302 temporary when its Entry is deleted for a replacement', function (): void {
+        $page = redirectedPage();
+        $replacement = redirectedPage('Équipe');
+        saveRedirect('/about', 302, $page);
+        resolve(TrashEntry::class)->handle($page);
+
+        resolve(DeleteEntry::class)->handle(Entry::query()->withTrashed()->findOrFail($page->id), $replacement);
+
+        $this->get('/about')->assertFound()->assertRedirect('http://localhost/equipe');
+        $this->get('/a-propos')->assertMovedPermanently()->assertRedirect('http://localhost/equipe');
+    });
+
     it('resolves a query string in one query, exact', function (): void {
         saveRedirect('/?p=123', target: '/post-123');
 
@@ -138,9 +169,10 @@ describe('saving', function (): void {
 
         expect(fn () => $save($page))->toThrow(function (ValidationException $exception) use ($key): void {
             expect(array_keys($exception->errors()))->toBe([$key]);
-        })->and(Redirect::query()->pluck('path')->all())->toBe(['blog']);
+        })->and(Redirect::query()->pluck('path')->unique()->all())->toBe(['blog']);
     })->with([
         'a source with a space' => [fn () => saveRedirect('/a b'), 'source'],
+        'a source over 20 query pairs' => [fn () => saveRedirect('/?' . implode('&', array_map(fn (int $n): string => "k{$n}=1", range(1, 21)))), 'source'],
         'a source over 500 characters' => [fn () => saveRedirect('/' . str_repeat('a', 501)), 'source'],
         'a reserved source' => [fn () => saveRedirect('/media/photo.jpg'), 'source'],
         'an Archive' => [fn () => saveRedirect('/articles?page=2'), 'source'],
@@ -161,7 +193,7 @@ describe('saving', function (): void {
         }, 'target'],
         'a target that redirects' => [fn () => saveRedirect('/x', target: '/blog?utm_source=y'), 'target'],
         'a target that is its own source' => [fn () => saveRedirect('/x', target: '/x?y=1'), 'target'],
-        'a target that redirects in its Locale' => [fn () => saveRedirect('/blog', target: '/en/blog', locale: 'en') && saveRedirect('/x', target: '/en/blog', locale: 'en'), 'target'],
+        'a target that redirects in its Locale' => [fn () => saveRedirect('/blog', target: '/articles', locale: 'en') && saveRedirect('/x', target: '/en/blog', locale: 'en'), 'target'],
     ]);
 
     it('names the Entry whose current Path a source is', function (): void {

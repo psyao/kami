@@ -38,9 +38,9 @@ final class RenderEntry
             return $this->renderArchive($request, $archive, $site);
         }
 
-        // MySQL's and MariaDB's binary collation ignores trailing spaces, which no stored Path has.
+        // MySQL's and MariaDB's binary collation ignores trailing spaces, which no stored Path has; nor a `?`, decoded from `%3F`, which only a source's query string holds.
         // No stored Path is longer, and each segment of a longer one would be one more bound prefix.
-        $unreachable = str_ends_with($path, ' ') || mb_strlen($path) > Path::MAX_LENGTH;
+        $unreachable = str_ends_with($path, ' ') || str_contains($path, '?') || mb_strlen($path) > Path::MAX_LENGTH;
         // A Redirect source may carry the query string: the most specific match wins, in the same read (ADR 0008).
         $candidates = $unreachable ? [] : array_filter(Path::candidates($path, $request->server->getString('QUERY_STRING')), fn (string $candidate): bool => mb_strlen($candidate) <= Path::MAX_LENGTH);
         $rows = $unreachable ? new Collection : VisiblePaths::at($site->handle, [$locale], array_values(array_unique([...$candidates, ...VisiblePaths::prefixes($path)])));

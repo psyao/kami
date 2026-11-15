@@ -51,7 +51,7 @@ final class SaveRedirect
             'target' => ['nullable', 'string', 'max:2048'],
         ])->validate();
 
-        [$path, $source] = Path::source($source);
+        [$path, $source, $pairs] = Path::source($source);
 
         if (! Path::isAnswerable($path)) {
             throw ValidationException::withMessages(['source' => __('validation.regex', ['attribute' => 'source'])]);
@@ -59,6 +59,10 @@ final class SaveRedirect
 
         if (($refusal = Path::refusal($path, $site, $locale)) !== null) {
             throw ValidationException::withMessages(['source' => $refusal]);
+        }
+
+        if ($pairs > Path::MAX_QUERY_PAIRS) {
+            throw ValidationException::withMessages(['source' => __('kami::admin.redirects.pairs', ['max' => Path::MAX_QUERY_PAIRS])]);
         }
 
         if (mb_strlen($source) > Path::MAX_LENGTH) {
@@ -133,7 +137,7 @@ final class SaveRedirect
             return false;
         }
 
-        [$path, $query] = explode('?', explode('#', $target, 2)[0], 2) + [1 => ''];
+        [$path, $query] = Path::split($target);
         $path = Path::normalise($path);
         // The Site's own path and the Locale's segment, which no stored Path holds: an address outside them is not in this Locale.
         $base = Path::normalise((string) parse_url($site->url($locale, ''), PHP_URL_PATH));

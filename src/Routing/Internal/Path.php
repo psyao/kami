@@ -44,8 +44,8 @@ final class Path extends Model
     /** Whole Paths Kami's own files answer: the sitemap index and the managed `robots.txt` (ADR 0027). */
     public const array RESERVED_PATHS = ['sitemap.xml', 'robots.txt'];
 
-    /** The query pairs a request is resolved with, sorted: past them, parameters are ignored, which bounds `RenderEntry`'s `IN` list. */
-    private const int MAX_QUERY_PAIRS = 20;
+    /** The query pairs a request is resolved with, the first once sorted: past them, parameters are ignored, which bounds `RenderEntry`'s `IN` list. A source holds no more. */
+    public const int MAX_QUERY_PAIRS = 20;
 
     /** `https://`, `http://`, a path on the Site but not `//…`, a fragment, `mailto:` and `tel:`, with no whitespace. */
     private const string LINKABLE = '~^(?:https?://[^\s/?#]+[^\s]*|/(?!/)[^\s]*|#[^\s]*|mailto:[^\s]+|tel:[^\s]+)$~i';
@@ -96,15 +96,27 @@ final class Path extends Model
     /**
      * A Redirect source in its stored form: the Path normalised, then its query string normalised, `blog?p=123` (ADR 0008).
      *
-     * @return array{string, string} The Path, and the source with its query string.
+     * @return array{string, string, int} The Path, the source with its query string, and its number of query pairs.
      */
     public static function source(string $source): array
     {
-        [$path, $query] = explode('?', $source, 2) + [1 => ''];
+        [$path, $query] = self::split($source);
         $path = self::normalise($path);
         $pairs = self::pairs($query);
 
-        return [$path, $pairs === [] ? $path : $path . '?' . implode('&', $pairs)];
+        return [$path, $pairs === [] ? $path : $path . '?' . implode('&', $pairs), count($pairs)];
+    }
+
+    /**
+     * An address's path and query string, its fragment left out.
+     *
+     * @return array{string, string}
+     */
+    public static function split(string $address): array
+    {
+        $parts = explode('?', explode('#', $address, 2)[0], 2);
+
+        return [$parts[0], $parts[1] ?? ''];
     }
 
     /**
