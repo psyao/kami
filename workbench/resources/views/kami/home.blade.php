@@ -8,6 +8,7 @@
 </head>
 <body>
     <x-kami::preview-banner />
+    <header><x-kami::menu handle="primary" /></header>
     <main>
         <h1>{{ $entry->title }}</h1>
         <p>{{ $entry->intro }}</p>

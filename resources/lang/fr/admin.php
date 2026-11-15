@@ -88,6 +88,7 @@ return [
         'description' => 'Elle est supprimée définitivement, dans toutes les langues. Ses adresses envoient les visiteurs vers la remplaçante, ou indiquent que la page n’existe plus.',
         'replacement' => 'Remplaçante',
         'gone' => 'Aucune : la page n’existe plus (410)',
+        'menus' => 'Un menu perd son lien vers elle : :menus.|Des menus perdent leurs liens vers elle : :menus.',
     ],
 
     'delete_translation' => [
@@ -228,6 +229,17 @@ return [
         'empty_link' => 'Un lien n’a pas de texte.',
         'alt_title' => 'Images sans texte alternatif',
         'alt_body' => 'Les lecteurs d’écran n’en disent rien : décrivez-les sous Médias, ou marquez-les comme décoratives.',
+    ],
+
+    'menus' => [
+        'target' => 'Choisissez une seule cible : une entrée, une archive ou une adresse.',
+        'entry' => 'Cette entrée ne peut pas être liée : elle n’existe plus, elle est à la corbeille ou elle n’a pas d’adresse.',
+        'archive' => 'Ce type n’a pas d’archive.',
+        'url' => 'Une adresse commence par https://, http://, /, #, mailto: ou tel:.',
+        'url_default' => 'Une adresse doit avoir une URL en :locale, la langue par défaut.',
+        'parent_elsewhere' => 'Le parent n’est pas un élément de ce menu.',
+        'parent_inside' => 'Un élément ne peut pas se placer sous lui-même ou sous un de ses enfants.',
+        'depth' => 'Ce menu n’a qu’un niveau.|Ce menu a au plus :depth niveaux.',
     ],
 
     'media' => [

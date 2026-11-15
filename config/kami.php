@@ -25,6 +25,13 @@ return [
     'blocks' => [],
 
     /*
+    | The site's Menus, by handle, each with the `depth` its items may nest to, 1 to 3 (1 when left out): `'primary' => ['depth' => 2]`
+    | (ADR 0025). Items are written in the admin or through `SaveMenuItem`; a layout renders one with `<x-kami::menu handle="primary" />`.
+    | Labels come from the `kami-menus` translation file (docs/guide/menus.md).
+    */
+    'menus' => [],
+
+    /*
     | The Roles a User may hold, by handle, each with its Permissions; `*` matches any part (`kami.*`, `kami.entries.*.view`).
     | Checks always target a Permission, never a Role (ADR 0014). Labels come from the `kami-roles` translation file.
     */

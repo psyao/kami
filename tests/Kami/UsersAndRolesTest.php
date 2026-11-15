@@ -44,7 +44,7 @@ function frenchArticle(string $status): Entry
     return resolve(SaveEntry::class)->handle(Article::class, ['title' => uniqid('Hello '), 'status' => $status, 'author' => 'Ada'], locale: 'fr');
 }
 
-it('names one Permission per action on each declared type, the Media library\'s, the Submissions\', kami.audit.view, kami.health.view and kami.users.manage', function () {
+it('names one Permission per action on each declared type, the Media library\'s, the Submissions\', kami.menus.manage, kami.audit.view, kami.health.view and kami.users.manage', function () {
     expect(kamiPermissions())->toEqualCanonicalizing([
         ...collect(['article', 'page', 'label', 'tag', 'project', 'home', 'testimonial', 'footer', 'site_settings'])->crossJoin(['view', 'create', 'update', 'reorder', 'publish', 'delete', 'restore', 'force-delete', 'share-preview'])->map(fn (array $pair) => "kami.entries.{$pair[0]}.{$pair[1]}"),
         'kami.media.view',
@@ -53,6 +53,7 @@ it('names one Permission per action on each declared type, the Media library\'s,
         'kami.media.delete',
         'kami.form-submissions.view',
         'kami.form-submissions.delete',
+        'kami.menus.manage',
         'kami.audit.view',
         'kami.health.view',
         'kami.users.manage',

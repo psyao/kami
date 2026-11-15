@@ -28,6 +28,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Act on selected rows, or add a row, header or bulk action of your own writing through a core action | `vendor/psyao/kami/docs/guide/content-types.md#your-own-actions` |
 | React to content changes with Content events | `vendor/psyao/kami/docs/guide/publishing.md#reacting-to-content` |
 | Store or delete an image or a document (`SaveMedia`, `DeleteMedia`), write its alt text, change what the library accepts, or pre-generate and prune Conversions (`kami:media:warm`, `kami:media:prune`) | `vendor/psyao/kami/docs/guide/media.md` |
+| Declare a Menu (`kami.menus`, `kami-menus` labels), render it (`<x-kami::menu>`, `Kami::menu()`), or write its items from code (`SaveMenuItem`, `MoveMenuItem`, `DeleteMenuItem`) | `vendor/psyao/kami/docs/guide/menus.md` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |
 | Render a type, write its view, override `render()`, place `Kami::routes()` or localise error pages (`Kami::exceptions()`) | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |
 | Cache a fragment (`Kami::remember()`), keep a page out of the page cache (`Kami::withoutPageCache()`), make it stale after a change Kami cannot see (`Kami::flushCache()`, `kami:cache:clear`), serve it before Laravel boots (the `public/index.php` line) or turn it off | `vendor/psyao/kami/docs/guide/page-cache.md` |

@@ -156,7 +156,8 @@ it('falls back without a query of its own', function () {
     $this->get('/en/articles/hello')->assertOk()->assertSee('Un article.');
 
     // The Path, the Entry with its visibility, its Translations, its type rows, the head's look for the Site settings and the Social image Reference: as on a page with no Fallback.
-    expect(DB::getQueryLog())->toHaveCount(6);
+    // The Workbench layout's primary Menu included: one query for an empty Menu.
+    expect(DB::getQueryLog())->toHaveCount(7);
 });
 
 it('warns that Paths lag behind the declarations until the next kami:install', function () {

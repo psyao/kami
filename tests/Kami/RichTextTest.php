@@ -659,5 +659,6 @@ it('renders on the front within an exact query count, under strict mode', functi
     $this->get('/articles/bonjour')->assertOk()->assertSee('<p>Du &lt;b&gt;texte&lt;/b&gt;</p>', escape: false);
 
     // The page's Path, Entry, Translations and type rows, and the head's look for the Site settings and the Social image Reference.
-    expect(DB::getQueryLog())->toHaveCount(6);
+    // The Workbench layout's primary Menu included: one query for an empty Menu.
+    expect(DB::getQueryLog())->toHaveCount(7);
 });

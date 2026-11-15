@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Psyao\Kami\Content\Actions\SaveEntry;
+use Psyao\Kami\Menus\Actions\SaveMenuItem;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Page;
 
 uses(RefreshDatabase::class);
 
@@ -34,5 +36,27 @@ it('shows an Archive\'s pagination at axe\'s strictest level, light and dark', f
 
     foreach ([$first, $older, visit('/articles')->inDarkMode()] as $page) {
         assertAxeClean($page)->assertNoJavaScriptErrors();
+    }
+});
+
+it('shows a Menu with its Trail at axe\'s strictest level, in two Locales, light and dark', function (): void {
+    // The test server's host, so the current page is recognised: the Trail compares host and path, not the port.
+    config(['kami.menus' => ['primary' => ['depth' => 2]], 'kami.sites.default.url' => 'http://127.0.0.1']);
+    $save = resolve(SaveEntry::class);
+    $about = $save->handle(Page::class, ['title' => 'À propos', 'status' => 'published'], locale: 'fr');
+    $save->handle(Page::class, ['title' => 'About', 'status' => 'published'], $about, 'en');
+    $team = $save->handle(Page::class, ['title' => 'Équipe', 'status' => 'published', 'parent' => $about->id], locale: 'fr');
+    $save->handle(Page::class, ['title' => 'Team', 'status' => 'published'], $team, 'en');
+    $menu = resolve(SaveMenuItem::class);
+    $item = $menu->handle('primary', ['entry' => $about]);
+    $menu->handle('primary', ['entry' => $team, 'parent' => $item->id]);
+    $menu->handle('primary', ['archive' => 'article']);
+    $menu->handle('primary', ['url' => 'https://example.com', 'label' => ['fr' => 'Ailleurs', 'en' => 'Elsewhere'], 'new_tab' => true]);
+
+    foreach ([visit('/a-propos/equipe'), visit('/en/about/team')->inDarkMode()] as $page) {
+        assertAxeClean($page->assertPresent('nav.kami-menu ul.kami-menu-list ul.kami-menu-list a[aria-current="page"]')
+            ->assertPresent('nav.kami-menu > ul > li > a[aria-current="true"]')
+            ->assertPresent('a[target="_blank"][rel="noopener"]'))
+            ->assertNoJavaScriptErrors();
     }
 });

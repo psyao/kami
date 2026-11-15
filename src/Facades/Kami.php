@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Facade;
 use Psyao\Kami\Forms\Form;
+use Psyao\Kami\Menus\MenuLink;
 use Psyao\Kami\Sites\Internal\ResolveLocale;
 use Throwable;
 
@@ -17,6 +18,7 @@ use Throwable;
  * @method static void routes(bool $session = false, list<string> $middleware = [])
  * @method static mixed remember(string $key, \DateTimeInterface|\DateInterval|int $ttl, \Closure $callback)
  * @method static Form form(string $handle)
+ * @method static list<MenuLink> menu(string $handle)
  * @method static void withoutPageCache()
  * @method static void flushCache()
  * @method static list<string> sitemapUrls()

@@ -39,9 +39,14 @@ return [
         Video::class,
     ],
 
+    'menus' => [
+        'primary' => ['depth' => 2],
+        'footer' => [],
+    ],
+
     'roles' => [
         'administrator' => ['kami.*'],
-        'editor' => ['kami.entries.*.view', 'kami.entries.*.create', 'kami.entries.*.update', 'kami.media.view', 'kami.media.create', 'kami.media.update', 'kami.form-submissions.view'],
+        'editor' => ['kami.entries.*.view', 'kami.entries.*.create', 'kami.entries.*.update', 'kami.media.view', 'kami.media.create', 'kami.media.update', 'kami.form-submissions.view', 'kami.menus.manage'],
     ],
 
     'sites' => [

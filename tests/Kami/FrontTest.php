@@ -111,7 +111,8 @@ it('renders an Entry page in an exact number of queries', function () {
 
     // The Path, the Entry with its visibility, its Translations, its type rows; the head's Site settings, their Translations and type rows,
     // the Entry's Social image Reference, then the Site's default one.
-    expect(DB::getQueryLog())->toHaveCount(9);
+    // The Workbench layout's primary Menu included: one query for an empty Menu.
+    expect(DB::getQueryLog())->toHaveCount(10);
 });
 
 it('renders related Entries in pick order, a Draft left out, in an exact number of queries', function () {

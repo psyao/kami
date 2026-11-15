@@ -97,6 +97,8 @@ use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Media\Media;
+use Psyao\Kami\Menus\Internal\Menus;
+use Psyao\Kami\Menus\MenuItem;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Sites\Internal\Site;
@@ -444,7 +446,7 @@ final class EntryResource extends FilamentResource
             ForceDeleteAction::make()
                 ->label(__('kami::admin.actions.delete'))
                 ->modalHeading(fn (ForceDeleteAction $action): string => __('kami::admin.delete.heading', ['title' => $action->getRecordTitle()]))
-                ->modalDescription(__('kami::admin.delete.description'))
+                ->modalDescription(fn (Entry $record): string => trim(__('kami::admin.delete.description') . ' ' . self::menusLosingALink($record)))
                 ->schema([
                     self::sameTypeInput('replacement')
                         ->label(__('kami::admin.delete.replacement'))
@@ -458,6 +460,16 @@ final class EntryResource extends FilamentResource
                     resolve(DeleteEntry::class)->handle($record, $replacement, Filament::auth()->user());
                 })),
         ];
+    }
+
+    /** The sentence naming the Menus that lose a link when the Entry is deleted, or none (ADR 0025). */
+    public static function menusLosingALink(Entry $entry): string
+    {
+        /** @var list<string> $handles */
+        $handles = MenuItem::query()->where('entry_id', $entry->id)->distinct()->orderBy('menu')->pluck('menu')->all();
+        $menus = collect($handles)->map(Menus::label(...));
+
+        return $menus->isEmpty() ? '' : trans_choice('kami::admin.delete.menus', $menus->count(), ['menus' => $menus->implode(', ')]);
     }
 
     /** Runs a core action; its refusal shows on a notification, and the Filament action fails with no other message. */

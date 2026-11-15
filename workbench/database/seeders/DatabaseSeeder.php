@@ -19,6 +19,7 @@ use Psyao\Kami\Forms\Actions\StoreSubmission;
 use Psyao\Kami\Forms\Internal\Delivery;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Actions\SaveMedia;
+use Psyao\Kami\Menus\Actions\SaveMenuItem;
 use Psyao\Kami\Users\Actions\AssignRoles;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
@@ -96,6 +97,15 @@ class DatabaseSeeder extends Seeder
         $save->handle(Footer::class, ['tagline' => 'A demo Site.'], $footer, 'en', $admin);
         $settings = $save->handle(SiteSettings::class, ['site_name' => 'Kami', 'default_description' => 'Le Site de démonstration de Kami.'], locale: 'fr', actor: $admin);
         $save->handle(SiteSettings::class, ['default_description' => 'The Kami demo Site.'], $settings, 'en', $admin);
+
+        // The primary Menu, through the action the admin uses: Home, a Page with a child, the Articles' Archive, an address labelled in French only, and an external link opening in a new tab.
+        $menu = resolve(SaveMenuItem::class);
+        $menu->handle('primary', ['entry' => $home, 'label' => ['fr' => 'Accueil', 'en' => 'Home']], actor: $admin);
+        $aboutItem = $menu->handle('primary', ['entry' => $about], actor: $admin);
+        $menu->handle('primary', ['entry' => $team, 'parent' => $aboutItem->id], actor: $admin);
+        $menu->handle('primary', ['archive' => 'article'], actor: $admin);
+        $menu->handle('primary', ['url' => '/a-propos/histoire', 'label' => ['fr' => 'Notre histoire']], actor: $admin);
+        $menu->handle('primary', ['url' => 'https://github.com/psyao/kami', 'label' => ['fr' => 'Code source', 'en' => 'Source code'], 'new_tab' => true], actor: $admin);
 
         // The Media library: a photo described in both Locales, an image missing its alt text, a decorative one, an SVG served as its own file, a document, which needs none.
         $fixtures = dirname(__DIR__, 3) . '/tests/Fixtures/media';

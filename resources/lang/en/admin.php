@@ -88,6 +88,7 @@ return [
         'description' => 'It is deleted for good, in every language. Its addresses send visitors to the replacement, or say the page is gone.',
         'replacement' => 'Replacement',
         'gone' => 'None: the page is gone (410)',
+        'menus' => 'A Menu loses its link to it: :menus.|Menus lose their links to it: :menus.',
     ],
 
     'delete_translation' => [
@@ -228,6 +229,17 @@ return [
         'empty_link' => 'A link has no text.',
         'alt_title' => 'Images without alt text',
         'alt_body' => 'Screen readers say nothing of them: describe them under Media, or mark them decorative.',
+    ],
+
+    'menus' => [
+        'target' => 'Choose one target: an Entry, an Archive or an address.',
+        'entry' => 'This Entry cannot be linked: it is gone, in the Trash, or has no address.',
+        'archive' => 'This type has no Archive.',
+        'url' => 'An address starts with https://, http://, /, #, mailto: or tel:.',
+        'url_default' => 'An address needs a URL in :locale, the default language.',
+        'parent_elsewhere' => 'The parent is not an item of this Menu.',
+        'parent_inside' => 'An item cannot sit under itself or one of its children.',
+        'depth' => 'This Menu has a single level.|This Menu nests :depth levels at most.',
     ],
 
     'media' => [

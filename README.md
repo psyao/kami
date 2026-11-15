@@ -31,6 +31,7 @@ php artisan serve
 - [Existing application](docs/guide/existing-application.md): adding Kami to a Laravel application and its panel
 - [Content types](docs/guide/content-types.md): declaring a type and its Fields, writing and reading Entries
 - [Blocks](docs/guide/blocks.md): declaring a Block, offering it in rich text, its modal, validation, References and view
+- [Menus](docs/guide/menus.md): declaring a Menu, its items, `<x-kami::menu>` with the Trail, `Kami::menu()` and the actions that write items
 - [Multilingual](docs/guide/multilingual.md): Locales, Translations, Shared Fields and Fallback with `lang`
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization

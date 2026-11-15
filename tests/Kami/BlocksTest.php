@@ -320,8 +320,8 @@ it('renders a Block through its view in a page, an unavailable one as nothing, w
         ->toContain('<aside class="callout callout-info">')
         ->not->toContain('gallery')
         ->and(substr_count((string) $response->getContent(), '<aside'))->toBe(2)
-        // The page's six (Path, Entry, Translations, type rows, Site settings, Social image Reference), then the Blocks' Media items and their Translations.
-        ->and(DB::getQueryLog())->toHaveCount(8);
+        // The page's six (Path, Entry, Translations, type rows, Site settings, Social image Reference), the layout's primary Menu, then the Blocks' Media items and their Translations.
+        ->and(DB::getQueryLog())->toHaveCount(9);
 });
 
 it('gives a Block\'s view its data typed as an Entry reads it, Entries visible in the page\'s Locale only', function () {
