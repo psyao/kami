@@ -104,7 +104,10 @@ Once a type offers a [Feed](routing-and-rendering.md#feeds), every page names th
 
 `og:title`, `og:description` and `og:site_name` repeat the title, the description and the Site name. `og:type` is the type's `$ogType`, `website` by default:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Content\ContentType;
+
 final class Article extends ContentType
 {
     protected string $ogType = 'article';
@@ -136,7 +139,11 @@ public function socialImage(Entry $entry): ?Media
 
 `seo_image` is written through `SaveEntry`, as a Media item's id, on a type with a URL, and refused on any other. It is a Reference, so the Media item it names cannot be deleted while the Entry uses it, as for a Media Field. The handle `seo_image` is reserved: no Field may take it.
 
+<!-- kami:example article -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 resolve(SaveEntry::class)->handle(Article::class, ['seo_image' => $media->id], $entry);
 ```
 
@@ -144,7 +151,11 @@ resolve(SaveEntry::class)->handle(Article::class, ['seo_image' => $media->id], $
 
 `meta_title` (255 characters at most), `meta_description` and `noindex` are Translation attributes, one value per Locale. `SaveEntry` writes them on a type with a URL and refuses them on any other, Global Sets included:
 
+<!-- kami:example article -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 resolve(SaveEntry::class)->handle(Article::class, [
     'meta_title' => 'A title for search results',
     'meta_description' => 'What the article says, in a sentence.',
@@ -272,6 +283,7 @@ Apache serves a file in `public/` before Laravel sees the request, so a file wou
 
 Kami still writes its per-Locale files. A sitemap index cannot list another index, so list them in yours: `Kami::sitemapUrls()` returns their absolute URLs, building them first when they are missing.
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Facades\Kami;
 

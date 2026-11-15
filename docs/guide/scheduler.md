@@ -6,6 +6,7 @@ Some of Kami's work runs on a schedule: announcing Scheduled publications, retry
 
 Call `Kami::schedule()` in `routes/console.php`, as the starter kit does:
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Facades\Kami;
 

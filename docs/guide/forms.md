@@ -6,6 +6,7 @@ A Form lets a visitor write to the site, such as a contact form. You declare it 
 
 A Form is a class extending `Psyao\Kami\Forms\Form`, listed in `config/kami.php`:
 
+<!-- kami:example -->
 ```php
 namespace App\Forms;
 
@@ -257,6 +258,7 @@ Give the form the texts the script shows, and add an empty status element after 
 
 A Livewire component of your own, on a page Kami renders, stores its Submissions through `Psyao\Kami\Forms\Actions\SubmitForm`, with the route's protection: the honeypot, the page, the throttle and validation, in the [same order](#protection). Its snapshot sits in a cached page that anyone can read, and a bot can post it back with forged headers, so a component that called `StoreSubmission` itself would skip the honeypot and the throttle.
 
+<!-- kami:example -->
 ```php
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -308,6 +310,7 @@ A Submission is a `Psyao\Kami\Forms\Submission` in `kami_form_submissions`: its 
 
 Your own code stores one through the `StoreSubmission` action, as the route does:
 
+<!-- kami:example contact -->
 ```php
 use Psyao\Kami\Forms\Actions\StoreSubmission;
 
@@ -316,7 +319,11 @@ resolve(StoreSubmission::class)->handle('contact', $validated, locale: 'fr', ent
 
 It does not validate: validate first. Once the write is committed, Kami dispatches `Psyao\Kami\Forms\Events\SubmissionStored` with the Submission, the hook for your own side effects:
 
+<!-- kami:example -->
 ```php
+use Illuminate\Support\Facades\Event;
+use Psyao\Kami\Forms\Events\SubmissionStored;
+
 Event::listen(SubmissionStored::class, function (SubmissionStored $event): void {
     // $event->submission->form, $event->submission->data
 });
@@ -351,6 +358,8 @@ public function retention(): ?CarbonInterval
 Each Submission reaches the site owner as a mail, sent after the visitor's response: the visitor waits for no mail server.
 
 ```php
+use Psyao\Kami\Forms\Form;
+
 final class ContactForm extends Form
 {
     public function recipients(): array
@@ -394,7 +403,13 @@ public function notification(Submission $submission): Notification
 }
 ```
 
+<!-- kami:example -->
 ```php
+use App\Forms\ContactForm;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
+use Psyao\Kami\Forms\Submission;
+
 final class ContactReceived extends Notification
 {
     public function __construct(private ContactForm $form, private Submission $submission) {}
@@ -410,7 +425,11 @@ final class ContactReceived extends Notification
 }
 ```
 
+<!-- kami:example -->
 ```php
+use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Http;
+
 final class ChatChannel
 {
     public function send(object $notifiable, Notification $notification): void
@@ -435,6 +454,7 @@ A Form you remove from `kami.forms` keeps its Submissions: they show under a tab
 
 Reading takes `kami.form-submissions.view`; deleting, one Submission or several at once, takes `kami.form-submissions.delete` ([Users and Roles](users-and-roles.md#permissions)). Deletion is for good, with the deliveries, and the [Audit log](audit-log.md) records it per Form with the count, never the content. Your own code deletes Submissions through the same action, for instance to honour a visitor's deletion request:
 
+<!-- kami:example contact -->
 ```php
 use Psyao\Kami\Forms\Actions\DeleteSubmissions;
 use Psyao\Kami\Forms\Submission;

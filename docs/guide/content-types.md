@@ -6,6 +6,7 @@ What a site holds is declared in code: each kind of content is a Content Type, a
 
 A Content Type is a `final` class extending `Psyao\Kami\Content\ContentType`. Its `fields()` returns the Fields it stores:
 
+<!-- kami:example -->
 ```php
 namespace App\Content;
 
@@ -77,7 +78,10 @@ Changing a Prefix moves the type's Entries on the next `kami:install` ([Routing 
 
 `protected bool $archive = true` lists the type's visible Entries at its Prefix, newest first, `$perPage` to a page:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Content\ContentType;
+
 final class Post extends ContentType
 {
     protected ?string $prefix = 'articles';
@@ -94,7 +98,10 @@ A Prefix publishes no list by itself: a type has an Archive only when it says so
 
 `protected bool $feed = true` offers the type's 20 latest visible Entries as an RSS 2.0 Feed at its Prefix followed by `/feed`, and adds them to the Site's Feed at `/feed`:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Content\ContentType;
+
 final class Post extends ContentType
 {
     protected ?string $prefix = 'articles';
@@ -109,7 +116,10 @@ Each item is described by the type's `summary()` ([SEO](seo.md#description)). Li
 
 A collection listed on other pages, with no page of its own, declares `$routable = false`:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Content\ContentType;
+
 final class Project extends ContentType
 {
     protected bool $routable = false;
@@ -162,6 +172,7 @@ In the admin, the type's table shows one level, searched within that level. **Ch
 
 On the front, an Entry reads its tree in the Locale it is read in, a Term too:
 
+<!-- kami:example page -->
 ```php
 $entry->parent;      // Its Parent while visible, or null.
 $entry->ancestors(); // Its ancestors, root first: À propos, then Équipe.
@@ -176,6 +187,7 @@ $entry->children;    // Its visible children, in Position order.
 
 A type with exactly one Entry per Site, such as a home page, extends `Singleton`:
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Content\Singleton;
 
@@ -196,6 +208,7 @@ A route of your own at `/` wins over Kami's: remove Laravel's default `welcome` 
 
 Values shown across the Site, such as footer details, go in a Singleton with no URL, which extends `GlobalSet`:
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Content\Fields\Email;
 use Psyao\Kami\Content\Fields\Text;
@@ -223,7 +236,9 @@ final class Footer extends GlobalSet
 
 The package declares one Global Set itself, always registered: `SiteSettings`, with its table and labels. There is no second settings API.
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\SiteSettings;
 
 SiteSettings::entry()?->site_name;
@@ -275,6 +290,7 @@ Text::make('author')->shared()->default('The newsroom'),
 
 A `RichText` Field gives editors a WYSIWYG editor whose toolbar shows only what the Field allows:
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Content\Fields\RichText;
 
@@ -304,13 +320,16 @@ A Block renders through its own view, and one the Field no longer offers is kept
 
 `Document::fromHtml($html, $field)` imports HTML through the same normalisation, so an importer hands `SaveEntry` the result:
 
+<!-- kami:example post -->
 ```php
+use App\Content\Article;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\RichText\Document;
 
 resolve(SaveEntry::class)->handle(Article::class, [
     'title' => $post->title,
+    'author' => $post->author,
     'body' => Document::fromHtml($post->html, RichText::make('body')->code()),
 ]);
 ```
@@ -335,6 +354,7 @@ The editor's link button picks an Entry, searched by title among the types with 
 
 `->inlineMarkdown()` on a `Text` or a `Textarea` lets editors write a few marks in plain text, such as a hero title inside an `<h1>`:
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Content\Fields\Text;
 use Psyao\Kami\Content\Fields\Textarea;
@@ -377,6 +397,7 @@ Group::make('address', [
 ]),
 ```
 
+<!-- kami:example project -->
 ```php
 $entry->links;   // [['label' => 'Site', 'url' => 'https://example.test'], ...]
 $entry->address; // ['street' => 'Rue du Lac 1', 'city' => 'Vevey']
@@ -402,11 +423,19 @@ Entries::make('related')->of(Article::class, Page::class),
 
 `SaveEntry` takes a list of Entry ids, in the order to keep. Giving the Field replaces its links, a blank list removes them, and leaving it out keeps them. An unknown id, an Entry of another type or another Site, or the same id twice is a validation error on the Field. A Draft may be linked: reads leave it out until it is visible.
 
+<!-- kami:example project -->
 ```php
+use App\Content\Project;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 app(SaveEntry::class)->handle(Project::class, ['related' => [$second->id, $first->id]], $project);
 ```
 
+<!-- kami:example project -->
 ```php
+use App\Content\Project;
+use Psyao\Kami\Content\Entry;
+
 $projects = Entry::query()->ofType(Project::class)->with('related')->get();
 
 foreach ($projects as $project) {
@@ -442,10 +471,17 @@ The Field's class shares its short name with the `Psyao\Kami\Media\Media` model 
 `SaveEntry` takes a Media id, or `null`, for a single Field, and a list of ids in the order to keep for a multiple one. As for `Entries`, giving the Field replaces its links, a blank value removes them, and leaving it out keeps them. An unknown id, an item of another Site, a document under `->images()`, the same id twice or a second id on a single Field is a validation error on the Field, checked in one query per Field.
 
 ```php
+use App\Content\Project;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 app(SaveEntry::class)->handle(Project::class, ['cover' => $photo->id, 'attachments' => [$brochure->id, $plan->id]], $project);
 ```
 
+<!-- kami:example project -->
 ```php
+use App\Content\Project;
+use Psyao\Kami\Content\Entry;
+
 $projects = Entry::query()->ofType(Project::class)->with('cover')->get();
 
 foreach ($projects as $project) {
@@ -465,6 +501,7 @@ In the admin, editors search the library by name and by alt text in any Locale, 
 
 A Taxonomy classifies other Entries. Its Entries are Terms, and everything an Entry has, a Term has: Fields, Translations, a Path.
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Content\Taxonomy;
 
@@ -483,7 +520,9 @@ use Psyao\Kami\Content\Fields\Terms;
 Terms::make('tags')->of(Tag::class),
 ```
 
+<!-- kami:example project -->
 ```php
+use App\Content\Tag;
 use Psyao\Kami\Content\Term;
 
 $project->tags;       // Collection<int, Term>, in pick order
@@ -583,6 +622,7 @@ At the first read of the declarations, it is an error for a condition to name a 
 
 A type Kami lacks is a class extending `Field`. Every hook is optional: the default is a Translatable `string` column, with no rule of its own, read as stored.
 
+<!-- kami:example -->
 ```php
 use Psyao\Kami\Content\Fields\Field;
 
@@ -765,6 +805,7 @@ The same strings are read in code through the type: `label()`, `pluralLabel()`, 
 
 The generated form is enough for most types. When it is not, extend `Psyao\Kami\Admin\EntryForm` in `app/Filament/` and register it on the plugin, by the type's class:
 
+<!-- kami:example -->
 ```php
 use Filament\Actions\Action;
 use Filament\Schemas\Components\Section;
@@ -804,6 +845,7 @@ Filament's components are not covered by semantic versioning: the names and sign
 
 `Psyao\Kami\Admin\EntryTable` works the same way, with `columns()`, `filters()`, `recordActions()` and `toolbarActions()`, the latter holding bulk actions too:
 
+<!-- kami:example -->
 ```php
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -845,6 +887,7 @@ A selection stays within the page shown, at most 50 rows, so a request fits shar
 
 A row, header or bulk action of your own is plain Filament, written through a core action and authorised on its own, since core actions check no Permission ([Publishing](publishing.md#saveentry-does-not-authorise)). Header actions sit in `toolbarActions()` with the bulk ones:
 
+<!-- kami:example -->
 ```php
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -907,6 +950,7 @@ It runs in the same panel, under the same login. Guard it with `canAccess()`. To
 
 Every write goes through `Psyao\Kami\Content\Actions\SaveEntry`, from seeders, commands and imports alike. It takes the type, by class or handle, and the values:
 
+<!-- kami:example -->
 ```php
 use App\Content\Article;
 use Psyao\Kami\Content\Actions\SaveEntry;
@@ -915,6 +959,7 @@ $entry = app(SaveEntry::class)->handle(Article::class, [
     'title' => 'Hello world',
     'status' => 'published',
     'summary' => 'A first article.',
+    'author' => 'Ada Lovelace',
 ]);
 ```
 
@@ -926,7 +971,11 @@ Invalid values throw Laravel's `ValidationException`; states, validation and slu
 
 To update an Entry, pass it as the third argument; values left out are kept:
 
+<!-- kami:example article -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello again'], $entry);
 ```
 
@@ -936,6 +985,7 @@ The write is saved in the site's default Locale; other Locales are in [Multiling
 
 `Psyao\Kami\Content\Actions\DuplicateEntry` copies an Entry with its Field values and References, and returns the copy. It takes the User as second argument, recorded as the Creator and Last modifier, and checks no Permission ([Publishing](publishing.md#saveentry-does-not-authorise)):
 
+<!-- kami:example article -->
 ```php
 use Psyao\Kami\Content\Actions\DuplicateEntry;
 
@@ -957,9 +1007,11 @@ In the admin, **Duplicate** on a row takes the type's `create` Permission and op
 
 `Psyao\Kami\Content\Actions\TrashEntry` moves an Entry to the Trash in all its Locales, and `RestoreEntry` brings it back with its states and Paths as they were: a Published Translation is visible again at once, a Scheduled one at its date. Both take the User as second argument, recorded as the Last modifier, and check no Permission ([Publishing](publishing.md#saveentry-does-not-authorise)):
 
+<!-- kami:example article -->
 ```php
 use Psyao\Kami\Content\Actions\RestoreEntry;
 use Psyao\Kami\Content\Actions\TrashEntry;
+use Psyao\Kami\Content\Entry;
 
 app(TrashEntry::class)->handle($entry, $request->user());
 
@@ -983,8 +1035,10 @@ In the admin, **Move to Trash** on a row takes the type's `delete` Permission an
 
 `DeleteEntry` deletes an Entry from the Trash for good, with its Translations, Field values, References both ways and [Preview links](publishing.md#preview-links). Its addresses, in every Locale, become 301 Redirects to a replacement Entry, or answer 410 Gone by default, so no former URL falls silently to a 404:
 
+<!-- kami:example trashed -->
 ```php
 use Psyao\Kami\Content\Actions\DeleteEntry;
+use Psyao\Kami\Content\Entry;
 
 $trashed = Entry::query()->withUnpublished()->withTrashed()->findOrFail($id);
 app(DeleteEntry::class)->handle($trashed, replacement: $home, actor: $request->user());
@@ -1000,6 +1054,7 @@ In the admin, **Delete for good** on a row in the Trash takes the type's `force-
 
 `DeleteTranslation` deletes one Locale's Translation that was never published, with its Field values, References and Preview links in that Locale, and frees its Path. Shared values stay with the Entry:
 
+<!-- kami:example article -->
 ```php
 use Psyao\Kami\Content\Actions\DeleteTranslation;
 
@@ -1012,6 +1067,7 @@ A Translation published at least once, Scheduled or unpublished since included, 
 
 `Psyao\Kami\Content\Entry` is an Eloquent model. Its title, slug, status, publication date and Field values read as attributes:
 
+<!-- kami:example article -->
 ```php
 $entry->title;        // 'Hello world'
 $entry->summary;      // 'A first article.'
@@ -1020,7 +1076,11 @@ $entry->published_at; // CarbonImmutable, in UTC
 
 Its queries return only visible Entries: published, with a publication date that has come, out of the [Trash](#the-trash). Drafts and Scheduled Entries need `withUnpublished()`, so a forgotten scope never shows them:
 
+<!-- kami:example -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Entry;
+
 Entry::query()->ofType(Article::class)->get();                     // visible Articles
 Entry::query()->ofType('article')->withUnpublished()->get();       // every Article
 ```
@@ -1031,7 +1091,11 @@ Field values load with the Entries, in one query per type, so a list costs the s
 
 A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank', 7)` or `orderBy('rank')` on an Entry query does not reach it: SQLite takes the name for a string with no error, so a filter finds nothing and a sort does nothing, and the other engines refuse the column. `whereField()` and `orderByField()` reach it, after `ofType()`:
 
+<!-- kami:example product -->
 ```php
+use App\Content\Product;
+use Psyao\Kami\Content\Entry;
+
 Entry::query()->ofType(Product::class)
     ->whereField('rank', '>=', 3)       // Translatable, ->filterable(); an operator, as where() takes one
     ->orderByField('stock', 'desc')     // Shared, ->sortable()
@@ -1044,14 +1108,21 @@ Each throws an `InvalidArgumentException` naming the Field for one the type does
 
 A listing sorted with `orderByField()` pages with `paginate()`, after an `orderBy('kami_entries.id')` that gives Entries sharing a value a fixed order. `cursorPaginate()` throws a `LogicException` there: a blank value is stored as `NULL`, which a cursor skips on every engine. Blank values sort first on SQLite, MySQL and MariaDB, last on PostgreSQL, in ascending order.
 
+<!-- kami:example product -->
 ```php
+use App\Content\Product;
+use Psyao\Kami\Content\Entry;
+
 Entry::query()->ofType(Product::class)->orderByField('stock')->orderBy('kami_entries.id')->paginate(20);
 ```
 
 The same join by hand, for a query they do not cover: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
 
+<!-- kami:example product -->
 ```php
+use App\Content\Product;
 use Illuminate\Database\Query\JoinClause;
+use Psyao\Kami\Content\Entry;
 
 Entry::query()->ofType(Product::class)
     ->select('kami_entries.*')

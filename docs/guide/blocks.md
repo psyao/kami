@@ -12,6 +12,7 @@ php artisan kami:make:block Callout
 
 A Block written by hand looks the same:
 
+<!-- kami:example -->
 ```php
 namespace App\Blocks;
 

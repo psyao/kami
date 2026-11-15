@@ -38,11 +38,12 @@ Removing a Locale deletes nothing: its Translations and Field values are kept, a
 
 `SaveEntry` writes one Translation at a time. Its fourth argument is the Locale, the default Locale when left out:
 
+<!-- kami:example -->
 ```php
 use App\Content\Article;
 use Psyao\Kami\Content\Actions\SaveEntry;
 
-$entry = app(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'status' => 'published']);
+$entry = app(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada Lovelace', 'status' => 'published']);
 
 app(SaveEntry::class)->handle(Article::class, ['title' => 'Hello', 'status' => 'published'], $entry, 'en');
 ```
@@ -69,7 +70,10 @@ public function fields(): array
 
 A type whose content has no language, such as a list of labels, sets `$translatable` to `false`:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Content\ContentType;
+
 final class Label extends ContentType
 {
     protected bool $translatable = false;
@@ -108,13 +112,18 @@ Search engines get the same links in the head from `<x-kami::seo />`, without th
 
 An Entry reads in the page's Locale. `inLocale()` keeps the Entries visible in another Locale and reads them in it:
 
+<!-- kami:example -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Entry;
+
 Entry::query()->ofType(Article::class)->inLocale('en')->get(); // English Articles, English titles
 Entry::query()->inLocale('en')->withUnpublished()->get();      // every Entry with an English Translation
 ```
 
 `url()` gives an Entry's absolute address, in the Locale it is read in or in the one passed, and `null` when the Entry is not visible there, so a link never leads to a 404:
 
+<!-- kami:example article -->
 ```php
 $entry->url();     // 'https://example.com/articles/bonjour'
 $entry->url('en'); // 'https://example.com/en/articles/hello', or null

@@ -100,8 +100,11 @@ Every recorded row dispatches `Psyao\Kami\Audit\Events\AuditEventRecorded` once 
 
 An import or a migration over thousands of Entries would flood the log with one row per item. Run it inside `AuditContext::batch()`:
 
+<!-- kami:example rows -->
 ```php
+use App\Content\Article;
 use Psyao\Kami\Audit\AuditContext;
+use Psyao\Kami\Content\Actions\SaveEntry;
 
 AuditContext::batch('acme.import.completed', function () use ($rows): void {
     foreach ($rows as $row) {

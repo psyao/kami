@@ -56,7 +56,10 @@ It only answers what Kami has cached, its own pages, and lets every other reques
 
 Kami's pages run without your `web` group: no session, no cookie, so the page cache can serve them. When your layout shows who is signed in, with `@auth` or a logout form, a signed-in member would appear signed out on them. Mount Kami's pages in your session instead, in `routes/web.php`:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Facades\Kami;
+
 Kami::routes(session: true);
 ```
 

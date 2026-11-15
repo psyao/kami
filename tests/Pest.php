@@ -32,6 +32,7 @@ use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Support\Internal\WebEnvironment;
 use Psyao\Kami\Tests\Fixtures\Inertia\HandleInertiaRequests;
 use Psyao\Kami\Tests\Fixtures\Inertia\InertiaPage;
+use Psyao\Kami\Tests\GuideExamples;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -86,6 +87,15 @@ function hourlyProbe(object $test, string $name = 'probe'): CallbackEvent
     return $test->schedule->call(function () use ($test, $name): void {
         $test->runs[] = $name;
     })->name($name)->hourly();
+}
+
+/** The Forms guide's own Livewire contact component, registered as `contact`, with the view the guide leaves to the site. */
+function guideContactComponent(): string
+{
+    config(['livewire.view_path' => fixture('livewire')]);
+    Livewire::component('contact', GuideExamples::declared('forms.md', 'Contact'));
+
+    return 'contact';
 }
 
 /** The authenticator secret of the Users `withMfa()` sets up. */

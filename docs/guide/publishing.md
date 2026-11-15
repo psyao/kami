@@ -8,7 +8,11 @@ Each Translation of an Entry has its own publication: a Draft, Scheduled or Publ
 
 The fifth argument is that User, or `null` for imports and the CLI. Kami records it, never checks it:
 
+<!-- kami:example article -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 app(SaveEntry::class)->handle(Article::class, $values, $entry, 'en', $request->user());
 
 $entry->created_by; // the Creator's User key, set when the Entry is created
@@ -23,7 +27,11 @@ The admin names both as the panel names Users: under the edit page's heading, an
 
 Pass the Entry's `updated_at` as you loaded it, and `SaveEntry` refuses to save over a change made since, by anyone and in any Locale: the Entry is compared, and every save touches it. The `ValidationException` is on `updated_at`; its message names the Last modifier, as the panel names Users, and the time in the Site's time zone. A save from code, or by a User deleted since, names nobody.
 
+<!-- kami:example article -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 app(SaveEntry::class)->handle(Article::class, $values, $entry, 'en', $request->user(), updatedAt: $loadedAt);
 ```
 
@@ -39,7 +47,11 @@ Left out, as by imports, seeders and commands, nothing is checked. The compariso
 
 A Translation that is not visible answers 404 and is left out of queries unless they call `withUnpublished()`.
 
+<!-- kami:example -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Actions\SaveEntry;
+
 $save = app(SaveEntry::class);
 
 $entry = $save->handle(Article::class, ['title' => 'Hello', 'author' => 'Ada']);                     // Draft
@@ -147,6 +159,7 @@ The core actions dispatch Content events, in `Psyao\Kami\Content\Events`, so you
 
 Listen to them as to any Laravel event, for instance in a service provider's `boot()`:
 
+<!-- kami:example -->
 ```php
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
