@@ -181,7 +181,7 @@ it('declares psyao.ch, and answers its home, Archive, cursor page, Term Archives
     $development = $term(Category::class, 'Development');
     $electro = $term(Category::class, 'Electro', $term(Category::class, 'Music'));
     $php = $term(Tag::class, 'PHP');
-    $spriteMe = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), ['alt' => 'SpriteMe']);
+    $screenshot = resolve(SaveMedia::class)->handle(fixture('media/pixel.png'), ['alt' => 'SpriteMe']);
     // The oldest Post, so the Archive's second page holds it.
     $sprite = $save->handle(Post::class, [
         'title' => 'Sprite CSS avec SpriteMe',
@@ -190,7 +190,7 @@ it('declares psyao.ch, and answers its home, Archive, cursor page, Term Archives
         'tags' => [$php->id],
         'body' => document(
             paragraph('Un outil pour assembler ses sprites.'),
-            ['type' => 'block', 'attrs' => ['handle' => 'image', 'data' => ['image' => [$spriteMe->id]]]],
+            ['type' => 'block', 'attrs' => ['handle' => 'image', 'data' => ['image' => [$screenshot->id]]]],
             ['type' => 'codeBlock', 'content' => [['type' => 'text', 'text' => 'background: url(sprite.png);']]],
             ['type' => 'block', 'attrs' => ['handle' => 'video', 'data' => ['url' => 'https://www.youtube.com/watch?v=6BoJY9mor1I']]],
             paragraph('Voir l\'installation', [['type' => 'link', 'attrs' => ['href' => "kami://entry/{$installation->id}"]]]),
@@ -216,7 +216,7 @@ it('declares psyao.ch, and answers its home, Archive, cursor page, Term Archives
     $this->get('/')->assertOk()->assertSeeInOrder(['Accueil', 'Steve Aguet - Web Developer']);
 
     $archive = $this->get('/articles')->assertOk();
-    $archive->assertSeeInOrder(['Mix 10', 'Mix 9', 'Mix 2', 'Mix 1'])->assertDontSee('Sprite CSS avec SpriteMe');
+    $archive->assertSeeInOrder(['Mix 10', 'Mix 9', 'Mix 2', 'Mix 1'])->assertDontSee('Sprite CSS avec SpriteMe')->assertDontSee('noindex');
     expect(preg_match('~<a href="([^"]+)" rel="next">~', (string) $archive->getContent(), $next))->toBe(1);
     $this->get(html_entity_decode($next[1]))->assertOk()
         ->assertSee('Sprite CSS avec SpriteMe')->assertDontSee('>Mix 1</a>', false)
@@ -230,27 +230,28 @@ it('declares psyao.ch, and answers its home, Archive, cursor page, Term Archives
     foreach (['/feed' => 'https://www.psyao.ch', '/articles/feed' => 'https://www.psyao.ch/articles'] as $feed => $link) {
         $response = $this->get($feed)->assertOk()->assertHeader('Content-Type', 'application/rss+xml; charset=UTF-8');
         $rss = simplexml_load_string((string) $response->getContent());
-        expect($rss)->not->toBeFalse()
-            ->and((string) $rss['version'])->toBe('2.0')
-            ->and((string) $rss->channel->children('http://www.w3.org/2005/Atom')->link->attributes()['href'])->toBe("https://www.psyao.ch{$feed}")
-            ->and([(string) $rss->channel->link, (string) $rss->channel->language])->toBe([$link, 'fr'])
-            ->and((string) $rss->channel->title)->not->toBe('')
-            ->and((string) $rss->channel->description)->not->toBe('')
-            ->and($rss->channel->item)->toHaveCount(11);
+        expect((string) $rss['version'])->toBe('2.0');
+        $channel = $rss->channel;
+        expect([(string) $channel->link, (string) $channel->language, (string) $channel->children('http://www.w3.org/2005/Atom')->link->attributes()['href']])->toBe([$link, 'fr', "https://www.psyao.ch{$feed}"])
+            ->and([(string) $channel->title, (string) $channel->description])->each->not->toBe('')
+            ->and($channel->item)->toHaveCount(11);
         $oldest = $rss->channel->item[10];
         expect([(string) $oldest->title, (string) $oldest->link, (string) $oldest->guid, (string) $oldest->pubDate, (string) $oldest->description])
             ->toBe(['Sprite CSS avec SpriteMe', 'https://www.psyao.ch/articles/sprite-css-avec-spriteme', $sprite->id, 'Sun, 01 Nov 2026 10:00:00 +0000', 'Un outil pour assembler ses sprites. Voir l\'installation']);
     }
 
-    $this->get('/articles/sprite-css-avec-spriteme')->assertOk()->assertSeeInOrder([
+    $post = $this->get('/articles/sprite-css-avec-spriteme')->assertOk()->assertSeeInOrder([
         '<figure class="kami-figure">',
         'alt="SpriteMe"',
         '<pre><code>background: url(sprite.png);</code></pre>',
         'data-kami-video="https://www.youtube-nocookie.com/embed/6BoJY9mor1I?autoplay=1"',
+        '<script type="module" src="https://www.psyao.ch/vendor/kami/video.js"></script>',
         '<a href="https://www.psyao.ch/bloc-note/symfony/installation">Voir l&#039;installation</a>',
         '<a href="https://www.psyao.ch/category/development">Development</a>',
         '<a href="https://www.psyao.ch/tag/php">PHP</a>',
     ], false);
+    expect(substr_count((string) $post->getContent(), 'vendor/kami/video.js'))->toBe(1)
+        ->and(public_path('vendor/kami/video.js'))->toBeFile();
 
     $this->get('/bloc-note')->assertOk()->assertSee('<h1>Bloc-note</h1>', false);
     $this->get('/bloc-note/symfony')->assertOk()->assertSee('<h1>Symfony</h1>', false);
@@ -259,15 +260,17 @@ it('declares psyao.ch, and answers its home, Archive, cursor page, Term Archives
         '<a href="https://www.psyao.ch/bloc-note" aria-current="true">Bloc-note</a>',
         '<a href="https://www.psyao.ch/bloc-note/symfony" aria-current="true">Symfony</a>',
         '<a href="https://www.psyao.ch/bloc-note">Bloc-note</a>',
+        '<a href="https://www.psyao.ch/bloc-note/symfony">Symfony</a>',
         '<h1>Installation</h1>',
         '<a href="https://www.psyao.ch/contact">Contact</a>',
     ], false);
     $this->get('/installation')->assertNotFound();
 
-    $this->get('/?p=60')->assertMovedPermanently()->assertRedirect('https://www.psyao.ch/articles/sprite-css-avec-spriteme');
-    $this->get('/?p=60&utm_source=newsletter')->assertMovedPermanently()->assertRedirect('https://www.psyao.ch/articles/sprite-css-avec-spriteme');
-    $this->get('/2010/03/14/sprite-css_avec-spriteme')->assertMovedPermanently()->assertRedirect('https://www.psyao.ch/articles/sprite-css-avec-spriteme');
-    $this->get('/?feed=rss2')->assertMovedPermanently()->assertRedirect('/feed');
-    $this->get('/blog')->assertMovedPermanently()->assertRedirect('/articles');
+    // An Entry target answers at its URL, an address as written.
+    $this->get('/?p=60')->assertMovedPermanently()->assertHeader('Location', 'https://www.psyao.ch/articles/sprite-css-avec-spriteme');
+    $this->get('/?p=60&utm_source=newsletter')->assertMovedPermanently()->assertHeader('Location', 'https://www.psyao.ch/articles/sprite-css-avec-spriteme');
+    $this->get('/2010/03/14/sprite-css_avec-spriteme')->assertMovedPermanently()->assertHeader('Location', 'https://www.psyao.ch/articles/sprite-css-avec-spriteme');
+    $this->get('/?feed=rss2')->assertMovedPermanently()->assertHeader('Location', '/feed');
+    $this->get('/blog')->assertMovedPermanently()->assertHeader('Location', '/articles');
     $this->get('/?attachment_id=12')->assertGone();
 });
