@@ -179,6 +179,7 @@ final class PageCache
 
         /** @var array<string, list<string>> $headers */
         $headers = $meta['headers'];
+        // Symfony's, not Laravel's: Livewire injects on `RequestHandled` only into a response with `status()`, and the stored page already holds its assets (#638).
         $response = self::fresh(new Response($body, 200, $headers), $meta['etag']);
         $response->isNotModified($request);
 
