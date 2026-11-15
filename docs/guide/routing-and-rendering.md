@@ -125,6 +125,10 @@ It renders nothing for a null value.
 
 `<x-kami::locales />` links the page's Entry in its other Locales ([Multilingual](multilingual.md#language-switcher)).
 
+### Breadcrumb
+
+`<x-kami::breadcrumb :entry="$entry" />` links a nested Entry's ancestors ([Hierarchical types](content-types.md#hierarchical-types)).
+
 ### Overriding a component
 
 Each `x-kami::` component is an anonymous Blade view. Its name and props are public API; its markup is yours to change. A file at `resources/views/vendor/kami/components/locales.blade.php` replaces `<x-kami::locales />`: copy the package's file there and edit the copy. `php artisan vendor:publish --tag=kami-views` copies all of Kami's views at once, which then no longer follow its updates.

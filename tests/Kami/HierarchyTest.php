@@ -136,15 +136,116 @@ it('keeps hierarchy and order apart: a hierarchical type alone has Parents and n
         ->and(fn () => $save->handle(Label::class, ['title' => 'Flat', 'parent' => $parent->id]))->toThrow(ValidationException::class);
 });
 
-it('reads a Term\'s visible ancestors, nearest first', function () {
+/** @param array<string, mixed> $values */
+function publishedPage(string $title, ?Entry $parent = null, array $values = []): Entry
+{
+    return page($title, ['status' => 'published', 'parent' => $parent?->id, ...$values]);
+}
+
+/** @return int The queries `$read` runs. */
+function queriesOf(Closure $read): int
+{
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $read();
+
+    return count(DB::getQueryLog());
+}
+
+it('reads an Entry\'s visible Parent, its ancestors root first and its visible children in Position order', function () {
+    $top = publishedPage('Top');
+    $middle = publishedPage('Middle', $top);
+    $second = publishedPage('Second', $middle);
+    publishedPage('First', $middle, ['position' => 0]);
+    page('Draft', ['parent' => $middle->id]);
+
+    $bottom = Entry::query()->findOrFail($second->id);
+    $middle = Entry::query()->findOrFail($middle->id);
+
+    expect($bottom->parent?->title)->toBe('Middle')
+        ->and($bottom->ancestors()->map(fn (Entry $entry): array => [$entry->title, $entry->url()])->all())
+        ->toBe([['Top', 'http://localhost/top'], ['Middle', 'http://localhost/top/middle']])
+        ->and($middle->children->map(fn (Entry $entry): array => [$entry->title, $entry->url()])->all())
+        ->toBe([['First', 'http://localhost/top/middle/first'], ['Second', 'http://localhost/top/middle/second']])
+        ->and($bottom->children)->toBeEmpty()
+        ->and($top->parent)->toBeNull()
+        ->and($top->ancestors())->toBeEmpty();
+});
+
+it('builds an ancestor\'s URL in another Locale too', function () {
+    $save = resolve(SaveEntry::class);
+    $top = publishedPage('Haut');
+    $save->handle(Page::class, ['title' => 'Top', 'status' => 'published'], $top, 'en');
+    $middle = publishedPage('Milieu', $top);
+    $save->handle(Page::class, ['title' => 'Middle', 'status' => 'published'], $middle, 'en');
+    $bottom = Entry::query()->findOrFail(publishedPage('Bas', $middle)->id);
+
+    expect($bottom->ancestors()->map(fn (Entry $entry): ?string => $entry->url('en'))->all())->toBe(['http://localhost/en/top', 'http://localhost/en/top/middle']);
+});
+
+it('reads no ancestor under a link that is not visible, as `url()` sees none', function () {
+    $top = publishedPage('Top');
+    $hidden = page('Hidden', ['parent' => $top->id]);
+    $bottom = publishedPage('Bottom', $hidden);
+
+    $bottom = Entry::query()->findOrFail($bottom->id);
+
+    expect($bottom->parent)->toBeNull()
+        ->and($bottom->ancestors())->toBeEmpty()
+        ->and($bottom->url())->toBeNull();
+});
+
+it('reads a Term\'s ancestors the same way, with no URL', function () {
     $save = resolve(SaveEntry::class);
     $top = $save->handle(Tag::class, ['title' => 'Top']);
-    $hidden = $save->handle(Tag::class, ['title' => 'Hidden', 'parent' => $top->id, 'status' => 'draft']);
-    $middle = $save->handle(Tag::class, ['title' => 'Middle', 'parent' => $hidden->id]);
+    $middle = $save->handle(Tag::class, ['title' => 'Middle', 'parent' => $top->id]);
     $bottom = $save->handle(Tag::class, ['title' => 'Bottom', 'parent' => $middle->id]);
+    $orphan = $save->handle(Tag::class, ['title' => 'Orphan', 'parent' => $save->handle(Tag::class, ['title' => 'Hidden', 'status' => 'draft'])->id]);
 
-    expect($bottom->ancestors()->pluck('title')->all())->toBe(['Middle', 'Top'])
-        ->and($top->ancestors())->toBeEmpty();
+    expect($bottom->ancestors()->pluck('title')->all())->toBe(['Top', 'Middle'])
+        ->and($orphan->ancestors())->toBeEmpty();
+});
+
+it('reads the Parent of a Draft read through `withUnpublished()`, as a Preview does', function () {
+    $top = publishedPage('Top');
+    $draft = page('Draft', ['parent' => $top->id]);
+    $child = page('Draft child', ['parent' => $draft->id]);
+
+    $draft = Entry::query()->withUnpublished()->findOrFail($draft->id);
+
+    expect($draft->parent?->title)->toBe('Top')
+        ->and($draft->ancestors()->pluck('title')->all())->toBe(['Top'])
+        ->and($draft->children->pluck('id')->all())->toBe([$child->id]);
+});
+
+it('reads each tree read and its links in an exact number of queries', function () {
+    $top = publishedPage('Top');
+    $middle = publishedPage('Middle', $top);
+    $bottom = publishedPage('Bottom', $middle);
+    publishedPage('Other', $middle);
+    $bottom = Entry::query()->findOrFail($bottom->id);
+    $middle = Entry::query()->findOrFail($middle->id);
+
+    // Its Parent, its Translations, its Field values, then its Path and its ancestors' to build its URL.
+    expect(queriesOf(fn () => $bottom->parent?->url()))->toBe(5)
+        // Its own Path and its ancestors' visibility, then the ancestors, their Translations and type rows, whatever the depth: their URLs follow from its Path.
+        ->and(queriesOf(fn () => $bottom->ancestors()->each(fn (Entry $entry) => $entry->url())))->toBe(5)
+        ->and(queriesOf(fn () => $middle->children->each(fn (Entry $entry) => $entry->url())))->toBe(5);
+});
+
+it('preloads the Parents and children of a list, whatever its length, with no lazy loading', function () {
+    $top = publishedPage('Top');
+    $middle = publishedPage('Middle', $top);
+    publishedPage('Child', $middle);
+    $read = fn () => Entry::query()->ofType(Page::class)->whereNotNull('parent_id')->with(['parent', 'children'])->get()
+        ->each(fn (Entry $entry) => [$entry->parent?->url(), $entry->children->map(fn (Entry $child) => $child->url())]);
+
+    $first = queriesOf($read);
+    publishedPage('Sibling', $middle);
+    publishedPage('Grandchild', $middle);
+
+    // The list, its Parents and its children: each its Entries, Translations and Field values, then its nested Entries' Paths and their ancestors'.
+    expect($first)->toBe(13)->and(queriesOf($read))->toBe($first);
 });
 
 function level(string $role, ?Entry $parent = null, string $type = 'page'): Testable
@@ -402,7 +503,7 @@ it('stops at a cycle concurrent moves could close', function () {
     $bottom = $save->handle(Tag::class, ['title' => 'Bottom', 'parent' => $top->id]);
     DB::table('kami_entries')->where('id', $top->id)->update(['parent_id' => $bottom->id]);
 
-    expect($bottom->ancestors()->pluck('title')->all())->toBe(['Top', 'Bottom']);
+    expect($bottom->ancestors())->toBeEmpty();
 });
 
 describe('the Unpublish confirmation on a Parent', function () {

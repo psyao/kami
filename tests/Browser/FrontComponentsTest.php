@@ -60,3 +60,15 @@ it('shows a Menu with its Trail at axe\'s strictest level, in two Locales, light
             ->assertNoJavaScriptErrors();
     }
 });
+
+it('shows a breadcrumb at axe\'s strictest level, in two Locales, light and dark', function (): void {
+    $save = resolve(SaveEntry::class);
+    $about = $save->handle(Page::class, ['title' => 'À propos', 'status' => 'published'], locale: 'fr');
+    $save->handle(Page::class, ['title' => 'About', 'status' => 'published'], $about, 'en');
+    $team = $save->handle(Page::class, ['title' => 'Équipe', 'status' => 'published', 'parent' => $about->id], locale: 'fr');
+    $save->handle(Page::class, ['title' => 'Team', 'status' => 'published'], $team, 'en');
+
+    foreach ([visit('/a-propos/equipe'), visit('/en/about/team')->inDarkMode()] as $page) {
+        assertAxeClean($page->assertPresent('nav.kami-breadcrumb ol li a[aria-current="page"]'))->assertNoJavaScriptErrors();
+    }
+});

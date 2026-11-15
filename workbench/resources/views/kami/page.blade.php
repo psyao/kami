@@ -9,6 +9,7 @@
     <x-kami::preview-banner />
     <header><x-kami::menu handle="primary" /></header>
     <main>
+        <x-kami::breadcrumb :entry="$entry" />
         <h1>{{ $entry->title }}</h1>
         <div @if ($lang = $entry->fallbackLocale('body'))lang="{{ $lang }}"@endif>{{ $entry->body }}</div>
     </main>

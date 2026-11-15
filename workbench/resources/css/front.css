@@ -1,4 +1,5 @@
-/* The site's own styles, which Kami's components leave to it (ADR 0009): each language and Menu link a 24 px target (WCAG 2.5.8). */
+/* The site's own styles, which Kami's components leave to it (ADR 0009): each language, Menu and breadcrumb link a 24 px target (WCAG 2.5.8). */
+.kami-breadcrumb a,
 .kami-locales a,
 .kami-menu a {
     display: inline-block;
