@@ -233,6 +233,22 @@ it('reads each tree read and its links in an exact number of queries', function 
         ->and(queriesOf(fn () => $middle->children->each(fn (Entry $entry) => $entry->url())))->toBe(5);
 });
 
+it('reads preloaded Parents and children as the list reads its Entries: in its Locale, Drafts included through `withUnpublished()`', function () {
+    $save = resolve(SaveEntry::class);
+    $parent = publishedPage('Parent');
+    $save->handle(Page::class, ['title' => 'Parent EN', 'status' => 'published'], $parent, 'en');
+    publishedPage('Français seulement', $parent);
+    $english = page('Brouillon', ['parent' => $parent->id]);
+    $save->handle(Page::class, ['title' => 'English', 'status' => 'published'], $english, 'en');
+    page('Draft', ['parent' => $parent->id]);
+
+    $inEnglish = Entry::query()->inLocale('en')->whereKey($parent->id)->with('children')->sole();
+    $unpublished = Entry::query()->withUnpublished()->whereKey($parent->id)->with('children')->sole();
+
+    expect($inEnglish->children->pluck('title')->all())->toBe(['English'])
+        ->and($unpublished->children->pluck('title')->all())->toBe(['Français seulement', 'Brouillon', 'Draft']);
+});
+
 it('preloads the Parents and children of a list, whatever its length, with no lazy loading', function () {
     $top = publishedPage('Top');
     $middle = publishedPage('Middle', $top);

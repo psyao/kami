@@ -225,7 +225,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()`, and never one in the Trash unless `withTrashed()` (ADR 0002, ADR 0012).
 
 - `protected $forceDeleting = false`: Indicates if the model is currently force deleting.
-- `public function ancestors(): Illuminate\Database\Eloquent\Collection`: Its ancestors, root first, on a hierarchical type; empty at the root, and when one of them is not visible in the Locale it is read in,
+- `public function ancestors(): Illuminate\Database\Eloquent\Collection`: Its ancestors, root first, on a hierarchical type: empty at the root, and under an ancestor not visible in its Locale, as `url()` is.
 - `public function children(): Illuminate\Database\Eloquent\Relations\HasMany`: Its children on a hierarchical type, visible in the Locale it is read in, in Position order. `with('children')` loads a list's at once.
 - `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.

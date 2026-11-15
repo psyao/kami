@@ -46,6 +46,27 @@ final class EntryBuilder extends Builder
         return $this;
     }
 
+    /**
+     * `parent` and `children` read as the Entries they load from do: Eloquent builds an eager relation on a blank model, which holds neither.
+     *
+     * @param  string  $name
+     */
+    public function getRelation($name)
+    {
+        $relation = parent::getRelation($name);
+        $query = $relation->getQuery();
+
+        if (in_array($name, ['parent', 'children'], true) && $query instanceof self) {
+            $query->readIn($this->locale());
+
+            if (in_array(Visibility::class, $this->removedScopes(), true)) {
+                $query->withoutGlobalScope(Visibility::class);
+            }
+        }
+
+        return $relation;
+    }
+
     /** It hydrates without `eagerLoadRelations()`, so its Entries would read `null` for every stored Field value. */
     public function cursor(): never
     {

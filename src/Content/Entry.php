@@ -106,13 +106,14 @@ class Entry extends Model
      */
     public function children(): HasMany
     {
-        return $this->treeRead($this->hasMany(Entry::class, 'parent_id'))->orderBy('position')->orderBy('id');
+        return $this->treeRead($this->hasMany(Entry::class, 'parent_id'))->ordered();
     }
 
     /**
-     * Its ancestors, root first, on a hierarchical type; empty at the root, and when one of them is not visible in the Locale it is read in,
-     * as `url()` then sees none. On a type with URLs, one read of the rows at its Path's prefixes, whatever the depth (ADR 0019); one query
-     * per level on a type without.
+     * Its ancestors, root first, on a hierarchical type: empty at the root, and under an ancestor not visible in its Locale, as `url()` is.
+     *
+     * On a type with URLs, one read of the rows at its Path's prefixes, which hold its ancestors' Paths (ADR 0008), whatever the depth;
+     * an ancestor out of sight empties it, as it hides the Entry (ADR 0019). One query per level on a type without URLs.
      *
      * @return Collection<int, Entry>
      */
@@ -122,7 +123,6 @@ class Entry extends Model
             return new Collection;
         }
 
-        $site = Site::current();
         $locale = $this->readLocale();
         // Visible ones, even under a Draft read through `withUnpublished()`: a Preview's breadcrumb links to pages that answer.
         $query = self::query()->readIn($locale);
@@ -136,7 +136,7 @@ class Entry extends Model
             }
 
             $prefixes = array_slice(VisiblePaths::prefixes($path), 1);
-            $query->whereIn('id', Path::query()->select('entry_id')->where(['site' => $site->handle, 'locale' => $locale, 'status' => 200])->whereIn('path', $prefixes));
+            $query->whereIn('id', Path::query()->select('entry_id')->where(['site' => Site::current()->handle, 'locale' => $locale, 'status' => 200])->whereIn('path', $prefixes));
         } else {
             $query->whereKey(Ancestors::ids($this->parent_id));
         }
