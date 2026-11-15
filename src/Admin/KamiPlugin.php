@@ -47,6 +47,7 @@ use Psyao\Kami\Admin\Internal\Login;
 use Psyao\Kami\Admin\Internal\MediaResource;
 use Psyao\Kami\Admin\Internal\MenuItemResource;
 use Psyao\Kami\Admin\Internal\NoIndex;
+use Psyao\Kami\Admin\Internal\RedirectResource;
 use Psyao\Kami\Admin\Internal\RenderPreview;
 use Psyao\Kami\Admin\Internal\RequestPasswordReset;
 use Psyao\Kami\Admin\Internal\RequireMfa;
@@ -223,7 +224,7 @@ final class KamiPlugin implements Plugin
             throw new LogicException('kami.resources.media names ' . MediaResource::class . '.');
         }
 
-        $panel->resources([$media, AuditEventResource::class]);
+        $panel->resources([$media, AuditEventResource::class, RedirectResource::class]);
 
         // One page per declared Menu, read from config as Forms are: a handle is checked where its page is used.
         foreach (array_keys(Config::array('kami.menus', [])) as $menu) {

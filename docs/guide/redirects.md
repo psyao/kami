@@ -2,7 +2,19 @@
 
 A Redirect keeps an old address answering: `/blog` sends visitors to `/articles`, a WordPress link `/?p=123` to the Post it named, and `/?attachment_id=12` answers 410 Gone. Redirects share Kami's paths table with the Entries' current addresses, so an address is never both live and redirected, and a request resolves in one indexed read, Redirects included (ADR 0008).
 
-Kami writes some Redirects itself: a once-public address that moves answers 301 to the Entry's new one ([Changing an address](routing-and-rendering.md#changing-an-address)), and an Entry deleted for good leaves a 301 to its replacement or a 410. You write the others with `SaveRedirect`, from a seeder, an [import](imports.md) or your own code.
+Kami writes some Redirects itself: a once-public address that moves answers 301 to the Entry's new one ([Changing an address](routing-and-rendering.md#changing-an-address)), and an Entry deleted for good leaves a 301 to its replacement or a 410. You write the others in the [admin](#the-admin), or with `SaveRedirect`, from a seeder, an [import](imports.md) or your own code.
+
+## The admin
+
+The admin's **Redirects** page, at `/admin/redirects`, lists the Site's Redirects, Kami's own included. A User needs `kami.redirects.manage` to see it ([Users and Roles](users-and-roles.md#permissions)); an administrator holding `kami.*` has it.
+
+A row shows the source, its Locale when the Site has several, the status, the target, an Entry's title or an address, and the date of its last change. It reads **Unknown** for a Redirect Kami wrote before 0.10.0. The table is searched by source and filtered by status.
+
+- **New redirect** opens a form: the source, the Locale, the status, and for a 301 or 302 a target, an Entry searched by title or an address. A refused save keeps the form open, its error on the field at fault ([Refusals](#refusals)).
+- Each row's **Edit** changes the status and the target, a Redirect Kami wrote included. The source and the Locale stay as they are: to change them, delete the Redirect and add another.
+- **Delete** asks first. The source then answers as if it had never redirected.
+
+Every change goes through `SaveRedirect` and `DeleteRedirect`, so the Audit log and the page cache see it as they see a seeder's.
 
 ## Writing a Redirect
 
@@ -66,6 +78,10 @@ Redirect::query()->where('locale', 'fr')->with('entry')->orderBy('path')->get();
 ```
 
 Its `created_at` and `updated_at` are null for the Redirects Kami wrote before 0.10.0.
+
+## Hidden sources
+
+A Redirect saved before a Locale, an Archive or a Feed was declared at its address, or before Kami answered that segment itself, never answers: the Locale or Kami's own route takes the request first. [`kami:doctor`](installation.md#checking-the-environment) lists such sources, as it lists the Entries' hidden Paths ([Reserved paths](routing-and-rendering.md#reserved-paths)). Delete them on the Redirects screen, or with `DeleteRedirect`.
 
 ## Patterns
 

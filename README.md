@@ -32,7 +32,7 @@ php artisan serve
 - [Content types](docs/guide/content-types.md): declaring a type and its Fields, writing and reading Entries
 - [Blocks](docs/guide/blocks.md): declaring a Block, offering it in rich text, its modal, validation, References and view
 - [Menus](docs/guide/menus.md): declaring a Menu, its items, `<x-kami::menu>` with the Trail, `Kami::menu()` and the actions that write items
-- [Redirects](docs/guide/redirects.md): `SaveRedirect` and `DeleteRedirect`, 301, 302 and 410, query-string sources and the `Redirect` model
+- [Redirects](docs/guide/redirects.md): the admin's Redirects page, `SaveRedirect` and `DeleteRedirect`, 301, 302 and 410, query-string sources and the `Redirect` model
 - [Multilingual](docs/guide/multilingual.md): Locales, Translations, Shared Fields and Fallback with `lang`
 - [Publishing](docs/guide/publishing.md): Draft, Scheduled and Published, validation, slugs, Content events, and why `SaveEntry` does not authorise
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
