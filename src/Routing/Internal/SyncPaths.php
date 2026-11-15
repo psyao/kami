@@ -31,7 +31,7 @@ final readonly class SyncPaths
      * With `$write` false, counts the differences and changes nothing. A Path longer than `kami_paths.path` holds, which only a tree saved
      * before 0.10 can reach, is neither counted nor written: it is returned, its row left as it was.
      *
-     * @return array{created: int, rewritten: int, deleted: int, clashes: list<array{entry_id: string, locale: string, path: string, holder: string|null}>, tooLong: list<array{entry_id: string, locale: string, path: string}>}
+     * @return array{created: int, rewritten: int, deleted: int, clashes: list<array{entry_id: string, locale: string, path: string, holder: string|null}>, tooLong: list<Row>}
      */
     public function __invoke(bool $write = true): array
     {
@@ -40,7 +40,7 @@ final readonly class SyncPaths
         $counts = ['created' => 0, 'rewritten' => 0, 'deleted' => 0];
         /** @var list<array{row: Row, current: Path|null}> $pending */
         $pending = [];
-        /** @var list<array{entry_id: string, locale: string, path: string}> $tooLong */
+        /** @var list<Row> $tooLong */
         $tooLong = [];
 
         foreach ($this->types->all() as $type) {
@@ -50,10 +50,7 @@ final readonly class SyncPaths
                     $ids = $entries->pluck('id')->all();
                     ['gone' => $gone, 'changed' => $changed, 'tooLong' => $long] = $this->diff($site, $type, $ids, $site->locales);
                     $counts['deleted'] += $gone->count();
-
-                    foreach ($long as $row) {
-                        $tooLong[] = ['entry_id' => $row['entry_id'], 'locale' => $row['locale'], 'path' => $row['path']];
-                    }
+                    array_push($tooLong, ...$long);
 
                     // Deleted first: a freed address may be the one another row moves to.
                     if ($write && $gone->isNotEmpty()) {

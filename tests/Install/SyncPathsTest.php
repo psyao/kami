@@ -155,17 +155,20 @@ function overLongChild(): Entry
     return $child;
 }
 
-it('fails on a nested Path longer than kami_paths holds, naming the Entry, and leaves its row as it was', function () {
+it('fails on a nested Path longer than kami_paths holds, naming the Entry, leaves its row as it was and moves the others', function () {
     installedSite();
     $child = overLongChild();
+    $sibling = saved(Page::class, ['title' => 'Sibling', 'slug' => 'sibling', 'parent' => $child->fresh()->parent_id], locale: 'fr');
+    DB::table('kami_paths')->where('entry_id', $sibling->id)->update(['path' => 'sibling']);
     $rows = paths();
 
     install()
-        ->expectsOutputToContain('Paths: 0 created, 0 rewritten, 0 deleted.')
+        ->expectsOutputToContain('Paths: 0 created, 1 rewritten, 0 deleted.')
         ->expectsOutputToContain("Entry {$child->id} cannot take its Path in fr: /" . str_repeat('p', 60) . '… is longer than 500 characters.')
         ->assertFailed();
 
-    expect(paths())->toBe($rows);
+    unset($rows['fr sibling']);
+    expect(paths())->toBe([...$rows, 'fr ' . str_repeat('p', 250) . '/sibling' => $sibling->id]);
 });
 
 it('has kami:doctor report a nested Path longer than kami_paths holds, not as a pending rewrite', function () {
@@ -176,6 +179,8 @@ it('has kami:doctor report a nested Path longer than kami_paths holds, not as a 
         ->expectsOutputToContain("1 Path is longer than 500 characters: Entry {$child->id} in fr.")
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#after-a-deploy')
         ->doesntExpectOutputToContain('Paths do not follow');
+
+    expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('after-a-deploy');
 });
 
 it('gives untranslatable Entries a Path in a new Locale, and nothing else', function () {
