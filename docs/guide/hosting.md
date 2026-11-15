@@ -24,7 +24,8 @@ Kami runs on shared hosting with nothing more than PHP, a database and SSH. One 
 | Subject | Shared hosting (Infomaniak Web Hosting) | Server (Cloud Server or VPS) |
 | --- | --- | --- |
 | **Install and deploy** | `kami:install` over SSH, under the command line's limits (no time limit on Infomaniak) | The same |
-| **Admin assets** | Precompiled in the package, copied to `public/` by `kami:install`, with Livewire's assets to `public/vendor/livewire/` | The same |
+| **Admin assets** | Precompiled in the package, copied to `public/` by `kami:install` | The same |
+| **Livewire's assets** | Published to `public/vendor/livewire/` by `kami:install`, so pages under the front policy load Livewire's CSP build as a file ([Front stacks](front-stacks.md#under-the-front-policy)) | The same |
 | **Video facade** | Prebuilt in the package, copied to `public/vendor/kami/` by `kami:install` and served by Apache with `nosniff` from its `.htaccess` ([Front script](#front-script)) | nginx serves it once given the header below, on a site offering the Video Block |
 | **Front assets** | Built by the site in CI or on the developer's machine, then copied with the code | The same |
 | **Cache and sessions** | `file` cache and `file` sessions, as the starter kit sets them: a session holds its payload alone, on the local disk, with no IP address or browser name | The same, with every web server sharing `storage/`; Redis or Memcached possible, never required |

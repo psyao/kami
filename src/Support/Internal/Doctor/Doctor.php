@@ -1308,12 +1308,13 @@ final readonly class Doctor
     private function livewireAssets(): ?Problem
     {
         $published = public_path('vendor/livewire/manifest.json');
+        $exists = is_file($published);
         // The comparison Livewire makes before it warns in the browser console.
-        $current = is_file($published) && json_decode(File::get($published), true) === json_decode(File::get(InstalledVersions::getInstallPath('livewire/livewire') . '/dist/manifest.json'), true);
+        $current = $exists && json_decode(File::get($published), true) === json_decode(File::get(InstalledVersions::getInstallPath('livewire/livewire') . '/dist/manifest.json'), true);
 
         return $current ? null : new Problem(
             app()->isLocal() ? Severity::Info : Severity::Warning,
-            is_file($published)
+            $exists
                 ? "Livewire's assets in public/vendor/livewire/ are not the installed version's: Kami's pages load a script that no longer matches the server."
                 : "Livewire's assets are not published in public/vendor/livewire/: a Livewire component on Kami's pages gets the build the admin uses, which their policy blocks.",
             'run php artisan kami:install, which publishes them, as every deploy does.',

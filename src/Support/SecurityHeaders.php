@@ -17,12 +17,15 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * The `front` profile (default) is fixed and nonce-free, so a cached page stays a static file; `kami.security.*` extends it.
  * The `admin` profile (`kami.security-headers:admin`) is Filament's minimum, with a per-request nonce on inline scripts.
- * The `front` profile also has Livewire inject its CSP build without its progress bar, for this request only (ADR 0040).
+ * Under a policy that forbids `'unsafe-eval'`, the `front` profile also has Livewire inject its CSP build without its progress bar, for this request only (ADR 0040).
  */
 final class SecurityHeaders
 {
-    /** The request attribute holding the Livewire settings to put back. */
-    private const string LIVEWIRE = 'kami.livewire_settings';
+    /** What Livewire needs to fit a policy without `'unsafe-eval'`: its CSP build, and no progress bar creating styles as it runs. */
+    private const array CSP_SAFE_LIVEWIRE = ['livewire.csp_safe' => true, 'livewire.navigate.show_progress_bar' => false];
+
+    /** The request attribute holding Livewire's configuration as it was before this request changed it. */
+    private const string SAVED_LIVEWIRE = 'kami.saved_livewire_config';
 
     /** @param  Closure(Request): Response  $next */
     public function handle(Request $request, Closure $next, string $profile = 'front'): Response
@@ -37,7 +40,8 @@ final class SecurityHeaders
             $policy = $this->withHotServer($policy);
         }
 
-        if ($profile === 'front') {
+        // A site that allows `'unsafe-eval'` has chosen Livewire's full build.
+        if ($profile === 'front' && ! in_array("'unsafe-eval'", $policy['script-src'] ?? [], true)) {
             $this->useLivewireCspBuild($request);
         }
 
@@ -64,11 +68,8 @@ final class SecurityHeaders
     /** Puts back the Livewire settings the front profile changed, for a container that outlives the request (ADR 0040). */
     public function terminate(Request $request): void
     {
-        /** @var array<string, mixed>|null $livewire */
-        $livewire = $request->attributes->get(self::LIVEWIRE);
-
-        if ($livewire !== null) {
-            config($livewire);
+        if ($request->attributes->has(self::SAVED_LIVEWIRE)) {
+            config(['livewire' => $request->attributes->get(self::SAVED_LIVEWIRE)]);
         }
     }
 
@@ -78,12 +79,12 @@ final class SecurityHeaders
      */
     private function useLivewireCspBuild(Request $request): void
     {
-        // The first values only: a site may wrap Kami's group in this middleware again.
-        $request->attributes->set(self::LIVEWIRE, $request->attributes->get(self::LIVEWIRE) ?? [
-            'livewire.csp_safe' => config('livewire.csp_safe'),
-            'livewire.navigate.show_progress_bar' => config('livewire.navigate.show_progress_bar'),
-        ]);
-        config(['livewire.csp_safe' => true, 'livewire.navigate.show_progress_bar' => false]);
+        // The first configuration only: on the session mount, a site's `web` group may hold this middleware as well.
+        if (! $request->attributes->has(self::SAVED_LIVEWIRE)) {
+            $request->attributes->set(self::SAVED_LIVEWIRE, config('livewire'));
+        }
+
+        config(self::CSP_SAFE_LIVEWIRE);
     }
 
     /**

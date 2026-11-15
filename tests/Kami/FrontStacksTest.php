@@ -24,18 +24,16 @@ uses(RefreshDatabase::class);
 /** A type with no Field whose page renders a site's own Livewire component, as `docs/guide/front-stacks.md` shows it. */
 final class LivewirePage extends ContentType
 {
-    public static string $component = 'counter';
+    public static string $body = '<livewire:counter />';
 
     public function render(Entry $entry): Response
     {
-        return response(Blade::render('<html><head></head><body><livewire:dynamic-component :is="$component" :entry="$entry" /></body></html>', ['component' => self::$component, 'entry' => $entry]));
+        return response(Blade::render('<html><head></head><body>' . self::$body . '</body></html>', ['entry' => $entry]));
     }
 }
 
 final class Counter extends Component
 {
-    public ?Entry $entry = null;
-
     public int $count = 0;
 
     public function increment(): void
@@ -98,7 +96,7 @@ beforeEach(function () {
     config(['kami.page_cache.enabled' => true, 'kami.types' => [Article::class, LivewirePage::class]]);
     Livewire::component('counter', Counter::class);
     Livewire::component('livewire-contact', LivewireContact::class);
-    LivewirePage::$component = 'counter';
+    LivewirePage::$body = '<livewire:counter />';
 });
 
 /** The published page of a `LivewirePage`, on the mount asked. */
@@ -128,10 +126,13 @@ function livewireUpdate(TestResponse $page, array $headers, string $method, arra
 
 $mounts = ['the default mount' => [false], 'the session mount' => [true]];
 
-it('serves Livewire\'s CSP build without its progress bar on Kami\'s pages, the cached page keeping them, and the full build elsewhere', function (bool $session) {
+it('serves Livewire\'s CSP build without its progress bar under the front policy, the cached page keeping them, and the full build elsewhere', function (bool $session) {
     livewirePage($session);
-    // A route outside Kami's policy, as Filament's panel is: the Workbench puts the site's `web` pages under it.
-    Route::get('/elsewhere', fn () => Blade::render('<html><head></head><body><livewire:counter /></body></html>'));
+    $counter = fn () => Blade::render('<html><head></head><body><livewire:counter /></body></html>');
+    // A page of the site's own under Kami's policy: the Workbench appends `SecurityHeaders` to the `web` group, as the starter kit does.
+    Route::middleware('web')->get('/site-page', $counter);
+    // A route outside Kami's policy, as Filament's panel is.
+    Route::get('/elsewhere', $counter);
 
     $first = $this->get('/livewire_page/hello-world')->assertOk();
     // Livewire injects its assets once per request; production builds that state per request, a test per test.
@@ -143,8 +144,18 @@ it('serves Livewire\'s CSP build without its progress bar on Kami\'s pages, the 
         ->and($again->getContent())->toMatch('#/vendor/livewire/livewire\.csp(\.min)?\.js#');
     // Only the default mount's pages are cached: the session mount renders each, with the visitor's token.
     $session ? $again->assertHeaderMissing('ETag') : expect($again->getContent())->toBe($first->getContent());
+    expect($this->get('/site-page')->getContent())->toMatch('#/vendor/livewire/livewire\.csp(\.min)?\.js#');
+    Livewire::flushState();
     expect($this->get('/elsewhere')->getContent())->toMatch('#/vendor/livewire/livewire(\.min)?\.js#')->not->toContain('data-no-progress-bar');
 })->with($mounts);
+
+it('leaves Livewire\'s full build to a site whose front policy allows \'unsafe-eval\'', function () {
+    config(['kami.security.csp' => ['script-src' => ["'unsafe-eval'"]]]);
+    livewirePage(false);
+
+    expect($this->get('/livewire_page/hello-world')->assertOk()->getContent())
+        ->toMatch('#/vendor/livewire/livewire(\.min)?\.js#')->not->toContain('data-no-progress-bar');
+});
 
 it('runs a cookie-less update from the same origin, setting the session cookie, and refuses one from another site with a 419', function (bool $session, ?string $site, int $status) {
     livewirePage($session);
@@ -166,7 +177,7 @@ it('runs a cookie-less update from the same origin, setting the session cookie, 
 ]);
 
 it('stores a Submission through SubmitForm from a Livewire action', function (bool $session) {
-    LivewirePage::$component = 'livewire-contact';
+    LivewirePage::$body = '<livewire:livewire-contact :entry="$entry" />';
     $entry = livewirePage($session);
     $page = $this->get('/livewire_page/hello-world');
 

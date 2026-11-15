@@ -52,9 +52,9 @@ With `Kami::routes(session: true)` ([Existing application](existing-application.
 
 ### Under the front policy
 
-Kami's front policy has no nonce and no `'unsafe-eval'` ([Security](security.md#kamis-pages)). Livewire fits it under four conditions, which a browser test checks on every Livewire release Kami supports:
+Kami's front policy has no nonce and no `'unsafe-eval'` ([Security](security.md#kamis-pages)). Livewire fits it under four conditions, which a browser test checks in Kami's CI:
 
-1. **Livewire's CSP build.** Kami turns on `livewire.csp_safe` for the responses of its pages, and `kami:install` publishes Livewire's assets to `public/vendor/livewire/` on every deploy, so those pages load the CSP build as a file. The admin keeps the full build, which Filament's templates need. Your Alpine expressions stay within that build's subset: no arrow functions, template literals, spread or globals; move longer logic to `Alpine.data()`, registered from a script file of your bundle on `alpine:init`. `kami:doctor` warns when Livewire's published assets are missing or another version's.
+1. **Livewire's CSP build.** Kami turns on `livewire.csp_safe` for every response its front policy covers, Kami's pages and your own `web` pages carrying `SecurityHeaders` ([Security](security.md#your-own-pages)), and `kami:install` publishes Livewire's assets to `public/vendor/livewire/` on every deploy, so those pages load the CSP build as a file. The admin keeps the full build, which Filament's templates need. Your Alpine expressions stay within that build's subset: no arrow functions, template literals, spread or globals; move longer logic to `Alpine.data()`, registered from a script file of your bundle on `alpine:init`. `kami:doctor` warns when Livewire's published assets are missing or another version's.
 2. **Livewire's inline style.** Livewire injects a `<style>` that hides `wire:loading` and `wire:cloak`. Allow it by its hash, which the browser's console names when it blocks the style:
 
     ```php
@@ -67,10 +67,10 @@ Kami's front policy has no nonce and no `'unsafe-eval'` ([Security](security.md#
     ```
 
     The hash changes with Livewire's style and with `livewire.navigate.progress_bar_color`: check the console after updating Livewire. The style cannot move to your stylesheet, as turning off Livewire's asset injection would turn it off in the admin too.
-3. **No progress bar.** Kami turns off `livewire.navigate.show_progress_bar` on its pages: the bar creates styles as it runs.
+3. **No progress bar.** Kami turns off `livewire.navigate.show_progress_bar` on those responses: the bar creates styles as it runs.
 4. **No inline `@script` or `@assets`** in your components: put their JavaScript in your bundle.
 
-A middleware you give `Kami::routes(middleware: [...])` runs after Kami's and may set either setting back. The full build then needs `'unsafe-eval'` in `security.csp`, which `kami:doctor` reports as a weakening ([Weakening options](security.md#weakening-options)), on every front page.
+A site that adds `'unsafe-eval'` to `script-src` in `security.csp` keeps Livewire's full build and its progress bar: Kami leaves both settings as they are. `kami:doctor` reports that source as a weakening, on every front page ([Weakening options](security.md#weakening-options)).
 
 ### A form from a component
 

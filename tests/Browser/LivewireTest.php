@@ -20,7 +20,7 @@ final class LikesPage extends ContentType
 {
     public function render(Entry $entry): Response
     {
-        return response(Blade::render('<!DOCTYPE html><html lang="fr"><head><title>Likes</title></head><body><main><livewire:likes /></main></body></html>'));
+        return response(Blade::render('<!DOCTYPE html><html lang="fr"><head><title>Likes</title></head><body><main><h1>Likes</h1><livewire:likes /></main></body></html>'));
     }
 }
 
@@ -74,7 +74,6 @@ it('runs a site\'s Livewire component and its Alpine on Kami\'s pages, cached or
     $page->press('J\'aime')
         ->assertSeeIn('#likes', '1')
         ->assertVisible('#thanks')
-        ->assertScript('window.violations', [])
-        ->assertNoJavaScriptErrors()
-        ->assertNoConsoleLogs();
+        ->assertScript('window.violations', []);
+    assertAxeClean($page)->assertNoJavaScriptErrors()->assertNoConsoleLogs();
 })->with(['the default mount' => false, 'the session mount' => true]);
