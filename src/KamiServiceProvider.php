@@ -30,6 +30,7 @@ use Psyao\Kami\Content\Events\TranslationDeleted;
 use Psyao\Kami\Content\Internal\AnnouncePublicationsCommand;
 use Psyao\Kami\Content\Internal\Blocks;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\MakeBlockCommand;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\MakeTypeCommand;
 use Psyao\Kami\Forms\Internal\Deliveries;
@@ -80,7 +81,7 @@ final class KamiServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasTranslations()
             ->hasViews()
-            ->hasCommands([AnnouncePublicationsCommand::class, BenchCommand::class, ClearCacheCommand::class, DeliverSubmissionsCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeFormCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, PruneSubmissionsCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
+            ->hasCommands([AnnouncePublicationsCommand::class, BenchCommand::class, ClearCacheCommand::class, DeliverSubmissionsCommand::class, DoctorCommand::class, GrantRoleCommand::class, InstallCommand::class, MakeBlockCommand::class, MakeFormCommand::class, MakeMigrationCommand::class, MakeTypeCommand::class, PruneAuditCommand::class, PruneMediaCommand::class, PruneSubmissionsCommand::class, ResetMfaCommand::class, SitemapCommand::class, TickCommand::class, TickUrlCommand::class, WarmMediaCommand::class]);
     }
 
     public function packageRegistered(): void

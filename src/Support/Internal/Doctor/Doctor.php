@@ -29,16 +29,21 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
+use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\Blocks\Video;
 use Psyao\Kami\Content\ContentType;
+use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Select;
 use Psyao\Kami\Content\Fields\StructuredField;
+use Psyao\Kami\Content\Internal\Blocks;
 use Psyao\Kami\Content\Internal\ContentModelDrift;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\EntryTitles;
 use Psyao\Kami\Content\Internal\VideoFacade;
 use Psyao\Kami\Content\Layout;
+use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Tab;
 use Psyao\Kami\Forms\Actions\DeleteSubmissions;
@@ -128,7 +133,7 @@ final readonly class Doctor
             ...$this->missingLabels(),
             ...array_filter([$this->lockStore(), $this->publicMedia(), $this->videoFacade(), $this->pageCacheStorage(), $this->smtpTimeout()]),
             ...$this->searchEngines(),
-            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths(), $this->hiddenRedirects()])] : []),
+            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...$this->unavailableBlocks(), ...array_filter([$this->hiddenPaths(), $this->hiddenRedirects()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
@@ -678,6 +683,70 @@ final readonly class Doctor
                 'declare it again in config/kami.php under types: until then its Entries are kept and answer 404.',
                 'content-types.md#declaring-a-type',
             );
+        }
+
+        return $problems;
+    }
+
+    /**
+     * Blocks kept in documents that no longer render: their class gone from `kami.blocks`, or their RichText no longer offering them (ADR 0016). Every document is read, 500 Entries at a time: only `kami:doctor` runs this, from the command line.
+     *
+     * @return list<Problem>
+     */
+    private function unavailableBlocks(): array
+    {
+        // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
+        $site = Site::current();
+        $declared = resolve(Blocks::class)->all();
+        $problems = [];
+
+        foreach (resolve(ContentTypes::class)->all() as $type) {
+            $table = "kami_type_{$type->handle()}";
+            $columns = Schema::hasTable($table) ? Schema::getColumnListing($table) : [];
+            $fields = array_filter($type->columnFields(), fn (Field $field): bool => $field instanceof RichText && in_array($field->handle, $columns, true));
+            /** @var array<string, array<string, array<string, true>>> $holding Entry ids by RichText handle and Block handle. */
+            $holding = [];
+
+            if ($fields === []) {
+                continue;
+            }
+
+            DB::table('kami_entries')->where(['type' => $type->handle(), 'site' => $site->handle])->select('id')->chunkById(500, function (Collection $entries) use ($table, $fields, &$holding): void {
+                foreach (DB::table($table)->whereIn('entry_id', $entries->pluck('id')->all())->get(['entry_id', ...array_map(fn (Field $field): string => $field->handle, $fields)]) as $row) {
+                    /** @var object{entry_id: string} $row */
+                    $entry = $row->entry_id;
+
+                    foreach ($fields as $field) {
+                        foreach (new Document($field->decoded($row->{$field->handle}))->blocks() as $block) {
+                            if (! $field->offered($block['handle']) instanceof Block) {
+                                $holding[$field->handle][$block['handle']][$entry] = true;
+                            }
+                        }
+                    }
+                }
+            });
+
+            ksort($holding);
+
+            foreach ($holding as $handle => $blocks) {
+                ksort($blocks);
+
+                foreach ($blocks as $block => $entries) {
+                    $ids = array_keys($entries);
+                    $titles = EntryTitles::list(Entry::query()->withUnpublished()->withTrashed()->whereKey(array_slice($ids, 0, 10)));
+                    $count = count($ids);
+                    $undeclared = ! isset($declared[$block]);
+
+                    $problems[] = new Problem(
+                        Severity::Warning,
+                        "{$count} " . Str::plural('Entry', $count) . " of {$type->handle()} " . ($count === 1 ? 'holds' : 'hold') . " the Block {$block} in {$handle}, which " . ($undeclared ? 'kami.blocks no longer declares' : 'no longer offers it') . ': ' . ($count > 10 ? __('kami::admin.titles.more', ['titles' => $titles, 'count' => $count - 10]) : $titles) . '.',
+                        $undeclared
+                            ? 'declare it again in config/kami.php under blocks, or remove it with ContentMigrator::dropBlock() in a migration: until then it renders nothing.'
+                            : "offer it again with ->blocks() on {$handle}, or delete it from these Entries in the editor: until then it renders nothing.",
+                        'blocks.md#an-unavailable-block',
+                    );
+                }
+            }
         }
 
         return $problems;

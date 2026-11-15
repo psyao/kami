@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Psyao\Kami\Admin\InitialsAvatarProvider;
 use Psyao\Kami\Admin\KamiPlugin;
+use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
@@ -85,6 +86,25 @@ final class Rendered extends ContentType
     public function render(Entry $entry): Response
     {
         return response('');
+    }
+}
+
+/** A declared Block no type offers. */
+final class Unoffered extends Block
+{
+    public function handle(): string
+    {
+        return 'unoffered';
+    }
+
+    public function fields(): array
+    {
+        return [];
+    }
+
+    public function view(): string
+    {
+        return 'unoffered';
     }
 }
 
@@ -680,6 +700,27 @@ it('warns about a type with a URL and no description: the default summary() and 
         ->doesntExpectOutputToContain('The Content Type home has no RichText')
         ->doesntExpectOutputToContain('The Content Type testimonial has no RichText')
         ->assertSuccessful();
+});
+
+it('warns about documents holding a Block no longer declared or no longer offered, naming the Entries', function () {
+    $this->artisan('migrate')->assertSuccessful();
+    config(['kami.types' => [Article::class], 'kami.blocks' => [...config()->array('kami.blocks'), Unoffered::class]]);
+
+    foreach (['Premier' => ['gone', 'unoffered', 'callout'], 'Second' => ['gone'], 'Sain' => ['callout']] as $title => $handles) {
+        DB::table('kami_entries')->insert(['id' => $id = (string) Str::ulid(), 'site' => 'default', 'type' => 'article']);
+        DB::table('kami_translations')->insert(['id' => (string) Str::ulid(), 'entry_id' => $id, 'locale' => 'fr', 'title' => $title, 'slug' => Str::slug($title), 'status' => 'draft', 'updated_at' => now()]);
+        DB::table('kami_type_article')->insert(['entry_id' => $id, 'locale' => 'fr', 'body' => json_encode(['type' => 'doc', 'content' => array_map(
+            fn (string $handle): array => ['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => []]],
+            $handles,
+        )])]);
+    }
+
+    $problems = array_values(array_filter((new Doctor)->problems(), fn (Problem $problem): bool => $problem->guide === 'blocks.md#an-unavailable-block'));
+
+    expect(array_map(fn (Problem $problem): array => [$problem->severity, $problem->message, $problem->fix], $problems))->toBe([
+        [Severity::Warning, '2 Entries of article hold the Block gone in body, which kami.blocks no longer declares: Premier, Second.', 'declare it again in config/kami.php under blocks, or remove it with ContentMigrator::dropBlock() in a migration: until then it renders nothing.'],
+        [Severity::Warning, '1 Entry of article holds the Block unoffered in body, which no longer offers it: Premier.', 'offer it again with ->blocks() on body, or delete it from these Entries in the editor: until then it renders nothing.'],
+    ]);
 });
 
 it('lists each Select option with no label', function () {
