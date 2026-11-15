@@ -166,7 +166,7 @@ it('checks drift and reports stranded values', function () {
 });
 
 it('completes SyncPaths, with nothing to do and with every row to write', function () {
-    $nothing = ['created' => 0, 'rewritten' => 0, 'deleted' => 0, 'clashes' => []];
+    $nothing = ['created' => 0, 'rewritten' => 0, 'deleted' => 0, 'clashes' => [], 'tooLong' => []];
     $sync = resolve(SyncPaths::class);
 
     expect(measure('SyncPaths, nothing to do', fn () => $sync()))->toBe($nothing);
