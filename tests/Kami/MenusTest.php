@@ -112,6 +112,8 @@ it('allows only the listed addresses, in every Locale', function (string $addres
     ['https://', false],
     ['photos', false],
     ['/a b', false],
+    ['/\\evil.example', false],
+    ['/a\\b', false],
 ]);
 
 it('refuses an address with no URL in the default Locale', function (): void {
@@ -141,13 +143,47 @@ it('refuses no target, several targets, and a target that cannot be linked', fun
 it('links a Draft, hidden until it is published', function (): void {
     $draft = menuPage('Bientôt', ['status' => 'draft']);
 
-    expect(menuItem(['entry' => $draft->id])->entry_id)->toBe($draft->id);
+    expect(menuItem(['entry' => $draft->id])->entry_id)->toBe($draft->id)
+        ->and(Kami::menu('primary'))->toBe([]);
+
+    menuPage('Bientôt', ['status' => 'published'], entry: $draft);
+
+    expect(Kami::menu('primary')[0]->label)->toBe('Bientôt');
+});
+
+it('leaves the caller\'s item as it was when a save is refused, and gives it the saved values otherwise', function (): void {
+    $item = menuItem(['url' => '/a', 'label' => ['fr' => 'A']]);
+
+    expect(fn () => resolve(SaveMenuItem::class)->handle('primary', ['url' => 'javascript:alert(1)', 'new_tab' => true], $item))->toThrow(ValidationException::class);
+
+    expect($item->url)->toBe(['fr' => '/a'])
+        ->and($item->new_tab)->toBeFalse()
+        ->and($item->isDirty())->toBeFalse();
+
+    $saved = resolve(SaveMenuItem::class)->handle('primary', ['label' => ['fr' => 'B']], $item);
+
+    expect($saved)->toBe($item)
+        ->and($item->label)->toBe(['fr' => 'B'])
+        ->and($item->isDirty())->toBeFalse();
+});
+
+it('keeps an item left too deep by a lowered depth editable, without moving it', function (): void {
+    $root = menuItem(['url' => '/a', 'label' => ['fr' => 'A']]);
+    $child = menuItem(['url' => '/b', 'label' => ['fr' => 'B'], 'parent' => $root->id]);
+    config(['kami.menus.primary.depth' => 1]);
+
+    expect(resolve(SaveMenuItem::class)->handle('primary', ['label' => ['fr' => 'B2']], $child)->label)->toBe(['fr' => 'B2'])
+        ->and(fn () => menuItem(['url' => '/c', 'label' => ['fr' => 'C'], 'parent' => $root->id]))->toThrow(ValidationException::class, 'This Menu has a single level.');
 });
 
 it('throws for an undeclared Menu, an unknown Locale, an unknown key, and an item of another Menu', function (): void {
     expect(fn () => menuItem(['url' => '/a', 'label' => ['fr' => 'A']], 'nope'))->toThrow(InvalidArgumentException::class, 'No Menu [nope] is declared under kami.menus.')
         ->and(fn () => menuItem(['url' => '/a', 'label' => ['de' => 'A']]))->toThrow(InvalidArgumentException::class, 'No Locale [de] is declared in Site [default].')
         ->and(fn () => menuItem(['url' => '/a', 'colour' => 'red']))->toThrow(ValidationException::class);
+
+    config(['kami.menus.' . str_repeat('m', 41) => []]);
+
+    expect(fn () => menuItem(['url' => '/a', 'label' => ['fr' => 'A']], str_repeat('m', 41)))->toThrow(InvalidArgumentException::class, 'is over 40 characters');
 
     $footer = menuItem(['url' => '/a', 'label' => ['fr' => 'A']], 'footer');
 
@@ -193,7 +229,7 @@ it('puts an item changing Parent last among its new siblings', function (): void
 });
 
 it('moves an item among its siblings, out-of-range ranks brought back, with one Audit event and event; a still move records nothing', function (): void {
-    menuItem(['url' => '/a', 'label' => ['fr' => 'A']]);
+    $a = menuItem(['url' => '/a', 'label' => ['fr' => 'A']]);
     $b = menuItem(['url' => '/b', 'label' => ['fr' => 'B']]);
     $c = menuItem(['url' => '/c', 'label' => ['fr' => 'C']]);
     Event::fake([MenuItemMoved::class]);
@@ -209,9 +245,19 @@ it('moves an item among its siblings, out-of-range ranks brought back, with one 
 
     resolve(MoveMenuItem::class)->handle($c->fresh(), 3);
 
-    expect(array_slice(array_column(auditEvents(), 'event'), 3))->toBe(['kami.menu-items.moved', 'kami.menu-items.moved', 'kami.menu-items.moved'])
+    // An instance read before its Parent changed elsewhere moves among its new siblings.
+    $stale = $b->fresh();
+    resolve(SaveMenuItem::class)->handle('primary', ['parent' => $a->id], $b->fresh());
+    $c1 = menuItem(['url' => '/c1', 'label' => ['fr' => 'C1'], 'parent' => $a->id]);
+    resolve(MoveMenuItem::class)->handle($c1, 1);
+    resolve(MoveMenuItem::class)->handle($stale, 1);
+
+    // B left a gap at the root, which orders the same.
+    expect(menuShape())->toBe(['A@root#2', 'B@A#1', 'C1@A#2', 'C@root#3']);
+
+    expect(array_slice(array_column(auditEvents(), 'event'), 3, 3))->toBe(['kami.menu-items.moved', 'kami.menu-items.moved', 'kami.menu-items.moved'])
         ->and(auditEvents()[3]['context'])->toBe(['menu' => 'primary', 'position' => 1]);
-    Event::assertDispatchedTimes(MenuItemMoved::class, 3);
+    Event::assertDispatchedTimes(MenuItemMoved::class, 5);
 });
 
 it('deletes an item, its children moving up one level in its place and order, with one Audit event and event', function (): void {
@@ -304,7 +350,9 @@ describe('reading', function (): void {
 
         expect(Kami::menu('primary'))->toHaveCount(1);
 
+        // A change Kami cannot see: the Menu read in this request is read again.
         config(['kami.types' => array_values(array_diff(config('kami.types'), [Article::class, Project::class]))]);
+        Kami::flushCache();
 
         expect(Kami::menu('primary'))->toBe([]);
     });
@@ -319,6 +367,7 @@ describe('reading', function (): void {
             ->and(Kami::menu('deep')[0]->children[0]->children)->toHaveCount(1);
 
         config(['kami.menus.deep.depth' => 1]);
+        Kami::flushCache();
 
         expect(Kami::menu('deep')[0]->children)->toBe([]);
     });
@@ -364,6 +413,7 @@ describe('reading', function (): void {
         menuItem(['entry' => $about->id]);
         $this->get('/a-propos');
         request()->attributes->set('kami.preview', true);
+        Kami::flushCache();
 
         expect(Kami::menu('primary')[0]->isCurrent)->toBeFalse();
     });
@@ -383,6 +433,20 @@ describe('reading', function (): void {
         // The items; the Entries, their Translations and their type's Field values; the nested ones' Paths and ancestors.
         expect(Kami::menu('primary'))->toHaveCount(13)
             ->and(DB::getQueryLog())->toHaveCount(6);
+    });
+
+    it('reads a Menu once per request, and again after a write', function (): void {
+        menuItem(['url' => '/a', 'label' => ['fr' => 'A']]);
+        DB::enableQueryLog();
+
+        Kami::menu('primary');
+        Kami::menu('primary');
+
+        expect(DB::getQueryLog())->toHaveCount(1);
+
+        menuItem(['url' => '/b', 'label' => ['fr' => 'B']]);
+
+        expect(Kami::menu('primary'))->toHaveCount(2);
     });
 
     it('throws for an undeclared Menu', function (): void {

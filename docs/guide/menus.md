@@ -91,7 +91,7 @@ When the component does not fit, `Kami::menu()` returns the same tree as `Psyao\
 
 `url` is nullable: an item with no address renders as text, which the component does with a `<span>`. An undeclared handle throws an `InvalidArgumentException`.
 
-Each call reads the Menu in a few queries, with no cache of its own: the items, their Entries with their Translations and Field values, and the ancestors of nested Entries. The [page cache](page-cache.md) stores the page around it, and every item write makes it stale, since every page may show a Menu.
+A Menu is read in a few queries once per request and Locale, so the component and your own calls share them: the items, their Entries with their Translations and Field values, and the ancestors of nested Entries. It has no cache of its own: the [page cache](page-cache.md) stores the page around it, and every item write makes it stale, since every page may show a Menu. A write in the same request reads the Menu again; after a change Kami cannot see, such as a config set at runtime, call `Kami::flushCache()`.
 
 ## Writing items
 
@@ -120,13 +120,13 @@ resolve(DeleteMenuItem::class)->handle($about);
 - `label` and `url`: by Locale code. They merge with what the item holds, and `''` or null clears a Locale. A string `url` is the default Locale's.
 - `new_tab`.
 
-A key left out keeps its stored value. It refuses with a `ValidationException`, changing nothing:
+A key left out keeps its stored value. The item you pass takes the saved values; a refusal leaves it as it was. It refuses with a `ValidationException`, changing nothing:
 
 - on `target`, with no target or several;
 - on `entry`, for an Entry of another Site, in the Trash, or of a type with no address;
 - on `archive`, for a type with no Archive;
-- on `url.<locale>`, for an address outside the list above, or with no address in the default Locale;
-- on `parent`, for a Parent from another Menu, the item itself or one of its descendants, or a place deeper than the Menu's `depth`, counting the item's own descendants.
+- on `url.<locale>`, for an address outside the list above, a backslash included, or with no address in the default Locale;
+- on `parent`, for a Parent from another Menu, the item itself or one of its descendants, or a place deeper than the Menu's `depth`, counting the item's own descendants. These are checked when the item is created or changes Parent only: an item a lowered `depth` left too deep stays editable.
 
 An undeclared Menu, a Locale the Site does not declare, or an item of another Menu throws an `InvalidArgumentException`.
 

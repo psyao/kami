@@ -129,7 +129,7 @@ final class Kami
 
     /**
      * A Menu declared under `kami.menus`, as the links visible in the current Locale, with the current page and its Trail marked (ADR 0025): for a site's own markup when `<x-kami::menu>` does not fit.
-     * Built in a few queries on each call, with no cache of its own: the page cache stores the page around it.
+     * Read in a few queries once per request and Locale, with no cache of its own: the page cache stores the page around it, and any write reads it again.
      *
      * @return list<MenuLink>
      *

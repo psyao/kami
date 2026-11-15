@@ -21,6 +21,9 @@ use Psyao\Kami\Sites\Internal\Site;
  */
 final class BuildMenu
 {
+    /** The request attribute holding the Menus read in this request, by handle and Locale. */
+    public const string MEMO = 'kami.menus';
+
     /** @var Collection<string, Entry> */
     private Collection $entries;
 
@@ -40,6 +43,16 @@ final class BuildMenu
         $depth = Menus::depth($menu);
         $this->site = Site::current();
         $this->locale = $this->site->currentLocale();
+        // Once per request and Locale, so a Menu rendered twice is read once; `PageCache::invalidate()`, which every write calls, forgets it.
+        /** @var array<string, list<MenuLink>> $memo */
+        $memo = request()->attributes->get(self::MEMO, []);
+        $key = "{$menu}.{$this->locale}";
+
+        if (isset($memo[$key])) {
+            return $memo[$key];
+        }
+
+        $this->children = [];
         $this->current = request()->attributes->getBoolean('kami.preview') ? null : $this->key(request()->getSchemeAndHttpHost() . request()->getPathInfo());
 
         $items = MenuItem::query()->where(['site' => $this->site->handle, 'menu' => $menu])->orderBy('position')->orderBy('id')->get();
@@ -51,7 +64,10 @@ final class BuildMenu
             $this->children[$item->parent_id ?? ''][] = $item;
         }
 
-        return $this->links('', $depth);
+        $links = $this->links('', $depth);
+        request()->attributes->set(self::MEMO, [...$memo, $key => $links]);
+
+        return $links;
     }
 
     /** @return list<MenuLink> */

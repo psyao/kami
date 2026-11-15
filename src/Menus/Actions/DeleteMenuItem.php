@@ -29,7 +29,10 @@ final class DeleteMenuItem
 
             $tree = MenuTree::of($item->site, $item->menu);
             $siblings = $tree->children($item->parent_id);
-            array_splice($siblings, (int) array_search($item->id, $siblings, true), 1, $tree->children($item->id));
+            $at = array_search($item->id, $siblings, true);
+            $children = $tree->children($item->id);
+            // Among its siblings unless a write outside the actions broke the tree: its children then go last.
+            $at === false ? array_push($siblings, ...$children) : array_splice($siblings, $at, 1, $children);
             $tree->place($siblings, $item->parent_id);
             $item->delete();
             resolve(RecordAuditEvent::class)->handle('kami.menu-items.deleted', $item, ['menu' => $item->menu], $actor);

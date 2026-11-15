@@ -23,6 +23,15 @@ final class MoveMenuItem
     public function handle(MenuItem $item, int $position, ?Authenticatable $actor = null): MenuItem
     {
         $moved = DB::transaction(function () use ($item, $position, $actor): bool {
+            // Read again, locked: another call may have given it another Parent since the caller read it.
+            $fresh = MenuItem::query()->lockForUpdate()->find($item->id);
+
+            if (! $fresh instanceof MenuItem) {
+                return false;
+            }
+
+            $item->parent_id = $fresh->parent_id;
+            $item->syncOriginalAttribute('parent_id');
             $tree = MenuTree::of($item->site, $item->menu);
             $siblings = $tree->children($item->parent_id);
             $from = array_search($item->id, $siblings, true);

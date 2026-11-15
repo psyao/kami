@@ -463,7 +463,7 @@ final class EntryResource extends FilamentResource
     }
 
     /** The sentence naming the Menus that lose a link when the Entry is deleted, or none (ADR 0025). */
-    public static function menusLosingALink(Entry $entry): string
+    private static function menusLosingALink(Entry $entry): string
     {
         /** @var list<string> $handles */
         $handles = MenuItem::query()->where('entry_id', $entry->id)->distinct()->orderBy('menu')->pluck('menu')->all();

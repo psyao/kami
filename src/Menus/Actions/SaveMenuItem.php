@@ -82,7 +82,9 @@ final class SaveMenuItem
             }
         }
 
-        $item ??= new MenuItem(['site' => $site->handle, 'menu' => $menu, 'new_tab' => false]);
+        // Changes go on a copy, so a refusal leaves the caller's item as it was; it takes them once saved.
+        $original = $item;
+        $item = $item instanceof MenuItem ? clone $item : new MenuItem(['site' => $site->handle, 'menu' => $menu, 'new_tab' => false]);
         $given = array_filter(Arr::only($values, self::TARGETS), fn (mixed $value): bool => $value !== null && $value !== [] && array_filter((array) $value, fn (mixed $part): bool => $part !== null && $part !== '') !== []);
 
         if (count($given) > 1) {
@@ -96,8 +98,8 @@ final class SaveMenuItem
             }
         }
 
-        $item->entry_id = array_key_exists('entry', $values) ? $this->entry($values['entry']) : $item->entry_id;
-        $item->archive = array_key_exists('archive', $values) ? $this->archive($values['archive']) : $item->archive;
+        $item->entry_id = array_key_exists('entry', $values) ? $this->filled($values['entry']) : $item->entry_id;
+        $item->archive = array_key_exists('archive', $values) ? $this->filled($values['archive']) : $item->archive;
 
         foreach ($maps as $key => $map) {
             /** @var array<string, string> $stored */
@@ -120,22 +122,23 @@ final class SaveMenuItem
             $tree = MenuTree::of($item->site, $item->menu);
             $parent = array_key_exists('parent', $values) ? (is_string($values['parent']) ? $values['parent'] : null) : $item->parent_id;
 
-            if ($parent !== null && ! $tree->has($parent)) {
-                throw ValidationException::withMessages(['parent' => __('kami::admin.menus.parent_elsewhere')]);
-            }
-
-            if ($parent !== null && $item->exists && in_array($item->id, [$parent, ...$tree->ancestors($parent)], true)) {
-                throw ValidationException::withMessages(['parent' => __('kami::admin.menus.parent_inside')]);
-            }
-
-            $level = $parent === null ? 1 : count($tree->ancestors($parent)) + 2;
-            $height = $item->exists ? $tree->height($item->id) : 1;
-
-            if ($level + $height - 1 > $depth) {
-                throw ValidationException::withMessages(['parent' => trans_choice('kami::admin.menus.depth', $depth, ['depth' => $depth])]);
-            }
-
+            // Checked where the item goes only: an item left too deep by a lowered `depth` stays editable, hidden on the front.
             if ($created || $parent !== $item->parent_id) {
+                if ($parent !== null && ! $tree->has($parent)) {
+                    throw ValidationException::withMessages(['parent' => __('kami::admin.menus.parent_elsewhere')]);
+                }
+
+                if ($parent !== null && $item->exists && in_array($item->id, [$parent, ...$tree->ancestors($parent)], true)) {
+                    throw ValidationException::withMessages(['parent' => __('kami::admin.menus.parent_inside')]);
+                }
+
+                $level = $parent === null ? 1 : count($tree->ancestors($parent)) + 2;
+                $height = $item->exists ? $tree->height($item->id) : 1;
+
+                if ($level + $height - 1 > $depth) {
+                    throw ValidationException::withMessages(['parent' => trans_choice('kami::admin.menus.depth', $depth, ['depth' => $depth])]);
+                }
+
                 $item->parent_id = $parent;
                 $item->position = $tree->nextPosition($parent);
             }
@@ -144,19 +147,19 @@ final class SaveMenuItem
             resolve(RecordAuditEvent::class)->handle($created ? 'kami.menu-items.created' : 'kami.menu-items.updated', $item, ['menu' => $item->menu], $actor);
         });
 
+        if ($original instanceof MenuItem) {
+            $original->setRawAttributes($item->getAttributes(), true);
+            $item = $original;
+        }
+
         event(new MenuItemSaved($item, $created, $actor));
 
         return $item;
     }
 
-    private function entry(mixed $id): ?string
+    private function filled(mixed $value): ?string
     {
-        return is_string($id) && $id !== '' ? $id : null;
-    }
-
-    private function archive(mixed $handle): ?string
-    {
-        return is_string($handle) && $handle !== '' ? $handle : null;
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     /** @throws ValidationException */
@@ -183,7 +186,8 @@ final class SaveMenuItem
 
         if ($item->url !== null) {
             foreach ($item->url as $locale => $address) {
-                if (preg_match(self::ALLOWED_ADDRESS, $address) !== 1) {
+                // A backslash too: browsers read `/\host` as `//host`.
+                if (preg_match(self::ALLOWED_ADDRESS, $address) !== 1 || str_contains($address, '\\')) {
                     throw ValidationException::withMessages(["url.{$locale}" => __('kami::admin.menus.url')]);
                 }
             }

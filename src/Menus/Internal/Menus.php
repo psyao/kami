@@ -17,16 +17,6 @@ use InvalidArgumentException;
 final class Menus
 {
     /**
-     * The declared handles.
-     *
-     * @return list<string>
-     */
-    public static function handles(): array
-    {
-        return array_map(strval(...), array_keys(Config::array('kami.menus', [])));
-    }
-
-    /**
      * How deep a declared Menu's items may nest, 1 to 3.
      *
      * @throws InvalidArgumentException For a handle not declared, or a depth out of range.
@@ -34,8 +24,17 @@ final class Menus
     public static function depth(string $handle): int
     {
         $menus = Config::array('kami.menus', []);
-        $declaration = $menus[$handle] ?? throw new InvalidArgumentException("No Menu [{$handle}] is declared under kami.menus.");
-        $depth = is_array($declaration) ? ($declaration['depth'] ?? 1) : null;
+
+        if (! array_key_exists($handle, $menus)) {
+            throw new InvalidArgumentException("No Menu [{$handle}] is declared under kami.menus.");
+        }
+
+        // The width of `kami_menu_items.menu`.
+        if (strlen($handle) > 40) {
+            throw new InvalidArgumentException("The Menu handle [{$handle}] is over 40 characters.");
+        }
+
+        $depth = is_array($menus[$handle]) ? ($menus[$handle]['depth'] ?? 1) : null;
 
         if (! is_int($depth) || $depth < 1 || $depth > 3) {
             throw new InvalidArgumentException("The Menu [{$handle}] declares a depth of 1 to 3 under kami.menus.{$handle}.depth.");
