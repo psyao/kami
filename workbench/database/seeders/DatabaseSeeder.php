@@ -20,6 +20,7 @@ use Psyao\Kami\Forms\Internal\Delivery;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Psyao\Kami\Menus\Actions\SaveMenuItem;
+use Psyao\Kami\Redirects\Actions\SaveRedirect;
 use Psyao\Kami\Users\Actions\AssignRoles;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
@@ -106,6 +107,12 @@ class DatabaseSeeder extends Seeder
         $menu->handle('primary', ['archive' => 'article'], actor: $admin);
         $menu->handle('primary', ['url' => '/a-propos/histoire', 'label' => ['fr' => 'Notre histoire']], actor: $admin);
         $menu->handle('primary', ['url' => 'https://github.com/psyao/kami', 'label' => ['fr' => 'Code source', 'en' => 'Source code'], 'new_tab' => true], actor: $admin);
+
+        // Redirects a WordPress site leaves behind: an old section to the Articles' Archive, a `?p=` link to its Page, and attachment pages gone.
+        $redirect = resolve(SaveRedirect::class);
+        $redirect->handle('/blog', 301, '/articles', actor: $admin);
+        $redirect->handle('/?p=2', 301, $about, actor: $admin);
+        $redirect->handle('/?attachment_id', 410, actor: $admin);
 
         // The Media library: a photo described in both Locales, an image missing its alt text, a decorative one, an SVG served as its own file, a document, which needs none.
         $fixtures = dirname(__DIR__, 3) . '/tests/Fixtures/media';

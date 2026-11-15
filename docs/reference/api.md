@@ -689,6 +689,30 @@ One visible link of a Menu, in the current Locale, as `Kami::menu()` returns it 
 - `public protected(set) readonly ?string $url`
 - `public function __construct(string $label, ?string $url, bool $newTab, array $children, bool $isCurrent, bool $inTrail)`
 
+## `Psyao\Kami\Redirects\Actions\DeleteRedirect`
+
+`final class`
+
+Deletes a Redirect: its source answers 404 again, or the Entry's Path a later save gives it (ADR 0008). It does not authorise: the caller checks the actor's Permission first (ADR 0011).
+
+- `public function handle(Psyao\Kami\Redirects\Redirect $redirect, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void`
+
+## `Psyao\Kami\Redirects\Actions\SaveRedirect`
+
+`final class`
+
+Creates or changes the Redirect at a source of the current Site: 301 or 302 to an Entry or an address, or 410 (ADR 0008). Saving a source already
+
+- `public function handle(string $source, int $status, Psyao\Kami\Content\Entry|string|null $target = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Redirects\Redirect`
+
+## `Psyao\Kami\Redirects\Redirect`
+
+`final class extends Illuminate\Database\Eloquent\Model`
+
+An address of a Site and Locale that answers 301 or 302 to an Entry's current URL or to a free address, or 410: a non-200 row of `kami_paths` (ADR 0008).
+
+- `public function entry(): Illuminate\Database\Eloquent\Relations\BelongsTo`
+
 ## `Psyao\Kami\Schema\ContentMigrator`
 
 `final class`

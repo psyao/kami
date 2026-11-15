@@ -265,6 +265,16 @@ return [
         'depth' => 'This Menu has a single level.|This Menu nests :depth levels at most.',
     ],
 
+    'redirects' => [
+        'live' => 'This address is the current address of :title: change that Entry instead.',
+        'target' => 'A 301 or 302 needs a target: an Entry or an address.',
+        'gone' => 'A 410 has no target.',
+        'entry' => 'This Entry cannot be a target: it is gone, in the Trash, or has no address.',
+        'address' => 'An address starts with https://, http:// or /.',
+        'chain' => 'This target redirects itself: point to its destination instead.',
+        'pairs' => 'A source holds :max query parameters at most.',
+    ],
+
     'media' => [
         'label' => 'media item',
         'plural_label' => 'Media',

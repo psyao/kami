@@ -362,6 +362,24 @@ class Psyao\Kami\Menus\MenuLink::$label public protected(set) readonly string $l
 class Psyao\Kami\Menus\MenuLink::$newTab public protected(set) readonly bool $newTab
 class Psyao\Kami\Menus\MenuLink::$url public protected(set) readonly ?string $url
 class Psyao\Kami\Menus\MenuLink::__construct() public function __construct(string $label, ?string $url, bool $newTab, array $children, bool $isCurrent, bool $inTrail)
+class Psyao\Kami\Redirects\Actions\DeleteRedirect final class
+class Psyao\Kami\Redirects\Actions\DeleteRedirect::handle() public function handle(Psyao\Kami\Redirects\Redirect $redirect, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): void
+class Psyao\Kami\Redirects\Actions\SaveRedirect final class
+class Psyao\Kami\Redirects\Actions\SaveRedirect::handle() public function handle(string $source, int $status, Psyao\Kami\Content\Entry|string|null $target = NULL, ?string $locale = NULL, ?Illuminate\Contracts\Auth\Authenticatable $actor = NULL): Psyao\Kami\Redirects\Redirect
+class Psyao\Kami\Redirects\Events\RedirectDeleted final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Redirects\Events\RedirectDeleted::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Redirects\Events\RedirectDeleted::$locale public protected(set) readonly string $locale
+class Psyao\Kami\Redirects\Events\RedirectDeleted::$redirectId public protected(set) readonly string $redirectId
+class Psyao\Kami\Redirects\Events\RedirectDeleted::$site public protected(set) readonly string $site
+class Psyao\Kami\Redirects\Events\RedirectDeleted::$source public protected(set) readonly string $source
+class Psyao\Kami\Redirects\Events\RedirectDeleted::__construct() public function __construct(string $redirectId, string $site, string $locale, string $source, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Redirects\Events\RedirectSaved final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit
+class Psyao\Kami\Redirects\Events\RedirectSaved::$actor public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor
+class Psyao\Kami\Redirects\Events\RedirectSaved::$created public protected(set) readonly bool $created
+class Psyao\Kami\Redirects\Events\RedirectSaved::$redirect public protected(set) readonly Psyao\Kami\Redirects\Redirect $redirect
+class Psyao\Kami\Redirects\Events\RedirectSaved::__construct() public function __construct(Psyao\Kami\Redirects\Redirect $redirect, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)
+class Psyao\Kami\Redirects\Redirect final class extends Illuminate\Database\Eloquent\Model
+class Psyao\Kami\Redirects\Redirect::entry() public function entry(): Illuminate\Database\Eloquent\Relations\BelongsTo
 class Psyao\Kami\Schema\ContentMigrator final class
 class Psyao\Kami\Schema\ContentMigrator::dropLocale() public static function dropLocale(string $locale): void
 class Psyao\Kami\Schema\ContentMigrator::dropType() public static function dropType(string $type): void

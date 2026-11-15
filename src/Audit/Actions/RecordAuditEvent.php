@@ -16,12 +16,13 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Internal\PreviewLink;
 use Psyao\Kami\Media\Media;
 use Psyao\Kami\Menus\MenuItem;
+use Psyao\Kami\Redirects\Redirect;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Records one Audit event, in the caller's transaction when there is one: a rolled back action leaves no row (ADR 0022). Kami's core actions call it for what changes visibility or loses data; a site calls it for its own sensitive actions. Inside `AuditContext::batch()` it only counts the event towards the batch's summary.
  *
- * Kami's models are stored under short type names (`entry`, `media`, `menu-item`, `preview-link`, a User as `user`), others under their morph class. The Site comes from the subject's `site` attribute.
+ * Kami's models are stored under short type names (`entry`, `media`, `menu-item`, `redirect`, `preview-link`, a User as `user`), others under their morph class. The Site comes from the subject's `site` attribute.
  */
 final class RecordAuditEvent
 {
@@ -125,6 +126,7 @@ final class RecordAuditEvent
             $subject instanceof Entry => 'entry',
             $subject instanceof Media => 'media',
             $subject instanceof MenuItem => 'menu-item',
+            $subject instanceof Redirect => 'redirect',
             $subject instanceof Authenticatable => 'user',
             default => $subject->getMorphClass(),
         };

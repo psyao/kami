@@ -185,6 +185,30 @@ A Menu item was created or changed through `SaveMenuItem`, once the write commit
 - `public protected(set) readonly Psyao\Kami\Menus\MenuItem $item`
 - `public function __construct(Psyao\Kami\Menus\MenuItem $item, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
 
+## `Psyao\Kami\Redirects\Events\RedirectDeleted`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Redirect was deleted through `DeleteRedirect`, once the write committed (ADR 0029). It carries values: the row is gone.
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly string $locale`
+- `public protected(set) readonly string $redirectId`
+- `public protected(set) readonly string $site`
+- `public protected(set) readonly string $source`
+- `public function __construct(string $redirectId, string $site, string $locale, string $source, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
+## `Psyao\Kami\Redirects\Events\RedirectSaved`
+
+`final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
+
+A Redirect was created or changed through `SaveRedirect`, once the write committed (ADR 0029).
+
+- `public protected(set) readonly ?Illuminate\Contracts\Auth\Authenticatable $actor`
+- `public protected(set) readonly bool $created`
+- `public protected(set) readonly Psyao\Kami\Redirects\Redirect $redirect`
+- `public function __construct(Psyao\Kami\Redirects\Redirect $redirect, bool $created, ?Illuminate\Contracts\Auth\Authenticatable $actor)`
+
 ## `Psyao\Kami\Users\Events\RolesAssigned`
 
 `final readonly class implements Illuminate\Contracts\Events\ShouldDispatchAfterCommit`
