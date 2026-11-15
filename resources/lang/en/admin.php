@@ -266,6 +266,33 @@ return [
     ],
 
     'redirects' => [
+        'label' => 'redirect',
+        'plural_label' => 'Redirects',
+        'fields' => [
+            'source' => 'Source',
+            'source_help' => 'The address visitors arrive at, such as /blog or /?p=123.',
+            'source_kept' => 'To change the source, delete this Redirect and add another.',
+            'locale' => 'Language',
+            'status' => 'Status',
+            'kind' => 'Target',
+            'entry' => 'Entry',
+            'address' => 'Address',
+        ],
+        'statuses' => [
+            301 => '301: moved for good',
+            302 => '302: moved for now',
+            410 => '410: gone',
+        ],
+        'columns' => [
+            'source' => 'Source',
+            'locale' => 'Language',
+            'status' => 'Status',
+            'target' => 'Target',
+            'date' => 'Date',
+        ],
+        'no_target' => 'None',
+        'no_date' => 'Unknown',
+        'delete' => 'The address stops redirecting.',
         'live' => 'This address is the current address of :title: change that Entry instead.',
         'target' => 'A 301 or 302 needs a target: an Entry or an address.',
         'gone' => 'A 410 has no target.',

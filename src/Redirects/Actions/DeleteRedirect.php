@@ -11,7 +11,7 @@ use Psyao\Kami\Redirects\Events\RedirectDeleted;
 use Psyao\Kami\Redirects\Redirect;
 
 /**
- * Deletes a Redirect: its source answers 404 again, or the Entry's Path a later save gives it (ADR 0008). It does not authorise: the caller checks the actor's Permission first (ADR 0011).
+ * Deletes a Redirect: its source answers 404 again, or the Entry's Path a later save gives it (ADR 0008). It does not authorise: the caller checks the actor's `kami.redirects.manage` Permission first (ADR 0011).
  */
 final class DeleteRedirect
 {

@@ -266,6 +266,33 @@ return [
     ],
 
     'redirects' => [
+        'label' => 'redirection',
+        'plural_label' => 'Redirections',
+        'fields' => [
+            'source' => 'Source',
+            'source_help' => 'L’adresse où arrivent les visiteurs, comme /blog ou /?p=123.',
+            'source_kept' => 'Pour changer la source, supprimez cette redirection et ajoutez-en une autre.',
+            'locale' => 'Langue',
+            'status' => 'Statut',
+            'kind' => 'Cible',
+            'entry' => 'Entrée',
+            'address' => 'Adresse',
+        ],
+        'statuses' => [
+            301 => '301 : déplacée définitivement',
+            302 => '302 : déplacée temporairement',
+            410 => '410 : supprimée',
+        ],
+        'columns' => [
+            'source' => 'Source',
+            'locale' => 'Langue',
+            'status' => 'Statut',
+            'target' => 'Cible',
+            'date' => 'Date',
+        ],
+        'no_target' => 'Aucune',
+        'no_date' => 'Inconnue',
+        'delete' => 'L’adresse ne redirige plus.',
         'live' => 'Cette adresse est l’adresse actuelle de :title : modifiez plutôt cette entrée.',
         'target' => 'Une 301 ou une 302 a besoin d’une cible : une entrée ou une adresse.',
         'gone' => 'Une 410 n’a pas de cible.',

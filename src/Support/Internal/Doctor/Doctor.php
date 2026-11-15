@@ -49,6 +49,7 @@ use Psyao\Kami\Forms\Internal\Forms;
 use Psyao\Kami\Forms\Submission;
 use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Media\Media;
+use Psyao\Kami\Redirects\Redirect;
 use Psyao\Kami\Routing\Internal\PageCache;
 use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Routing\Internal\SyncPaths;
@@ -127,7 +128,7 @@ final readonly class Doctor
             ...$this->missingLabels(),
             ...array_filter([$this->lockStore(), $this->publicMedia(), $this->videoFacade(), $this->pageCacheStorage(), $this->smtpTimeout()]),
             ...$this->searchEngines(),
-            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths()])] : []),
+            ...($paths ? [...$this->contentModel(), ...$this->undeclaredContent(), ...array_filter([$this->hiddenPaths(), $this->hiddenRedirects()])] : []),
             ...($assignments ? [...$this->undeclaredRoles(), ...$this->usersWithoutRole($panels)] : []),
             ...($assignments && $mfaTable ? $this->managersWithoutMfa($panels) : []),
             ...($media ? array_filter([$this->missingAlt()]) : []),
@@ -595,7 +596,7 @@ final readonly class Doctor
         // ponytail: the `default` Site only, as `Site::current()`; V1 multisite checks every Site's.
         $site = Site::current();
         $segments = [...Path::RESERVED_SEGMENTS, ...array_slice($site->locales, 1)];
-        // 200 rows only: a hidden Redirect or 410 has no slug to change, and no screen manages Redirects before M10.
+        // 200 rows only: a Redirect has no slug to change, `hiddenRedirects()` reports them.
         $hidden = Path::query()->where(['site' => $site->handle, 'locale' => $site->defaultLocale(), 'status' => 200])
             ->where(function (Builder $query) use ($segments): void {
                 foreach ([...Path::RESERVED_PATHS, ...$segments] as $reserved) {
@@ -615,6 +616,30 @@ final readonly class Doctor
             "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
             "change their slug, or their type's Prefix: until then, they answer nowhere.",
             'routing-and-rendering.md#reserved-paths',
+        );
+    }
+
+    /** Redirect sources a Locale, a segment Kami answers, an Archive or a Feed declared later hides: `SaveRedirect` would refuse them today (ADR 0008). */
+    private function hiddenRedirects(): ?Problem
+    {
+        // ponytail: the `default` Site only, as `hiddenPaths()`; V1 multisite checks every Site's.
+        $site = Site::current();
+        // Read row by row: an import may leave thousands, few of them hidden.
+        $hidden = Redirect::query()->where('site', $site->handle)->select(['id', 'locale', 'path'])->cursor()
+            // `SaveRedirect`'s rule in the default Locale; elsewhere only an Archive or a Feed answers first, as Kami's own segments sit at the root.
+            ->filter(function (Redirect $row) use ($site): bool {
+                $path = Path::split($row->path)[0];
+
+                return $row->locale === $site->defaultLocale() ? Path::refusal($path, $site, $row->locale) !== null : Path::archiveAt($path) instanceof ContentType || Path::feedAt($path) !== null;
+            })
+            ->map(fn (Redirect $row): string => $row->locale === $site->defaultLocale() ? "/{$row->path}" : "/{$row->locale}/{$row->path}")
+            ->collect()->sort()->values();
+
+        return $hidden->isEmpty() ? null : new Problem(
+            Severity::Warning,
+            "{$hidden->count()} Redirect " . Str::plural('source', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: ' . $hidden->take(5)->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
+            'delete them on the Redirects page: until then, they redirect nobody.',
+            'redirects.md#hidden-sources',
         );
     }
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
+use Psyao\Kami\Redirects\Actions\SaveRedirect;
 use Workbench\App\Content\Article;
 use Workbench\App\Content\Footer;
 use Workbench\App\Content\Home;
@@ -193,17 +194,27 @@ it('warns about stored Paths that a Locale, a segment Kami answers, an Archive o
     translate('en', ['title' => 'Feeds', 'slug' => 'feeds'], $feeds, Page::class);
     DB::table('kami_paths')->where(['entry_id' => $feeds->id, 'locale' => 'fr'])->update(['path' => 'feed']);
     DB::table('kami_paths')->where(['entry_id' => $feeds->id, 'locale' => 'en'])->update(['path' => 'articles/feed']);
-    // A Redirect has no slug to change: left out.
+    // Redirects, reported apart: they have no slug to change.
     DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'fr', 'path' => 'kami', 'entry_id' => null, 'status' => 410]);
+    resolve(SaveRedirect::class)->handle('/de/old?p=1', 301, '/about');
+    resolve(SaveRedirect::class)->handle('/de/old', 301, '/about', 'en');
+    // As stored before `media` was reserved: `/en/media/old` is no route of Kami's, so it still redirects.
+    DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'en', 'path' => 'media/old', 'entry_id' => null, 'target' => '/about', 'status' => 301]);
+    DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'en', 'path' => 'articles?page=2', 'entry_id' => null, 'target' => '/about', 'status' => 302]);
     config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
 
     $this->artisan('kami:doctor', ['--strict' => true])
         ->expectsOutputToContain('6 Paths are hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: /de/about, /en/articles, /en/articles/feed, /feed, /media, ….')
         ->expectsOutputToContain('Fix: change their slug, or their type\'s Prefix')
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#reserved-paths')
+        // Neither `/en/de/old` nor `/en/media/old`: a Locale's code and Kami's own segments come first only.
+        ->expectsOutputToContain('3 Redirect sources are hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: /de/old?p=1, /en/articles?page=2, /kami.')
+        ->expectsOutputToContain('Fix: delete them on the Redirects page')
+        ->expectsOutputToContain('docs/guide/redirects.md#hidden-sources')
         ->assertFailed();
 
-    expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('reserved-paths');
+    expect(headingAnchors('docs/guide/routing-and-rendering.md'))->toContain('reserved-paths')
+        ->and(headingAnchors('docs/guide/redirects.md'))->toContain('hidden-sources');
 });
 
 it('warns about content in an undeclared Locale or of an undeclared type, and keeps it', function () {

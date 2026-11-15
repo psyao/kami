@@ -509,6 +509,7 @@ permission kami.media.delete
 permission kami.media.update
 permission kami.media.view
 permission kami.menus.manage
+permission kami.redirects.manage
 permission kami.users.manage
 route kami.form POST kami/forms/{handle}
 route kami.tick GET|POST|HEAD kami/tick/{token}
