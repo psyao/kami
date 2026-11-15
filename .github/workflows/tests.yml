@@ -49,6 +49,10 @@ jobs:
       - name: Kami suite under the Infomaniak ini
         run: bash tests/infomaniak.sh --ci
 
+      # M10's acceptance on MariaDB: psyao.ch's content model, whose listings, tree reads and query-string Redirects depend on the engine.
+      - name: psyao.ch acceptance
+        run: vendor/bin/pest tests/Install/PsyaoChTest.php --ci
+
   static:
     name: Static (SQLite, checks)
     runs-on: ubuntu-latest
@@ -197,6 +201,10 @@ jobs:
       - name: First administrator
         run: vendor/bin/pest tests/Install/FirstAdministratorTest.php --ci
 
+      # M10's acceptance: psyao.ch's content model, whose listings, tree reads and query-string Redirects depend on the engine.
+      - name: psyao.ch acceptance
+        run: vendor/bin/pest tests/Install/PsyaoChTest.php --ci
+
   mysql:
     name: MySQL 8.4
     runs-on: ubuntu-latest
@@ -230,6 +238,10 @@ jobs:
       # The rest of the Install suite is bound to SQLite. This lookup hands out every Permission and depends on the engine.
       - name: First administrator
         run: vendor/bin/pest tests/Install/FirstAdministratorTest.php --ci
+
+      # M10's acceptance: psyao.ch's content model, whose listings, tree reads and query-string Redirects depend on the engine.
+      - name: psyao.ch acceptance
+        run: vendor/bin/pest tests/Install/PsyaoChTest.php --ci
 
   browser:
     name: Browser (Chromium)
