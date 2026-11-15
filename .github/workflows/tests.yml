@@ -28,7 +28,7 @@ jobs:
           MARIADB_DATABASE: kami
         ports:
           - 3306:3306
-        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
+        options: --tmpfs /var/lib/mysql --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       DB_CONNECTION: mariadb
       DB_HOST: 127.0.0.1
@@ -175,7 +175,7 @@ jobs:
           POSTGRES_DB: kami
         ports:
           - 5432:5432
-        options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
+        options: --tmpfs /var/lib/postgresql/data --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
@@ -209,7 +209,7 @@ jobs:
           MYSQL_DATABASE: kami
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword" --health-interval=5s --health-timeout=5s --health-retries=20
+        options: --tmpfs /var/lib/mysql --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword" --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       DB_CONNECTION: mysql
       DB_HOST: 127.0.0.1
