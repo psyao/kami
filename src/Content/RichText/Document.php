@@ -235,6 +235,38 @@ final readonly class Document implements Htmlable
         return $node;
     }
 
+    /**
+     * @internal
+     *
+     * Nodes with each Block's `attrs` mapped, a Block mapped to `null` removed; a Block's own RichText documents are left as they are.
+     *
+     * @param  array<mixed>  $nodes
+     * @param  Closure(array<mixed>): ?array<mixed>  $map  A Block's `attrs`, or `null` to remove the Block.
+     * @return array<mixed>
+     */
+    public static function mapBlocks(array $nodes, Closure $map): array
+    {
+        $mapped = [];
+
+        foreach ($nodes as $node) {
+            if (is_array($node) && ($node['type'] ?? null) === 'block' && is_array($node['attrs'] ?? null)) {
+                if (($attrs = $map($node['attrs'])) !== null) {
+                    $mapped[] = [...$node, 'attrs' => $attrs];
+                }
+
+                continue;
+            }
+
+            if (is_array($node) && is_array($node['content'] ?? null)) {
+                $node['content'] = self::mapBlocks($node['content'], $map);
+            }
+
+            $mapped[] = $node;
+        }
+
+        return $mapped;
+    }
+
     /** @return list<Extension> */
     private static function extensions(Link $link): array
     {

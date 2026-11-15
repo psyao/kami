@@ -358,18 +358,16 @@ final class ContentMigrator
     /**
      * Reads every Block of the declared types' documents, writing nothing.
      *
-     * @param  Closure(array<mixed>): void  $visit  A Block's `attrs`.
+     * @param  Closure(array{handle: string, data: array<mixed>}): void  $visit
      */
     private static function eachBlock(Closure $visit): void
     {
         foreach (resolve(ContentTypes::class)->all() as $type) {
             Documents::each($type, function (array $documents) use ($visit): void {
                 foreach ($documents as $read) {
-                    self::mapBlocks($read['content'], function (array $attrs) use ($visit): array {
-                        $visit($attrs);
-
-                        return $attrs;
-                    });
+                    foreach (new Document($read['document'])->blocks() as $block) {
+                        $visit($block);
+                    }
                 }
             });
         }
@@ -390,7 +388,7 @@ final class ContentMigrator
                 $rewritten = [];
 
                 foreach ($documents as ['entry' => $entry, 'locale' => $locale, 'field' => $field, 'document' => $document, 'content' => $stored]) {
-                    $content = self::mapBlocks($stored, $map);
+                    $content = Document::mapBlocks($stored, $map);
 
                     if ($content === $stored) {
                         continue;
@@ -404,34 +402,6 @@ final class ContentMigrator
                 self::reindex($rewritten);
             }));
         }
-    }
-
-    /**
-     * @param  array<mixed>  $nodes
-     * @param  Closure(array<mixed>): ?array<mixed>  $map
-     * @return array<mixed>
-     */
-    private static function mapBlocks(array $nodes, Closure $map): array
-    {
-        $mapped = [];
-
-        foreach ($nodes as $node) {
-            if (is_array($node) && ($node['type'] ?? null) === 'block' && is_array($node['attrs'] ?? null)) {
-                if (($attrs = $map($node['attrs'])) !== null) {
-                    $mapped[] = [...$node, 'attrs' => $attrs];
-                }
-
-                continue;
-            }
-
-            if (is_array($node) && is_array($node['content'] ?? null)) {
-                $node['content'] = self::mapBlocks($node['content'], $map);
-            }
-
-            $mapped[] = $node;
-        }
-
-        return $mapped;
     }
 
     /**

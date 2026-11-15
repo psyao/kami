@@ -607,7 +607,7 @@ final readonly class Doctor
         if ($long->isNotEmpty()) {
             $problems[] = new Problem(
                 Severity::Warning,
-                "{$long->count()} " . Str::plural('Path', $long->count()) . ' ' . ($long->count() === 1 ? 'is' : 'are') . ' longer than ' . Path::MAX_LENGTH . ' characters: ' . $long->take(5)->implode(', ') . ($long->count() > 5 ? ', …' : '') . '.',
+                $this->sample($long, 'Path', 'longer than ' . Path::MAX_LENGTH . ' characters'),
                 "shorten the Entry's slug or an ancestor's, then run php artisan kami:install: until then, the Entry answers nowhere.",
                 'routing-and-rendering.md#after-a-deploy',
             );
@@ -639,7 +639,7 @@ final readonly class Doctor
 
         return $hidden->isEmpty() ? null : new Problem(
             Severity::Warning,
-            "{$hidden->count()} " . Str::plural('Path', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: ' . $hidden->take(5)->map(fn (string $path): string => "/{$path}")->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
+            $this->sample($hidden->map(fn (string $path): string => "/{$path}"), 'Path', 'hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed'),
             "change their slug, or their type's Prefix: until then, they answer nowhere.",
             'routing-and-rendering.md#reserved-paths',
         );
@@ -663,10 +663,20 @@ final readonly class Doctor
 
         return $hidden->isEmpty() ? null : new Problem(
             Severity::Warning,
-            "{$hidden->count()} Redirect " . Str::plural('source', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: ' . $hidden->take(5)->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
+            $this->sample($hidden, 'Redirect source', 'hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed'),
             'delete them on the Redirects page: until then, they redirect nobody.',
             'redirects.md#hidden-sources',
         );
+    }
+
+    /**
+     * "N Paths are …: the first five, …."
+     *
+     * @param  Collection<int, covariant string>  $items
+     */
+    private function sample(Collection $items, string $noun, string $state): string
+    {
+        return "{$items->count()} " . Str::plural($noun, $items->count()) . ' ' . ($items->count() === 1 ? 'is' : 'are') . " {$state}: " . $items->take(5)->implode(', ') . ($items->count() > 5 ? ', …' : '') . '.';
     }
 
     /**

@@ -36,7 +36,6 @@ use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\Internal\ReorderEntries;
 use Psyao\Kami\Content\Internal\Translation;
 use Psyao\Kami\Content\Internal\Visibility;
-use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Content\Singleton;
 use Psyao\Kami\Content\Taxonomy;
 use Psyao\Kami\Media\Media;
@@ -318,11 +317,11 @@ final class SaveEntry
             }
 
             if (is_array($document = $data[$handle] ?? null)) {
-                $data[$handle] = Document::withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
+                $data[$handle] = $field->withoutMissing($document, $deleted, $missingMedia);
             }
 
             if (is_array($document = $values[$handle] ?? null)) {
-                $values[$handle] = Document::withoutLinks($field->withoutEntries($document, $deleted), $deleted, $missingMedia);
+                $values[$handle] = $field->withoutMissing($document, $deleted, $missingMedia);
             }
         }
 
