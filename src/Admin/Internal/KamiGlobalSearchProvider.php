@@ -50,11 +50,16 @@ final class KamiGlobalSearchProvider extends DefaultGlobalSearchProvider
             EntryResource::withConfiguration($type, function () use ($builder, $entries, $type, $order): void {
                 $results = $entries->where('type', $type)->flatMap(fn (Entry $entry): array => $entry->translations
                     ->sortBy(fn (Translation $translation): int => $order[$translation->locale] ?? 0)
-                    ->map(fn (Translation $translation): GlobalSearchResult => new GlobalSearchResult(
-                        title: $translation->title ?? __('kami::admin.fields.untitled'),
-                        url: EntryResource::editUrl($entry, $translation->locale),
-                        details: $translation->locale === '*' ? [] : [__('kami::admin.search.locale') => Str::upper($translation->locale)],
-                    ))->all());
+                    ->map(function (Translation $translation) use ($entry): ?GlobalSearchResult {
+                        // A result needs a URL, and the edit page answers 403 to a User who may not edit that Translation (ADR 0019): left out, as Filament leaves out a result with none.
+                        $url = EntryResource::editUrlIfAllowed($entry, $translation->locale);
+
+                        return $url === null ? null : new GlobalSearchResult(
+                            title: $translation->title ?? __('kami::admin.fields.untitled'),
+                            url: $url,
+                            details: $translation->locale === '*' ? [] : [__('kami::admin.search.locale') => Str::upper($translation->locale)],
+                        );
+                    })->filter()->all());
 
                 if ($results->isNotEmpty()) {
                     $builder->category(EntryResource::getNavigationLabel(), $results);
