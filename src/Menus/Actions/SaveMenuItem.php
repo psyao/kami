@@ -17,6 +17,7 @@ use Psyao\Kami\Menus\Events\MenuItemSaved;
 use Psyao\Kami\Menus\Internal\Menus;
 use Psyao\Kami\Menus\Internal\MenuTree;
 use Psyao\Kami\Menus\MenuItem;
+use Psyao\Kami\Routing\Internal\Path;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -29,9 +30,6 @@ final class SaveMenuItem
     private const array KEYS = ['parent', 'entry', 'archive', 'url', 'label', 'new_tab'];
 
     private const array TARGETS = ['entry', 'archive', 'url'];
-
-    /** `https://`, `http://`, a path on the Site but not `//…`, a fragment, `mailto:` and `tel:`, with no whitespace. */
-    private const string ALLOWED_ADDRESS = '~^(?:https?://[^\s/?#]+[^\s]*|/(?!/)[^\s]*|#[^\s]*|mailto:[^\s]+|tel:[^\s]+)$~i';
 
     /**
      * @param  string  $menu  A handle declared under `kami.menus`.
@@ -186,8 +184,7 @@ final class SaveMenuItem
 
         if ($item->url !== null) {
             foreach ($item->url as $locale => $address) {
-                // A backslash too: browsers read `/\host` as `//host`.
-                if (preg_match(self::ALLOWED_ADDRESS, $address) !== 1 || str_contains($address, '\\')) {
+                if (! Path::isLinkable($address)) {
                     throw ValidationException::withMessages(["url.{$locale}" => __('kami::admin.menus.url')]);
                 }
             }

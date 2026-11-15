@@ -17,7 +17,7 @@ use Psyao\Kami\Sites\Internal\Site;
  *
  * @internal
  *
- * @phpstan-type Row object{locale: string, path: string, status: int|string, entry_id: string|null, parent_id: string|null, deleted_at: string|null, visible: int|string}
+ * @phpstan-type Row object{locale: string, path: string, status: int|string, entry_id: string|null, target: string|null, parent_id: string|null, deleted_at: string|null, visible: int|string}
  */
 final class VisiblePaths
 {
@@ -36,7 +36,7 @@ final class VisiblePaths
             ->where('kami_paths.site', $site)
             ->whereIn('kami_paths.locale', $locales)
             ->whereIn('kami_paths.path', $paths)
-            ->select(['kami_paths.locale', 'kami_paths.path', 'kami_paths.status', 'kami_paths.entry_id', 'kami_entries.parent_id', 'kami_entries.deleted_at'])
+            ->select(['kami_paths.locale', 'kami_paths.path', 'kami_paths.status', 'kami_paths.entry_id', 'kami_paths.target', 'kami_entries.parent_id', 'kami_entries.deleted_at'])
             // A count, as the Visibility scope reads it (#222), in the row's Locale or the `'*'` Translation.
             ->selectSub(fn (Builder $translations): Builder => $translations->from('kami_translations')->selectRaw('count(*)')
                 ->whereColumn('kami_translations.entry_id', 'kami_paths.entry_id')

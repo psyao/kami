@@ -21,6 +21,9 @@ Each core action writes its row inside its own transaction, so a rolled back act
 | `kami.menu-items.updated` | `SaveMenuItem` changes an item | `menu` |
 | `kami.menu-items.moved` | [`MoveMenuItem`](menus.md#writing-items) gives an item another rank | `menu`, `position` |
 | `kami.menu-items.deleted` | [`DeleteMenuItem`](menus.md#writing-items), `DeleteEntry` included for the Entry's items | `menu` |
+| `kami.redirects.created` | [`SaveRedirect`](redirects.md#writing-a-redirect) creates a Redirect | `locale`, `source`, `status` |
+| `kami.redirects.updated` | `SaveRedirect` changes a Redirect, one Kami wrote included | `locale`, `source`, `status` |
+| `kami.redirects.deleted` | [`DeleteRedirect`](redirects.md#writing-a-redirect) | `locale`, `source`, `status` |
 | `kami.form-submissions.deleted` | `DeleteSubmissions`, once per Form, with no subject; never the Submission's content | `form`, `count` |
 | `kami.content.migrated` | Each `ContentMigrator` operation | `operation` and its arguments |
 | `kami.import.completed` | [`Import::finish()`](imports.md), once per run, with no subject | `label`, `created`, `updated`, `unchanged`, `unseen` and the count of each event recorded during the run |

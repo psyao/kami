@@ -6,6 +6,7 @@ namespace Psyao\Kami\Routing\Internal;
 
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ViewErrorBag;
@@ -18,7 +19,7 @@ use Psyao\Kami\Seo\Internal\ResolvePageMeta;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
- * Kami's fallback route: one indexed read of `kami_paths` at the request path and its prefixes, then the visible Entry through its type's `render()` (ADR 0008, ADR 0009).
+ * Kami's fallback route: one indexed read of `kami_paths` at the request path, its prefixes and the Redirect sources its query string may match, then the visible Entry through its type's `render()` (ADR 0008, ADR 0009).
  * The prefixes hold a nested Entry's ancestors, which must be visible too (ADR 0019).
  *
  * @internal
@@ -39,17 +40,21 @@ final class RenderEntry
 
         // MySQL's and MariaDB's binary collation ignores trailing spaces, which no stored Path has.
         // No stored Path is longer, and each segment of a longer one would be one more bound prefix.
-        $rows = str_ends_with($path, ' ') || mb_strlen($path) > Path::MAX_LENGTH ? new Collection : VisiblePaths::at($site->handle, [$locale], VisiblePaths::prefixes($path));
-        $row = $rows->first(fn (object $row): bool => $row->path === $path);
+        $unreachable = str_ends_with($path, ' ') || mb_strlen($path) > Path::MAX_LENGTH;
+        // A Redirect source may carry the query string: the most specific match wins, in the same read (ADR 0008).
+        $candidates = $unreachable ? [] : array_filter(Path::candidates($path, $request->server->getString('QUERY_STRING')), fn (string $candidate): bool => mb_strlen($candidate) <= Path::MAX_LENGTH);
+        $rows = $unreachable ? new Collection : VisiblePaths::at($site->handle, [$locale], array_values(array_unique([...$candidates, ...VisiblePaths::prefixes($path)])));
+        $byPath = $rows->keyBy('path');
+        $row = $byPath->get(Arr::first($candidates, fn (string $candidate): bool => $byPath->has($candidate)) ?? $path);
         $status = $row === null ? null : (int) $row->status;
 
         abort_if($status === 410, 410);
 
-        if ($status === 301) {
-            // At the replacement's current URL, so Redirects never chain; one not visible here answers as absent, its address unrevealed.
-            $url = Entry::query()->whereKey($row->entry_id)->first()?->url();
+        if ($status === 301 || $status === 302) {
+            // A free target as stored; an Entry at its current URL, so Redirects never chain; one not visible here answers as absent, its address unrevealed.
+            $url = $row->target ?? Entry::query()->whereKey($row->entry_id)->first()?->url();
 
-            return $url === null ? abort(404) : redirect()->away($url, 301);
+            return $url === null ? abort(404) : redirect()->away($url, $status);
         }
 
         $entryId = $status === 200 ? $row->entry_id : null;

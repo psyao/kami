@@ -265,6 +265,15 @@ return [
         'depth' => 'Ce menu n’a qu’un niveau.|Ce menu a au plus :depth niveaux.',
     ],
 
+    'redirects' => [
+        'live' => 'Cette adresse est l’adresse actuelle de :title : modifiez plutôt cette entrée.',
+        'target' => 'Une 301 ou une 302 a besoin d’une cible : une entrée ou une adresse.',
+        'gone' => 'Une 410 n’a pas de cible.',
+        'entry' => 'Cette entrée ne peut pas être une cible : elle n’existe plus, elle est à la corbeille ou elle n’a pas d’adresse.',
+        'address' => 'Une adresse commence par https://, http:// ou /.',
+        'chain' => 'Cette cible redirige elle-même : visez plutôt sa destination.',
+    ],
+
     'media' => [
         'label' => 'média',
         'plural_label' => 'Médias',
