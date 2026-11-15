@@ -205,7 +205,7 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 - `protected bool $routable = true`: `false` gives the type no URL: no Path, no slug, `url()` null, its Entries listed on other pages.
 - `protected bool $translatable = true`: `false` makes every Field Shared and gives each Entry a single `'*'` Translation, read in every Locale (ADR 0013).
 - `final public function fieldHelp(string $field): ?string`: `kami-types.{handle}.fields.{field}.help`, or none.
-- `final public function fieldLabel(string $field): string`: `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`.
+- `final public function fieldLabel(string $field): string`: `kami-types.{handle}.fields.{field}.label`, or Kami's own for `title`, `slug` and `published_at`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`.
 - `public function fields(): array`: What the type stores, in the order of the form, optionally arranged in `Tab` and `Section`.
 - `public function handle(): string`: The snake_case of the class name; override it to keep the handle after renaming the class.
 - `final public function label(): string`: The type's name in the admin: `kami-types.{handle}.label`, or the humanised handle.

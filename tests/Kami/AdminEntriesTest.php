@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Psyao\Kami\Admin\Internal\EntryResource\CreateEntry;
@@ -772,6 +773,18 @@ it('marks a Shared Field as shared across languages, and leaves a Translatable o
     entryPage(CreateEntry::class)
         ->assertFormFieldExists('author', fn (Field $field): bool => $field->getHint() === $shared)
         ->assertFormFieldExists('summary', fn (Field $field): bool => $field->getHint() === null);
+});
+
+it('labels the built-in Fields as the type relabels them in kami-types, and with Kami\'s strings otherwise', function () {
+    app('translator')->addLines(['kami-types.article.fields.title.label' => 'Headline', 'kami-types.article.fields.published_at.label' => 'Goes live'], 'en');
+
+    entryPage(CreateEntry::class)
+        ->assertFormFieldExists('title', fn (Field $field): bool => $field->getLabel() === 'Headline')
+        ->assertFormFieldExists('slug', fn (Field $field): bool => $field->getLabel() === 'Slug')
+        ->assertFormFieldExists('published_at', fn (Field $field): bool => $field->getLabel() === 'Goes live');
+    entryPage(ListEntries::class)->assertTableColumnExists('title', fn (TextColumn $column): bool => $column->getLabel() === 'Headline');
+    expect(fn () => resolve(SaveEntry::class)->handle(Article::class, ['status' => 'published', 'slug' => 'hello']))
+        ->toThrow(ValidationException::class, 'The headline field is required.');
 });
 
 it('lists every Locale in one menu with its state, the edited one unlinked', function () {

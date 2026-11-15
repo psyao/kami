@@ -71,6 +71,8 @@ return [
             'highlight' => ['label' => 'Mise en avant'],
         ],
         'fields' => [
+            // A built-in Field relabelled for this type; Kami's string labels it on the others.
+            'title' => ['label' => 'Nom'],
             'client' => ['label' => 'Client'],
             'featured' => ['label' => 'À la une'],
             'featured_note' => ['label' => 'Pourquoi à la une'],

@@ -71,6 +71,8 @@ return [
             'highlight' => ['label' => 'Highlight'],
         ],
         'fields' => [
+            // A built-in Field relabelled for this type; Kami's string labels it on the others.
+            'title' => ['label' => 'Name'],
             'client' => ['label' => 'Client'],
             'featured' => ['label' => 'Featured'],
             'featured_note' => ['label' => 'Why it is featured'],

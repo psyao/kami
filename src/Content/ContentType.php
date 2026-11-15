@@ -153,10 +153,11 @@ abstract class ContentType
         return $this->translation('plural') ?? Str::plural($this->humanise($this->handle()));
     }
 
-    /** `kami-types.{handle}.fields.{field}.label`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`. */
+    /** `kami-types.{handle}.fields.{field}.label`, or Kami's own for `title`, `slug` and `published_at`, or the humanised Field handle. A sub-Field is `{field}.fields.{sub}`. */
     final public function fieldLabel(string $field): string
     {
-        return $this->translation("fields.{$field}.label") ?? $this->humanise(Str::afterLast($field, '.'));
+        return $this->translation("fields.{$field}.label")
+            ?? (in_array($field, ['title', 'slug', 'published_at'], true) ? (string) __("kami::admin.fields.{$field}") : $this->humanise(Str::afterLast($field, '.')));
     }
 
     /** `kami-types.{handle}.fields.{field}.help`, or none. */

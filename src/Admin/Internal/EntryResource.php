@@ -241,7 +241,7 @@ final class EntryResource extends FilamentResource
         $hasPublication = ! self::type() instanceof GlobalSet;
 
         return [
-            ...($hasPublication ? [TextInput::make('title')->label(__('kami::admin.fields.title'))->extraInputAttributes($lang)
+            ...($hasPublication ? [TextInput::make('title')->label(self::type()->fieldLabel('title'))->extraInputAttributes($lang)
                 ->live(onBlur: true, condition: fn (): bool => $hasSlug && ! $hasStoredSlug())
                 // The hook also runs on a save's deferred update, hence the check. Blank or the previous title's slug: not typed by hand.
                 ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) use ($hasSlug, $hasStoredSlug, $locale): void {
@@ -249,12 +249,12 @@ final class EntryResource extends FilamentResource
                         $set('slug', Path::slugFrom($state ?? '', $locale));
                     }
                 })] : []),
-            ...($hasSlug ? [TextInput::make('slug')->label(__('kami::admin.fields.slug'))->extraInputAttributes($lang)
+            ...($hasSlug ? [TextInput::make('slug')->label(self::type()->fieldLabel('slug'))->extraInputAttributes($lang)
                 ->helperText(fn (): string => __($hasStoredSlug() ? 'kami::admin.fields.slug_moves' : 'kami::admin.fields.slug_help'))] : []),
             ...(self::type()->isHierarchical() ? [self::parentInput()] : []),
             ...self::components(self::type()->fields(), $lang, collect(self::type()->flatFields())->keyBy('handle')),
             // The date decides when a published Translation goes live, so it takes `publish` (ADR 0019); `save()` holds the rule, this shows it.
-            ...($hasPublication ? [DateTimePicker::make('published_at')->label(__('kami::admin.fields.published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
+            ...($hasPublication ? [DateTimePicker::make('published_at')->label(self::type()->fieldLabel('published_at'))->timezone($timezone)->helperText(__('kami::admin.fields.published_at_help', ['timezone' => $timezone]))
                 // Live, so Publish reads Schedule as soon as a date to come is chosen.
                 ->live()
                 ->disabled(fn (?Entry $record): bool => ! self::can('publish', $record))] : []),
@@ -375,7 +375,7 @@ final class EntryResource extends FilamentResource
     {
         return [
             TextColumn::make('title')
-                ->label(__('kami::admin.fields.title'))
+                ->label(self::type()->fieldLabel('title'))
                 // Every cell links to the record: an empty one would be a link with no name (WCAG 2.4.4). Not `placeholder()`, whose grey fails contrast (WCAG 1.4.3).
                 ->state(fn (Entry $record): ?string => self::firstTitle($record))
                 ->default(__('kami::admin.fields.untitled'))

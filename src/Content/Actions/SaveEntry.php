@@ -395,7 +395,8 @@ final class SaveEntry
                 isset($blockNames[$attribute]) => $blockNames[$attribute],
                 $attribute === 'seo_image' => (string) __('kami::seo.image'),
                 isset($fields[Str::before($attribute, '.')]) => $contentType->fieldLabel(str_replace(['.*', '.'], ['', '.fields.'], $attribute)),
-                in_array($attribute, ['title', 'slug', 'published_at', 'parent'], true) => (string) __("kami::admin.fields.{$attribute}"),
+                in_array($attribute, ['title', 'slug', 'published_at'], true) => $contentType->fieldLabel($attribute),
+                $attribute === 'parent' => (string) __('kami::admin.fields.parent'),
                 default => null,
             };
 

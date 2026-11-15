@@ -47,6 +47,11 @@ final class RecentlyEdited extends TableWidget
                 TextColumn::make('type')->label(__('kami::admin.widgets.type'))->state(fn (Entry $record): string => Str::ucfirst(EntryResource::withConfiguration($record->type, EntryResource::getModelLabel(...)))),
                 TextColumn::make('updated_at')->label(__('kami::admin.widgets.recently_edited.updated_at'))->since()->dateTimeTooltip(timezone: Site::current()->timezone),
             ])
-            ->recordUrl(fn (Entry $record): string => EntryResource::withConfiguration($record->type, fn (): string => EntryResource::editUrl($record, null)));
+            // The link opens the default Locale, where editing a published Translation takes `publish`: a row the User may not edit there has none (#388).
+            ->recordUrl(fn (Entry $record): ?string => EntryResource::withConfiguration($record->type, function () use ($record): ?string {
+                $record->readIn(Site::current()->defaultLocale());
+
+                return EntryResource::can('update', $record) ? EntryResource::editUrl($record, null) : null;
+            }));
     }
 }
