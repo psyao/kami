@@ -65,6 +65,11 @@ final readonly class Document implements Htmlable
             throw new InvalidArgumentException('Unreadable HTML: not valid UTF-8.');
         }
 
+        // Nothing to read, as a blank paragraph is; tiptap-php's parser finds no body in it and throws a `TypeError`.
+        if (trim($html) === '') {
+            return new self(field: $field);
+        }
+
         $parsed = new Editor(['extensions' => [...self::extensions(new Link(['allowedProtocols' => ['http', 'https', 'mailto', 'tel', 'kami']])), ...RichTextHtml::nodes()]])
             ->setContent($html)
             ->getDocument();

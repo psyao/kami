@@ -272,6 +272,8 @@ it('imports HTML into a normalised document', function (string $html, ?array $st
         HTML, doc(para('a b'), aBlock())],
     'a Block marker with no data' => ['<kami-block handle="gallery"></kami-block>', doc(['type' => 'block', 'attrs' => ['handle' => 'gallery', 'data' => []]])],
     'nothing is null' => ['<p> </p>', null],
+    'an empty string is null' => ['', null],
+    'blank is null' => [" \n", null],
 ]);
 
 it('imports a kami:// link', function () {
