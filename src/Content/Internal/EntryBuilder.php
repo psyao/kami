@@ -7,6 +7,7 @@ namespace Psyao\Kami\Content\Internal;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use LogicException;
 use Psyao\Kami\Content\ContentType;
@@ -43,8 +44,6 @@ final class EntryBuilder extends Builder
     /** @var list<string> The aliases under which `whereField()` and `orderByField()` joined the type's table: one per row read. */
     private array $fieldRows = [];
 
-    private bool $sortsOnField = false;
-
     public function readIn(string $locale): static
     {
         if (in_array(self::TRANSLATED, $this->fieldRows, true) && $locale !== $this->locale()) {
@@ -79,7 +78,6 @@ final class EntryBuilder extends Builder
         [$contentType, $field] = $this->listedField($handle, $sorting);
         $locale = $contentType->isTranslatable($field) ? $this->locale() : '*';
         $alias = $locale === '*' ? self::SHARED : self::TRANSLATED;
-        $this->sortsOnField = $this->sortsOnField || $sorting;
 
         if (! in_array($alias, $this->fieldRows, true)) {
             $this->fieldRows[] = $alias;
@@ -158,10 +156,12 @@ final class EntryBuilder extends Builder
         return $relation;
     }
 
-    /** A blank stored value is `NULL`, which no cursor condition reaches, and an Entry's attribute reads its Fallback, which no row holds (#659). */
+    /** A blank stored value is `NULL`, which no cursor condition reaches (#659). */
     public function cursorPaginate($perPage = null, $columns = ['*'], $cursorName = 'cursor', $cursor = null)
     {
-        if ($this->sortsOnField) {
+        $onField = fn (array $order): bool => is_string($order['column'] ?? null) && Str::startsWith($order['column'], [self::TRANSLATED . '.', self::SHARED . '.']);
+
+        if (collect($this->getQuery()->orders)->contains($onField)) {
             throw new LogicException('Page a query sorted with orderByField() with paginate(), not cursorPaginate(): a cursor skips Entries whose Field is blank.');
         }
 
