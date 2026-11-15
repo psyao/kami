@@ -21,6 +21,7 @@ final class Article extends ContentType
     {
         return [
             Text::make('summary'),
+            Text::make('author')->shared()->required(),
         ];
     }
 }

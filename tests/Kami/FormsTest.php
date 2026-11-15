@@ -255,7 +255,7 @@ it('refuses a missing or invalid origin page with a 422 error page, storing noth
 
 it('stores from a Livewire action, its errors shown by Livewire in the page\'s Locale, the throttle applied', function () {
     $page = contactPage();
-    $component = Livewire::test(guideContactComponent(), ['entry' => $page, 'locale' => 'en'])
+    $component = Livewire::test(registerGuideContact(), ['entry' => $page, 'locale' => 'en'])
         ->set(['name' => 'Ada Lovelace', 'email' => 'not an email', 'message' => 'Hello, I would like to talk.']);
 
     $component->call('send')->assertHasErrors(['email' => 'The email address field must be a valid email address.'])->assertSet('sent', false);
@@ -274,7 +274,7 @@ it('stores from a Livewire action, its errors shown by Livewire in the page\'s L
 });
 
 it('answers a Livewire action with a filled honeypot as a success, storing and counting nothing', function () {
-    $component = Livewire::test(guideContactComponent(), ['entry' => contactPage()])
+    $component = Livewire::test(registerGuideContact(), ['entry' => contactPage()])
         ->set(['email' => 'not an email', SubmitForm::HONEYPOT => 'https://spam.test']);
 
     foreach (range(1, 6) as $ignored) {
@@ -286,7 +286,7 @@ it('answers a Livewire action with a filled honeypot as a success, storing and c
 
 it('refuses a Livewire action whose page is no longer visible with a 422', function () {
     $page = contactPage();
-    $component = Livewire::test(guideContactComponent(), ['entry' => $page, 'locale' => 'en']);
+    $component = Livewire::test(registerGuideContact(), ['entry' => $page, 'locale' => 'en']);
     resolve(SaveEntry::class)->handle(Home::class, ['status' => 'draft'], $page, 'en');
 
     $component->set(['name' => 'Ada', 'email' => 'ada@example.com', 'message' => 'Hello, I would like to talk.'])->call('send')->assertStatus(422);

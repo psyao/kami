@@ -89,11 +89,19 @@ function hourlyProbe(object $test, string $name = 'probe'): CallbackEvent
     })->name($name)->hourly();
 }
 
-/** The Forms guide's own Livewire contact component, registered as `contact`, with the view the guide leaves to the site. */
-function guideContactComponent(): string
+/** Registers the Forms guide's own Livewire component as `contact`, evaluated once per process, with the view the guide leaves to the site; returns its name. */
+function registerGuideContact(): string
 {
+    static $class = null;
+
+    if ($class === null) {
+        [$name, , $code] = collect(GuideExamples::in(dirname(__DIR__) . '/docs/guide/forms.md'))->first(fn (array $example): bool => str_contains($example[2], 'final class Contact extends Component'))
+            ?? throw new LogicException('forms.md marks no Contact component.');
+        $class = GuideExamples::evaluate($name, $code) . '\\Contact';
+    }
+
     config(['livewire.view_path' => fixture('livewire')]);
-    Livewire::component('contact', GuideExamples::declared('forms.md', 'Contact'));
+    Livewire::component('contact', $class);
 
     return 'contact';
 }

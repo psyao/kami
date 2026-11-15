@@ -11,9 +11,6 @@ final class GuideExamples
 {
     private static int $runs = 0;
 
-    /** @var array<string, class-string> */
-    private static array $declared = [];
-
     /**
      * The examples a Markdown file marks, by the guide's name and the line of their opening fence.
      *
@@ -70,27 +67,5 @@ final class GuideExamples
         ));
 
         return $namespace;
-    }
-
-    /**
-     * A class that a guide's marked example declares, evaluated once per process, so a test uses the guide's own code.
-     *
-     * @return class-string
-     */
-    public static function declared(string $guide, string $class): string
-    {
-        $key = "{$guide}:{$class}";
-
-        if (! isset(self::$declared[$key])) {
-            foreach (self::in(dirname(__DIR__) . "/docs/guide/{$guide}") as [$name, , $code]) {
-                if (preg_match("/^(final )?class {$class}\\b/m", $code) === 1) {
-                    /** @var class-string $declared */
-                    $declared = self::evaluate($name, $code) . "\\{$class}";
-                    self::$declared[$key] = $declared;
-                }
-            }
-        }
-
-        return self::$declared[$key] ?? throw new LogicException("No marked example of {$guide} declares {$class}.");
     }
 }

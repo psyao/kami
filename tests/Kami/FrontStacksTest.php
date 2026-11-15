@@ -62,7 +62,7 @@ beforeEach(function () {
     withLivewireAssets();
     config(['kami.page_cache.enabled' => true, 'kami.types' => [Article::class, LivewirePage::class]]);
     Livewire::component('counter', Counter::class);
-    guideContactComponent();
+    registerGuideContact();
     LivewirePage::$body = '<livewire:counter />';
 });
 

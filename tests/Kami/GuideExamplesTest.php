@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -25,6 +26,17 @@ use Workbench\App\Content\Project;
 use Workbench\App\Content\Tag;
 
 uses(RefreshDatabase::class);
+
+// Before the Scheduled date publishing.md gives, and to the second an edit's `updatedAt` is compared at.
+beforeEach(fn () => $this->travelTo(CarbonImmutable::parse('2026-11-11 10:00:00')));
+
+/** Storage and disks of the test's own: parallel processes share the skeleton's `storage/`. */
+function guideStorage(): void
+{
+    app()->useStoragePath(temporaryPath());
+    Storage::fake('local');
+    Storage::fake('public');
+}
 
 /**
  * What a marker's setup gives its example: each receives the example's runner, which takes the variables to put in scope and
@@ -101,9 +113,7 @@ function guideSetups(): array
         },
         // An image, its User signed in with a photo uploaded, a PDF, and a file waiting in the storage, on disks of the test's own.
         'media' => function (Closure $run): void {
-            app()->useStoragePath(temporaryPath());
-            Storage::fake('local');
-            Storage::fake('public');
+            guideStorage();
             File::ensureDirectoryExists(storage_path('import'));
             File::copy(fixture('media/Holiday Photo.JPG'), storage_path('import/team.jpg'));
             $user = auditUser();
@@ -123,9 +133,7 @@ function guideSetups(): array
         // The old Velox site: its database with a post in HTML and a message, a file copied next to the dump, and an open run.
         // An importer the example declares then runs as a deploy runs it: #587's RichText example failed there.
         'velox' => function (Closure $run): void {
-            app()->useStoragePath(temporaryPath());
-            Storage::fake('local');
-            Storage::fake('public');
+            guideStorage();
             File::ensureDirectoryExists(storage_path('import/velox'));
             File::copy(fixture('media/pixel.png'), storage_path('import/velox/pixel.png'));
             config(['database.connections.velox' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
@@ -196,9 +204,7 @@ function guideSetups(): array
  */
 function guideArticle(): array
 {
-    app()->useStoragePath(temporaryPath());
-    Storage::fake('local');
-    Storage::fake('public');
+    guideStorage();
     $user = auditUser();
     test()->actingAs($user);
     $save = resolve(SaveEntry::class);
@@ -231,6 +237,7 @@ function runGuideExample(string $name, ?string $setup, string $code): void
 
 it('runs every example a guide marks', function (string $name, ?string $setup, string $code): void {
     runGuideExample($name, $setup, $code);
+    // No assertion either: a setup checks by throwing, as `velox` does on a failed command, since an assertion makes the test risky.
 })->throwsNoExceptions()->with(fn (): array => collect(glob(dirname(__DIR__, 2) . '/docs/guide/*.md') ?: [])->flatMap(GuideExamples::in(...))->all());
 
 it('fails an example that throws, naming its guide and line', function (): void {
