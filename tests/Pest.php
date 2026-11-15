@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Composer\InstalledVersions;
 use Filament\Facades\Filament;
 use Filament\Notifications\NotificationMailbox;
 use Illuminate\Console\Scheduling\CallbackEvent;
@@ -40,7 +41,7 @@ use Workbench\App\Models\User;
 // Livewire keeps static state between tests of a process: a component booted by one test leaves `disableBackButtonCache` set,
 // and the next test's first response, a Conversion's for one, goes out with Livewire's `no-store` instead of its own Cache-Control.
 pest()->extend(TestCase::class)->beforeEach(fn () => Livewire::flushState())->in('Kami', 'Volume');
-// The browser loads Filament's scripts and Kami's stylesheet from the skeleton's public directory, as on a Site after `kami:install`.
+// The browser loads Filament's and Livewire's scripts and Kami's stylesheet from the skeleton's public directory, as on a Site after `kami:install`.
 // For every test of the suite, whichever runs first: the browser's server may keep the first test's application.
 pest()->extend(TestCase::class)->beforeEach(function (): void {
     // Filament opens its panel to a User that is not a `FilamentUser` in the local environment only.
@@ -49,6 +50,7 @@ pest()->extend(TestCase::class)->beforeEach(function (): void {
     config(['session.driver' => 'file']);
     Kami::routes();
     $this->artisan('filament:assets');
+    $this->artisan('vendor:publish', ['--tag' => 'livewire:assets', '--force' => true]);
 })->in('Browser');
 pest()->extend(InstallTestCase::class)->in('Install');
 
@@ -232,6 +234,13 @@ function withRunningSite(): void
     WebEnvironment::capture();
 }
 
+/** Livewire's assets in the current `public/` as `kami:install` publishes them: the manifest is all Livewire and `kami:doctor` read. */
+function withLivewireAssets(): void
+{
+    File::ensureDirectoryExists(public_path('vendor/livewire'));
+    File::copy(InstalledVersions::getInstallPath('livewire/livewire') . '/dist/manifest.json', public_path('vendor/livewire/manifest.json'));
+}
+
 /**
  * Conversions and the Video facade as `kami:install` leaves a site, for a test that expects `kami:doctor` clean: a shared lock store, `public/`
  * and the public disk the test's own, linked, and served with Kami's headers. A test changes the answers through `$this->served` and `$this->facadeServed`.
@@ -243,6 +252,7 @@ function withConversionsServed(): void
     File::ensureDirectoryExists(public_path());
     PublicMedia::install();
     VideoFacade::install();
+    withLivewireAssets();
     Http::preventStrayRequests();
     // A second Http::fake() would come after this one.
     test()->served = null;

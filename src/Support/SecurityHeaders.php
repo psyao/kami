@@ -17,9 +17,16 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * The `front` profile (default) is fixed and nonce-free, so a cached page stays a static file; `kami.security.*` extends it.
  * The `admin` profile (`kami.security-headers:admin`) is Filament's minimum, with a per-request nonce on inline scripts.
+ * Under a policy that forbids `'unsafe-eval'`, the `front` profile also has Livewire inject its CSP build without its progress bar, for this request only (ADR 0040).
  */
 final class SecurityHeaders
 {
+    /** What Livewire needs to fit a policy without `'unsafe-eval'`: its CSP build, and no progress bar creating styles as it runs. */
+    private const array CSP_SAFE_LIVEWIRE = ['livewire.csp_safe' => true, 'livewire.navigate.show_progress_bar' => false];
+
+    /** The request attribute holding Livewire's configuration as it was before this request changed it. */
+    private const string SAVED_LIVEWIRE = 'kami.saved_livewire_config';
+
     /** @param  Closure(Request): Response  $next */
     public function handle(Request $request, Closure $next, string $profile = 'front'): Response
     {
@@ -31,6 +38,11 @@ final class SecurityHeaders
 
         if (Vite::isRunningHot()) {
             $policy = $this->withHotServer($policy);
+        }
+
+        // A site that allows `'unsafe-eval'` has chosen Livewire's full build.
+        if ($profile === 'front' && ! in_array("'unsafe-eval'", $policy['script-src'] ?? [], true)) {
+            $this->useLivewireCspBuild($request);
         }
 
         $response = $next($request);
@@ -51,6 +63,28 @@ final class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /** Puts back the Livewire settings the front profile changed, for a container that outlives the request (ADR 0040). */
+    public function terminate(Request $request): void
+    {
+        if ($request->attributes->has(self::SAVED_LIVEWIRE)) {
+            config(['livewire' => $request->attributes->get(self::SAVED_LIVEWIRE)]);
+        }
+    }
+
+    /**
+     * Livewire reads both settings when it injects its script, once the pipeline has returned; the admin keeps its full build,
+     * which Filament's templates need. Its script loads from `public/vendor/livewire/`, where `kami:install` publishes it.
+     */
+    private function useLivewireCspBuild(Request $request): void
+    {
+        // The first configuration only: on the session mount, a site's `web` group may hold this middleware as well.
+        if (! $request->attributes->has(self::SAVED_LIVEWIRE)) {
+            $request->attributes->set(self::SAVED_LIVEWIRE, config('livewire'));
+        }
+
+        config(self::CSP_SAFE_LIVEWIRE);
     }
 
     /**

@@ -1325,6 +1325,44 @@ describe('Forms', function () {
     });
 });
 
+describe('Livewire\'s assets', function () {
+    /** @return list<array{0: Severity, 1: string}> */
+    function livewireProblems(): array
+    {
+        return collect(resolve(Doctor::class)->problems())
+            ->filter(fn ($problem) => $problem->guide === 'front-stacks.md#livewire')
+            ->map(fn ($problem) => [$problem->severity, $problem->message])
+            ->values()->all();
+    }
+
+    it('accepts the assets kami:install published', function () {
+        expect(livewireProblems())->toBeEmpty();
+    });
+
+    it('warns when they are missing, naming kami:install', function () {
+        File::deleteDirectory(public_path('vendor/livewire'));
+
+        $problem = collect(resolve(Doctor::class)->problems())->firstWhere('guide', 'front-stacks.md#livewire');
+
+        expect($problem->severity)->toBe(Severity::Warning)
+            ->and($problem->message)->toBe('Livewire\'s assets are not published in public/vendor/livewire/: a Livewire component on Kami\'s pages gets the build the admin uses, which their policy blocks.')
+            ->and($problem->fix)->toContain('php artisan kami:install');
+    });
+
+    it('warns when they are another Livewire version\'s', function () {
+        File::put(public_path('vendor/livewire/manifest.json'), '{"/livewire.js":"0123abcd"}');
+
+        expect(livewireProblems())->toEqual([[Severity::Warning, 'Livewire\'s assets in public/vendor/livewire/ are not the installed version\'s: Kami\'s pages load a script that no longer matches the server.']]);
+    });
+
+    it('only informs on a developer\'s machine', function () {
+        app()->detectEnvironment(fn () => 'local');
+        File::deleteDirectory(public_path('vendor/livewire'));
+
+        expect(livewireProblems())->toHaveCount(1)->{0}->{0}->toBe(Severity::Info);
+    });
+});
+
 describe('the Video facade', function () {
     /** @return list<array{0: Severity, 1: string}> */
     function facadeProblems(): array

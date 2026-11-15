@@ -34,6 +34,7 @@ Each task has one guide, the source of truth: open it before acting, and follow 
 | Redirect an old address, a WordPress `?p=` link or gone content (`SaveRedirect`, `DeleteRedirect`, the `Redirect` model) | `vendor/psyao/kami/docs/guide/redirects.md` |
 | Add a Locale, or understand Translations, Fallback and `lang` | `vendor/psyao/kami/docs/guide/multilingual.md` |
 | Render a type, write its view, override `render()`, place `Kami::routes()` or localise error pages (`Kami::exceptions()`) | `vendor/psyao/kami/docs/guide/routing-and-rendering.md` |
+| Render a page with the site's own Livewire components or Inertia pages, on a cached page and under the front CSP | `vendor/psyao/kami/docs/guide/front-stacks.md` |
 | Cache a fragment (`Kami::remember()`), keep a page out of the page cache (`Kami::withoutPageCache()`), make it stale after a change Kami cannot see (`Kami::flushCache()`, `kami:cache:clear`), serve it before Laravel boots (the `public/index.php` line) or turn it off | `vendor/psyao/kami/docs/guide/page-cache.md` |
 | Give pages their head (`<x-kami::seo />`, `Kami::seo()`), write a Meta title, description, Social image or Hidden from search engines, change a type's `summary()`, `socialImage()` or `$ogType`, keep a Site out of search engines or open it to them (`KAMI_INDEXABLE`), or own or fix `robots.txt` | `vendor/psyao/kami/docs/guide/seo.md` |
 | Load from another origin, extend the front CSP, or weigh an option that weakens it | `vendor/psyao/kami/docs/guide/security.md` |

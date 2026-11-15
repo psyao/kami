@@ -94,6 +94,11 @@ final class InstallCommand extends Command
             return self::FAILURE;
         }
 
+        // Kami's pages load Livewire's CSP build as a file: its script route would serve the build the admin uses (ADR 0040).
+        if ($this->call('vendor:publish', ['--tag' => 'livewire:assets', '--force' => true]) !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
         if (($refusal = PublicMedia::install()) !== null) {
             $this->components->error("public/media cannot be linked: {$refusal} Then run kami:install again.");
 

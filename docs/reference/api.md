@@ -766,6 +766,7 @@ What the page's head says to search engines and networks, as `<x-kami::seo />` p
 Kami's Content Security Policy and companion headers (ADR 0018), on every response of its group, 4xx and 5xx included.
 
 - `public function handle(Illuminate\Http\Request $request, Closure $next, string $profile = 'front'): Symfony\Component\HttpFoundation\Response`
+- `public function terminate(Illuminate\Http\Request $request): void`: Puts back the Livewire settings the front profile changed, for a container that outlives the request (ADR 0040).
 
 ## `Psyao\Kami\Users\Actions\AssignRoles`
 

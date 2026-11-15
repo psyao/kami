@@ -38,6 +38,7 @@ php artisan serve
 - [Users and roles](docs/guide/users-and-roles.md): `KamiUser`, Roles in `config/kami.php`, Permissions and strict authorization
 - [Audit log](docs/guide/audit-log.md): what Kami records, privacy, recording your own events with `RecordAuditEvent`, and batches
 - [Routing and rendering](docs/guide/routing-and-rendering.md): `Kami::routes()`, Paths, a type's `render()` and error pages (`Kami::exceptions()`)
+- [Front stacks](docs/guide/front-stacks.md): your own Livewire components and Inertia pages on both mounts, cached pages and the strict front policy
 - [Page cache](docs/guide/page-cache.md): what is cached and when it goes stale, `Kami::withoutPageCache()`, `Kami::remember()`, `Kami::flushCache()` and `kami:cache:clear`
 - [SEO](docs/guide/seo.md): the indexable switch (`KAMI_INDEXABLE`), `X-Robots-Tag` and the `robots.txt` `kami:install` writes
 - [Security](docs/guide/security.md): the front and admin Content Security Policies, extending them, and the options that weaken them

@@ -132,7 +132,7 @@ Each option below is off by default, and `kami:doctor` warns for each one that i
 
 | Option | Effect |
 | --- | --- |
-| `security.csp` with an `'unsafe-*'` source (`'unsafe-inline'`, `'unsafe-eval'`, `'unsafe-hashes'`) | Injected markup can run code in that directive. Livewire and Alpine need `'unsafe-eval'` unless your templates fit Livewire's `csp_safe` build. |
+| `security.csp` with an `'unsafe-*'` source (`'unsafe-inline'`, `'unsafe-eval'`, `'unsafe-hashes'`) | Injected markup can run code in that directive. Livewire and Alpine need `'unsafe-eval'` unless your templates fit the CSP build Kami's pages load ([Front stacks](front-stacks.md#under-the-front-policy)). |
 | `security.csp` with a source in a directive Kami sets to `'none'` (`object-src`, `base-uri`, `frame-ancestors`) | The source replaces `'none'`: plugins, a changed base URL or framing by that origin are allowed. |
 | `security.headers` with a header set to `null` | The header is omitted. Names are case-insensitive, as in HTTP. |
 | `security.headers` with another value for one of Kami's headers | Kami's value is replaced. A header Kami does not send, such as `Strict-Transport-Security`, is added and raises no warning. |

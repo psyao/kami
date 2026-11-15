@@ -11,6 +11,10 @@ use Workbench\App\Content\Page;
 
 uses(DatabaseMigrations::class);
 
+// The test migrates again in a batch of its own, which the trait's closing rollback alone would undo, leaving a half-built schema
+// on a database that outlives the test (MariaDB, MySQL, PostgreSQL) for the next test that reads it without migrating.
+afterEach(fn () => Artisan::call('migrate:fresh', ['--force' => true]));
+
 it('adds parent_id to a site with content, keeping what hangs off its Entries', function () {
     $entry = resolve(SaveEntry::class)->handle(Page::class, ['title' => 'One', 'status' => 'published'], locale: 'fr');
 
