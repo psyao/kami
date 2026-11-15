@@ -13,12 +13,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\HtmlString;
 use LogicException;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
 use Psyao\Kami\Content\Internal\EntryBuilder;
 use Psyao\Kami\Content\Internal\References;
@@ -84,6 +87,94 @@ class Entry extends Model
     {
         // Named: a subclass would derive `term_id`.
         return $this->hasMany(Translation::class, 'entry_id');
+    }
+
+    /**
+     * Its Parent on a hierarchical type, visible in the Locale it is read in; `null` at the root. `with('parent')` loads a list's at once.
+     *
+     * @return BelongsTo<Entry, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->treeRead($this->belongsTo(Entry::class, 'parent_id', 'id', 'parent'));
+    }
+
+    /**
+     * Its children on a hierarchical type, visible in the Locale it is read in, in Position order. `with('children')` loads a list's at once.
+     *
+     * @return HasMany<Entry, $this>
+     */
+    public function children(): HasMany
+    {
+        return $this->treeRead($this->hasMany(Entry::class, 'parent_id'))->ordered();
+    }
+
+    /**
+     * Its ancestors, root first, on a hierarchical type: empty at the root, and under an ancestor not visible in its Locale, as `url()` is.
+     *
+     * On a type with URLs, one read of the rows at its Path's prefixes, which hold its ancestors' Paths (ADR 0008), whatever the depth;
+     * an ancestor out of sight empties it, as it hides the Entry (ADR 0019). One query per level on a type without URLs.
+     *
+     * @return Collection<int, Entry>
+     */
+    public function ancestors(): Collection
+    {
+        if ($this->parent_id === null) {
+            return new Collection;
+        }
+
+        $locale = $this->readLocale();
+        // Visible ones, even under a Draft read through `withUnpublished()`: a Preview's breadcrumb links to pages that answer.
+        $query = self::query()->readIn($locale);
+        $prefixes = null;
+
+        if ($this->contentType()?->isRoutable() === true) {
+            $path = $this->visiblePath($locale);
+
+            if ($path === null) {
+                return new Collection;
+            }
+
+            $prefixes = array_slice(VisiblePaths::prefixes($path), 1);
+            $query->whereIn('id', Path::query()->select('entry_id')->where(['site' => Site::current()->handle, 'locale' => $locale, 'status' => 200])->whereIn('path', $prefixes));
+        } else {
+            $query->whereKey(Ancestors::ids($this->parent_id));
+        }
+
+        $read = $query->get()->keyBy('id');
+        $ancestors = [];
+
+        // Up from the Parent: a link missing breaks the chain, and a row at a prefix that is no ancestor stays out.
+        for ($id = $this->parent_id; $id !== null && ($ancestor = $read->pull($id)) instanceof self; $id = $ancestor->parent_id) {
+            // Each ancestor sits one prefix higher, a slug holding no `/`: its URL in this Locale needs no query.
+            if ($prefixes !== null) {
+                $ancestor->setVisiblePaths([$locale => $prefixes[count($ancestors)]]);
+            }
+
+            $ancestors[] = $ancestor;
+        }
+
+        return new Collection($id === null ? array_reverse($ancestors) : []);
+    }
+
+    /**
+     * A tree read: in the Locale the Entry is read in, through `withUnpublished()` when it was, with the Paths `url()` reads preloaded.
+     *
+     * @template TRelation of Relation<Entry, $this, mixed>
+     *
+     * @param  TRelation  $relation
+     * @return TRelation
+     */
+    private function treeRead(Relation $relation): Relation
+    {
+        $query = $relation->getQuery();
+        $query->readIn($this->readLocale())->preloadingPaths();
+
+        if ($this->unpublished) {
+            $query->withoutGlobalScope(Visibility::class);
+        }
+
+        return $relation;
     }
 
     /**
@@ -277,18 +368,22 @@ class Entry extends Model
             return null;
         }
 
-        if ($type->isHierarchical() && $this->parent_id !== null) {
-            // ponytail: read on first call, two queries per Entry in a list; #620's preloading lifts it.
-            if ($this->visiblePaths === null) {
-                VisiblePaths::preload([$this]);
-            }
-
-            $path = $this->visiblePaths[$locale] ?? null;
-        } else {
-            $path = Path::of($type, $translation->slug);
-        }
+        $path = $type->isHierarchical() && $this->parent_id !== null ? $this->visiblePath($locale) : Path::of($type, $translation->slug);
 
         return $path === null ? null : $site->url($locale, $path);
+    }
+
+    /** A nested Entry's Path in a Locale, null under a non-visible ancestor. */
+    private function visiblePath(string $locale): ?string
+    {
+        // ponytail: read on first call; `parent`, `children` and `ancestors()` preload theirs, a site's own query of nested Entries pays
+        // two queries per Entry. V1 adds a public preload if a site's listing needs one.
+        // `ancestors()` gives its Entries their Path in one Locale.
+        if (! array_key_exists($locale, $this->visiblePaths ?? [])) {
+            VisiblePaths::preload([$this]);
+        }
+
+        return $this->visiblePaths[$locale] ?? null;
     }
 
     /**

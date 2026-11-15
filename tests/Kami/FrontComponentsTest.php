@@ -9,6 +9,7 @@ use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Page;
 
 uses(RefreshDatabase::class);
 
@@ -54,6 +55,46 @@ it('renders no switcher on a Site with one Locale', function () {
     localisedArticle('fr', ['title' => 'Bonjour']);
 
     $this->get('/articles/bonjour')->assertOk()->assertDontSee('kami-locales');
+});
+
+it('renders the breadcrumb of a nested Entry, its ancestors linked and itself current, in each Locale', function () {
+    $save = resolve(SaveEntry::class);
+    $about = $save->handle(Page::class, ['title' => 'À propos', 'status' => 'published'], locale: 'fr');
+    $save->handle(Page::class, ['title' => 'About', 'status' => 'published'], $about, 'en');
+    $team = $save->handle(Page::class, ['title' => 'Équipe', 'status' => 'published', 'parent' => $about->id], locale: 'fr');
+    $save->handle(Page::class, ['title' => 'Team', 'status' => 'published'], $team, 'en');
+
+    $this->get('/a-propos/equipe')->assertOk()->assertSeeInOrder([
+        '<nav class="kami-breadcrumb" aria-label="Fil d’Ariane">',
+        '<ol>',
+        '<li><a href="http://localhost/a-propos">À propos</a></li>',
+        '<li><a href="http://localhost/a-propos/equipe" aria-current="page">Équipe</a></li>',
+        '</ol>',
+        '</nav>',
+    ], escape: false);
+
+    $this->get('/en/about/team')->assertOk()->assertSeeInOrder([
+        '<nav class="kami-breadcrumb" aria-label="Breadcrumb">',
+        '<li><a href="http://localhost/en/about">About</a></li>',
+        '<li><a href="http://localhost/en/about/team" aria-current="page">Team</a></li>',
+    ], escape: false);
+});
+
+it('renders no breadcrumb for a root Entry', function () {
+    resolve(SaveEntry::class)->handle(Page::class, ['title' => 'À propos', 'status' => 'published'], locale: 'fr');
+
+    $this->get('/a-propos')->assertOk()->assertDontSee('kami-breadcrumb');
+});
+
+it('marks a Draft current with no link in its Preview\'s breadcrumb', function () {
+    $save = resolve(SaveEntry::class);
+    $about = $save->handle(Page::class, ['title' => 'À propos', 'status' => 'published'], locale: 'fr');
+    $draft = $save->handle(Page::class, ['title' => 'Brouillon', 'parent' => $about->id], locale: 'fr');
+
+    $html = Blade::render('<x-kami::breadcrumb :entry="$entry" />', ['entry' => Entry::query()->withUnpublished()->findOrFail($draft->id)]);
+
+    expect($html)->toContain('<li><a href="http://localhost/a-propos">À propos</a></li>')
+        ->toContain('<li><span aria-current="page">Brouillon</span></li>');
 });
 
 it('shows a moment in the Site\'s time zone and the page\'s language, its datetime in UTC', function () {

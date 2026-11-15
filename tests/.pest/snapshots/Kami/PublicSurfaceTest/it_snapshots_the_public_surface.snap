@@ -104,11 +104,14 @@ class Psyao\Kami\Content\ContentType::summary() public function summary(Psyao\Ka
 class Psyao\Kami\Content\ContentType::tabLabel() final public function tabLabel(string $tab): string
 class Psyao\Kami\Content\Entry class extends Illuminate\Database\Eloquent\Model
 class Psyao\Kami\Content\Entry::$forceDeleting protected $forceDeleting = false
+class Psyao\Kami\Content\Entry::ancestors() public function ancestors(): Illuminate\Database\Eloquent\Collection
+class Psyao\Kami\Content\Entry::children() public function children(): Illuminate\Database\Eloquent\Relations\HasMany
 class Psyao\Kami\Content\Entry::fallbackLocale() public function fallbackLocale(string $field): ?string
 class Psyao\Kami\Content\Entry::inLocale() protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void
 class Psyao\Kami\Content\Entry::langAttribute() public function langAttribute(string $field): Illuminate\Support\HtmlString
 class Psyao\Kami\Content\Entry::ofType() protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void
 class Psyao\Kami\Content\Entry::ordered() protected function ordered(Illuminate\Database\Eloquent\Builder $query): void
+class Psyao\Kami\Content\Entry::parent() public function parent(): Illuminate\Database\Eloquent\Relations\BelongsTo
 class Psyao\Kami\Content\Entry::summary() public function summary(): ?string
 class Psyao\Kami\Content\Entry::url() public function url(?string $locale = NULL): ?string
 class Psyao\Kami\Content\Entry::withUnpublished() protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void
@@ -237,7 +240,6 @@ class Psyao\Kami\Content\Taxonomy abstract class extends Psyao\Kami\Content\Cont
 class Psyao\Kami\Content\Taxonomy::$model protected ?string $model = 'Psyao\\Kami\\Content\\Term'
 class Psyao\Kami\Content\Taxonomy::render() public function render(Psyao\Kami\Content\Entry $entry, ?Illuminate\Contracts\Pagination\CursorPaginator $entries = NULL): Illuminate\Contracts\View\View|Symfony\Component\HttpFoundation\Response
 class Psyao\Kami\Content\Term class extends Psyao\Kami\Content\Entry
-class Psyao\Kami\Content\Term::ancestors() public function ancestors(): Illuminate\Database\Eloquent\Collection
 class Psyao\Kami\Content\Term::entries() public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany
 class Psyao\Kami\Facades\Kami final class extends Illuminate\Support\Facades\Facade
 class Psyao\Kami\Facades\Kami::exceptions() public static function exceptions(Illuminate\Foundation\Configuration\Exceptions $exceptions): void
@@ -455,6 +457,7 @@ command kami:user:grant email <email>
 command kami:user:grant role <role>
 command kami:user:reset-mfa
 command kami:user:reset-mfa email <email>
+component x-kami::breadcrumb ['entry']
 component x-kami::date ['value', 'format' => 'LL', 'day' => false]
 component x-kami::form ['form']
 component x-kami::form.errors ['level' => 2]

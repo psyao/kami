@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Psyao\Kami\Content;
 
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Query\Builder;
-use Psyao\Kami\Content\Internal\Ancestors;
 use Psyao\Kami\Content\Internal\ContentTypes;
 
 /** An Entry of a Taxonomy. */
@@ -31,19 +29,5 @@ class Term extends Entry
                 ->whereColumn('first_link.source_entry_id', 'kami_references.source_entry_id')
                 ->whereColumn('first_link.target_entry_id', 'kami_references.target_entry_id')
                 ->whereIn('first_link.field', $relations));
-    }
-
-    /**
-     * Its Parents, nearest first, on a hierarchical Taxonomy: visible ones in the current Locale. One query per level.
-     *
-     * @return Collection<int, static>
-     */
-    public function ancestors(): Collection
-    {
-        $ids = Ancestors::ids($this->parent_id);
-        /** @var Collection<int, static> $terms Larastan 3.14 reads `static::query()` as Entry's builder. */
-        $terms = static::query()->whereKey($ids)->get();
-
-        return $terms->sortBy(fn (self $term): int => (int) array_search($term->id, $ids, true))->values();
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Routing\Internal\VisiblePaths;
 use Psyao\Kami\Sites\Internal\Site;
 
 /**
@@ -23,6 +24,8 @@ final class EntryBuilder extends Builder
     /** The Locale its Entries are checked and read in; the current Locale when null. */
     private ?string $locale = null;
 
+    private bool $preloadsPaths = false;
+
     public function readIn(string $locale): static
     {
         $this->locale = $locale;
@@ -33,6 +36,35 @@ final class EntryBuilder extends Builder
     public function locale(): string
     {
         return $this->locale ?? Site::current()->currentLocale();
+    }
+
+    /** Gives the nested Entries it returns their Paths, in one batch: what `url()` reads (ADR 0019). */
+    public function preloadingPaths(): static
+    {
+        $this->preloadsPaths = true;
+
+        return $this;
+    }
+
+    /**
+     * `parent` and `children` read as the Entries they load from do: Eloquent builds an eager relation on a blank model, which holds neither.
+     *
+     * @param  string  $name
+     */
+    public function getRelation($name)
+    {
+        $relation = parent::getRelation($name);
+        $query = $relation->getQuery();
+
+        if (in_array($name, ['parent', 'children'], true) && $query instanceof self) {
+            $query->readIn($this->locale());
+
+            if (in_array(Visibility::class, $this->removedScopes(), true)) {
+                $query->withoutGlobalScope(Visibility::class);
+            }
+        }
+
+        return $relation;
     }
 
     /** It hydrates without `eagerLoadRelations()`, so its Entries would read `null` for every stored Field value. */
@@ -81,6 +113,10 @@ final class EntryBuilder extends Builder
 
         if ($handles !== []) {
             References::load($models, $handles, array_keys(array_merge(...array_map($this->relationsNestedUnder(...), $handles))));
+        }
+
+        if ($this->preloadsPaths) {
+            VisiblePaths::preload($models);
         }
 
         return $models;

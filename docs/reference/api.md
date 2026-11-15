@@ -225,11 +225,14 @@ A kind of content, declared as a `final` class listed in `config/kami.php` under
 One content item in all its Locales, read in the current Locale; only visible Entries unless `withUnpublished()`, and never one in the Trash unless `withTrashed()` (ADR 0002, ADR 0012).
 
 - `protected $forceDeleting = false`: Indicates if the model is currently force deleting.
+- `public function ancestors(): Illuminate\Database\Eloquent\Collection`: Its ancestors, root first, on a hierarchical type: empty at the root, and under an ancestor not visible in its Locale, as `url()` is.
+- `public function children(): Illuminate\Database\Eloquent\Relations\HasMany`: Its children on a hierarchical type, visible in the Locale it is read in, in Position order. `with('children')` loads a list's at once.
 - `public function fallbackLocale(string $field): ?string`: The Locale a Translatable Field's value came from when it fell back to the default Locale, so a view can add `lang`; `null` otherwise.
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `public function langAttribute(string $field): Illuminate\Support\HtmlString`: ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
+- `public function parent(): Illuminate\Database\Eloquent\Relations\BelongsTo`: Its Parent on a hierarchical type, visible in the Locale it is read in; `null` at the root. `with('parent')` loads a list's at once.
 - `public function summary(): ?string`: Its type's `summary()`: the page's description when it has no Meta description. `$entry->summary`, with no call, reads a Field of that name.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it or one of its ancestors is not visible there, or its type has no URL.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
@@ -479,7 +482,6 @@ A Content Type classifying others: its Entries are `Term`s, published by default
 
 An Entry of a Taxonomy.
 
-- `public function ancestors(): Illuminate\Database\Eloquent\Collection`: Its Parents, nearest first, on a hierarchical Taxonomy: visible ones in the current Locale. One query per level.
 - `public function entries(): Illuminate\Database\Eloquent\Relations\BelongsToMany`: The Entries linking it through any relation Field, once each: visible ones in the current Locale, unless the query says `inLocale()` or `withUnpublished()`.
 
 ## `Psyao\Kami\Facades\Kami`
