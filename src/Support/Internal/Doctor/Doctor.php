@@ -579,20 +579,41 @@ final readonly class Doctor
         $drift = resolve(ContentModelDrift::class);
         $problems = $drift->problems();
 
-        return $problems !== [] ? $problems : [...array_filter([$this->pathDrift()]), ...$drift->strandedValues()];
+        return $problems !== [] ? $problems : [...$this->pathDrift(), ...$drift->strandedValues()];
     }
 
-    /** A Prefix changed or a Locale added since the last `kami:install`: the 200 rows still hold the old addresses (ADR 0008). */
-    private function pathDrift(): ?Problem
+    /**
+     * A Prefix changed or a Locale added since the last `kami:install`: the 200 rows still hold the old addresses (ADR 0008).
+     * A nested Path too long to store, from a tree saved before 0.10, stays reported until a slug is shortened.
+     *
+     * @return list<Problem>
+     */
+    private function pathDrift(): array
     {
         $drift = resolve(SyncPaths::class)(write: false);
+        $problems = [];
 
-        return $drift['created'] + $drift['rewritten'] + $drift['deleted'] === 0 ? null : new Problem(
-            Severity::Warning,
-            "Paths do not follow the declarations yet: kami:install would create {$drift['created']}, rewrite {$drift['rewritten']} and delete {$drift['deleted']}.",
-            'run php artisan kami:install, as every deploy does: until then, Entries answer at their former addresses.',
-            'routing-and-rendering.md#after-a-deploy',
-        );
+        if ($drift['created'] + $drift['rewritten'] + $drift['deleted'] > 0) {
+            $problems[] = new Problem(
+                Severity::Warning,
+                "Paths do not follow the declarations yet: kami:install would create {$drift['created']}, rewrite {$drift['rewritten']} and delete {$drift['deleted']}.",
+                'run php artisan kami:install, as every deploy does: until then, Entries answer at their former addresses.',
+                'routing-and-rendering.md#after-a-deploy',
+            );
+        }
+
+        $long = collect($drift['tooLong'])->map(fn (array $row): string => "Entry {$row['entry_id']} in {$row['locale']}");
+
+        if ($long->isNotEmpty()) {
+            $problems[] = new Problem(
+                Severity::Warning,
+                "{$long->count()} " . Str::plural('Path', $long->count()) . ' ' . ($long->count() === 1 ? 'is' : 'are') . ' longer than ' . Path::MAX_LENGTH . ' characters: ' . $long->take(5)->implode(', ') . ($long->count() > 5 ? ', …' : '') . '.',
+                "shorten the Entry's slug or an ancestor's, then run php artisan kami:install: until then, the Entry answers nowhere.",
+                'routing-and-rendering.md#after-a-deploy',
+            );
+        }
+
+        return $problems;
     }
 
     /** Paths saved before a Locale, a segment Kami answers, an Archive or a Feed was declared: `ResolveLocale` or Kami's own route answers their address in the default Locale (ADR 0008). */

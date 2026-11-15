@@ -143,6 +143,41 @@ it('rewrites the flat Paths an earlier version gave nested Entries, a 301 at eac
     $this->get('/child')->assertMovedPermanently()->assertRedirect('http://localhost/parent/child');
 });
 
+/** A child whose Path, under its Parent, runs to 501 characters: as 0.9 stored such a tree, flat, before SaveEntry refused it. */
+function overLongChild(): Entry
+{
+    $parent = saved(Page::class, ['title' => 'Parent', 'slug' => str_repeat('p', 250)], locale: 'fr');
+    $child = saved(Page::class, ['title' => 'Child', 'slug' => 'child'], locale: 'fr');
+    DB::table('kami_entries')->where('id', $child->id)->update(['parent_id' => $parent->id]);
+    DB::table('kami_translations')->where('entry_id', $child->id)->update(['slug' => str_repeat('c', 250)]);
+    DB::table('kami_paths')->where('entry_id', $child->id)->update(['path' => str_repeat('c', 250)]);
+
+    return $child;
+}
+
+it('fails on a nested Path longer than kami_paths holds, naming the Entry, and leaves its row as it was', function () {
+    installedSite();
+    $child = overLongChild();
+    $rows = paths();
+
+    install()
+        ->expectsOutputToContain('Paths: 0 created, 0 rewritten, 0 deleted.')
+        ->expectsOutputToContain("Entry {$child->id} cannot take its Path in fr: /" . str_repeat('p', 60) . '… is longer than 500 characters.')
+        ->assertFailed();
+
+    expect(paths())->toBe($rows);
+});
+
+it('has kami:doctor report a nested Path longer than kami_paths holds, not as a pending rewrite', function () {
+    installedSite();
+    $child = overLongChild();
+
+    $this->artisan('kami:doctor')
+        ->expectsOutputToContain("1 Path is longer than 500 characters: Entry {$child->id} in fr.")
+        ->expectsOutputToContain('docs/guide/routing-and-rendering.md#after-a-deploy')
+        ->doesntExpectOutputToContain('Paths do not follow');
+});
+
 it('gives untranslatable Entries a Path in a new Locale, and nothing else', function () {
     installedSite(['fr']);
     $page = saved(Page::class, ['title' => 'Accueil', 'slug' => 'accueil'], locale: 'fr');

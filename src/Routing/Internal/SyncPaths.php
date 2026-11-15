@@ -28,9 +28,10 @@ final readonly class SyncPaths
     public function __construct(private ContentTypes $types) {}
 
     /**
-     * With `$write` false, counts the differences and changes nothing.
+     * With `$write` false, counts the differences and changes nothing. A Path longer than `kami_paths.path` holds, which only a tree saved
+     * before 0.10 can reach, is neither counted nor written: it is returned, its row left as it was.
      *
-     * @return array{created: int, rewritten: int, deleted: int, clashes: list<array{entry_id: string, locale: string, path: string, holder: string|null}>}
+     * @return array{created: int, rewritten: int, deleted: int, clashes: list<array{entry_id: string, locale: string, path: string, holder: string|null}>, tooLong: list<array{entry_id: string, locale: string, path: string}>}
      */
     public function __invoke(bool $write = true): array
     {
@@ -39,14 +40,20 @@ final readonly class SyncPaths
         $counts = ['created' => 0, 'rewritten' => 0, 'deleted' => 0];
         /** @var list<array{row: Row, current: Path|null}> $pending */
         $pending = [];
+        /** @var list<array{entry_id: string, locale: string, path: string}> $tooLong */
+        $tooLong = [];
 
         foreach ($this->types->all() as $type) {
             DB::table('kami_entries')->where(['site' => $site->handle, 'type' => $type->handle()])->select('id')
-                ->chunkById(self::BATCH, function (Collection $entries) use ($site, $type, $write, &$counts, &$pending): void {
+                ->chunkById(self::BATCH, function (Collection $entries) use ($site, $type, $write, &$counts, &$pending, &$tooLong): void {
                     /** @var list<string> $ids */
                     $ids = $entries->pluck('id')->all();
-                    ['gone' => $gone, 'changed' => $changed] = $this->diff($site, $type, $ids, $site->locales);
+                    ['gone' => $gone, 'changed' => $changed, 'tooLong' => $long] = $this->diff($site, $type, $ids, $site->locales);
                     $counts['deleted'] += $gone->count();
+
+                    foreach ($long as $row) {
+                        $tooLong[] = ['entry_id' => $row['entry_id'], 'locale' => $row['locale'], 'path' => $row['path']];
+                    }
 
                     // Deleted first: a freed address may be the one another row moves to.
                     if ($write && $gone->isNotEmpty()) {
@@ -75,7 +82,7 @@ final readonly class SyncPaths
             }
         }
 
-        return [...$counts, 'clashes' => $clashes];
+        return [...$counts, 'clashes' => $clashes, 'tooLong' => $tooLong];
     }
 
     /**
@@ -91,12 +98,10 @@ final readonly class SyncPaths
      */
     public function sync(Site $site, ContentType $type, array $ids, array $locales, array $wasPublic = []): void
     {
-        ['gone' => $gone, 'changed' => $changed] = $this->diff($site, $type, $ids, $locales);
+        ['gone' => $gone, 'changed' => $changed, 'tooLong' => $tooLong] = $this->diff($site, $type, $ids, $locales);
 
-        foreach ($changed as ['row' => $row]) {
-            if (mb_strlen($row['path']) > Path::MAX_LENGTH) {
-                throw new PathTooLong($row['path']);
-            }
+        if ($tooLong !== []) {
+            throw new PathTooLong($tooLong[0]['path']);
         }
 
         Path::query()->whereKey($gone->modelKeys())->delete();
@@ -129,11 +134,11 @@ final readonly class SyncPaths
     }
 
     /**
-     * The stored 200 rows the Translations no longer call for, and the rows to write, in the given Locales.
+     * The stored 200 rows the Translations no longer call for, the rows to write, and those longer than `kami_paths.path` holds, in the given Locales.
      *
      * @param  list<string>  $ids
      * @param  list<string>  $locales
-     * @return array{gone: \Illuminate\Database\Eloquent\Collection<string, Path>, changed: list<array{row: Row, current: Path|null}>}
+     * @return array{gone: \Illuminate\Database\Eloquent\Collection<string, Path>, changed: list<array{row: Row, current: Path|null}>, tooLong: list<Row>}
      */
     private function diff(Site $site, ContentType $type, array $ids, array $locales): array
     {
@@ -141,16 +146,24 @@ final readonly class SyncPaths
             ->whereIn('locale', $locales)->get()->keyBy(fn (Path $path): string => $this->key($path->entry_id, $path->locale));
         $expected = $this->expected($site, $type, $ids)->filter(fn (array $row): bool => in_array($row['locale'], $locales, true));
         $changed = [];
+        $tooLong = [];
 
         foreach ($expected as $key => $row) {
             $current = $stored->get($key);
 
-            if ($current?->path !== $row['path']) {
+            if ($current?->path === $row['path']) {
+                continue;
+            }
+
+            if (mb_strlen($row['path']) > Path::MAX_LENGTH) {
+                $tooLong[] = $row;
+            } else {
                 $changed[] = ['row' => $row, 'current' => $current];
             }
         }
 
-        return ['gone' => $stored->diffKeys($expected), 'changed' => $changed];
+        // An over-long row stays expected, so its stored row is kept as it was.
+        return ['gone' => $stored->diffKeys($expected), 'changed' => $changed, 'tooLong' => $tooLong];
     }
 
     /**
