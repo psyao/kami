@@ -12,6 +12,7 @@ use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Group;
 use Psyao\Kami\Content\Fields\Number;
+use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\Text;
 
 uses(RefreshDatabase::class);
@@ -23,31 +24,53 @@ final class Listed extends ContentType
         return [
             Number::make('rank')->translatable()->filterable(),
             Number::make('stock')->sortable(),
+            Number::make('weight')->filterable(),
             Text::make('code')->translatable()->filterable()->sortable(),
             Entries::make('related')->of(Listed::class),
             Group::make('place', [Text::make('city')]),
+            Repeater::make('lines', [Text::make('label')]),
         ];
     }
 }
 
+final class Stocked extends ContentType
+{
+    #[Override]
+    protected bool $translatable = false;
+
+    public function fields(): array
+    {
+        return [Text::make('sku')->filterable()];
+    }
+}
+
 beforeEach(function (): void {
-    config(['kami.types' => [Listed::class]]);
+    $this->freezeTime();
+    config(['kami.types' => [Listed::class, Stocked::class]]);
     Schema::create('kami_type_listed', function (Blueprint $table): void {
         $table->ulid('entry_id');
         $table->string('locale', 20);
         $table->integer('rank')->nullable()->index();
         $table->integer('stock')->nullable()->index();
+        $table->integer('weight')->nullable()->index();
         $table->string('code')->nullable()->index();
         $table->json('place')->nullable();
+        $table->json('lines')->nullable();
+        $table->unique(['entry_id', 'locale']);
+    });
+    Schema::create('kami_type_stocked', function (Blueprint $table): void {
+        $table->ulid('entry_id');
+        $table->string('locale', 20);
+        $table->string('sku')->nullable()->index();
         $table->unique(['entry_id', 'locale']);
     });
 
     $save = resolve(SaveEntry::class);
 
-    foreach (['Low' => [1, 30], 'Second' => [7, 20], 'First' => [7, 10]] as $title => [$rank, $stock]) {
-        $entry = $save->handle(Listed::class, ['title' => $title, 'status' => 'published', 'rank' => $rank, 'stock' => $stock], locale: 'fr');
+    foreach (['Low' => [1, 30, 2, 'c'], 'Second' => [7, 20, 2, 'a'], 'First' => [7, 10, 3, 'b']] as $title => [$rank, $stock, $weight, $code]) {
+        $entry = $save->handle(Listed::class, ['title' => $title, 'status' => 'published', 'rank' => $rank, 'stock' => $stock, 'weight' => $weight, 'code' => $code], locale: 'fr');
         // Another Locale's row must not reach a listing in French.
-        $save->handle(Listed::class, ['title' => "{$title} en", 'status' => 'published', 'rank' => 99], $entry, 'en');
+        $save->handle(Listed::class, ['title' => "{$title} en", 'status' => 'published', 'rank' => 99, 'code' => "z{$code}"], $entry, 'en');
     }
 
     $save->handle(Listed::class, ['title' => 'Draft', 'rank' => 7, 'stock' => 5], locale: 'fr');
@@ -78,6 +101,20 @@ it('filters and sorts through the scopes, in the read Locale, leaving Drafts out
         ->and($entries->pluck('stock')->all())->toBe([10, 20]);
 });
 
+it('filters on a Shared Field and sorts on a Translatable one', function (): void {
+    $entries = Entry::query()->ofType(Listed::class)->whereField('weight', 2)->orderByField('code', 'desc')->get();
+
+    expect($entries->pluck('title')->all())->toBe(['Low', 'Second']);
+});
+
+it('reads the \'*\' row of an untranslatable type, whatever the Field declares', function (): void {
+    $save = resolve(SaveEntry::class);
+    $save->handle(Stocked::class, ['title' => 'Bolt', 'status' => 'published', 'sku' => 'B-1']);
+    $save->handle(Stocked::class, ['title' => 'Nut', 'status' => 'published', 'sku' => 'N-1']);
+
+    expect(Entry::query()->ofType(Stocked::class)->whereField('sku', 'N-1')->pluck('id'))->toHaveCount(1);
+});
+
 it('takes an operator, a direction, and reads another Locale\'s row in that Locale', function (): void {
     $french = Entry::query()->ofType(Listed::class)->whereField('rank', '>=', 1)->orderByField('stock', 'desc')->get();
     $english = Entry::query()->ofType('listed')->inLocale('en')->whereField('rank', 99)->orderByField('stock')->get();
@@ -88,11 +125,11 @@ it('takes an operator, a direction, and reads another Locale\'s row in that Loca
 
 it('joins each row once, however many Fields read it, and keeps a select of its own', function (): void {
     $query = Entry::query()->ofType(Listed::class)->select('kami_entries.id')
-        ->whereField('rank', 7)->whereField('code', null)->orderByField('code')->orderByField('stock')->orderByField('stock', 'desc');
+        ->whereField('rank', 7)->whereField('code', '<', 'c')->orderByField('code')->whereField('weight', 3)->orderByField('stock');
 
     expect($query->getQuery()->joins)->toHaveCount(2)
         ->and($query->getQuery()->columns)->toBe(['kami_entries.id'])
-        ->and($query->get()->pluck('id'))->toHaveCount(2);
+        ->and($query->get()->pluck('id'))->toHaveCount(1);
 });
 
 it('refuses a Field it cannot reach, naming it', function (Closure $scope, string $message): void {
@@ -100,7 +137,9 @@ it('refuses a Field it cannot reach, naming it', function (Closure $scope, strin
 })->with([
     'undeclared' => [fn ($query) => $query->whereField('missing', 1), '"missing"'],
     'a relation' => [fn ($query) => $query->whereField('related', 1), 'relation "related"'],
+    'a Media Field' => [fn ($query) => $query->whereField('seo_image', 1), 'Media Field "seo_image"'],
     'inside a Group' => [fn ($query) => $query->orderByField('city'), '"city" is inside "place"'],
+    'inside a Repeater' => [fn ($query) => $query->whereField('label', 'x'), '"label" is inside "lines"'],
     'not filterable' => [fn ($query) => $query->whereField('stock', 1), '"stock" is not ->filterable()'],
     'not sortable' => [fn ($query) => $query->orderByField('rank'), '"rank" is not ->sortable()'],
 ]);

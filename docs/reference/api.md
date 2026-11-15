@@ -231,12 +231,12 @@ One content item in all its Locales, read in the current Locale; only visible En
 - `protected function inLocale(Illuminate\Database\Eloquent\Builder $query, string $locale): void`: Entries visible in a Locale, read in that Locale; with `withUnpublished()`, Entries with a Translation there.
 - `public function langAttribute(string $field): Illuminate\Support\HtmlString`: ` lang="xx"` when a Field's value fell back to a Locale other than the page's, for the element that prints it; empty otherwise (ADR 0013).
 - `protected function ofType(Illuminate\Database\Eloquent\Builder $query, string $type): void`: Entries of one Content Type, named by class or handle.
-- `protected function orderByField(Illuminate\Database\Eloquent\Builder $query, string $field, string $direction = 'asc'): void`: Entries ordered on a Field, after `ofType()`, read as `whereField()` reads it. The Field must be `->sortable()`.
+- `protected function orderByField(Illuminate\Database\Eloquent\Builder $query, string $field, string $direction = 'asc'): void`: Entries ordered on a `->sortable()` Field, after `ofType()`, read as `whereField()` reads it.
 - `protected function ordered(Illuminate\Database\Eloquent\Builder $query): void`: In the order editors chose; Entries sharing a Position in creation order, a ULID sorting by time.
 - `public function parent(): Illuminate\Database\Eloquent\Relations\BelongsTo`: Its Parent on a hierarchical type, visible in the Locale it is read in; `null` at the root. `with('parent')` loads a list's at once.
 - `public function summary(): ?string`: Its type's `summary()`: the page's description when it has no Meta description. `$entry->summary`, with no call, reads a Field of that name.
 - `public function url(?string $locale = NULL): ?string`: The absolute URL of the Entry in a Locale, the one it is read in by default; `null` when it or one of its ancestors is not visible there, or its type has no URL.
-- `protected function whereField(Illuminate\Database\Eloquent\Builder $query, string $field, mixed $operator, mixed $value = NULL): void`: Entries whose Field matches, as `where()` reads its operator and value, after `ofType()`. A Translatable Field reads its value
+- `protected function whereField(Illuminate\Database\Eloquent\Builder $query, string $field, mixed $operator, mixed $value = NULL): void`: Entries whose `->filterable()` Field matches, after `ofType()`, taking an operator and a value as `where()` does.
 - `protected function withUnpublished(Illuminate\Database\Eloquent\Builder $query): void`: Drafts and Scheduled Entries too; not the Trash, which `withTrashed()` lifts.
 
 ## `Psyao\Kami\Content\Fields\Boolean`

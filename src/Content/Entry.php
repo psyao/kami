@@ -425,13 +425,13 @@ class Entry extends Model
     #[Scope]
     protected function ofType(Builder $query, string $type): void
     {
-        $this->entryBuilder($query)->ofTypeNamed($type);
-        $query->where('type', resolve(ContentTypes::class)->find($type)?->handle() ?? $type);
+        $this->entryBuilder($query)->forType($type);
     }
 
     /**
-     * Entries whose Field matches, as `where()` reads its operator and value, after `ofType()`. A Translatable Field reads its value
-     * in the Locale read, a Shared one its Shared value: stored values, with no Fallback. The Field must be `->filterable()`.
+     * Entries whose `->filterable()` Field matches, after `ofType()`, taking an operator and a value as `where()` does.
+     *
+     * A Translatable Field reads its value in the Locale read, a Shared one its Shared value: stored values, with no Fallback.
      *
      * @param  Builder<static>  $query
      */
@@ -443,7 +443,7 @@ class Entry extends Model
     }
 
     /**
-     * Entries ordered on a Field, after `ofType()`, read as `whereField()` reads it. The Field must be `->sortable()`.
+     * Entries ordered on a `->sortable()` Field, after `ofType()`, read as `whereField()` reads it.
      *
      * @param  Builder<static>  $query
      * @param  'asc'|'desc'  $direction

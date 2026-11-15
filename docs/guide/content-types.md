@@ -1030,15 +1030,14 @@ A Field's value lives in `kami_type_<handle>`, not on the Entry, so `where('rank
 
 ```php
 Entry::query()->ofType(Product::class)
-    ->whereField('rank', 7)             // Translatable, ->filterable()
-    ->whereField('rank', '>=', 3)       // An operator, as where() takes one
+    ->whereField('rank', '>=', 3)       // Translatable, ->filterable(); an operator, as where() takes one
     ->orderByField('stock', 'desc')     // Shared, ->sortable()
     ->get();
 ```
 
 A Translatable Field reads its row in the Locale the query reads, the current one or `inLocale()`'s, which comes before them; a Shared Field reads the `'*'` row. Each row joins once, however many Fields read it, and the Entries read as usual, visibility included. A `select()` of yours is kept; without one, the query selects `kami_entries.*`. Fallback does not apply: an Entry with no row in the Locale is left out, and a blank value does not read the default Locale's.
 
-Each throws an `InvalidArgumentException` naming the Field for one the type does not declare, a relation or Media Field, a sub-Field of a Repeater or a Group, and a Field not declared `->filterable()` (for `whereField()`) or `->sortable()` (for `orderByField()`), so a listing always has its index. Without `ofType()` first, or after it with an undeclared type, they throw a `LogicException`, and so does `inLocale()` after a Translatable Field's join.
+Each throws an `InvalidArgumentException` naming the Field for one the type does not declare, a relation or Media Field, a sub-Field of a Repeater or a Group, and a Field not declared `->filterable()` (for `whereField()`) or `->sortable()` (for `orderByField()`), so a listing always has its index. Without `ofType()` first, or after it with an undeclared type, they throw a `LogicException`, and so does `inLocale()` naming another Locale after a Translatable Field's join. They join the query they are called on, so neither works inside a `where(fn ($query) => …)` group, whose joins Eloquent drops: an `OR` between Fields takes the join by hand.
 
 The same join by hand, for a query they do not cover: its row for the Locale holds Translatable Fields, its `'*'` row Shared ones.
 
@@ -1049,9 +1048,11 @@ Entry::query()->ofType(Product::class)
     ->select('kami_entries.*')
     ->join('kami_type_product as translated', fn (JoinClause $join) => $join->on('translated.entry_id', '=', 'kami_entries.id')->where('translated.locale', app()->getLocale()))
     ->join('kami_type_product as shared', fn (JoinClause $join) => $join->on('shared.entry_id', '=', 'kami_entries.id')->where('shared.locale', '*'))
-    ->where('translated.rank', 7)
-    ->orderBy('shared.stock')
+    ->where('translated.rank', 7)   // Translatable
+    ->orderBy('shared.stock')       // Shared
     ->get();
 ```
+
+Keep only the join you need.
 
 With 6,000 Entries, the filter used the Field's index on all four engines. The sort used its index on SQLite and PostgreSQL; MySQL and MariaDB sorted without it.

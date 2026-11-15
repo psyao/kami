@@ -26,7 +26,6 @@ use Psyao\Kami\Sites\Internal\Site;
  */
 final class EntryBuilder extends Builder
 {
-    /** The aliases of the type table's rows a listing reads: two underscores, which no Field handle takes. */
     private const string TRANSLATED = 'kami__translated';
 
     private const string SHARED = 'kami__shared';
@@ -36,8 +35,10 @@ final class EntryBuilder extends Builder
 
     private bool $preloadsPaths = false;
 
-    /** The type `ofType()` named, by class or handle. */
+    /** The type `ofType()` named, by class or handle, and the declared type it names. */
     private ?string $type = null;
+
+    private ?ContentType $contentType = null;
 
     /** @var list<string> The aliases under which `whereField()` and `orderByField()` joined the type's table: one per row read. */
     private array $fieldRows = [];
@@ -58,9 +59,13 @@ final class EntryBuilder extends Builder
         return $this->locale ?? Site::current()->currentLocale();
     }
 
-    public function ofTypeNamed(string $type): void
+    /** Entries of one type, named by class or handle; `whereField()` and `orderByField()` read its table. */
+    public function forType(string $type): static
     {
         $this->type = $type;
+        $this->contentType = resolve(ContentTypes::class)->find($type);
+
+        return $this->where('type', $this->contentType?->handle() ?? $type);
     }
 
     /**
@@ -69,10 +74,7 @@ final class EntryBuilder extends Builder
      */
     public function fieldColumn(string $handle, bool $sorting): string
     {
-        $scope = $sorting ? 'orderByField()' : 'whereField()';
-        $type = $this->type ?? throw new LogicException("{$scope} needs ofType() first: it reads the type's table.");
-        $contentType = resolve(ContentTypes::class)->find($type) ?? throw new LogicException("{$scope}: the type \"{$type}\" is not declared.");
-        $field = $this->listedField($contentType, $handle, $sorting, $scope);
+        [$contentType, $field] = $this->listedField($handle, $sorting);
         $locale = $contentType->isTranslatable($field) ? $this->locale() : '*';
         $alias = $locale === '*' ? self::SHARED : self::TRANSLATED;
 
@@ -90,9 +92,16 @@ final class EntryBuilder extends Builder
         return "{$alias}.{$handle}";
     }
 
-    /** A Field in a column of the type's table, indexed for what the listing does with it. */
-    private function listedField(ContentType $contentType, string $handle, bool $sorting, string $scope): Field
+    /**
+     * A Field in a column of the type's table, indexed for what the listing does with it.
+     *
+     * @return array{ContentType, Field}
+     */
+    private function listedField(string $handle, bool $sorting): array
     {
+        [$scope, $call] = $sorting ? ['orderByField()', '->sortable()'] : ['whereField()', '->filterable()'];
+        $type = $this->type ?? throw new LogicException("{$scope} needs ofType() first: it reads the type's table.");
+        $contentType = $this->contentType ?? throw new LogicException("{$scope}: the type \"{$type}\" is not declared.");
         $prefix = "{$scope} on \"{$contentType->handle()}\":";
         $field = collect($contentType->storedFields())->firstWhere('handle', $handle);
 
@@ -110,13 +119,11 @@ final class EntryBuilder extends Builder
             throw new InvalidArgumentException("{$prefix} {$kind} \"{$handle}\" has no column: it is kept in kami_references.");
         }
 
-        if ($sorting ? ! $field->isSortable() : ! $field->isFilterable()) {
-            $call = $sorting ? '->sortable()' : '->filterable()';
-
+        if (! ($sorting ? $field->isSortable() : $field->isFilterable())) {
             throw new InvalidArgumentException("{$prefix} the Field \"{$handle}\" is not {$call}: declare it so, and kami:make:migration indexes its column.");
         }
 
-        return $field;
+        return [$contentType, $field];
     }
 
     /** Gives the nested Entries it returns their Paths, in one batch: what `url()` reads (ADR 0019). */
