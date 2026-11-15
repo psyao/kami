@@ -72,6 +72,8 @@ final class SaveRedirect
 
         [$entryId, $address] = $this->target($status, $target, $source, $site, $locale);
 
+        // On InnoDB the lookup of a new source takes a gap lock, which a concurrent save at it takes too: both inserts then deadlock. Run as the
+        // outermost transaction, the loser retries once and finds the winner's row, which it changes as saving a source again does.
         [$redirect, $created] = DB::transaction(function () use ($site, $locale, $source, $status, $entryId, $address, $actor): array {
             $redirect = Redirect::query()->withoutGlobalScopes()->lockForUpdate()->firstOrNew(['site' => $site->handle, 'locale' => $locale, 'path' => $source]);
 
@@ -87,14 +89,14 @@ final class SaveRedirect
             try {
                 $redirect->fill(['status' => $status, 'entry_id' => $entryId, 'target' => $address])->save();
             } catch (UniqueConstraintViolationException) {
-                // A concurrent save at the source, or an Entry taking it, inserted since the lookup, which locks no row for a new source.
+                // A concurrent save at the source, or an Entry taking it, inserted since the lookup, which locks nothing for a new source outside InnoDB.
                 throw ValidationException::withMessages(['source' => __('validation.unique', ['attribute' => 'source'])]);
             }
 
             resolve(RecordAuditEvent::class)->handle($created ? 'kami.redirects.created' : 'kami.redirects.updated', $redirect, ['locale' => $locale, 'source' => mb_substr($source, 0, 255), 'status' => $status], $actor);
 
             return [$redirect, $created];
-        });
+        }, 2);
 
         event(new RedirectSaved($redirect, $created, $actor));
 
