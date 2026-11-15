@@ -150,10 +150,19 @@ describe('used by and delete', function () {
 
         // Velox of a type the Role does not grant `view` on, Kami of one it does.
         DB::table('kami_entries')->where('type', 'project')->whereNotNull('deleted_at')->update(['type' => 'retired']);
-        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', 'kami.entries.project.view'])
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', 'kami.entries.project.view', 'kami.entries.project.update'])
             ->assertSeeHtml("/admin/projects/{$kami->id}/edit")
             ->assertSee('1 restricted Entry')
             ->assertDontSee('Velox');
+    });
+
+    // Its edit page would answer 403 (ADR 0019): named, as one in the Trash is (#667).
+    it('names, with no link, an Entry the User may view but not edit', function () {
+        $kami = usedByProjects($this->media);
+
+        mediaPage($this->media, role: ['kami.media.view', 'kami.media.update', 'kami.entries.project.view'])
+            ->assertSeeHtml('<li>Kami</li>')
+            ->assertDontSeeHtml("/admin/projects/{$kami->id}/edit");
     });
 
     it('counts the Entries of a type no longer declared, whose Permissions nobody holds', function () {

@@ -307,17 +307,19 @@ final class EditEntry extends EditRecord
             ->modalCancelActionLabel(__('kami::admin.preview_links.close'));
     }
 
-    /** Every Locale with its state, labelled through closures: a save on this page changes them. Each other Locale is a link, keeping M2's URLs. */
+    /**
+     * Every Locale with its state, labelled through closures: a save on this page changes them. Each other Locale is a link, keeping M2's URLs.
+     * One the User may not edit, published without `publish` (ADR 0019), stays listed for its state, disabled: its link would answer 403.
+     */
     private function localeSwitcher(): ActionGroup
     {
-        $default = Site::current()->defaultLocale();
-
-        return ActionGroup::make(array_map(function (string $locale) use ($default): Action {
+        return ActionGroup::make(array_map(function (string $locale): Action {
             $action = Action::make("locale_{$locale}")->label(fn (): string => $this->localeLabel($locale))->color('gray');
+            $url = fn (): ?string => EntryResource::editUrlIfAllowed($this->getRecord(), $locale);
 
             return $locale === $this->locale
                 ? $action->icon(Heroicon::Check)->disabled()->extraAttributes(['aria-current' => 'true'])
-                : $action->url(fn (): string => EntryResource::editUrl($this->getRecord(), $locale === $default ? null : $locale));
+                : $action->url($url)->disabled(fn (): bool => $url() === null);
         }, EntryResource::locales()))
             ->label(fn (): string => $this->localeLabel($this->locale))
             ->icon(Heroicon::Language)

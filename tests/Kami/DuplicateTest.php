@@ -168,6 +168,16 @@ it('duplicates from the row and opens the copy\'s edit page', function () {
     expect([$copy->title, $copy->status, $copy->created_by])->toBe(['Bonjour (copie)', 'draft', auth()->id()]);
 });
 
+// Its edit page would answer 403: the list stays, its notification naming the copy (#667).
+it('keeps a User who may not edit the copy on the list, naming it', function () {
+    $source = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
+
+    entriesPage(ListEntries::class, ['kami.entries.article.view', 'kami.entries.article.create'])
+        ->callAction(TestAction::make('replicate')->table($source))
+        ->assertNotified('Copy created: Bonjour (copie)')
+        ->assertNoRedirect();
+});
+
 it('offers Duplicate under create, never on a trashed row', function () {
     $source = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Bonjour', 'author' => 'Ada']);
     $trashed = resolve(SaveEntry::class)->handle(Article::class, ['title' => 'Corbeille', 'author' => 'Ada']);
