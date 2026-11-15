@@ -12,6 +12,7 @@ use Psyao\Kami\Content\Blocks\Block;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Fields\Entries;
 use Psyao\Kami\Content\Fields\Field;
+use Psyao\Kami\Content\Fields\Media as MediaField;
 use Psyao\Kami\Content\Fields\Repeater;
 use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Fields\Text;
@@ -54,7 +55,7 @@ final class MigratedQuote extends Block
 
     public function fields(): array
     {
-        return [Text::make(self::$text), Entries::make('source')->of(Memo::class)];
+        return [Text::make(self::$text), Entries::make('source')->of(Memo::class), MediaField::make('image')];
     }
 
     public function view(): string
@@ -720,34 +721,48 @@ describe('Blocks', function () {
     it('renames a Block in every type and Locale, nested or not, and re-indexes what it links but what is gone', function () {
         ($memo = memo()) && ($notebook = memo('notebook')) && ($target = memo());
         $gone = (string) Str::ulid();
-        memoRow($memo, 'fr', ['body' => prose($this->paragraph, quote('Un', $target, 'pullquote'))]);
+        DB::table('kami_media')->insert(['id' => $media = (string) Str::ulid(), 'site' => 'default', 'file' => 'a.jpg', 'name' => 'a', 'mime' => 'image/jpeg', 'family' => 'image', 'size' => 1, 'checksum' => str_repeat('0', 64)]);
+        $illustrated = quote('Image', handle: 'pullquote');
+        $illustrated['attrs']['data']['image'] = [$media, (string) Str::ulid()];
+        memoRow($memo, 'fr', ['body' => prose($this->paragraph, quote('Un', $target, 'pullquote'), $illustrated)]);
         memoRow($memo, 'en', ['body' => prose(['type' => 'bulletList', 'content' => [['type' => 'listItem', 'content' => [quote('Two', handle: 'pullquote')]]]])]);
         memoRow($notebook, '*', ['notes' => prose(quote('Partout', $gone, 'pullquote'), quote('Kept', $target, 'other'))], 'kami_type_notebook');
 
         ($this->inMigration)("ContentMigrator::renameBlock('pullquote', 'quote');");
 
         // `toEqual`: MySQL's JSON keeps no key order.
-        expect(storedDocument($memo, 'fr'))->toEqual(json_decode(prose($this->paragraph, quote('Un', $target)), true))
+        $illustrated['attrs']['handle'] = 'quote';
+        expect(storedDocument($memo, 'fr'))->toEqual(json_decode(prose($this->paragraph, quote('Un', $target), $illustrated), true))
             ->and(storedDocument($memo, 'en')['content'][0]['content'][0]['content'][0])->toEqual(quote('Two'))
             ->and(storedDocument($notebook, '*', 'notes', 'kami_type_notebook'))->toEqual(json_decode(prose(quote('Partout', $gone), quote('Kept', $target, 'other')), true))
-            ->and(targets($memo, 'body'))->toBe(['fr' => [$target]])
+            ->and(targets($memo, 'body'))->toBe(['fr' => [$target, null]])
+            // The gone Media item stores no row either.
+            ->and(DB::table('kami_references')->where(['source_entry_id' => $memo, 'field' => 'body'])->orderBy('position')->pluck('target_media_id')->all())->toBe([null, $media])
             // The gone Entry stores no row; the unavailable Block links nothing.
             ->and(targets($notebook, 'notes'))->toBe([]);
     });
 
     it('renames a Block\'s Field in every type and Locale, leaving another Block\'s alone', function () {
-        ($memo = memo()) && ($notebook = memo('notebook'));
+        ($memo = memo()) && ($notebook = memo('notebook')) && ($target = memo());
         MigratedQuote::$text = 'quoted';
-        memoRow($memo, 'fr', ['body' => prose(quote('Un'))]);
+        // A blank Field is stored as null: it holds nothing to keep.
+        $blank = quote('Un', $target);
+        $blank['attrs']['data']['quoted'] = null;
+        memoRow($memo, 'fr', ['body' => prose($blank)]);
         memoRow($memo, 'en', ['body' => prose(quote('Two'), quote('Other', handle: 'other'))]);
         memoRow($notebook, '*', ['notes' => prose(quote('Partout'))], 'kami_type_notebook');
 
         ($this->inMigration)("ContentMigrator::renameBlockField('quote', 'text', 'quoted');");
 
         // `toEqual`: MySQL's JSON keeps no key order.
-        expect(storedDocument($memo, 'fr')['content'])->toEqual([quote('Un', field: 'quoted')])
+        expect(storedDocument($memo, 'fr')['content'])->toEqual([quote('Un', $target, field: 'quoted')])
             ->and(storedDocument($memo, 'en')['content'])->toEqual([quote('Two', field: 'quoted'), quote('Other', handle: 'other')])
-            ->and(storedDocument($notebook, '*', 'notes', 'kami_type_notebook')['content'])->toEqual([quote('Partout', field: 'quoted')]);
+            ->and(storedDocument($notebook, '*', 'notes', 'kami_type_notebook')['content'])->toEqual([quote('Partout', field: 'quoted')])
+            ->and(targets($memo, 'body'))->toBe(['fr' => [$target]]);
+    });
+
+    it('refuses to rename a Block\'s Field to itself', function () {
+        expect(fn () => ContentMigrator::renameBlockField('quote', 'text', 'text'))->toThrow(InvalidArgumentException::class, 'cannot be renamed to itself');
     });
 
     it('refuses to rename a Block\'s Field onto one a document holds, before writing anything', function () {

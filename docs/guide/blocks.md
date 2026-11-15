@@ -171,7 +171,7 @@ The script is Kami's only front JavaScript, a static file `kami:install` copies 
 
 A Block whose class is gone from `kami.blocks`, or that its Field no longer offers, stays in its document as it is: Kami never drops it. `SaveEntry` keeps it untouched, neither validated nor recorded. It renders nothing. The editor shows it as unavailable, under its handle: an editor can only delete it. Declaring or offering it again brings it back.
 
-`kami:doctor` reads every document, 500 Entries at a time, and warns about each unavailable Block, by type and `RichText` Field, naming the Entries holding it: "2 Entries of article hold the Block callout in body, which kami.blocks no longer declares: First post, Second post." The warning fails `kami:doctor --strict`. Declare or offer the Block again, delete it in the editor, or drop it everywhere with `ContentMigrator::dropBlock()`.
+`kami:doctor` reads every document, 500 Entries at a time, and warns about each unavailable Block, by type and `RichText` Field, naming the Entries holding it by id, ten at most: "2 Entries of article hold the Block callout in body, which kami.blocks no longer declares: 01JD3W…, 01JD3X…." Ids rather than titles, since the admin's "Needs attention" panel shows the warning to Users who may not view that type. The warning fails `kami:doctor --strict`. Declare or offer the Block again, delete it in the editor, or drop it everywhere with `ContentMigrator::dropBlock()`.
 
 ## Renaming or dropping a Block
 

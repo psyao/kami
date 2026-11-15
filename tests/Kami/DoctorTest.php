@@ -702,13 +702,14 @@ it('warns about a type with a URL and no description: the default summary() and 
         ->assertSuccessful();
 });
 
-it('warns about documents holding a Block no longer declared or no longer offered, naming the Entries', function () {
+it('warns about documents holding a Block no longer declared or no longer offered, naming the Entries by id', function () {
     $this->artisan('migrate')->assertSuccessful();
     config(['kami.types' => [Article::class], 'kami.blocks' => [...config()->array('kami.blocks'), Unoffered::class]]);
+    $ids = [];
 
-    foreach (['Premier' => ['gone', 'unoffered', 'callout'], 'Second' => ['gone'], 'Sain' => ['callout']] as $title => $handles) {
-        DB::table('kami_entries')->insert(['id' => $id = (string) Str::ulid(), 'site' => 'default', 'type' => 'article']);
-        DB::table('kami_translations')->insert(['id' => (string) Str::ulid(), 'entry_id' => $id, 'locale' => 'fr', 'title' => $title, 'slug' => Str::slug($title), 'status' => 'draft', 'updated_at' => now()]);
+    // In id order, as ULIDs made one after the other are.
+    foreach ([['gone', 'unoffered', 'callout'], ...array_fill(0, 11, ['gone']), ['callout']] as $handles) {
+        DB::table('kami_entries')->insert(['id' => $ids[] = $id = (string) Str::ulid(), 'site' => 'default', 'type' => 'article']);
         DB::table('kami_type_article')->insert(['entry_id' => $id, 'locale' => 'fr', 'body' => json_encode(['type' => 'doc', 'content' => array_map(
             fn (string $handle): array => ['type' => 'block', 'attrs' => ['handle' => $handle, 'data' => []]],
             $handles,
@@ -718,8 +719,8 @@ it('warns about documents holding a Block no longer declared or no longer offere
     $problems = array_values(array_filter((new Doctor)->problems(), fn (Problem $problem): bool => $problem->guide === 'blocks.md#an-unavailable-block'));
 
     expect(array_map(fn (Problem $problem): array => [$problem->severity, $problem->message, $problem->fix], $problems))->toBe([
-        [Severity::Warning, '2 Entries of article hold the Block gone in body, which kami.blocks no longer declares: Premier, Second.', 'declare it again in config/kami.php under blocks, or remove it with ContentMigrator::dropBlock() in a migration: until then it renders nothing.'],
-        [Severity::Warning, '1 Entry of article holds the Block unoffered in body, which no longer offers it: Premier.', 'offer it again with ->blocks() on body, or delete it from these Entries in the editor: until then it renders nothing.'],
+        [Severity::Warning, '12 Entries of article hold the Block gone in body, which kami.blocks no longer declares: ' . implode(', ', array_slice($ids, 0, 10)) . ' and 2 more.', 'declare it again in config/kami.php under blocks, or remove it with ContentMigrator::dropBlock() in a migration: until then it renders nothing.'],
+        [Severity::Warning, "1 Entry of article holds the Block unoffered in body, which no longer offers it: {$ids[0]}.", 'offer it again with ->blocks() on body, or delete it from these Entries in the editor: until then it renders nothing.'],
     ]);
 });
 

@@ -14,10 +14,9 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Psyao\Kami\Audit\Actions\RecordAuditEvent;
 use Psyao\Kami\Content\ContentType;
-use Psyao\Kami\Content\Fields\Field;
-use Psyao\Kami\Content\Fields\RichText;
 use Psyao\Kami\Content\Internal\Blocks;
 use Psyao\Kami\Content\Internal\ContentTypes;
+use Psyao\Kami\Content\Internal\Documents;
 use Psyao\Kami\Content\Internal\MakeMigrationCommand;
 use Psyao\Kami\Content\Internal\References;
 use Psyao\Kami\Content\RichText\Document;
@@ -31,7 +30,7 @@ final class ContentMigrator
 {
     // ponytail: Locales are the `default` Site's, and rows every Site's; V1 multisite takes a Site.
 
-    private const int BATCH = 500;
+    private const int BATCH = Documents::BATCH;
 
     private const string REFERENCES = 'kami_references';
 
@@ -311,21 +310,24 @@ final class ContentMigrator
     /**
      * Renames a Field of a Block in every document holding the Block.
      *
-     * @throws InvalidArgumentException While a Block already holds a value under the new handle, before anything is written.
+     * @throws InvalidArgumentException While a Block already holds a value under the new handle, before anything is written. A blank Field is stored as `null`, so a `null` there is overwritten.
      */
     public static function renameBlockField(string $block, string $from, string $to): void
     {
         resolve(ContentTypes::class)->validateHandle(self::class, 'the Field handle', $to);
+
+        if ($from === $to) {
+            throw new InvalidArgumentException("The Field {$from} of the Block {$block} cannot be renamed to itself.");
+        }
+
         // The Block's data when it holds the Field.
         $held = fn (array $attrs): ?array => ($attrs['handle'] ?? null) === $block && is_array($data = $attrs['data'] ?? null) && array_key_exists($from, $data) ? $data : null;
 
-        self::rewriteBlocks(function (array $attrs) use ($held, $block, $from, $to): array {
+        self::eachBlock(function (array $attrs) use ($held, $block, $from, $to): void {
             if (($held($attrs)[$to] ?? null) !== null) {
                 throw new InvalidArgumentException("The Field {$from} of the Block {$block} cannot become {$to}: a document already holds {$to} in that Block.");
             }
-
-            return $attrs;
-        }, write: false);
+        });
 
         self::rewriteBlocks(function (array $attrs) use ($held, $from, $to): array {
             if (($data = $held($attrs)) === null) {
@@ -354,50 +356,53 @@ final class ContentMigrator
     }
 
     /**
-     * Maps every Block of the declared types' RichText documents, Entry batch by Entry batch, and writes each document that changed, a document left with nothing becoming `null` as `RichText` stores it.
+     * Reads every Block of the declared types' documents, writing nothing.
+     *
+     * @param  Closure(array<mixed>): void  $visit  A Block's `attrs`.
+     */
+    private static function eachBlock(Closure $visit): void
+    {
+        foreach (resolve(ContentTypes::class)->all() as $type) {
+            Documents::each($type, function (array $documents) use ($visit): void {
+                foreach ($documents as $read) {
+                    self::mapBlocks($read['content'], function (array $attrs) use ($visit): array {
+                        $visit($attrs);
+
+                        return $attrs;
+                    });
+                }
+            });
+        }
+    }
+
+    /**
+     * Maps every Block of the declared types' documents and writes each document that changed, a document left with nothing becoming `null` as `RichText` stores it. Each batch is a transaction, so one that stops runs again.
      *
      * @param  Closure(array<mixed>): ?array<mixed>  $map  A Block's `attrs`, or `null` to remove the Block.
      */
-    private static function rewriteBlocks(Closure $map, bool $write = true): void
+    private static function rewriteBlocks(Closure $map): void
     {
         // A type no longer in kami.types names no RichText Field: its documents stay as they are, as the guide says.
         foreach (resolve(ContentTypes::class)->all() as $type) {
             $table = self::table($type->handle());
-            $columns = Schema::hasTable($table) ? Schema::getColumnListing($table) : [];
-            $fields = array_filter($type->columnFields(), fn (Field $field): bool => $field instanceof RichText && in_array($field->handle, $columns, true));
 
-            if ($fields === []) {
-                continue;
-            }
-
-            self::eachBatch($type->handle(), function (array $ids) use ($table, $fields, $map, $write): void {
+            Documents::each($type, fn (array $documents) => DB::transaction(function () use ($documents, $map, $table): void {
                 $rewritten = [];
 
-                foreach (DB::table($table)->whereIn('entry_id', $ids)->get(['entry_id', 'locale', ...array_map(fn (Field $field): string => $field->handle, $fields)]) as $row) {
-                    /** @var object{entry_id: string, locale: string} $row */
-                    [$entry, $locale] = [$row->entry_id, $row->locale];
+                foreach ($documents as ['entry' => $entry, 'locale' => $locale, 'field' => $field, 'document' => $document, 'content' => $stored]) {
+                    $content = self::mapBlocks($stored, $map);
 
-                    foreach ($fields as $field) {
-                        $document = $field->decoded($row->{$field->handle});
-
-                        if (! is_array($document['content'] ?? null)) {
-                            continue;
-                        }
-
-                        $content = self::mapBlocks($document['content'], $map);
-
-                        if (! $write || $content === $document['content']) {
-                            continue;
-                        }
-
-                        $document = new Document([...$document, 'content' => $content])->isEmpty() ? null : [...$document, 'content' => $content];
-                        DB::table($table)->where(['entry_id' => $entry, 'locale' => $locale])->update([$field->handle => $field->write($document)]);
-                        $rewritten[] = [$entry, $field->handle, $locale === self::SHARED ? null : $locale, $field->targets($document)];
+                    if ($content === $stored) {
+                        continue;
                     }
+
+                    $document = new Document([...$document, 'content' => $content])->isEmpty() ? null : [...$document, 'content' => $content];
+                    DB::table($table)->where(['entry_id' => $entry, 'locale' => $locale])->update([$field->handle => $field->write($document)]);
+                    $rewritten[] = ['entry' => $entry, 'handle' => $field->handle, 'locale' => $locale === self::SHARED ? null : $locale, 'targets' => $field->targets($document)];
                 }
 
                 self::reindex($rewritten);
-            });
+            }));
         }
     }
 
@@ -432,21 +437,21 @@ final class ContentMigrator
     /**
      * Rebuilds the rows of rewritten documents, as `SaveEntry` would. A target gone since the document was saved, such as a link to an Entry deleted for good, is left out, so no row breaks a foreign key.
      *
-     * @param  list<array{string, string, string|null, array{entries: list<string>, media: list<string>}}>  $documents  Entry, RichText handle, Locale (`null` when shared), targets.
+     * @param  list<array{entry: string, handle: string, locale: string|null, targets: array{entries: list<string>, media: list<string>}}>  $documents  `locale` is `null` when shared.
      */
     private static function reindex(array $documents): void
     {
         $existing = ['entries' => [], 'media' => []];
 
         foreach (['entries' => 'kami_entries', 'media' => 'kami_media'] as $kind => $table) {
-            $ids = array_values(array_unique(array_merge(...array_map(fn (array $document): array => $document[3][$kind], $documents))));
+            $ids = array_values(array_unique(array_merge(...array_map(fn (array $document): array => $document['targets'][$kind], $documents))));
 
             foreach (array_chunk($ids, self::BATCH) as $chunk) {
                 array_push($existing[$kind], ...array_filter(DB::table($table)->whereIn('id', $chunk)->pluck('id')->all(), is_string(...)));
             }
         }
 
-        foreach ($documents as [$entry, $handle, $locale, $targets]) {
+        foreach ($documents as ['entry' => $entry, 'handle' => $handle, 'locale' => $locale, 'targets' => $targets]) {
             References::replaceTargets($entry, $handle, $locale, [
                 'entries' => array_values(array_intersect($targets['entries'], $existing['entries'])),
                 'media' => array_values(array_intersect($targets['media'], $existing['media'])),

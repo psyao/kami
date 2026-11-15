@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use PhpToken;
+use Psyao\Kami\Content\Blocks\Block;
 
 /**
  * Writes a Block's class into `app/Blocks` and its view into `resources/views/blocks`, and prints what a site adds elsewhere: a generator only creates files.
@@ -21,18 +21,12 @@ use PhpToken;
 #[Signature('kami:make:block {name : The class name, such as Callout}')]
 final class MakeBlockCommand extends Command
 {
-    /** Names PHP refuses for a class though `PhpToken` reads them as plain identifiers. */
-    private const array RESERVED = ['bool', 'false', 'float', 'int', 'iterable', 'mixed', 'never', 'null', 'object', 'parent', 'self', 'string', 'true', 'void'];
-
     public function handle(ContentTypes $types): int
     {
         $argument = $this->input->getArgument('name');
         $name = is_string($argument) ? $argument : '';
 
-        if (preg_match('/^[A-Z][A-Za-z0-9]*$/', $name) !== 1
-            || ! PhpToken::tokenize("<?php {$name}")[1]->is(T_STRING)
-            || in_array(strtolower($name), self::RESERVED, true)
-            || $name === 'Block') {
+        if (! MakeTypeCommand::isClassName($name, Block::class)) {
             $this->components->error("{$name} is not a class name a Block can take: one StudlyCase word, no path, no PHP keyword, not Block.");
 
             return self::FAILURE;
@@ -131,7 +125,8 @@ final class MakeBlockCommand extends Command
         $this->line('Add it to <comment>blocks</comment> in config/kami.php:');
         $this->line("    {$class}::class,");
         $this->line('Offer it on a RichText Field of a type:');
-        $this->line("    RichText::make('body')->blocks([\\{$class}::class]),");
+        $this->line("    use {$class};");
+        $this->line("    RichText::make('body')->blocks([{$name}::class]),");
         $this->line('Add its labels to lang/<locale>/kami-blocks.php, for each Locale, with a fields.<field>.label per Field:');
         $this->line("    '{$handle}' => ['label' => '{$label}', 'fields' => ['text' => ['label' => 'Text']]],");
     }

@@ -39,7 +39,8 @@ it('prints the lines a site adds elsewhere', function (): void {
 
     $this->artisan('kami:make:block', ['name' => 'PullQuote'])
         ->expectsOutputToContain("{$class}::class,")
-        ->expectsOutputToContain("RichText::make('body')->blocks([\\{$class}::class]),")
+        ->expectsOutputToContain("use {$class};")
+        ->expectsOutputToContain("RichText::make('body')->blocks([PullQuote::class]),")
         ->expectsOutputToContain("'pull_quote' => ['label' => 'Pull quote', 'fields' => ['text' => ['label' => 'Text']]],")
         ->assertSuccessful();
 });
