@@ -626,14 +626,19 @@ final readonly class Doctor
         $site = Site::current();
         // Read row by row: an import may leave thousands, few of them hidden.
         $hidden = Redirect::query()->where('site', $site->handle)->select(['id', 'locale', 'path'])->cursor()
-            ->filter(fn (Redirect $row): bool => Path::refusal(Path::split($row->path)[0], $site, $row->locale) !== null)
+            // `SaveRedirect`'s rule in the default Locale; elsewhere only an Archive or a Feed answers first, as Kami's own segments sit at the root.
+            ->filter(function (Redirect $row) use ($site): bool {
+                $path = Path::split($row->path)[0];
+
+                return $row->locale === $site->defaultLocale() ? Path::refusal($path, $site, $row->locale) !== null : Path::archiveAt($path) instanceof ContentType || Path::feedAt($path) !== null;
+            })
             ->map(fn (Redirect $row): string => $row->locale === $site->defaultLocale() ? "/{$row->path}" : "/{$row->locale}/{$row->path}")
             ->collect()->sort()->values();
 
         return $hidden->isEmpty() ? null : new Problem(
             Severity::Warning,
             "{$hidden->count()} Redirect " . Str::plural('source', $hidden->count()) . ' ' . ($hidden->count() === 1 ? 'is' : 'are') . ' hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: ' . $hidden->take(5)->implode(', ') . ($hidden->count() > 5 ? ', …' : '') . '.',
-            'delete them on the Redirects screen: until then, they redirect nobody.',
+            'delete them on the Redirects page: until then, they redirect nobody.',
             'redirects.md#hidden-sources',
         );
     }

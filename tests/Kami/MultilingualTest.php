@@ -198,6 +198,8 @@ it('warns about stored Paths that a Locale, a segment Kami answers, an Archive o
     DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'fr', 'path' => 'kami', 'entry_id' => null, 'status' => 410]);
     resolve(SaveRedirect::class)->handle('/de/old?p=1', 301, '/about');
     resolve(SaveRedirect::class)->handle('/de/old', 301, '/about', 'en');
+    // As stored before `media` was reserved: `/en/media/old` is no route of Kami's, so it still redirects.
+    DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'en', 'path' => 'media/old', 'entry_id' => null, 'target' => '/about', 'status' => 301]);
     DB::table('kami_paths')->insert(['id' => strtolower((string) Str::ulid()), 'site' => 'default', 'locale' => 'en', 'path' => 'articles?page=2', 'entry_id' => null, 'target' => '/about', 'status' => 302]);
     config(['kami.sites.default.locales' => ['fr', 'en', 'de']]);
 
@@ -205,9 +207,9 @@ it('warns about stored Paths that a Locale, a segment Kami answers, an Archive o
         ->expectsOutputToContain('6 Paths are hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: /de/about, /en/articles, /en/articles/feed, /feed, /media, ….')
         ->expectsOutputToContain('Fix: change their slug, or their type\'s Prefix')
         ->expectsOutputToContain('docs/guide/routing-and-rendering.md#reserved-paths')
-        // `/en/de/old` is no other Locale's address: a Locale segment comes first only.
+        // Neither `/en/de/old` nor `/en/media/old`: a Locale's code and Kami's own segments come first only.
         ->expectsOutputToContain('3 Redirect sources are hidden by a Locale code, a segment Kami answers itself, an Archive or a Feed: /de/old?p=1, /en/articles?page=2, /kami.')
-        ->expectsOutputToContain('Fix: delete them on the Redirects screen')
+        ->expectsOutputToContain('Fix: delete them on the Redirects page')
         ->expectsOutputToContain('docs/guide/redirects.md#hidden-sources')
         ->assertFailed();
 

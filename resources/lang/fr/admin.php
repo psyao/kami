@@ -276,7 +276,7 @@ return [
             'status' => 'Statut',
             'kind' => 'Cible',
             'entry' => 'Entrée',
-            'target' => 'Adresse',
+            'address' => 'Adresse',
         ],
         'statuses' => [
             301 => '301 : déplacée définitivement',

@@ -276,7 +276,7 @@ return [
             'status' => 'Status',
             'kind' => 'Target',
             'entry' => 'Entry',
-            'target' => 'Address',
+            'address' => 'Address',
         ],
         'statuses' => [
             301 => '301: moved for good',

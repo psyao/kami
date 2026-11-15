@@ -30,6 +30,7 @@ final class ManageRedirects extends ManageRecords
             return $redirect->target;
         }
 
+        // Read again for an id not seen yet: a create or an edit in this request adds a row after the first read.
         if (! array_key_exists($redirect->entry_id, $this->titles)) {
             $records = $this->getTableRecords();
             $ids = collect($records instanceof Collection ? $records : $records->items())->pluck('entry_id')->filter()->unique()->values()->all();
@@ -37,7 +38,7 @@ final class ManageRedirects extends ManageRecords
             $this->titles = EntryResource::pickerTitles($ids, $this) + array_fill_keys([...$ids, $redirect->entry_id], null);
         }
 
-        return $this->titles[$redirect->entry_id] ?? $redirect->entry_id;
+        return $this->titles[$redirect->entry_id] ?? __('kami::admin.fields.untitled');
     }
 
     protected function getHeaderActions(): array

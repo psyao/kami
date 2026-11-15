@@ -20,6 +20,11 @@ it('lists the Redirects and opens their form, the page and its modal clean under
     $page->click('internal:role=button[name="New redirect"i]')->assertSee('The address visitors arrive at');
     // Once the modal's opening transition ends: axe would read the page behind it half-faded.
     $page->wait(1);
+    assertAxeClean($page, admin: true);
+
+    // The edit modal: the source and Locale disabled, their help changed.
+    $page->navigate('/admin/redirects')->click('internal:role=button[name="Edit"i] >> nth=0')->assertSee('To change the source, delete this Redirect');
+    $page->wait(1);
     assertAxeClean($page, admin: true)
         ->assertNoJavaScriptErrors();
 });

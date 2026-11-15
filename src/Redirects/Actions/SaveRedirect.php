@@ -19,7 +19,7 @@ use Psyao\Kami\Sites\Internal\Site;
 
 /**
  * Creates or changes the Redirect at a source of the current Site: 301 or 302 to an Entry or an address, or 410 (ADR 0008). Saving a source already
- * redirected changes that Redirect, so an import replays. It does not authorise: the caller checks the actor's Permission first (ADR 0011).
+ * redirected changes that Redirect, so an import replays. It does not authorise: the caller checks the actor's `kami.redirects.manage` Permission first (ADR 0011).
  *
  * Refusals throw Laravel's `ValidationException`, changing nothing: on `source` for an address no request reaches, one Kami, an Archive, a Feed or
  * another Locale answers, or an Entry's current Path; on `status`; on `target` for a 301 or 302 with none, a 410 with one, an Entry with no address,

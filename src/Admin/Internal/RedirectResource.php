@@ -83,7 +83,7 @@ final class RedirectResource extends FilamentResource
         // The source and Locale are what `SaveRedirect` saves by: changed on an edit, they would leave the old Redirect behind.
         $kept = fn (?Redirect $record): bool => $record instanceof Redirect;
         $gone = fn (Get $get): bool => in_array($get('status'), [410, '410'], true);
-        $targets = fn (string $kind): Closure => fn (Get $get): bool => ! $gone($get) && $get('kind') === $kind;
+        $shownFor = fn (string $kind): Closure => fn (Get $get): bool => ! $gone($get) && $get('kind') === $kind;
 
         return $schema->columns(1)->components([
             TextInput::make('source')->label(__('kami::admin.redirects.fields.source'))
@@ -96,17 +96,17 @@ final class RedirectResource extends FilamentResource
             ToggleButtons::make('status')->label(__('kami::admin.redirects.fields.status'))
                 ->options(self::statuses())->default(301)->inline()->live()->required(),
             ToggleButtons::make('kind')->label(__('kami::admin.redirects.fields.kind'))
-                ->options(['entry' => __('kami::admin.redirects.fields.entry'), 'url' => __('kami::admin.redirects.fields.target')])
+                ->options(['entry' => __('kami::admin.redirects.fields.entry'), 'url' => __('kami::admin.redirects.fields.address')])
                 ->default('entry')->inline()->live()
                 ->hidden($gone),
             Select::make('entry')->label(__('kami::admin.redirects.fields.entry'))
                 ->searchable()
                 ->getSearchResultsUsing(fn (string $search, mixed $livewire): array => EntryResource::linkableTitles($search, $livewire))
                 ->getOptionLabelUsing(fn (mixed $value, mixed $livewire): ?string => is_string($value) ? EntryResource::pickerTitles([$value], $livewire)[$value] ?? null : null)
-                ->visible($targets('entry')),
-            TextInput::make('target')->label(__('kami::admin.redirects.fields.target'))
+                ->visible($shownFor('entry')),
+            TextInput::make('target')->label(__('kami::admin.redirects.fields.address'))
                 ->maxLength(2048)
-                ->visible($targets('url')),
+                ->visible($shownFor('url')),
         ]);
     }
 
@@ -174,7 +174,8 @@ final class RedirectResource extends FilamentResource
      */
     private static function whereSource(Builder $query, string $search): Builder
     {
-        return $query->where('path', 'like', '%' . ltrim(mb_strtolower($search), '/') . '%');
+        // `!` escapes LIKE's wildcards, so `attachment_id` matches its `_` alone; query values are stored percent-encoded and searched so.
+        return $query->whereRaw("path like ? escape '!'", ['%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], ltrim(mb_strtolower($search), '/')) . '%']);
     }
 
     /** @return array<int, string> */
@@ -192,16 +193,19 @@ final class RedirectResource extends FilamentResource
     {
         $status = is_numeric($data['status'] ?? null) ? (int) $data['status'] : 0;
         $kind = $status === 410 ? null : $data['kind'] ?? 'entry';
-        $entry = $kind === 'entry' && is_string($data['entry'] ?? null) ? Entry::query()->withUnpublished()->withTrashed()->find($data['entry']) : null;
-        $source = $redirect instanceof Redirect ? "/{$redirect->path}" : (is_string($data['source'] ?? null) ? $data['source'] : '');
-        $locale = $redirect instanceof Redirect ? $redirect->locale : (is_string($data['locale'] ?? null) ? $data['locale'] : null);
+        [$source, $locale] = $redirect instanceof Redirect
+            ? ["/{$redirect->path}", $redirect->locale]
+            : [is_string($data['source'] ?? null) ? $data['source'] : '', is_string($data['locale'] ?? null) ? $data['locale'] : null];
 
         try {
-            return resolve(SaveRedirect::class)->handle($source, $status, match ($kind) {
-                'entry' => $entry ?? (is_string($data['entry'] ?? null) ? throw ValidationException::withMessages(['target' => __('kami::admin.redirects.entry')]) : null),
+            $target = match ($kind) {
+                // An id no Entry holds, hand-posted, is refused as SaveRedirect refuses one in the Trash.
+                'entry' => is_string($data['entry'] ?? null) ? Entry::query()->withUnpublished()->withTrashed()->find($data['entry']) ?? throw ValidationException::withMessages(['target' => __('kami::admin.redirects.entry')]) : null,
                 'url' => is_string($data['target'] ?? null) ? $data['target'] : null,
                 default => null,
-            }, $locale, Filament::auth()->user());
+            };
+
+            return resolve(SaveRedirect::class)->handle($source, $status, $target, $locale, Filament::auth()->user());
         } catch (ValidationException $exception) {
             $errors = [];
 

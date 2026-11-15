@@ -81,6 +81,10 @@ it('searches by source, its leading slash optional, and filters by status', func
         ->searchTable('/blo')
         ->assertCanSeeTableRecords([$blog])
         ->assertCanNotSeeTableRecords([$news, $gone])
+        // `_` is no wildcard: it matches the underscore alone.
+        ->searchTable('_')
+        ->assertCanSeeTableRecords([$gone])
+        ->assertCanNotSeeTableRecords([$blog, $news])
         ->searchTable('news')
         ->assertCanSeeTableRecords([$news])
         ->assertCanNotSeeTableRecords([$blog])
@@ -109,7 +113,7 @@ it('creates Redirects to an Entry, to an address and 410 through SaveRedirect, i
         ->and(AuditEvent::query()->where('event', 'kami.redirects.created')->count())->toBe(3);
 });
 
-it('shows SaveRedirect\'s refusals on the form\'s inputs', function (array $data, string $input): void {
+it('shows refusals on the form\'s inputs, SaveRedirect\'s and an undeclared Locale', function (array $data, string $input): void {
     $live = redirectScreenPage('À propos');
     resolve(SaveRedirect::class)->handle('/old', 301, '/new');
     $data = array_map(fn (mixed $value): mixed => $value === 'LIVE' ? $live->id : $value, $data);
