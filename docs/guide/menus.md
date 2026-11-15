@@ -109,6 +109,7 @@ Every change goes through the actions below, so the Audit log and the page cache
 
 Editors write items in the admin ([above](#the-admin)). Your seeders and importers write them through the same three actions, which do not authorise: code calling them from a request checks `kami.menus.manage` first.
 
+<!-- kami:example menu -->
 ```php
 use Psyao\Kami\Menus\Actions\DeleteMenuItem;
 use Psyao\Kami\Menus\Actions\MoveMenuItem;

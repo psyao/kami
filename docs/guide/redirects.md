@@ -20,6 +20,7 @@ Every change goes through `SaveRedirect` and `DeleteRedirect`, so the Audit log 
 
 `SaveRedirect` takes a source, a status and a target:
 
+<!-- kami:example redirect -->
 ```php
 use Psyao\Kami\Redirects\Actions\SaveRedirect;
 
@@ -37,6 +38,7 @@ $redirects->handle('/press', 302, 'https://example.com/press', locale: 'en');
 
 Saving a source that already redirects changes that Redirect, Kami's own included, so an import can run again. `DeleteRedirect` removes one:
 
+<!-- kami:example redirect -->
 ```php
 use Psyao\Kami\Redirects\Actions\DeleteRedirect;
 use Psyao\Kami\Redirects\Redirect;
@@ -73,7 +75,10 @@ The last rule keeps visitors to one Redirect: point to the destination instead. 
 
 `Psyao\Kami\Redirects\Redirect` reads the Redirects, never a current address. `path` holds the source, `status` its status, `entry_id` or `target` its target, and `entry` the target Entry while it is visible:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Redirects\Redirect;
+
 Redirect::query()->where('locale', 'fr')->with('entry')->orderBy('path')->get();
 ```
 
@@ -87,7 +92,10 @@ A Redirect saved before a Locale, an Archive or a Feed was declared at its addre
 
 A Redirect holds one exact address. A pattern, such as every `/page/{n}`, stays a route in your application:
 
+<!-- kami:example -->
 ```php
+use Illuminate\Support\Facades\Route;
+
 Route::get('/page/{n}', fn () => redirect('/articles', 301))->whereNumber('n');
 ```
 

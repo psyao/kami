@@ -44,6 +44,27 @@ tests/engine.sh mariadb composer test:lowest
 
 `tests/Pest.php` maps each directory to its test case: a new suite directory needs a line there and in `phpunit.xml.dist`. `composer test:coverage` runs the `Kami` suite in parallel with coverage; it needs pcov or Xdebug and fails under 90 % of `src/` outside `Admin`. The `Install` suite does not count towards it.
 
+## Guide examples
+
+A PHP example in `docs/guide/` that can run is marked, on the line right before its fence, and `GuideExamplesTest` runs it in the `Kami` suite against the Workbench Site, on a fresh database. A guide that adds or changes an example marks it in the same pull request, so a wrong example fails in the pull request that writes it (#618). The marker is an HTML comment, which GitHub and the Boost resources do not show:
+
+````markdown
+<!-- kami:example -->
+```php
+use App\Content\Article;
+use Psyao\Kami\Content\Entry;
+
+Entry::query()->ofType(Article::class)->get();
+```
+````
+
+- **As written.** The example runs with its own `use` lines: a marked example names every class it uses, so a reader can copy it whole. Its `App\` classes read as the Workbench's (`App\Content\Article` is `Workbench\App\Content\Article`), or as `tests/Fixtures/Guide`'s where the Workbench has none, such as `App\Content\Product`. Each example runs in a namespace of its own, which replaces its `namespace` line, so two guides may both declare a `Post`.
+- **A setup.** `<!-- kami:example article -->` names a setup in `GuideExamplesTest`, which gives the example its variables (`$entry`, `$request`…) and may exercise what it declares: `velox` runs the importer `imports.md` declares, as a deploy would. Without one, a declared class is only declared, checking its syntax, its parent and its interfaces. A new setup goes next to the others, with a line saying what it gives.
+- **On failure.** The test names the example by guide and fence line, `content-types.md:9 fails: …`, and a marker anywhere but right before a ```` ```php ```` fence fails the same way. A fatal error, such as a class leaving an abstract method out, stops the run and names the example in its namespace (`Example12_forms_md_261`).
+- **Left unmarked.** A fragment that is not PHP on its own (a `config/kami.php` key, a `lang/` file, a Field ending in a comma to go in `fields()`, a chained `->plugin(…)` call, a method body, a class with `// …` in place of a method it needs), an example needing a server or another request (`public/index.php`, a Pest test), a piece of the admin built outside its Filament page (a schema, an action, a column), a site class with no Workbench or fixture counterpart (`HandleInertiaRequests`, `ContactController`, a model of the site's), an example the Workbench Site cannot satisfy (a Field it does not declare, a type already translatable to make translatable), and an example that declares a type and uses it at once, which needs it in `kami.types` first.
+
+`tests/Kami/FormsTest.php` and `FrontStacksTest.php` test the Forms guide's own Livewire component through `registerGuideContact()` in `tests/Pest.php`, with the view the guide leaves to the site from `tests/Fixtures/livewire/`: no test keeps a copy of a guide's code.
+
 ## Git hooks
 
 `composer install` installs lefthook's hooks once the checkout is a Git repository, outside GitHub Actions; gitleaks comes from Homebrew (`brew install gitleaks`).

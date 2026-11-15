@@ -6,6 +6,7 @@ Users belong to your application: Kami adds no `users` table and no login of its
 
 The model of the guard your panel signs Users in with implements `KamiUser`, with the `HasKamiRoles` trait:
 
+<!-- kami:example -->
 ```php
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -49,6 +50,7 @@ Roles are edited in code and deployed, never in the admin.
 
 Every change to a User's Roles goes through the `AssignRoles` action, whoever makes it: the admin's [Users screen](#the-users-screen), `kami:install`, `kami:user:grant` or your own code, a seeder for instance. It takes the full list of Roles the User should hold, so a Role left out is revoked:
 
+<!-- kami:example roles -->
 ```php
 use Psyao\Kami\Users\Actions\AssignRoles;
 
@@ -242,7 +244,10 @@ A [bulk action](content-types.md#bulk-actions) checks these on each row as the r
 
 Each Permission is a Laravel Gate, so your own code checks it the usual way:
 
+<!-- kami:example roles -->
 ```php
+use Illuminate\Support\Facades\Gate;
+
 $user->can('kami.entries.article.publish');
 
 Gate::authorize('kami.users.manage');
@@ -264,9 +269,13 @@ Kami's admin checks every action through its policies. Turn on Filament's strict
 
 Who may sign in to the panel stays your User model's `canAccessPanel()`. A site whose only Users are its editors admits those holding a Kami Role:
 
+<!-- kami:example -->
 ```php
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Psyao\Kami\Users\HasKamiRoles;
+use Psyao\Kami\Users\KamiUser;
 
 class User extends Authenticatable implements FilamentUser, KamiUser
 {

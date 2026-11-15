@@ -7,14 +7,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
-use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Livewire;
 use Psyao\Kami\Content\Actions\SaveEntry;
 use Psyao\Kami\Content\ContentType;
 use Psyao\Kami\Content\Entry;
 use Psyao\Kami\Facades\Kami;
-use Psyao\Kami\Forms\Actions\SubmitForm;
 use Psyao\Kami\Forms\Submission;
 use Symfony\Component\HttpFoundation\Response;
 use Workbench\App\Content\Article;
@@ -47,37 +45,6 @@ final class Counter extends Component
     }
 }
 
-/** A Livewire contact form calling Kami's visitor checks, as `docs/guide/forms.md` shows it. */
-final class LivewireContact extends Component
-{
-    public Entry $entry;
-
-    #[Locked]
-    public string $locale = 'fr';
-
-    public string $name = '';
-
-    public string $email = '';
-
-    public string $message = '';
-
-    public string $kami_website = '';
-
-    public bool $sent = false;
-
-    public function send(SubmitForm $submit): void
-    {
-        $this->resetErrorBag();
-        $submit->handle('contact', $this->only(['name', 'email', 'message', SubmitForm::HONEYPOT]), $this->entry, $this->locale);
-        $this->sent = true;
-    }
-
-    public function render(): string
-    {
-        return '<form wire:submit="send"></form>';
-    }
-}
-
 /** Laravel's origin check as a browser meets it: the framework skips it under unit tests. */
 final class PreventRequestForgeryInTests extends PreventRequestForgery
 {
@@ -95,7 +62,7 @@ beforeEach(function () {
     withLivewireAssets();
     config(['kami.page_cache.enabled' => true, 'kami.types' => [Article::class, LivewirePage::class]]);
     Livewire::component('counter', Counter::class);
-    Livewire::component('livewire-contact', LivewireContact::class);
+    registerGuideContact();
     LivewirePage::$body = '<livewire:counter />';
 });
 
@@ -177,7 +144,7 @@ it('runs a cookie-less update from the same origin, setting the session cookie, 
 ]);
 
 it('stores a Submission through SubmitForm from a Livewire action', function (bool $session) {
-    LivewirePage::$body = '<livewire:livewire-contact :entry="$entry" />';
+    LivewirePage::$body = '<livewire:contact :entry="$entry" />';
     $entry = livewirePage($session);
     $page = $this->get('/livewire_page/hello-world');
 

@@ -6,6 +6,7 @@
 
 An importer is a command of your site, named `app:import:<source>`: Kami ships no runner. It opens a run, hands over one source item at a time, then closes the run:
 
+<!-- kami:example velox -->
 ```php
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -64,7 +65,10 @@ final class ImportVelox extends Command
 
 `media()` imports a file into the [Media library](media.md), keyed and replayed like an Entry. It takes the item's source, its Legacy id, the path of a local file, its text by Locale and, optionally, its original creation and modification dates:
 
+<!-- kami:example velox -->
 ```php
+use Carbon\CarbonImmutable;
+
 $import->media('velox.file', (string) $file->id, storage_path("import/velox/{$file->path}"), [
     'fr' => ['alt' => $file->alt_fr, 'credit' => $file->credit],
     'en' => ['alt' => $file->alt_en],
@@ -81,7 +85,11 @@ $import->media('velox.file', (string) $file->id, storage_path("import/velox/{$fi
 
 `submission()` copies a message sent through a [Form](forms.md) in the old system. It takes the Form, as an instance or by its handle, the values, the Locale of the page it was sent from, its original sending date and, optionally, when it was read and the Entry it was sent from:
 
+<!-- kami:example velox -->
 ```php
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
+
 DB::connection('velox')->table('contact_messages')->orderBy('id')->chunk(200, function ($messages) use ($import): void {
     foreach ($messages as $message) {
         $import->submission('contact', [
@@ -123,6 +131,7 @@ To resume an interrupted run, run it again: what was done is skipped.
 
 An item may link to another one the run has not reached yet. Resolve each link through `find()` on the first pass, keeping the old URL when it returns `null`, then run over the items again: `find()` returns the Entry imported under a source and a Legacy id, by this run or an earlier one, or `null`, also for an Entry in the Trash, which a relation Field refuses as a target.
 
+<!-- kami:example velox -->
 ```php
 $target = $import->find('velox.post', (string) $link->post_id);
 ```

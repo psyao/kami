@@ -8,6 +8,7 @@ A type's `render()` returns any response ([Routing and rendering](routing-and-re
 
 A component in a page of `Kami::routes()` works as is:
 
+<!-- kami:example -->
 ```php
 // app/Livewire/Likes.php
 namespace App\Livewire;

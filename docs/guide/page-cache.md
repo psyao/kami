@@ -74,7 +74,12 @@ A response that sets a cookie is never stored either, so a page in a host's sess
 
 Kami caches nothing of its own while it renders: a page stays within its query budget uncached. For an expensive part of your own, `Kami::remember($key, $ttl, $callback)` caches it on Laravel's default cache store until the next Content version or its TTL:
 
+<!-- kami:example -->
 ```php
+use App\Content\Article;
+use Psyao\Kami\Content\Entry;
+use Psyao\Kami\Facades\Kami;
+
 $articles = Kami::remember('home-articles', now()->addDay(), fn () => Entry::query()->ofType(Article::class)->limit(5)->get());
 ```
 

@@ -6,6 +6,7 @@ Each Site has one Media library: images and documents, stored once and reference
 
 `SaveMedia` stores a file in the library, from an upload or a local path, the same way from a controller, a seeder or a command. It does not check Permissions: the caller does ([Users and roles](users-and-roles.md)). Nor does it restrict a path: it reads any local file the PHP process can, so never pass it a path a visitor chose.
 
+<!-- kami:example media -->
 ```php
 use Psyao\Kami\Media\Actions\SaveMedia;
 
@@ -39,7 +40,10 @@ The original is kept on `kami.media.originals_disk`, private by default, with it
 
 `SaveMedia` writes the alt text and caption in one Locale, the default one unless its fourth argument names another. Pass the Media item as the third argument to change its text without touching its file:
 
+<!-- kami:example media -->
 ```php
+use Psyao\Kami\Media\Actions\SaveMedia;
+
 $media = app(SaveMedia::class)->handle(null, ['alt' => 'L’équipe sur la terrasse'], $media, 'fr');
 $media = app(SaveMedia::class)->handle(null, ['credit' => 'Ada Lovelace', 'decorative' => true], $media);
 ```
@@ -55,7 +59,10 @@ A value left out keeps its stored one. Text is trimmed, and `''` or whitespace a
 
 An image is missing its alt text when it is not decorative and its alt text in the Site's default Locale is blank, whatever the other Locales hold. The `missingAlt` scope finds them:
 
+<!-- kami:example -->
 ```php
+use Psyao\Kami\Media\Media;
+
 Media::query()->missingAlt()->count();
 ```
 
@@ -69,7 +76,10 @@ A missing alt text never blocks anything, but it stays in sight:
 
 Pass a file and the Media item to replace its file. The item keeps its id, so every Entry referencing it keeps it, along with its alt text, caption, credit and `decorative`:
 
+<!-- kami:example media -->
 ```php
+use Psyao\Kami\Media\Actions\SaveMedia;
+
 $media = app(SaveMedia::class)->handle($request->file('photo'), media: $media, actor: $request->user());
 ```
 
@@ -79,7 +89,10 @@ The new file goes through the same checks as an upload, and must be of the same 
 
 `DeleteMedia` deletes a Media item for good: its row, its alt text and caption in every Locale, its original and every file served from it. There is no Media trash.
 
+<!-- kami:example media -->
 ```php
+use Psyao\Kami\Media\Actions\DeleteMedia;
+
 app(DeleteMedia::class)->handle($media, actor: $request->user());
 ```
 
@@ -120,6 +133,7 @@ Saving an image in the default Locale requires its alt text, unless it is marked
 
 `Media` is an Eloquent model of the library. An Entry links it through a [Media Field](content-types.md#media), which loads it with its Translations:
 
+<!-- kami:example media -->
 ```php
 use Psyao\Kami\Media\Media;
 
@@ -232,6 +246,7 @@ Kami ships four presets, whose handles yours cannot take:
 
 `url()` gives the absolute URL of a Conversion:
 
+<!-- kami:example media -->
 ```php
 $media->url('card', 640);   // https://example.com/media/01jd…/3f9a0c1e/card-640.jpg
 $media->url('card', 640, 'avif');   // …/card-640.avif, where this host encodes AVIF
@@ -251,6 +266,7 @@ Kami answers 404, and generates nothing, for any Media item, preset, width or fo
 
 A document, such as a PDF, and an SVG are served unchanged, byte for byte, under the name they were uploaded with, slugged:
 
+<!-- kami:example media -->
 ```php
 $brochure->url();           // https://example.com/media/01jd…/5e0c41a7/annual-report.pdf
 $brochure->url('file');     // the same

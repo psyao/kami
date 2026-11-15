@@ -32,6 +32,7 @@ use Psyao\Kami\Media\Internal\PublicMedia;
 use Psyao\Kami\Support\Internal\WebEnvironment;
 use Psyao\Kami\Tests\Fixtures\Inertia\HandleInertiaRequests;
 use Psyao\Kami\Tests\Fixtures\Inertia\InertiaPage;
+use Psyao\Kami\Tests\GuideExamples;
 use Psyao\Kami\Tests\Install\InstallTestCase;
 use Psyao\Kami\Tests\TestCase;
 use Symfony\Component\Finder\SplFileInfo;
@@ -86,6 +87,23 @@ function hourlyProbe(object $test, string $name = 'probe'): CallbackEvent
     return $test->schedule->call(function () use ($test, $name): void {
         $test->runs[] = $name;
     })->name($name)->hourly();
+}
+
+/** Registers the Forms guide's own Livewire component as `contact`, evaluated once per process, with the view the guide leaves to the site; returns its name. */
+function registerGuideContact(): string
+{
+    static $class = null;
+
+    if ($class === null) {
+        [$name, , $code] = collect(GuideExamples::in(dirname(__DIR__) . '/docs/guide/forms.md'))->first(fn (array $example): bool => str_contains($example[2], 'final class Contact extends Component'))
+            ?? throw new LogicException('forms.md marks no Contact component.');
+        $class = GuideExamples::evaluate($name, $code) . '\\Contact';
+    }
+
+    config(['livewire.view_path' => fixture('livewire')]);
+    Livewire::component('contact', $class);
+
+    return 'contact';
 }
 
 /** The authenticator secret of the Users `withMfa()` sets up. */
