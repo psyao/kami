@@ -142,7 +142,7 @@ it('leaves out a Translation the User may not edit: every one without update, a 
     ];
 
     expect(searchResults(entriesPage(GlobalSearch::class, ['kami.entries.article.view', ...$permissions], type: null), 'vevey'))
-        ->toBe($shown === [] ? [] : ['Articles' => array_values(array_intersect_key($results, array_flip($shown)))]);
+        ->toBe($shown === [] ? [] : ['Articles' => array_map(fn (string $key): array => $results[$key], $shown)]);
 })->with([
     'view only' => [[], []],
     'update' => [['kami.entries.article.update'], ['draft']],

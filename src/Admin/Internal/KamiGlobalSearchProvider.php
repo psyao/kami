@@ -36,6 +36,7 @@ final class KamiGlobalSearchProvider extends DefaultGlobalSearchProvider
             ->where(fn (Builder $where): Builder => $where->whereLike('title', "%{$query}%")->orWhereLike('slug', "%{$query}%"));
 
         // Ordered, so a search past the limit returns the same Entries on every engine.
+        // ponytail: the limit counts Entries before the policy leaves out what the User may not edit, so one without `publish` may see fewer hits than match. V1 if an editor meets it.
         $entries = Entry::query()->withUnpublished()
             ->whereIn('type', $types)
             ->whereHas('translations', $matching)
