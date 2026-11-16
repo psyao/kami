@@ -5,6 +5,7 @@
     <x-kami::seo />
 </head>
 <body>
+    <x-kami::locales />
     <main>
         <ul>
             @foreach ($entries as $post)

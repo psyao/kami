@@ -165,6 +165,21 @@ it('gives the first page a canonical and language links, and a cursor page noind
         ->assertDontSee('hreflang', escape: false);
 });
 
+it('links the first page in every Locale from the language switcher, and a cursor page in none', function () {
+    foreach (range(1, 3) as $day) {
+        savePost("Post {$day}", $day);
+    }
+
+    $first = $this->get('/articles')->assertOk()->assertSeeInOrder([
+        '<nav class="kami-locales" aria-label="Langues">',
+        '<li><a href="http://localhost/articles" hreflang="fr" lang="fr" aria-current="page">Français</a></li>',
+        '<li><a href="http://localhost/en/articles" hreflang="en" lang="en">English</a></li>',
+        '</nav>',
+    ], escape: false);
+
+    $this->get(pageLink($first, 'next'))->assertOk()->assertDontSee('kami-locales');
+});
+
 it('lists a hand-ordered type in Position order, leaving out an Entry under a hidden Parent', function () {
     $save = fn (string $title, array $values = []): Entry => resolve(SaveEntry::class)->handle(Chapter::class, ['title' => $title, 'status' => 'published', ...$values]);
     $first = $save('First');
