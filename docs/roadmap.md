@@ -1,13 +1,13 @@
 # Kami roadmap
 
-The plan from an empty repository to the MVP as `docs/brief.md` defines it: **aguet.dev, psyao.ch and steve-et-aline.ch in production on Kami**, then 1.0. It is cut into fourteen milestones, each one ready to go as is into `/to-spec`.
+The plan from an empty repository to the MVP: **aguet.dev in production on Kami, psyao.ch and steve-et-aline.ch imported and proven locally**, then 1.0. `docs/brief.md` defines the MVP as all three sites in production; Steve moved the psyao.ch and steve-et-aline.ch Switch-overs after 1.0 on 2026-11-16, because both sites get a new front first ([#689](https://github.com/psyao/kami/issues/689)). It is cut into fourteen milestones, each one ready to go as is into `/to-spec`.
 
 Every decision here was taken in the wayfinder map ([Wayfinder: architecture and milestone roadmap](https://github.com/psyao/kami/issues/1)); the full record is the resolution of [Milestone roadmap](https://github.com/psyao/kami/issues/32#issuecomment-6427221046). This document restates it for use and adds no decision. The architecture it builds is in `docs/architecture.md`, the reasons in `docs/adr/`, the vocabulary in `GLOSSARY.md`.
 
 ## How the roadmap works
 
-- **Capability milestones first, then the sites.** M1-M8 build Kami up to what aguet.dev needs, starting with a walking skeleton (one Content Type declared, edited in the admin, published and rendered at its Path, in two Locales) that later milestones widen layer by layer. Then each site gets one "what this site lacks" milestone and a separate Switch-over milestone, in the order **aguet.dev → psyao.ch → steve-et-aline.ch**. 1.0 comes last.
-- **No leftovers milestone.** A feature no reference site uses lands in the milestone that builds its subsystem, so each subsystem's public API settles at once. A costly one goes to the latest milestone of its layer, never after steve-et-aline.ch's Switch-over.
+- **Capability milestones first, then the sites.** M1-M8 build Kami up to what aguet.dev needs, starting with a walking skeleton (one Content Type declared, edited in the admin, published and rendered at its Path, in two Locales) that later milestones widen layer by layer. Then each site gets one "what this site lacks" milestone and a separate milestone that moves its content, in the order **aguet.dev → psyao.ch → steve-et-aline.ch**: aguet.dev's Switch-over, then psyao.ch's and steve-et-aline.ch's imports, proven locally; their Switch-overs come after 1.0, each with its new front. 1.0 comes last.
+- **No leftovers milestone.** A feature no reference site uses lands in the milestone that builds its subsystem, so each subsystem's public API settles at once. A costly one goes to the latest milestone of its layer, never after steve-et-aline.ch's import.
 - **Size.** One milestone is one spec readable in one sitting: about 8 to 15 tickets of a few hours to a day, each leaving the project stable, tested and documented. A spec that grows past that splits in two at `/to-spec`, without reopening this roadmap.
 - **Working order is the numbering.** Dependencies below are the real ones; M6 and M12 could move earlier, but the numbering is the plan.
 - **GitHub Milestones.** `/to-spec` creates one GitHub Milestone per roadmap milestone, named `M3 Content modelling` and so on. It holds the spec issue, its tickets and any `friction` or bug issue handled during it. Switch-over tickets live in `psyao/kami` too, under the site's Milestone; the site code stays in the site's private repository, which tickets name without pasting its content or URL inventories (ADR 0031).
@@ -27,9 +27,9 @@ Every decision here was taken in the wayfinder map ([Wayfinder: architecture and
 | M8 | Forms & scheduler | Simple Forms with deliveries, mail, the Tick and the queue |
 | M9 | aguet.dev switch-over | `Import` in the core, then aguet.dev in production on Kami without content or URL loss | M4-M8 |
 | M10 | Editorial (psyao.ch) | What a blog needs beyond aguet.dev: Blocks, internal links, Archives, Feeds, hierarchical URLs, Menus, Redirect management |
-| M11 | psyao.ch switch-over | psyao.ch in production on Kami, WordPress retired |
+| M11 | psyao.ch import | psyao.ch's content and former URLs in Kami, proven locally on a production dump |
 | M12 | Media at scale (steve-et-aline.ch) | Media Folders, Focal point, galleries of hundreds of pictures within budget |
-| M13 | steve-et-aline.ch switch-over | steve-et-aline.ch in production on Kami, WordPress retired |
+| M13 | steve-et-aline.ch import | steve-et-aline.ch's content, pictures and former URLs in Kami, proven locally on a production dump |
 | M14 | 1.0 | The stability promise starts |
 
 ```mermaid
@@ -48,9 +48,9 @@ flowchart LR
     M7 --> M9
     M8 --> M9
     M9 --> M10[M10 Editorial]
-    M10 --> M11[M11 psyao.ch switch-over]
+    M10 --> M11[M11 psyao.ch import]
     M5 --> M12[M12 Media at scale]
-    M11 --> M13[M13 steve-et-aline.ch switch-over]
+    M11 --> M13[M13 steve-et-aline.ch import]
     M12 --> M13
     M13 --> M14[M14 1.0]
 ```
@@ -61,7 +61,7 @@ flowchart LR
 - Public surface snapshot reviewed; any removed or changed line comes with a `!` commit.
 - `docs/guide/` updated in the same pull request as the behaviour; `docs/reference/` fresh.
 - New `x-kami::` components pass axe at level 3, new Kami admin pages at level 1.
-- End-of-milestone ritual: the playground updated locally (`composer update` + `kami:install`), the milestone's features tried from the documentation only, `kami:doctor --strict` clean; every problem met becomes a `friction` issue. The playground is also deployed to Infomaniak staging, with `kami:doctor --strict` clean there, at M1 and at every milestone that touches rendering or switches a site over (M2, M5, M7, M9, M10, M11, M12, M13).
+- End-of-milestone ritual: the playground updated locally (`composer update` + `kami:install`), the milestone's features tried from the documentation only, `kami:doctor --strict` clean; every problem met becomes a `friction` issue. The playground is also deployed to Infomaniak staging, with `kami:doctor --strict` clean there, at M1 and at every milestone that touches rendering or switches a site over (M2, M5, M7, M9, M10, M12).
 - Milestones that touch rendering (M2, M5, M7, M10, M12) end with `kami:bench` on Infomaniak staging, within the budgets of ADR 0021; M2 and M5, before `kami:bench` exists, measured the uncached TTFB with a `curl` loop, which `kami:bench` replaced.
 - Before the release, prose in `docs/guide/` and `README.md` that names the coming version ("Until 0.x") goes.
 - Before the release, `/code-review high` on what the milestone adds to `src` and `database`, with its defects fixed or filed. The steps and the ticket are in `docs/agents/milestone-ritual.md`.
@@ -181,16 +181,16 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **Acceptance.** psyao.ch's content model is declarable as in its research note; Feeds and Archives are valid; legacy query-string URLs answer 301 and key-only ones 410.
 
-### M11 psyao.ch switch-over
+### M11 psyao.ch import
 
-**Objective.** psyao.ch in production on Kami, WordPress retired.
+**Objective.** psyao.ch's content and every former URL carried into Kami, proven locally on a production dump. Its new front and its Switch-over come after 1.0.
 **Depends on.** M10.
 
 **MVP features.** None.
 
-**Also.** `app:import:wordpress` ported onto `Import`; the Switch-over plan of [psyao.ch and steve-et-aline.ch migration from WordPress](https://github.com/psyao/kami/issues/35#issuecomment-6426261236).
+**Also.** `app:import:wordpress` ported onto `Import`, with the import decisions of [psyao.ch and steve-et-aline.ch migration from WordPress](https://github.com/psyao/kami/issues/35#issuecomment-6426261236); minimal site views.
 
-**Acceptance.** Each of the 558 former URLs replays to one 301 then a 200, or to its 410; psyao.ch runs in production; WordPress is unreachable, then archived after 30 days.
+**Acceptance.** On a local restore of a production dump, `app:import:wordpress` passes its count check, each of the 558 former URLs replays to one 301 then a 200, or to its 410, and a second run writes nothing. WordPress stays in production.
 
 ### M12 Media at scale (steve-et-aline.ch)
 
@@ -203,16 +203,16 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **Acceptance.** A 718-picture Gallery page stays within the query and weight budgets; changing the Focal point changes the Conversion URL; the Volume suite runs at 50,000 Media.
 
-### M13 steve-et-aline.ch switch-over
+### M13 steve-et-aline.ch import
 
-**Objective.** steve-et-aline.ch in production on Kami, WordPress retired.
+**Objective.** steve-et-aline.ch's content, pictures and every former URL carried into Kami, proven locally on a production dump. Its new front and its Switch-over come after 1.0.
 **Depends on.** M11, M12.
 
 **MVP features.** None.
 
-**Also.** Gallery Content Type and Block in the site's code; CLI import of the 720 MB of originals; the Switch-over plan of [psyao.ch and steve-et-aline.ch migration from WordPress](https://github.com/psyao/kami/issues/35#issuecomment-6426261236).
+**Also.** Gallery Content Type and Block in the site's code; CLI import of the 720 MB of originals; the import decisions of [psyao.ch and steve-et-aline.ch migration from WordPress](https://github.com/psyao/kami/issues/35#issuecomment-6426261236).
 
-**Acceptance.** Each of the 1,233 former URLs replays; all 1,105 pictures are present; steve-et-aline.ch runs in production.
+**Acceptance.** On a local restore of a production dump and its originals, each of the 1,233 former URLs replays and all 1,105 pictures are present. WordPress stays in production.
 
 ### M14 1.0
 
@@ -223,7 +223,7 @@ MVP features are numbered in the order of the MVP section of `docs/comparatif-cm
 
 **Also.** `kami:types`: Larastan stubs for Field values, generated from the declarations (ADR 0007), once every Field type exists.
 
-**Acceptance.** The three sites run in production on one 0.x release; 30 days pass without a breaking release; the public surface snapshot is reviewed; 1.0.0 is tagged (ADR 0035).
+**Acceptance.** aguet.dev runs in production on one 0.x release, and psyao.ch's and steve-et-aline.ch's imports pass their acceptance on that release; 30 days pass without a breaking release; the public surface snapshot is reviewed; 1.0.0 is tagged (ADR 0035).
 
 ## Deferred to V1
 

@@ -2,7 +2,7 @@
 
 This covers the `kami_*` migrations shipped by the package, not the ones sites generate with `kami:make-migration` (ADR 0006). Until a release is deployed to production, nobody has data to protect, so migrations are edited in place. From the release the first production site deploys onwards, they are append-only: that release is 0.9.0, which aguet.dev goes to production on (amended in #549). No squash happens during 0.x. The one exception in 0.x is 1.0 itself, which may squash with the last 0.x as its Upgrade floor. After 1.0, a squash happens only in a major, with the last minor of the previous major as its floor. `kami:doctor` checks the floor, so `kami:install` stops the deploy of a site that skips it.
 
-Velox squashed its migrations three times in 0.x (its ADR 0012: floors 0.11, 0.15 and 0.18). Each squash was a breaking release with an "update to 0.N first" step, kept the same file names, and failed silently at `migrate` (nothing to run), then loudly on the first page. Kami's three reference sites run in production on 0.x before 1.0, which is reached only once all three do ("Release policy and licence", #30), so the same churn would break all three every time.
+Velox squashed its migrations three times in 0.x (its ADR 0012: floors 0.11, 0.15 and 0.18). Each squash was a breaking release with an "update to 0.N first" step, kept the same file names, and failed silently at `migrate` (nothing to run), then loudly on the first page. Kami's reference sites run on 0.x before 1.0 ("Release policy and licence", #30): aguet.dev in production, psyao.ch and steve-et-aline.ch imported into it, their Switch-overs moved after 1.0 (amended in #689). The same churn would break each of them every time.
 
 ## Considered options
 

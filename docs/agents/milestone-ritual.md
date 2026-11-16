@@ -2,7 +2,7 @@
 
 `/to-tickets` makes the ritual the milestone's last ticket, `ready-for-human`, blocked by every other one. What it must meet is in `docs/roadmap.md` § Acceptance criteria for every milestone; these are the steps, in order.
 
-A switch-over spec lists what the old site does that a visitor or editor sees. An acceptance exception that changes one (a new visual baseline, a dropped interaction) needs Steve's explicit yes, recorded in the spec: M9's "byte-identical except the contact modal" hid a reload Steve counted as a regression at the cut-over. The switch-over's first migration ticket restores a production snapshot and replays the URL inventory, so code never rests on an invented fixture (M9 found media on the private disk and a missing `/en/` 301 only at the rehearsal).
+A spec that imports or switches over a site lists what the old site does that a visitor or editor sees. An acceptance exception that changes one (a new visual baseline, a dropped interaction) needs Steve's explicit yes, recorded in the spec: M9's "byte-identical except the contact modal" hid a reload Steve counted as a regression at the cut-over. Its first migration ticket restores a production snapshot and replays the URL inventory, so code never rests on an invented fixture (M9 found media on the private disk and a missing `/en/` 301 only at the rehearsal).
 
 What a later step or session needs (briefs, findings, Steve's decisions) goes in a comment on the ritual ticket, never only in a local notes file: other sessions read the repo and the tracker.
 
