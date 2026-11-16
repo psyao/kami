@@ -4,7 +4,7 @@ One session per ticket, on a plain branch in the main checkout. Among sessions t
 
 ## Brief
 
-The parent session starts the ticket's session with the ticket number, the context `GLOSSARY.md`, ADRs and the tracker do not give, and at most three earlier tickets whose hand-over to read, plus the spec's sections that bear on the ticket: the facts it needs from the others go in the brief itself. A version number in a brief follows `docs/development.md` § Releases (M9 named 0.10.0 for what released as 0.9.1). The brief ends by pointing here.
+The parent session starts the ticket's session with the ticket number, the context `GLOSSARY.md`, ADRs and the tracker do not give, and at most three earlier tickets whose hand-over to read, plus the spec's sections that bear on the ticket: the facts it needs from the others go in the brief itself. A version number in a brief follows `docs/development.md` § Releases (M9 named 0.10.0 for what released as 0.9.1). The brief points at the steps below rather than restating them: a step it names alone reads as the whole of it (M10's #680, #682 and #683 briefs named `/ponytail:ponytail-review`, and those sessions ran no other review). The brief ends by pointing here.
 
 Work in another repository (the starter kit, the playground) is a session of its own, started with that repository's folder as its working directory; its brief says which steps below apply, the review and the CI check at least. During a milestone, the starter kit's pull requests target `next`, never `main`: `main` only receives `next` at the milestone ritual's After Packagist step (ADR 0039).
 

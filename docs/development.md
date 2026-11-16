@@ -30,7 +30,7 @@ The seeder writes through `SaveEntry` (ADR 0011) about ten Entries, one per stat
 | `Kami` | `tests/Kami/` | Testbench with the Workbench | `composer test`, pre-push, every CI job but Browser and Smoke |
 | `Install` | `tests/Install/` | Testbench without the Workbench, so no panel carries Kami until a test adds it | `composer test`, pre-push, the Coverage job (serial, without coverage) |
 | `Browser` | `tests/Browser/` | The Workbench in Chromium through Playwright | CI; locally as `CLAUDE.md` says, and before a push that changes a Workbench view or component |
-| `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Every pull request and nightly (`volume.yml`) |
+| `Volume` | `tests/Volume/` | The Workbench on 30,000 generated Entries, on a database that outlives one test (not the default in-memory SQLite) | Every pull request and nightly (`volume.yml`); locally `composer test:volume`, on a temporary SQLite file (bare `pest --testsuite=Volume` takes the in-memory default and fails on "no such table", #674) |
 
 The suites take another engine from the environment, as CI does. `tests/engine.sh` starts CI's image of one in Docker (`mysql:8.4` on 53306, `mariadb:10.11` on 53307, `postgres:15` on 55432), waits for its health check and runs the `Kami` suite, a named suite or any command with the engine's `DB_*` set; the container stays up for the next run, `docker stop kami-<engine>` removes it. Herd's own MySQL is 9.4, not CI's version.
 
