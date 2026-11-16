@@ -30,6 +30,7 @@ use Psyao\Kami\Content\RichText\Document;
 use Psyao\Kami\Facades\Kami;
 use Psyao\Kami\Media\Actions\SaveMedia;
 use Workbench\App\Content\Article;
+use Workbench\App\Content\Blocks\Callout;
 use Workbench\App\Models\User;
 
 uses(RefreshDatabase::class);
@@ -639,6 +640,7 @@ it('offers only what the Field allows in its toolbar', function (RichText $field
 })->with([
     'by default' => [fn () => RichText::make('body'), ['bold', 'italic', 'link', 'h2', 'h3', 'h4', 'blockquote', 'bulletList', 'orderedList', 'horizontalRule', 'undo', 'redo']],
     'with code, narrowed' => [fn () => RichText::make('body')->code()->headings([3]), ['bold', 'italic', 'link', 'code', 'h3', 'blockquote', 'codeBlock', 'bulletList', 'orderedList', 'horizontalRule', 'undo', 'redo']],
+    'with Blocks' => [fn () => RichText::make('body')->blocks([Callout::class]), ['bold', 'italic', 'link', 'h2', 'h3', 'h4', 'blockquote', 'bulletList', 'orderedList', 'horizontalRule', 'customBlocks', 'undo', 'redo']],
 ]);
 
 it('renders no tool outside the allowed set', function () {

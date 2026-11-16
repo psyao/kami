@@ -41,6 +41,8 @@ final class RichTextInput
                 ['bold', 'italic', 'link', ...($field->allowsCode() ? ['code'] : [])],
                 array_map(fn (int $level): string => "h{$level}", $field->headingLevels()),
                 ['blockquote', ...($field->allowsCode() ? ['codeBlock'] : []), 'bulletList', 'orderedList', 'horizontalRule'],
+                // An explicit list drops the Blocks button Filament's default list adds; nothing else opens their panel.
+                $field->availableBlocks() === [] ? [] : ['customBlocks'],
                 ['undo', 'redo'],
             ])))
             // One button per offered Block, each through its slot (ADR 0024).
