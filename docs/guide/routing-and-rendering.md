@@ -125,7 +125,7 @@ It renders nothing for a null value.
 
 ### Language switcher
 
-`<x-kami::locales />` links the page's Entry in its other Locales ([Multilingual](multilingual.md#language-switcher)).
+`<x-kami::locales />` links the page's Entry, or an Archive's first page, in its other Locales ([Multilingual](multilingual.md#language-switcher)).
 
 ### Breadcrumb
 
@@ -219,7 +219,7 @@ The Locale then comes from the URL's first segment, as on Kami's pages: `/en/unk
 
 Write the views in two kinds:
 
-- **4xx** (403, 404, 410, 419, 429) can use your layout, with `<x-kami::seo :title="__('Not Found')" />` for a head of `{title} – {Site}` with no canonical URL ([SEO](seo.md#the-head)). `<x-kami::locales />` renders nothing there, as there is no Entry.
+- **4xx** (403, 404, 410, 419, 429) can use your layout, with `<x-kami::seo :title="__('Not Found')" />` for a head of `{title} – {Site}` with no canonical URL ([SEO](seo.md#the-head)). `<x-kami::locales />` renders nothing there, as there is no Entry or Archive.
 - **5xx** (500, 503) stand alone: no database query, no `@vite`, no script, a `<meta name="robots" content="noindex">`, and a stylesheet served as a file from `public/`. A 500 may mean the database or the build is the problem, and an inline `<style>` breaks the Content Security Policy.
 
 An error raised on a route keeps that route's security headers: Kami's route sends its own, and your routes theirs once `SecurityHeaders` is in the `web` group ([Security](security.md#your-own-pages)). Maintenance mode's 503 answers before any route, so it carries none: keep that view static, with no visitor input in it. `php artisan down` answers it before any cached page ([Page cache](page-cache.md#serving-before-laravel-boots)). With `--render`, the command renders the view once, outside any request, so in no visitor's Locale.
